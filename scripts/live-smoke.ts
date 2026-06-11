@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { createApp } from "../src/worker/app";
 import type { WorkerEnv } from "../src/worker/env";
 import {

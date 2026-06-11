@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink, Github, Globe2, Route } from "lucide-react";
+import { ArrowLeft, ExternalLink, Globe2, Route } from "lucide-react";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 
@@ -32,7 +32,7 @@ export function AboutPage({ onBack }: AboutPageProps) {
             <div className="about-header-actions">
               <Button asChild variant="glass" size="sm">
                 <a href="https://github.com/nxtrace/GlobalTrace" target="_blank" rel="noreferrer">
-                  <Github size={16} />
+                  <ExternalLink size={16} />
                   源码
                 </a>
               </Button>
