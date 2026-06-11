@@ -62,6 +62,7 @@ export function App() {
   const [filters, setFilters] = useState<TraceFilters>({ magic: "world" });
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileResetNonce, setTurnstileResetNonce] = useState(0);
+  const [configReady, setConfigReady] = useState(false);
   const [probes, setProbes] = useState<GlobalpingProbe[]>([]);
   const [probesStatus, setProbesStatus] = useState<"loading" | "ready" | "error">("loading");
   const [limits, setLimits] = useState<GlobalpingLimitResponse | null>(null);
@@ -82,7 +83,7 @@ export function App() {
 
   const finalResult = result?.status === "in-progress" ? null : result;
   const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
-  const turnstileReady = !config.turnstileSiteKey || Boolean(turnstileToken);
+  const turnstileReady = configReady && (!config.turnstileSiteKey || Boolean(turnstileToken));
   const filteredProbes = useMemo(() => filterProbes(probes, filters), [filters, probes]);
   const filterSuggestions = useMemo(() => probeFilterSuggestions(probes, filters), [filters, probes]);
   const chips = useMemo(() => filterChips(filters), [filters]);
@@ -187,12 +188,20 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (route !== "/") return;
+    if (route !== "/" || !configReady) return;
     const id = new URL(window.location.href).searchParams.get("measurement");
-    if (id && id !== createdMeasurementIdRef.current) {
-      void loadTrace(id, true, globalpingToken, turnstileToken, "shared");
+    if (!id || id === createdMeasurementIdRef.current) return;
+    if (hasReusableSharedResult(result, id)) return;
+    if (config.turnstileSiteKey && !turnstileToken) {
+      if (result?.measurementId !== id) {
+        setSharedLoadingMeasurementId(id);
+        setWorkspaceMode("result");
+        setMessage("");
+      }
+      return;
     }
-  }, [globalpingToken, loadTrace, route, turnstileToken]);
+    void loadTrace(id, true, globalpingToken, turnstileToken, "shared");
+  }, [config.turnstileSiteKey, configReady, globalpingToken, loadTrace, route, turnstileToken]);
 
   useEffect(() => () => pollAbortRef.current?.abort(), []);
 
@@ -204,6 +213,7 @@ export function App() {
         mapStyleUrl: nextConfig.mapStyleUrl || current.mapStyleUrl,
       }));
     }
+    setConfigReady(true);
 
     try {
       const nextProbes = await fetchProbes();
@@ -566,6 +576,14 @@ function SharedResultLoading({ measurementId }: { measurementId: string }) {
 
 function currentRoute(): AppRoute {
   return window.location.pathname === "/about" ? "/about" : "/";
+}
+
+function hasReusableSharedResult(result: TraceResultResponse | null, measurementId: string): boolean {
+  return (
+    result?.measurementId === measurementId &&
+    result.status !== "in-progress" &&
+    (result.enrichment.status === "complete" || result.enrichment.status === "partial")
+  );
 }
 
 function readStoredGlobalpingToken(): string {

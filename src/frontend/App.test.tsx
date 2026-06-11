@@ -266,6 +266,44 @@ describe("App", () => {
     ]);
   });
 
+  it("keeps an enriched shared result when Turnstile expires", async () => {
+    const fetchMock = mockApi({
+      traceStatus: () => "finished",
+      turnstileSiteKey: "site-key",
+      enrichmentStatus: "complete",
+    });
+    let callback: ((token: string) => void) | undefined;
+    let expiredCallback: (() => void) | undefined;
+    window.turnstile = {
+      render: vi.fn((element, options) => {
+        callback = options.callback;
+        expiredCallback = options["expired-callback"];
+        const widget = document.createElement("div");
+        widget.className = "mock-turnstile-widget";
+        element.appendChild(widget);
+        window.setTimeout(() => callback?.("turnstile-token-1"), 0);
+        return "widget-id";
+      }),
+      reset: vi.fn(),
+    };
+    window.history.replaceState(null, "", "/?measurement=m123");
+
+    render(<App />);
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
+    expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual(["turnstile-token-1"]);
+
+    act(() => {
+      expiredCallback?.();
+    });
+    await waitFor(() => expect(screen.getByText("已过期")).toBeInTheDocument());
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+    expect(screen.getByText("result:finished:m123")).toBeInTheDocument();
+    expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual(["turnstile-token-1"]);
+  });
+
   it("does not create a trace before Turnstile produces a token", async () => {
     const fetchMock = mockApi({ turnstileSiteKey: "site-key" });
 
@@ -450,7 +488,11 @@ describe("App", () => {
 });
 
 function mockApi(
-  options: { traceStatus?: (polls: number) => TraceResultResponse["status"]; turnstileSiteKey?: string } = {},
+  options: {
+    traceStatus?: (polls: number) => TraceResultResponse["status"];
+    turnstileSiteKey?: string;
+    enrichmentStatus?: TraceResultResponse["enrichment"]["status"];
+  } = {},
 ) {
   let tracePolls = 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -478,7 +520,7 @@ function mockApi(
       return json(globalpingMeasurement(status));
     }
     if (path === "/api/trace/enrich" && init?.method === "POST") {
-      return json(traceResult("finished"));
+      return json(traceResult("finished", options.enrichmentStatus));
     }
     throw new Error(`unexpected fetch: ${path}`);
   });
@@ -552,7 +594,10 @@ function globalpingMeasurement(status: TraceResultResponse["status"]): Globalpin
   };
 }
 
-function traceResult(status: TraceResultResponse["status"]): TraceResultResponse {
+function traceResult(
+  status: TraceResultResponse["status"],
+  enrichmentStatus: TraceResultResponse["enrichment"]["status"] = "skipped",
+): TraceResultResponse {
   return {
     measurementId: "m123",
     type: "mtr",
@@ -560,7 +605,7 @@ function traceResult(status: TraceResultResponse["status"]): TraceResultResponse
     status,
     probesCount: 1,
     results: [],
-    enrichment: { status: "skipped", cached: 0, fetched: 0, errors: [] },
+    enrichment: { status: enrichmentStatus, cached: 0, fetched: 0, errors: [] },
   };
 }
 
