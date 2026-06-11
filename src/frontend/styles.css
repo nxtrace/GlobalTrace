@@ -1507,6 +1507,16 @@ tbody tr:hover {
   background: var(--accent-soft);
 }
 
+.probe-tab-content {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.probe-tab-content .table-empty {
+  margin-top: 0;
+}
+
 .result-metrics {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
