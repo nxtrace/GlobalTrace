@@ -363,9 +363,15 @@ describe("ResultsView", () => {
     const headerActions = toolbar.closest(".result-header-actions") as HTMLElement;
     expect(headerActions).not.toBeNull();
     expect(headerActions.firstElementChild).toBe(toolbar);
-    expect(within(headerActions).getByRole("button", { name: "复制" })).toBeInTheDocument();
-    expect(within(headerActions).getByRole("button", { name: "关闭结果" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "切换结果地图到 3D" })).toHaveAttribute("aria-pressed", "true");
+    const copyButton = within(headerActions).getByRole("button", { name: "复制" });
+    const closeButton = within(headerActions).getByRole("button", { name: "关闭结果" });
+    const twoDimensionalButton = screen.getByRole("button", { name: "切换结果地图到 2D" });
+    const threeDimensionalButton = screen.getByRole("button", { name: "切换结果地图到 3D" });
+    expect(copyButton).toHaveClass("result-action-button");
+    expect(closeButton).toHaveClass("result-action-button");
+    expect(twoDimensionalButton).toHaveClass("result-action-button", "result-view-button");
+    expect(threeDimensionalButton).toHaveClass("result-action-button", "result-view-button");
+    expect(threeDimensionalButton).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 2D" }));
 
     expect(onMapProjectionChange).toHaveBeenCalledWith("mercator");

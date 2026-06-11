@@ -868,6 +868,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const viewSwitch = document.querySelector(".result-map-view-switch") as HTMLElement | null;
     const share = document.querySelector(".share-surface") as HTMLElement | null;
     const switchButton = document.querySelector(".result-map-view-switch button") as HTMLElement | null;
+    const twoDimensionalButton = document.querySelector('[aria-label="切换结果地图到 2D"]') as HTMLElement | null;
+    const threeDimensionalButton = document.querySelector('[aria-label="切换结果地图到 3D"]') as HTMLElement | null;
     const copyButton = document.querySelector(".share-actions button") as HTMLElement | null;
     const closeButton = document.querySelector('.result-header-actions [aria-label="关闭结果"]') as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
@@ -875,6 +877,25 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const table = document.querySelector(".hop-table-scroll") as HTMLElement | null;
     const cards = document.querySelector(".hop-card-list") as HTMLElement | null;
     const rawBlocks = Array.from(document.querySelectorAll(".raw-output[open] pre")) as HTMLElement[];
+    const buttonStyleFor = (element: HTMLElement | null) => {
+      if (!element) {
+        return {
+          backgroundColor: "",
+          borderColor: "",
+          className: "",
+          color: "",
+          pressed: "",
+        };
+      }
+      const style = window.getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        borderColor: style.borderColor,
+        className: element.className,
+        color: style.color,
+        pressed: element.getAttribute("aria-pressed") || "",
+      };
+    };
     const rectFor = (element: Element | null) => {
       const rect = element?.getBoundingClientRect();
       return rect
@@ -954,6 +975,12 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       cardListDisplay: cards ? window.getComputedStyle(cards).display : "",
       cardRects,
       rawMaxHeights: rawBlocks.map((raw) => window.getComputedStyle(raw).maxHeight),
+      actionButtonStyles: {
+        twoDimensional: buttonStyleFor(twoDimensionalButton),
+        threeDimensional: buttonStyleFor(threeDimensionalButton),
+        copy: buttonStyleFor(copyButton),
+        close: buttonStyleFor(closeButton),
+      },
       buttonRects,
       overlaps,
     };
@@ -986,6 +1013,26 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.buttonHeight).toBeGreaterThanOrEqual(44);
   expect(state.copyButtonHeight).toBeGreaterThanOrEqual(44);
   expect(state.closeButtonHeight).toBeGreaterThanOrEqual(44);
+  expect(state.actionButtonStyles.copy.className).toContain("result-action-button");
+  expect(state.actionButtonStyles.close.className).toContain("result-action-button");
+  expect(state.actionButtonStyles.twoDimensional.className).toContain("result-action-button");
+  expect(state.actionButtonStyles.threeDimensional.className).toContain("result-action-button");
+  expect(state.actionButtonStyles.copy.backgroundColor).toBe(state.actionButtonStyles.close.backgroundColor);
+  expect(state.actionButtonStyles.copy.borderColor).toBe(state.actionButtonStyles.close.borderColor);
+  expect(state.actionButtonStyles.copy.color).toBe(state.actionButtonStyles.close.color);
+  const viewButtonStyles = [
+    state.actionButtonStyles.twoDimensional,
+    state.actionButtonStyles.threeDimensional,
+  ];
+  const activeViewButtonStyle = viewButtonStyles.find((style) => style.pressed === "true");
+  const inactiveViewButtonStyle = viewButtonStyles.find((style) => style.pressed !== "true");
+  expect(activeViewButtonStyle).toBeTruthy();
+  expect(inactiveViewButtonStyle).toBeTruthy();
+  expect(inactiveViewButtonStyle?.backgroundColor).toBe(state.actionButtonStyles.copy.backgroundColor);
+  expect(inactiveViewButtonStyle?.borderColor).toBe(state.actionButtonStyles.copy.borderColor);
+  expect(inactiveViewButtonStyle?.color).toBe(state.actionButtonStyles.copy.color);
+  expect(activeViewButtonStyle?.backgroundColor).not.toBe(state.actionButtonStyles.copy.backgroundColor);
+  expect(activeViewButtonStyle?.color).not.toBe(state.actionButtonStyles.copy.color);
   expect(Math.abs(state.shareSurfaceTop - state.closeButtonTop)).toBeLessThanOrEqual(2);
   expect(state.copyButtonTop).toBeGreaterThanOrEqual(state.shareSurfaceTop);
   expect(state.copyButtonTop).toBeGreaterThanOrEqual(state.toolbarBottom - 1);

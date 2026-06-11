@@ -118,7 +118,15 @@ export function ResultsView({
           {renderMap && <ResultMapToolbar mapProjection={mapProjection} onMapProjectionChange={onMapProjectionChange} />}
           <ShareButton measurementId={result.measurementId} />
           {onClose && (
-            <Button variant="glass" size="sm" type="button" onClick={onClose} title="关闭结果" aria-label="关闭结果">
+            <Button
+              variant="glass"
+              size="sm"
+              className="result-action-button"
+              type="button"
+              onClick={onClose}
+              title="关闭结果"
+              aria-label="关闭结果"
+            >
               <X size={16} />
               关闭结果
             </Button>
@@ -194,8 +202,9 @@ function ResultMapToolbar({
       <LiquidGlassSurface variant="toolbar" className="result-map-toolbar-surface">
         <div className="result-map-view-switch">
           <Button
-            variant={mapProjection === "mercator" ? "primary" : "ghost"}
+            variant="ghost"
             size="sm"
+            className="result-action-button result-view-button"
             type="button"
             onClick={() => onMapProjectionChange?.("mercator")}
             aria-pressed={mapProjection === "mercator"}
@@ -206,8 +215,9 @@ function ResultMapToolbar({
             2D
           </Button>
           <Button
-            variant={mapProjection === "globe" ? "primary" : "ghost"}
+            variant="ghost"
             size="sm"
+            className="result-action-button result-view-button"
             type="button"
             onClick={() => onMapProjectionChange?.("globe")}
             aria-pressed={mapProjection === "globe"}
@@ -240,7 +250,14 @@ function ShareButton({ measurementId }: { measurementId: string }) {
   return (
     <LiquidGlassSurface variant="toolbar" className="share-surface">
       <div className="share-actions">
-        <Button variant="glass" size="sm" type="button" onClick={copy} title="复制分享 URL">
+        <Button
+          variant="glass"
+          size="sm"
+          className="result-action-button"
+          type="button"
+          onClick={copy}
+          title="复制分享 URL"
+        >
           <Copy size={16} />
           {copied ? "已复制" : "复制"}
         </Button>

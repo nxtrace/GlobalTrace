@@ -1007,9 +1007,16 @@ summary:focus-visible {
 
 .result-map-toolbar-surface .liquid-glass-content,
 .result-map-toolbar-surface .liquid-glass-fallback-content {
-  border-color: var(--map-control-border);
-  background: var(--map-control-bg);
-  box-shadow: var(--map-control-shadow);
+  border-color: var(--control-border);
+  background: var(--control-bg);
+  box-shadow: var(--shadow-control);
+}
+
+.result-map-toolbar-surface .glass,
+.share-surface .glass {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.12)),
+    var(--control-bg);
 }
 
 .result-map-view-switch {
@@ -1027,6 +1034,13 @@ summary:focus-visible {
 
 .share-surface .liquid-glass-content {
   padding: 4px;
+}
+
+.share-surface .liquid-glass-content,
+.share-surface .liquid-glass-fallback-content {
+  border-color: var(--control-border);
+  background: var(--control-bg);
+  box-shadow: var(--shadow-control);
 }
 
 .share-surface {
@@ -1051,6 +1065,33 @@ summary:focus-visible {
 .result-header-actions > button {
   height: 40px;
   min-height: 40px;
+}
+
+.result-action-button {
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--ink);
+  font-weight: 720;
+  box-shadow: var(--shadow-control);
+}
+
+.result-action-button:hover {
+  background: var(--control-bg-hover);
+  color: var(--ink);
+}
+
+.result-action-button[aria-pressed="true"] {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  box-shadow: var(--shadow-inset);
+}
+
+.result-action-button:disabled {
+  opacity: 0.58;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
 }
 
 .primary-action {
@@ -1116,15 +1157,17 @@ summary:focus-visible {
 }
 
 .tool-button.active {
-  border-color: rgba(88, 127, 120, 0.3);
-  background: rgba(88, 127, 120, 0.9);
-  color: #ffffff;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  box-shadow: var(--shadow-inset);
 }
 
 .map-toolbar .tool-button.active {
   border-color: var(--accent-border) !important;
-  background: var(--accent) !important;
-  color: #ffffff !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent-strong) !important;
+  box-shadow: var(--shadow-inset);
 }
 
 .icon-button {
