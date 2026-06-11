@@ -823,17 +823,26 @@ function compactHopDetails(hop: TraceHop) {
 function resultSummary(result: TraceResultResponse, active: TraceProbeResult | null) {
   const finished = result.results.filter((item) => item.status === "finished").length;
   const hopCount = active?.hops.length || 0;
-  const publicHopCount = active?.hops.filter((hop) => hop.ip && !hop.privateAddress).length || 0;
-  const avgLoss = active?.hops.length
-    ? active.hops.reduce((sum, hop) => sum + (hop.stats?.loss || 0), 0) / active.hops.length
-    : 0;
+  const targetHop = findTargetHop(active);
+  const targetLoss = targetHop?.stats ? formatPercent(targetHop.stats.loss) : "N/A";
+  const targetLatency =
+    targetHop?.stats && targetHop.stats.loss < 100 && typeof targetHop.stats.avg === "number"
+      ? formatMs(targetHop.stats.avg)
+      : "N/A";
+
   return [
     { label: "status", value: result.status },
     { label: "probes", value: `${finished}/${result.probesCount}` },
     { label: "hops", value: String(hopCount) },
-    { label: "public IP", value: String(publicHopCount) },
-    { label: "avg loss", value: `${avgLoss.toFixed(1)}%` },
+    { label: "目标延迟", value: targetLatency },
+    { label: "目标丢包", value: targetLoss },
   ];
+}
+
+function findTargetHop(active: TraceProbeResult | null): TraceHop | null {
+  const targetIp = active?.resolvedAddress?.trim();
+  if (!targetIp) return null;
+  return active?.hops.find((hop) => hop.ip === targetIp) || null;
 }
 
 function enrichmentLabel(status: TraceResultResponse["enrichment"]["status"]): string {

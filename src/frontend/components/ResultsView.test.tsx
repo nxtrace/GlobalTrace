@@ -176,6 +176,16 @@ describe("ResultsView", () => {
     expect(screen.getByText("raw output")).toBeInTheDocument();
   });
 
+  it("renders target metrics from the active resolved destination hop", () => {
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    const summary = screen.getByLabelText("trace summary");
+    expectSummaryMetric("目标延迟", "1.2 ms");
+    expectSummaryMetric("目标丢包", "0.0%");
+    expect(within(summary).queryByText("public IP")).not.toBeInTheDocument();
+    expect(within(summary).queryByText("avg loss")).not.toBeInTheDocument();
+  });
+
   it("falls back to English GeoIP fields when Chinese fields are absent", () => {
     render(<ResultsView result={englishOnlyRegionResult} mapStyleUrl="about:blank" renderMap={false} />);
 
@@ -235,6 +245,40 @@ describe("ResultsView", () => {
 
     expect(screen.getByText("203.0.113.9")).toBeInTheDocument();
     expect(screen.getByText("AS64500")).toBeInTheDocument();
+  });
+
+  it("updates target metrics when the active probe changes", () => {
+    render(<ResultsView result={multiProbeResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    expectSummaryMetric("目标延迟", "1.2 ms");
+    expectSummaryMetric("目标丢包", "0.0%");
+
+    fireEvent.click(screen.getByRole("tab", { name: /Tokyo/ }));
+
+    expectSummaryMetric("目标延迟", "8.0 ms");
+    expectSummaryMetric("目标丢包", "12.5%");
+  });
+
+  it("renders N/A target latency when the destination is fully lost", () => {
+    render(<ResultsView result={targetLossResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    expectSummaryMetric("目标延迟", "N/A");
+    expectSummaryMetric("目标丢包", "100.0%");
+  });
+
+  it("renders N/A target metrics without a usable destination hop", () => {
+    render(<ResultsView result={targetMetricFallbackResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    expectSummaryMetric("目标延迟", "N/A");
+    expectSummaryMetric("目标丢包", "N/A");
+
+    fireEvent.click(screen.getByRole("tab", { name: /No match/ }));
+    expectSummaryMetric("目标延迟", "N/A");
+    expectSummaryMetric("目标丢包", "N/A");
+
+    fireEvent.click(screen.getByRole("tab", { name: /No stats/ }));
+    expectSummaryMetric("目标延迟", "N/A");
+    expectSummaryMetric("目标丢包", "N/A");
   });
 
   it("renders raw and whois detail payloads", () => {
@@ -423,6 +467,13 @@ function mockScrollIntoView() {
   return scrollIntoView;
 }
 
+function expectSummaryMetric(label: string, value: string) {
+  const summary = screen.getByLabelText("trace summary");
+  const metric = within(summary).getByText(label).closest(".metric");
+  if (!metric) throw new Error(`metric not found for ${label}`);
+  expect(within(metric as HTMLElement).getByText(value)).toBeInTheDocument();
+}
+
 function hopLabels(collection: ReturnType<typeof buildResultMapData>["featureCollection"]): string[] {
   return collection.features
     .filter((feature) => feature.properties?.kind === "hop")
@@ -595,6 +646,53 @@ const ownerFormattingResult: TraceResultResponse = {
   ],
 };
 
+const targetLossResult: TraceResultResponse = {
+  ...sampleResult,
+  measurementId: "m-target-loss",
+  results: [
+    {
+      ...sampleResult.results[0],
+      resolvedAddress: "198.51.100.2",
+      hops: [
+        hopWithGeo(1, "198.51.100.1", 37.7, -122.4),
+        {
+          ...hopWithGeo(2, "198.51.100.2", 37.7, -122.4),
+          stats: { min: null, avg: null, max: null, total: 3, rcv: 0, drop: 3, loss: 100 },
+        },
+      ],
+    },
+  ],
+};
+
+const targetMetricFallbackResult: TraceResultResponse = {
+  ...sampleResult,
+  measurementId: "m-target-fallback",
+  probesCount: 3,
+  results: [
+    {
+      ...sampleResult.results[0],
+      id: "probe-no-resolved",
+      probe: { ...sampleResult.results[0].probe, city: "No resolved", asn: 64501 },
+      resolvedAddress: null,
+      hops: [hopWithGeo(1, "198.51.100.3", 37.7, -122.4)],
+    },
+    {
+      ...sampleResult.results[0],
+      id: "probe-no-match",
+      probe: { ...sampleResult.results[0].probe, city: "No match", asn: 64502 },
+      resolvedAddress: "198.51.100.5",
+      hops: [hopWithGeo(1, "198.51.100.4", 37.7, -122.4)],
+    },
+    {
+      ...sampleResult.results[0],
+      id: "probe-no-stats",
+      probe: { ...sampleResult.results[0].probe, city: "No stats", asn: 64503 },
+      resolvedAddress: "198.51.100.6",
+      hops: [{ ...hopWithGeo(1, "198.51.100.6", 37.7, -122.4), stats: null }],
+    },
+  ],
+};
+
 const inProgressResult: TraceResultResponse = {
   measurementId: "m124",
   type: "mtr",
@@ -727,7 +825,7 @@ const multiProbeResult: TraceResultResponse = {
           hostname: "edge.example",
           asn: [64500],
           timingsMs: [8],
-          stats: { min: 7, avg: 8, max: 9, total: 1, rcv: 1, drop: 0, loss: 0 },
+          stats: { min: 7, avg: 8, max: 9, total: 8, rcv: 7, drop: 1, loss: 12.5 },
         },
       ],
     },
