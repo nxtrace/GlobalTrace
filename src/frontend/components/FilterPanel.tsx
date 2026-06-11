@@ -146,25 +146,6 @@ export function FilterPanel(props: FilterPanelProps) {
                 </label>
               </div>
 
-              <div className="segmented" aria-label="网络类型">
-                <label className={props.filters.eyeball ? "selected" : ""}>
-                  <span>eyeball</span>
-                  <Switch
-                    checked={Boolean(props.filters.eyeball)}
-                    onCheckedChange={(checked) => setFilter("eyeball", Boolean(checked))}
-                    aria-label="eyeball"
-                  />
-                </label>
-                <label className={props.filters.datacenter ? "selected" : ""}>
-                  <span>datacenter</span>
-                  <Switch
-                    checked={Boolean(props.filters.datacenter)}
-                    onCheckedChange={(checked) => setFilter("datacenter", Boolean(checked))}
-                    aria-label="datacenter"
-                  />
-                </label>
-              </div>
-
               <label className="field-label">
                 <span>magic string</span>
                 <Textarea
@@ -243,6 +224,25 @@ export function FilterPanel(props: FilterPanelProps) {
                   <label className="field-label">
                     <span>network</span>
                     <Input value={props.filters.network || ""} onChange={(event) => setFilter("network", event.target.value)} />
+                  </label>
+                </div>
+
+                <div className="segmented" aria-label="网络类型">
+                  <label className={props.filters.eyeball ? "selected" : ""}>
+                    <span>eyeball</span>
+                    <Switch
+                      checked={Boolean(props.filters.eyeball)}
+                      onCheckedChange={(checked) => setFilter("eyeball", Boolean(checked))}
+                      aria-label="eyeball"
+                    />
+                  </label>
+                  <label className={props.filters.datacenter ? "selected" : ""}>
+                    <span>datacenter</span>
+                    <Switch
+                      checked={Boolean(props.filters.datacenter)}
+                      onCheckedChange={(checked) => setFilter("datacenter", Boolean(checked))}
+                      aria-label="datacenter"
+                    />
                   </label>
                 </div>
 

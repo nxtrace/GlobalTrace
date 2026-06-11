@@ -62,6 +62,8 @@ describe("FilterPanel", () => {
     expect(screen.getByText("本地模式，无 Turnstile site key")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "主题：System" })).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toBeVisible();
+    expect(screen.getByLabelText("eyeball")).not.toBeVisible();
+    expect(screen.getByLabelText("datacenter")).not.toBeVisible();
     expect(screen.getByLabelText("Globalping Token")).not.toBeVisible();
     expect(screen.getByText(/Powered by/)).toBeInTheDocument();
     expect(screen.getByText("×")).toBeInTheDocument();
@@ -76,6 +78,8 @@ describe("FilterPanel", () => {
     expect(screen.getByLabelText("ASN")).toBeVisible();
     expect(screen.getByLabelText("network")).toBeVisible();
     expect(screen.getByLabelText("tag")).toBeVisible();
+    expect(screen.getByLabelText("eyeball")).toBeVisible();
+    expect(screen.getByLabelText("datacenter")).toBeVisible();
     const advancedPanel = screen.getByText("高级参数与精确筛选").closest("details") as HTMLElement;
     expect(within(advancedPanel).queryByLabelText("magic string")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Globalping Token")).toBeVisible();
@@ -90,6 +94,7 @@ describe("FilterPanel", () => {
     renderPanel({ onFiltersChange, onProtocolChange });
 
     fireEvent.change(screen.getByLabelText("协议"), { target: { value: "TCP" } });
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
     fireEvent.click(screen.getByLabelText("eyeball"));
 
     expect(onProtocolChange).toHaveBeenCalledWith("TCP");
