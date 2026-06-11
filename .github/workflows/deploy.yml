@@ -95,12 +95,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --config .wrangler-ci.jsonc
-          secrets: |
-            NXTRACE_API_V4_TOKEN
-            TURNSTILE_SECRET_KEY
-        env:
-          NXTRACE_API_V4_TOKEN: ${{ secrets.NXTRACE_API_V4_TOKEN }}
-          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
 
       - name: Smoke deployed Worker
         run: |
