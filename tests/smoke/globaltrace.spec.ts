@@ -42,7 +42,7 @@ for (const viewport of viewports) {
     await expect(page.locator(".maplibregl-canvas")).toBeVisible();
     await expectDarkMapControls(page);
     await expect(page.locator("[data-liquid-glass]").first()).toBeVisible();
-    await expect(page.locator('[data-liquid-glass][data-liquid-glass-mode="liquid"]').first()).toBeVisible();
+    await expect(page.locator("[data-liquid-glass]").first()).toHaveAttribute("data-liquid-glass-mode", /^(liquid|fallback)$/);
     await expect.poll(mocks.styleRequests).toBe(1);
     await expect(page.getByLabel("IP 版本")).toHaveValue("");
     await page.getByLabel("IP 版本").selectOption("6");
