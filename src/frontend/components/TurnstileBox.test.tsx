@@ -23,6 +23,19 @@ describe("TurnstileBox", () => {
   it("renders the widget container and verification state when a site key exists", async () => {
     vi.useFakeTimers();
     const onToken = vi.fn();
+    stubIdleCallback();
+
+    render(<TurnstileBox siteKey="site-key" onToken={onToken} />);
+
+    expect(screen.getByText("等待验证")).toBeInTheDocument();
+    expect(document.querySelector(".turnstile-widget-shell")).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    const script = document.querySelector<HTMLScriptElement>("script[data-turnstile]");
+    expect(script).toHaveAttribute("src", "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit");
     window.turnstile = {
       render: vi.fn((element, options) => {
         const widget = document.createElement("div");
@@ -35,14 +48,8 @@ describe("TurnstileBox", () => {
       }),
       reset: vi.fn(),
     };
-
-    render(<TurnstileBox siteKey="site-key" onToken={onToken} />);
-
-    expect(screen.getByText("等待验证")).toBeInTheDocument();
-    expect(document.querySelector(".turnstile-widget-shell")).toBeInTheDocument();
-
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(250);
+      script?.dispatchEvent(new Event("load"));
     });
 
     expect(window.turnstile.render).toHaveBeenCalledTimes(1);
@@ -55,6 +62,7 @@ describe("TurnstileBox", () => {
     vi.useFakeTimers();
     const onToken = vi.fn();
     let callback: ((token: string) => void) | undefined;
+    stubIdleCallback();
     window.turnstile = {
       render: vi.fn((element, options) => {
         callback = options.callback;
@@ -69,7 +77,7 @@ describe("TurnstileBox", () => {
 
     const { rerender } = render(<TurnstileBox siteKey="site-key" resetNonce={0} onToken={onToken} />);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(250);
+      await vi.runAllTimersAsync();
     });
     expect(onToken).toHaveBeenCalledWith("turnstile-token-1");
 
@@ -89,3 +97,13 @@ describe("TurnstileBox", () => {
     expect(screen.getByText("已验证")).toBeInTheDocument();
   });
 });
+
+function stubIdleCallback(): void {
+  vi.stubGlobal(
+    "requestIdleCallback",
+    vi.fn((idleCallback: IdleRequestCallback) =>
+      window.setTimeout(() => idleCallback({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline), 0),
+    ),
+  );
+  vi.stubGlobal("cancelIdleCallback", vi.fn((id: number) => window.clearTimeout(id)));
+}

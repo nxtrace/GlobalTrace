@@ -19,6 +19,10 @@ describe("ProbeTable", () => {
     expect(screen.getByText("AS7922")).toBeInTheDocument();
     expect(screen.getByText("Comcast")).toBeInTheDocument();
     expect(screen.getByText("eyeball")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "选择 Los Angeles AS7922" })).toHaveAttribute(
+      "title",
+      "选择 Los Angeles+US+AS7922+eyeball-network",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "选择 Los Angeles AS7922" }));
     expect(onPick).toHaveBeenCalledWith(probe);

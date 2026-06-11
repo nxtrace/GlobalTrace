@@ -1,3 +1,4 @@
+import "./maplibre.css";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { AlertTriangle, Clock3, Copy, Route, Server, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";

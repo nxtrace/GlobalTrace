@@ -5,7 +5,6 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 interface ProbeTableProps {
   probes: GlobalpingProbe[];
@@ -49,20 +48,16 @@ export function ProbeTable({ probes, totalProbes, status, onPick }: ProbeTablePr
                   <ProbeTags probe={probe} />
                 </TableCell>
                 <TableCell>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        type="button"
-                        aria-label={`选择 ${probe.location.city || probe.location.country} AS${probe.location.asn}`}
-                        onClick={() => onPick(probe)}
-                      >
-                        <MapPin size={16} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>选择 {probeToMagic(probe)}</TooltipContent>
-                  </Tooltip>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    type="button"
+                    title={`选择 ${probeToMagic(probe)}`}
+                    aria-label={`选择 ${probe.location.city || probe.location.country} AS${probe.location.asn}`}
+                    onClick={() => onPick(probe)}
+                  >
+                    <MapPin size={16} />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}

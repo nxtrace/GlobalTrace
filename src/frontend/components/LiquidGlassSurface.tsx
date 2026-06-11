@@ -1,5 +1,7 @@
-import LiquidGlass from "liquid-glass-react";
-import { type ReactNode, useEffect, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { deferUntilIdle } from "../lib/defer";
+
+type LiquidGlassComponent = (typeof import("liquid-glass-react"))["default"];
 
 interface LiquidGlassSurfaceProps {
   children: ReactNode;
@@ -16,12 +18,28 @@ export function LiquidGlassSurface({
 }: LiquidGlassSurfaceProps) {
   const forceFallback = useForceFallback();
   const canUseLiquid = !forceFallback && supportsGlassEffects();
-  const mode = canUseLiquid ? "liquid" : "fallback";
+  const [LiquidGlass, setLiquidGlass] = useState<LiquidGlassComponent | null>(null);
+  const canRenderLiquid = canUseLiquid && LiquidGlass;
+  const mode = canRenderLiquid ? "liquid" : "fallback";
 
   useEffect(() => {
     document.documentElement.classList.toggle("liquid-glass-force-fallback", forceFallback);
     return () => document.documentElement.classList.remove("liquid-glass-force-fallback");
   }, [forceFallback]);
+
+  useEffect(() => {
+    if (!canUseLiquid || LiquidGlass) return;
+    let active = true;
+    const cancel = deferUntilIdle(() => {
+      void import("liquid-glass-react").then((module) => {
+        if (active) setLiquidGlass(() => module.default);
+      });
+    });
+    return () => {
+      active = false;
+      cancel();
+    };
+  }, [LiquidGlass, canUseLiquid]);
 
   const glassProps = liquidPropsForVariant(variant);
   const classes = [
@@ -35,7 +53,7 @@ export function LiquidGlassSurface({
 
   return (
     <div className={classes} data-liquid-glass data-liquid-glass-mode={mode}>
-      {canUseLiquid ? (
+      {canRenderLiquid ? (
         <LiquidGlass {...glassProps} className="liquid-glass-package" padding="0" style={{ width: "100%" }}>
           <div className="liquid-glass-content">{children}</div>
         </LiquidGlass>

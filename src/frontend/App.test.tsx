@@ -120,12 +120,12 @@ describe("App", () => {
     expect(enrichCall?.[1]?.headers).not.toEqual(expect.objectContaining({ Authorization: expect.any(String) }));
   });
 
-  it("renders the about route with attribution links", () => {
+  it("renders the about route with attribution links", async () => {
     window.history.replaceState(null, "", "/about");
 
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "GlobalTrace" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "GlobalTrace" })).toBeInTheDocument();
     expect(
       screen.getByText(
         "GlobalTrace 是一个 Globalping x NextTrace 的 toy 项目，借助 Globalping 遍布全球的 Probe 发起 MTR，并结合 NextTrace 数据补充跳点地理位置与网络归属信息。",

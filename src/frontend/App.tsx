@@ -1,4 +1,3 @@
-import "maplibre-gl/dist/maplibre-gl.css";
 import { AlertCircle, Eye, Loader2 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -11,14 +10,13 @@ import {
   fetchProbes,
   type AppConfig,
 } from "./api";
-import { AboutPage } from "./components/AboutPage";
 import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
 import { LiquidGlassSurface } from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
-import { TooltipProvider } from "./components/ui/tooltip";
+import { deferUntilIdle } from "./lib/defer";
 import { filterChips, filterProbes, magicFromSelectedProbes, probeToMagic } from "../shared/filters";
 import { measurementToTraceResponse } from "../shared/transform";
 import {
@@ -42,6 +40,7 @@ type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
 type TraceLoadSource = "created" | "shared";
 
+const AboutPage = lazy(() => import("./components/AboutPage").then((module) => ({ default: module.AboutPage })));
 const ProbeMap = lazy(() => import("./components/ProbeMap").then((module) => ({ default: module.ProbeMap })));
 const ResultsView = lazy(() => import("./components/ResultsView").then((module) => ({ default: module.ResultsView })));
 
@@ -71,6 +70,7 @@ export function App() {
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("select");
   const [loading, setLoading] = useState(false);
   const [sharedLoadingMeasurementId, setSharedLoadingMeasurementId] = useState("");
+  const [probeMapReady, setProbeMapReady] = useState(false);
   const [message, setMessage] = useState("");
   const [selectionNotice, setSelectionNotice] = useState("");
   const [mapSelectionActive, setMapSelectionActive] = useState(false);
@@ -107,6 +107,11 @@ export function App() {
     bootstrappedRef.current = true;
     void bootstrap();
   }, [route]);
+
+  useEffect(() => {
+    if (route !== "/" || probeMapReady) return;
+    return deferUntilIdle(() => setProbeMapReady(true));
+  }, [probeMapReady, route]);
 
   useEffect(() => {
     if (route !== "/") return;
@@ -377,15 +382,14 @@ export function App() {
 
   if (route === "/about") {
     return (
-      <TooltipProvider delayDuration={180}>
+      <Suspense fallback={<AboutPageFallback />}>
         <AboutPage onBack={navigateHome} />
-      </TooltipProvider>
+      </Suspense>
     );
   }
 
   return (
-    <TooltipProvider delayDuration={180}>
-      <main className={`app-shell${resultPriority ? " result-priority" : ""}`}>
+    <main className={`app-shell${resultPriority ? " result-priority" : ""}`}>
         <FilterPanel
           target={target}
           protocol={protocol}
@@ -467,19 +471,23 @@ export function App() {
               <SharedResultLoading measurementId={sharedLoadingMeasurementId} />
             ) : workspaceMode === "select" || !finalResult ? (
               <div className="map-and-table">
-                <Suspense fallback={<ProbeMapFallback />}>
-                  <ProbeMap
-                    probes={filteredProbes}
-                    totalProbes={probes.length}
-                    status={probesStatus}
-                    selectionNotice={selectionNotice}
-                    selectionActive={mapSelectionActive}
-                    mapStyleUrl={config.mapStyleUrl}
-                    onPickProbe={pickProbe}
-                    onBoxSelect={boxSelect}
-                    onClearSelection={clearMapSelection}
-                  />
-                </Suspense>
+                {probeMapReady ? (
+                  <Suspense fallback={<ProbeMapFallback />}>
+                    <ProbeMap
+                      probes={filteredProbes}
+                      totalProbes={probes.length}
+                      status={probesStatus}
+                      selectionNotice={selectionNotice}
+                      selectionActive={mapSelectionActive}
+                      mapStyleUrl={config.mapStyleUrl}
+                      onPickProbe={pickProbe}
+                      onBoxSelect={boxSelect}
+                      onClearSelection={clearMapSelection}
+                    />
+                  </Suspense>
+                ) : (
+                  <ProbeMapFallback />
+                )}
                 <ProbeTable probes={filteredProbes} totalProbes={probes.length} status={probesStatus} onPick={pickProbe} />
               </div>
             ) : (
@@ -489,8 +497,24 @@ export function App() {
             )}
           </div>
         </div>
-      </main>
-    </TooltipProvider>
+    </main>
+  );
+}
+
+function AboutPageFallback() {
+  return (
+    <main className="about-shell">
+      <Surface asChild className="about-panel">
+        <section role="status" aria-live="polite" aria-label="正在加载关于页面">
+          <div className="empty-hero">
+            <Loader2 size={20} className="spin" />
+            <div>
+              <h2>正在加载关于页面</h2>
+            </div>
+          </div>
+        </section>
+      </Surface>
+    </main>
   );
 }
 

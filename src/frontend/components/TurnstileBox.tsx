@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { deferUntilIdle } from "../lib/defer";
 
 declare global {
   interface Window {
@@ -36,19 +37,11 @@ export function TurnstileBox({ siteKey, resetNonce = 0, onToken }: TurnstileBoxP
       return;
     }
     setState("等待验证");
-
-    const ensureScript = () => {
-      if (document.querySelector("script[data-turnstile]")) return;
-      const script = document.createElement("script");
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      script.async = true;
-      script.defer = true;
-      script.dataset.turnstile = "true";
-      document.head.appendChild(script);
-    };
+    let active = true;
+    let pendingScript: HTMLScriptElement | null = null;
 
     const render = () => {
-      if (!containerRef.current || !window.turnstile || widgetIdRef.current) return;
+      if (!active || !containerRef.current || !window.turnstile || widgetIdRef.current) return;
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
         callback: (token) => {
@@ -66,9 +59,38 @@ export function TurnstileBox({ siteKey, resetNonce = 0, onToken }: TurnstileBoxP
       });
     };
 
-    ensureScript();
-    const timer = window.setInterval(render, 250);
-    return () => window.clearInterval(timer);
+    const handleScriptLoad = () => {
+      pendingScript?.setAttribute("data-loaded", "true");
+      render();
+    };
+    const handleScriptError = () => {
+      if (active) setState("验证失败");
+    };
+    const ensureScript = () => {
+      if (window.turnstile) {
+        render();
+        return;
+      }
+      pendingScript = document.querySelector<HTMLScriptElement>("script[data-turnstile]");
+      if (!pendingScript) {
+        pendingScript = document.createElement("script");
+        pendingScript.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        pendingScript.async = true;
+        pendingScript.defer = true;
+        pendingScript.dataset.turnstile = "true";
+        document.head.appendChild(pendingScript);
+      }
+      pendingScript.addEventListener("load", handleScriptLoad, { once: true });
+      pendingScript.addEventListener("error", handleScriptError, { once: true });
+    };
+
+    const cancel = deferUntilIdle(ensureScript);
+    return () => {
+      active = false;
+      cancel();
+      pendingScript?.removeEventListener("load", handleScriptLoad);
+      pendingScript?.removeEventListener("error", handleScriptError);
+    };
   }, [onToken, siteKey]);
 
   useEffect(() => {

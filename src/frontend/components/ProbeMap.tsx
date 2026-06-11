@@ -1,3 +1,4 @@
+import "./maplibre.css";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { BoxSelect, MousePointer2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
