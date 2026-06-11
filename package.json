@@ -2,6 +2,7 @@
   "name": "globaltrace",
   "version": "0.1.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "npm run build && HOME=$PWD/.wrangler-home wrangler dev --local --assets dist",

@@ -127,3 +127,7 @@ live smoke 会创建一个匿名 Globalping measurement，并校验 measurement 
 ## 部署
 
 完整提交和部署流程见 [docs/deployment.md](docs/deployment.md)。
+
+## License
+
+GlobalTrace is licensed under GPL-3.0-or-later. See [LICENSE](LICENSE).

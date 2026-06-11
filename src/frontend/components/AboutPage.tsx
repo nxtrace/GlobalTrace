@@ -1,10 +1,12 @@
-import { ArrowLeft, ExternalLink, Globe2, Route } from "lucide-react";
+import { ArrowLeft, ExternalLink, Globe2, Route, Scale } from "lucide-react";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 
 interface AboutPageProps {
   onBack: () => void;
 }
+
+const licenseHref = "https://github.com/nxtrace/GlobalTrace/blob/master/LICENSE";
 
 const attributionLinks = [
   { label: "Globalping", href: "https://globalping.io/" },
@@ -14,6 +16,7 @@ const attributionLinks = [
   { label: "NextTrace", href: "https://www.nxtrace.org/" },
   { label: "NTrace-core GitHub", href: "https://github.com/nxtrace/NTrace-core" },
   { label: "GlobalTrace GitHub", href: "https://github.com/nxtrace/GlobalTrace" },
+  { label: "GPL-3.0-or-later", href: licenseHref },
 ];
 
 export function AboutPage({ onBack }: AboutPageProps) {
@@ -60,6 +63,15 @@ export function AboutPage({ onBack }: AboutPageProps) {
               <div>
                 <h2>NextTrace</h2>
                 <p>使用 NextTrace / NTrace 数据补充 hop 的 GeoIP、ASN 与网络归属信息。</p>
+              </div>
+            </Surface>
+            <Surface variant="flat" className="about-card">
+              <span className="about-card-icon">
+                <Scale size={20} />
+              </span>
+              <div>
+                <h2>开源协议</h2>
+                <p>GlobalTrace 以 GPL-3.0-or-later 开源发布。</p>
               </div>
             </Surface>
           </div>

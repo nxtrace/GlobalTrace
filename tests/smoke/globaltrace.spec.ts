@@ -159,6 +159,12 @@ test("about page exposes provider attribution links", async ({ page }) => {
     "href",
     "https://github.com/nxtrace/GlobalTrace",
   );
+  await expect(page.getByRole("heading", { name: "开源协议" })).toBeVisible();
+  await expect(page.getByText("GlobalTrace 以 GPL-3.0-or-later 开源发布。")).toBeVisible();
+  await expect(page.getByRole("link", { name: /GPL-3.0-or-later/ })).toHaveAttribute(
+    "href",
+    "https://github.com/nxtrace/GlobalTrace/blob/master/LICENSE",
+  );
   await expect(page.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
   await expectNoMapJavaScriptLoaded(page);
   await expectNoPageOverflow(page);

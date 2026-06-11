@@ -143,6 +143,12 @@ describe("App", () => {
       "href",
       "https://github.com/nxtrace/GlobalTrace",
     );
+    expect(screen.getByRole("heading", { name: "开源协议" })).toBeInTheDocument();
+    expect(screen.getByText("GlobalTrace 以 GPL-3.0-or-later 开源发布。")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /GPL-3.0-or-later/ })).toHaveAttribute(
+      "href",
+      "https://github.com/nxtrace/GlobalTrace/blob/master/LICENSE",
+    );
     expect(screen.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
   });
 
