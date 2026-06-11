@@ -77,6 +77,14 @@
   --table-bg: rgba(255, 255, 255, 0.68);
   --table-header-bg: rgba(252, 253, 251, 0.94);
   --liquid-fallback-bg: rgba(255, 255, 255, 0.62);
+  --status-glass-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.1) 42%, rgba(255, 255, 255, 0.28)),
+    rgba(255, 255, 255, 0.08);
+  --status-glass-fallback-bg: var(--liquid-fallback-bg);
+  --status-glass-border: rgba(255, 255, 255, 0.66);
+  --status-glass-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 12px 30px rgba(0, 0, 0, 0.06);
   color: var(--ink);
   background: var(--page);
   font-family:
@@ -162,6 +170,14 @@
   --table-bg: rgba(25, 34, 35, 0.58);
   --table-header-bg: rgba(23, 31, 32, 0.96);
   --liquid-fallback-bg: rgba(25, 34, 35, 0.76);
+  --status-glass-bg:
+    linear-gradient(135deg, rgba(243, 247, 245, 0.1), rgba(243, 247, 245, 0.03) 42%, rgba(112, 185, 175, 0.08)),
+    rgba(18, 26, 27, 0.84);
+  --status-glass-fallback-bg: rgba(18, 26, 27, 0.84);
+  --status-glass-border: rgba(255, 255, 255, 0.14);
+  --status-glass-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 14px 32px rgba(0, 0, 0, 0.3);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -241,6 +257,14 @@
     --table-bg: rgba(25, 34, 35, 0.58);
     --table-header-bg: rgba(23, 31, 32, 0.96);
     --liquid-fallback-bg: rgba(25, 34, 35, 0.76);
+    --status-glass-bg:
+      linear-gradient(135deg, rgba(243, 247, 245, 0.1), rgba(243, 247, 245, 0.03) 42%, rgba(112, 185, 175, 0.08)),
+      rgba(18, 26, 27, 0.84);
+    --status-glass-fallback-bg: rgba(18, 26, 27, 0.84);
+    --status-glass-border: rgba(255, 255, 255, 0.14);
+    --status-glass-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 14px 32px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -923,8 +947,18 @@ summary:focus-visible {
   margin-bottom: 0;
 }
 
+.status-surface .glass {
+  background: var(--status-glass-bg);
+}
+
 .status-surface .liquid-glass-content {
   display: block;
+}
+
+.status-surface .liquid-glass-fallback-content {
+  border-color: var(--status-glass-border);
+  background: var(--status-glass-fallback-bg);
+  box-shadow: var(--status-glass-shadow);
 }
 
 .status-actions,
