@@ -44,9 +44,6 @@ type TraceLoadSource = "created" | "shared";
 const AboutPage = lazy(() => import("./components/AboutPage").then((module) => ({ default: module.AboutPage })));
 const ProbeMap = lazy(() => import("./components/ProbeMap").then((module) => ({ default: module.ProbeMap })));
 const ResultsView = lazy(() => import("./components/ResultsView").then((module) => ({ default: module.ResultsView })));
-const ThreeGlobeDashboard = lazy(() =>
-  import("./components/ThreeGlobeDashboard").then((module) => ({ default: module.ThreeGlobeDashboard })),
-);
 
 export function App() {
   const [route, setRoute] = useState<AppRoute>(currentRoute);
@@ -496,24 +493,6 @@ export function App() {
           <div className="workspace-content">
             {sharedLoadingMeasurementId ? (
               <SharedResultLoading measurementId={sharedLoadingMeasurementId} />
-            ) : viewMode === "3d" ? (
-              <Suspense fallback={<ThreeGlobeFallback />}>
-                <ThreeGlobeDashboard
-                  probes={filteredProbes}
-                  totalProbes={probes.length}
-                  probesStatus={probesStatus}
-                  selectionNotice={selectionNotice}
-                  selectionActive={mapSelectionActive}
-                  result={workspaceMode === "result" ? finalResult : null}
-                  availableResult={finalResult}
-                  loading={loading}
-                  themeMode={themeMode}
-                  onPickProbe={pickProbe}
-                  onClearSelection={clearMapSelection}
-                  onShowResult={showResult}
-                  onCloseResult={closeResult}
-                />
-              </Suspense>
             ) : workspaceMode === "select" || !finalResult ? (
               <div className="map-and-table">
                 {probeMapReady ? (
@@ -525,6 +504,9 @@ export function App() {
                       selectionNotice={selectionNotice}
                       selectionActive={mapSelectionActive}
                       mapStyleUrl={config.mapStyleUrl}
+                      mapProjection={viewMode === "3d" ? "globe" : "mercator"}
+                      boxSelectEnabled={viewMode !== "3d"}
+                      ariaLabel={viewMode === "3d" ? "3D 地球视图" : "probe map"}
                       onPickProbe={pickProbe}
                       onBoxSelect={boxSelect}
                       onClearSelection={clearMapSelection}
@@ -537,7 +519,12 @@ export function App() {
               </div>
             ) : (
               <Suspense fallback={<ResultsViewFallback />}>
-                <ResultsView result={finalResult} mapStyleUrl={config.mapStyleUrl} onClose={closeResult} />
+                <ResultsView
+                  result={finalResult}
+                  mapStyleUrl={config.mapStyleUrl}
+                  mapProjection={viewMode === "3d" ? "globe" : "mercator"}
+                  onClose={closeResult}
+                />
               </Suspense>
             )}
           </div>
@@ -587,17 +574,6 @@ function ResultsViewFallback() {
             <p>地图与 hop 明细加载完成后会自动显示。</p>
           </div>
         </div>
-      </section>
-    </Surface>
-  );
-}
-
-function ThreeGlobeFallback() {
-  return (
-    <Surface asChild className="three-dashboard-loading" aria-label="正在加载 3D 地球视图">
-      <section role="status" aria-live="polite">
-        <Loader2 size={24} className="spin" />
-        <span>正在加载 3D 地球</span>
       </section>
     </Surface>
   );

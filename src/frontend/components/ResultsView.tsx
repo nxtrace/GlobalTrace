@@ -18,6 +18,7 @@ import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import type { MapProjection } from "./mapProjection";
 
 const RESULT_MAP_DEFAULT_CENTER: [number, number] = [8, 25];
 const RESULT_MAP_DEFAULT_ZOOM = 1.4;
@@ -48,11 +49,12 @@ interface ResultMapDebugElement extends HTMLElement {
 interface ResultsViewProps {
   result: TraceResultResponse | null;
   mapStyleUrl: string;
+  mapProjection?: MapProjection;
   renderMap?: boolean;
   onClose?: () => void;
 }
 
-export function ResultsView({ result, mapStyleUrl, renderMap = true, onClose }: ResultsViewProps) {
+export function ResultsView({ result, mapStyleUrl, mapProjection = "mercator", renderMap = true, onClose }: ResultsViewProps) {
   const [selected, setSelected] = useState(0);
   const [selectedRouteNodeId, setSelectedRouteNodeId] = useState<string | null>(null);
   const [mapFocusRequest, setMapFocusRequest] = useState(0);
@@ -138,6 +140,7 @@ export function ResultsView({ result, mapStyleUrl, renderMap = true, onClose }: 
             <ResultMap
               data={mapData}
               mapStyleUrl={mapStyleUrl}
+              mapProjection={mapProjection}
               selectedRouteNodeId={selectedRouteNodeId}
               mapFocusRequest={mapFocusRequest}
               onSelectRouteNode={(nodeId) => selectRouteNode(nodeId)}
@@ -306,12 +309,14 @@ function EnrichmentStrip({ result }: { result: TraceResultResponse }) {
 function ResultMap({
   data,
   mapStyleUrl,
+  mapProjection,
   selectedRouteNodeId,
   mapFocusRequest,
   onSelectRouteNode,
 }: {
   data: ResultMapData;
   mapStyleUrl: string;
+  mapProjection: MapProjection;
   selectedRouteNodeId: string | null;
   mapFocusRequest: number;
   onSelectRouteNode: (nodeId: string) => void;
@@ -334,8 +339,11 @@ function ResultMap({
       style: mapStyleUrl,
       center: RESULT_MAP_DEFAULT_CENTER,
       zoom: RESULT_MAP_DEFAULT_ZOOM,
+      aroundCenter: mapProjection === "globe",
     });
+    let stopPulse: (() => void) | null = null;
     map.on("load", () => {
+      map.setProjection({ type: mapProjection });
       map.addSource("result", { type: "geojson", data: dataRef.current.featureCollection });
       map.addLayer({
         id: "result-line",
@@ -343,7 +351,12 @@ function ResultMap({
         source: "result",
         filter: ["==", ["get", "kind"], "path"],
         layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#587f78", "line-width": 2.5, "line-opacity": 0.76 },
+        paint: {
+          "line-color": globeValue(mapProjection, "#28f7d8", "#587f78"),
+          "line-width": globeValue(mapProjection, 3.4, 2.5),
+          "line-opacity": globeValue(mapProjection, 0.92, 0.76),
+          "line-blur": globeValue(mapProjection, 1.2, 0),
+        },
       });
       map.addLayer({
         id: "result-selected-hop",
@@ -351,9 +364,9 @@ function ResultMap({
         source: "result",
         filter: selectedHopFilter(selectedRouteNodeIdRef.current),
         paint: {
-          "circle-radius": 19,
-          "circle-color": "rgba(88, 127, 120, 0.18)",
-          "circle-stroke-color": "#ffffff",
+          "circle-radius": globeValue(mapProjection, 22, 19),
+          "circle-color": globeValue(mapProjection, "rgba(255, 236, 92, 0.24)", "rgba(88, 127, 120, 0.18)"),
+          "circle-stroke-color": globeValue(mapProjection, "#fff36a", "#ffffff"),
           "circle-stroke-width": 2.5,
         },
       });
@@ -364,9 +377,10 @@ function ResultMap({
         filter: ["==", ["get", "kind"], "probe"],
         paint: {
           "circle-radius": 7,
-          "circle-color": "#9c8c72",
-          "circle-stroke-color": "#ffffff",
+          "circle-color": globeValue(mapProjection, "#fff36a", "#9c8c72"),
+          "circle-stroke-color": globeValue(mapProjection, "#2ffaff", "#ffffff"),
           "circle-stroke-width": 1.3,
+          "circle-opacity": globeValue(mapProjection, 0.86, 1),
         },
       });
       map.addLayer({
@@ -375,10 +389,11 @@ function ResultMap({
         source: "result",
         filter: ["==", ["get", "kind"], "hop"],
         paint: {
-          "circle-radius": 14,
-          "circle-color": "#587f78",
-          "circle-stroke-color": "#ffffff",
+          "circle-radius": globeValue(mapProjection, 15, 14),
+          "circle-color": globeValue(mapProjection, "#fff36a", "#587f78"),
+          "circle-stroke-color": globeValue(mapProjection, "#2ffaff", "#ffffff"),
           "circle-stroke-width": 1.3,
+          "circle-opacity": globeValue(mapProjection, 0.88, 1),
         },
       });
       map.addLayer({
@@ -394,8 +409,8 @@ function ResultMap({
         },
         paint: {
           "text-color": "#ffffff",
-          "text-halo-color": "rgba(31, 38, 45, 0.28)",
-          "text-halo-width": 0.7,
+          "text-halo-color": globeValue(mapProjection, "rgba(0, 12, 16, 0.92)", "rgba(31, 38, 45, 0.28)"),
+          "text-halo-width": globeValue(mapProjection, 1.3, 0.7),
         },
       });
       const selectFeature = (event: maplibregl.MapLayerMouseEvent) => {
@@ -422,6 +437,12 @@ function ResultMap({
       });
       loadedRef.current = true;
       applySelectedRouteNode(map, selectedRouteNodeIdRef.current, dataRef.current, popupRef);
+      if (mapProjection === "globe") {
+        stopPulse = startGlobePulse(map, [
+          { layerId: "result-probe-points", property: "circle-opacity", min: 0.52, max: 1 },
+          { layerId: "result-points", property: "circle-opacity", min: 0.58, max: 1 },
+        ]);
+      }
       fitResultMap(map, dataRef.current);
     });
     const resizeObserver =
@@ -440,6 +461,7 @@ function ResultMap({
     }
     return () => {
       resizeObserver?.disconnect();
+      stopPulse?.();
       popupRef.current?.remove();
       popupRef.current = null;
       loadedRef.current = false;
@@ -452,7 +474,7 @@ function ResultMap({
       map.remove();
       mapRef.current = null;
     };
-  }, [mapStyleUrl]);
+  }, [mapProjection, mapStyleUrl]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -629,6 +651,24 @@ function fitResultMap(map: maplibregl.Map, data: ResultMapData): void {
     duration: 420,
     essential: true,
   });
+}
+
+function globeValue<T, U>(projection: MapProjection, globe: T, mercator: U): T | U {
+  return projection === "globe" ? globe : mercator;
+}
+
+function startGlobePulse(
+  map: maplibregl.Map,
+  targets: Array<{ layerId: string; property: string; min: number; max: number }>,
+): () => void {
+  let bright = false;
+  const interval = window.setInterval(() => {
+    bright = !bright;
+    for (const target of targets) {
+      map.setPaintProperty(target.layerId, target.property, bright ? target.max : target.min);
+    }
+  }, 1400);
+  return () => window.clearInterval(interval);
 }
 
 function resultFitCoordinates(active: TraceProbeResult | null, routeCoordinates: ResultMapCoordinate[]): ResultMapCoordinate[] {

@@ -26,10 +26,14 @@ const maplibreMock = vi.hoisted(() => {
     readonly easeToCalls: unknown[] = [];
     readonly removeCalls: unknown[] = [];
     readonly setFilterCalls: unknown[] = [];
+    readonly setPaintPropertyCalls: unknown[] = [];
+    readonly setProjectionCalls: unknown[] = [];
+    readonly options: Record<string, unknown>;
     readonly canvas: HTMLElement;
 
-    constructor(options: { container: HTMLElement }) {
+    constructor(options: { container: HTMLElement } & Record<string, unknown>) {
       FakeMap.instances.push(this);
+      this.options = options;
       const canvas = document.createElement("div");
       canvas.className = "maplibregl-canvas";
       options.container.appendChild(canvas);
@@ -42,6 +46,11 @@ const maplibreMock = vi.hoisted(() => {
         return this;
       }
       this.eventHandlers.set(event, layerOrHandler);
+      return this;
+    }
+
+    setProjection(projection: unknown) {
+      this.setProjectionCalls.push(projection);
       return this;
     }
 
@@ -59,6 +68,11 @@ const maplibreMock = vi.hoisted(() => {
 
     setFilter(...args: unknown[]) {
       this.setFilterCalls.push(args);
+      return this;
+    }
+
+    setPaintProperty(...args: unknown[]) {
+      this.setPaintPropertyCalls.push(args);
       return this;
     }
 
@@ -324,10 +338,29 @@ describe("ResultsView", () => {
       ],
       expect.objectContaining({ maxZoom: 5.8 }),
     ]);
+    expect(map.setProjectionCalls).toEqual([{ type: "mercator" }]);
   });
 
-  it("updates result map data and view without rebuilding when active probe changes", async () => {
-    render(<ResultsView result={multiProbeResult} mapStyleUrl="about:blank" />);
+  it("uses globe projection and fluorescent result overlay styles", async () => {
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" mapProjection="globe" />);
+    const map = await latestMap();
+
+    act(() => map.triggerLoad());
+
+    expect(map.options).toMatchObject({ aroundCenter: true });
+    expect(map.setProjectionCalls).toEqual([{ type: "globe" }]);
+    expect(map.layers.find((layer) => layer.id === "result-line")?.paint).toMatchObject({
+      "line-color": "#28f7d8",
+      "line-blur": 1.2,
+    });
+    expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({
+      "circle-color": "#fff36a",
+      "circle-stroke-color": "#2ffaff",
+    });
+  });
+
+  it("updates globe result map data and view without rebuilding when active probe changes", async () => {
+    render(<ResultsView result={multiProbeResult} mapStyleUrl="about:blank" mapProjection="globe" />);
     const map = await latestMap();
     act(() => map.triggerLoad());
     map.easeToCalls.length = 0;
@@ -339,15 +372,16 @@ describe("ResultsView", () => {
     });
     expect(maplibreMock.FakeMap.instances).toHaveLength(1);
     expect(map.removeCalls).toHaveLength(0);
+    expect(map.setProjectionCalls).toEqual([{ type: "globe" }]);
     expect(map.easeToCalls.at(-1)).toMatchObject({
       center: [139.76, 35.68],
       zoom: 5,
     });
   });
 
-  it("selects merged table rows and opens a popup when a map hop is clicked", async () => {
+  it("selects merged table rows in globe mode when a map hop or label is clicked", async () => {
     const scrollIntoView = mockScrollIntoView();
-    render(<ResultsView result={routeQualityResult} mapStyleUrl="about:blank" />);
+    render(<ResultsView result={routeQualityResult} mapStyleUrl="about:blank" mapProjection="globe" />);
     const map = await latestMap();
     act(() => map.triggerLoad());
 
@@ -362,11 +396,19 @@ describe("ResultsView", () => {
     expect(scrollIntoView).toHaveBeenCalled();
     expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-node-1-2"]]]);
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1-2");
+
+    act(() => map.triggerLayerClick("result-hop-labels", { kind: "hop", nodeId: "route-node-5" }));
+
+    await waitFor(() => expect(row5).toHaveClass("selected"));
+    expect(row1).not.toHaveClass("selected");
+    expect(row2).not.toHaveClass("selected");
+    expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-node-5"]]]);
+    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 5");
   });
 
-  it("selects the merged map point and pans when a linked table row is clicked", async () => {
+  it("selects the merged globe map point and pans when a linked table row is clicked", async () => {
     mockScrollIntoView();
-    render(<ResultsView result={routeQualityResult} mapStyleUrl="about:blank" />);
+    render(<ResultsView result={routeQualityResult} mapStyleUrl="about:blank" mapProjection="globe" />);
     const map = await latestMap();
     act(() => map.triggerLoad());
 

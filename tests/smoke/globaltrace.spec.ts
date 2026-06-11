@@ -138,35 +138,35 @@ for (const viewport of [
     await page.getByRole("button", { name: "切换到 3D 视图" }).click();
 
     await expect(page.getByLabel("3D 地球视图")).toBeVisible();
-    await expect(page.getByText("GLOBALPING × NEXTTRACE")).toBeVisible();
-    await expect(page.getByText("3 / 3 probes")).toBeVisible();
-    await expectThreeCanvasPainted(page);
-    await expectThreeGlobeAutoRotates(page);
-    await expectThreeGlobeDragRotates(page);
+    await expect(page.getByLabel("3D 地球视图").getByText("3 / 3 probes", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "框选" })).toHaveCount(0);
+    await expectMapCanvasPainted(page);
+    await expectProbeMapProjection(page, "globe");
+    await expectProbeMapHasCountryLabelStyle(page);
     await expectNoPageOverflow(page);
 
     await page.getByRole("button", { name: "开始网络路径诊断" }).click();
 
-    await expect(page.getByText("routes")).toBeVisible();
-    await expect(page.getByText("1/1")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Los Angeles/ })).toHaveClass(/active/);
-    await expect(page.getByRole("button", { name: /TTL 1/ })).toBeVisible();
-    await expect(page.getByText("8.8.8.8")).toBeVisible();
-    await expectThreeRouteDebug(page, {
-      routeCount: 1,
-      activeRouteIndex: 0,
-      renderedProbeCount: 0,
-      renderedRouteCount: 1,
-      renderedActiveProbeMarkerCount: 1,
-      renderedRouteNodeCount: 1,
-      renderedSegmentCount: 0,
-    });
-    await expectThreeCanvasPainted(page);
+    await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+    await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
+    await expectHopTableColumns(page);
+    await expect(page.locator(".hop-table").getByText("8.8.8.8", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("trace result map")).toBeVisible();
+    await expectMapCanvasPainted(page);
+    await expectResultMapProjection(page, "globe");
+    await expectResultMapStyleLoaded(page);
+    await expectResultMapContainsCoordinate(page, [-118.24, 34.05]);
+    await expectResultMapContainsCoordinate(page, [-122.08, 37.39]);
+    await page.getByText("raw output").click();
+    await page.getByText("whois / source details").click();
+    await expect(page.getByText("Host Loss% Avg")).toBeVisible();
 
-    await page.getByRole("button", { name: "关闭 3D 结果" }).click();
-    await expect(page.getByRole("button", { name: "查看 3D 结果" })).toBeVisible();
-    await page.getByRole("button", { name: "查看 3D 结果" }).click();
-    await expect(page.getByText("8.8.8.8")).toBeVisible();
+    await page.getByRole("button", { name: "关闭结果" }).click();
+    await expect(page.getByLabel("3D 地球视图")).toBeVisible();
+    await expect(page.getByRole("button", { name: "查看结果" })).toBeVisible();
+    await page.getByRole("button", { name: "查看结果" }).click();
+    await expect(page.locator(".hop-table").getByText("8.8.8.8", { exact: true })).toBeVisible();
+    await expectResultMapProjection(page, "globe");
 
     await expect(page).toHaveURL(/measurement=m-smoke/);
     await expect(page).not.toHaveURL(/view=/);
@@ -400,8 +400,31 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
       json: {
         version: 8,
         glyphs: "/mock-glyphs/{fontstack}/{range}.pbf",
-        sources: {},
-        layers: [{ id: "background", type: "background", paint: { "background-color": "#edf0f2" } }],
+        sources: {
+          countries: {
+            type: "geojson",
+            data: {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  geometry: { type: "Point", coordinates: [-98, 39] },
+                  properties: { name: "United States" },
+                },
+              ],
+            },
+          },
+        },
+        layers: [
+          { id: "background", type: "background", paint: { "background-color": "#edf0f2" } },
+          {
+            id: "country-label",
+            type: "symbol",
+            source: "countries",
+            layout: { "text-field": ["get", "name"], "text-size": 12 },
+            paint: { "text-color": "#3c4a51" },
+          },
+        ],
       },
     });
   });
@@ -649,86 +672,37 @@ async function expectMapCanvasPainted(page: Page): Promise<void> {
   expect(state.dataUrlLength).toBeGreaterThan(1000);
 }
 
-async function expectThreeCanvasPainted(page: Page): Promise<void> {
-  const canvas = page.locator(".three-globe-canvas");
-  await expect(canvas).toBeVisible();
-  const state = await canvas.evaluate((node) => {
-    const item = node as HTMLCanvasElement;
-    const rect = item.getBoundingClientRect();
-    return {
-      width: rect.width,
-      height: rect.height,
-      dataUrlLength: item.toDataURL("image/png").length,
-    };
-  });
-  expect(state.width).toBeGreaterThan(250);
-  expect(state.height).toBeGreaterThan(250);
-  expect(state.dataUrlLength).toBeGreaterThan(1000);
+async function expectProbeMapProjection(page: Page, projection: "mercator" | "globe"): Promise<void> {
+  await expect
+    .poll(async () => {
+      return page.locator(".map-container").evaluate((node) => {
+        const map = (node as HTMLElement & { __globalTraceMap?: DebugMap }).__globalTraceMap;
+        return map?.getProjection?.()?.type || null;
+      });
+    })
+    .toBe(projection);
 }
 
-async function expectThreeGlobeAutoRotates(page: Page): Promise<void> {
-  const initialRotation = await threeGlobeRotation(page);
+async function expectResultMapProjection(page: Page, projection: "mercator" | "globe"): Promise<void> {
   await expect
-    .poll(async () => Math.abs((await threeGlobeRotation(page)) - initialRotation) > 0.002)
+    .poll(async () => {
+      return page.locator(".result-map").evaluate((node) => {
+        const map = (node as HTMLElement & { __globalTraceResultMap?: DebugMap }).__globalTraceResultMap;
+        return map?.getProjection?.()?.type || null;
+      });
+    })
+    .toBe(projection);
+}
+
+async function expectProbeMapHasCountryLabelStyle(page: Page): Promise<void> {
+  await expect
+    .poll(async () => {
+      return page.locator(".map-container").evaluate((node) => {
+        const map = (node as HTMLElement & { __globalTraceMap?: DebugMap }).__globalTraceMap;
+        return Boolean(map?.getStyle?.().layers?.some((layer) => layer.id === "country-label" && layer.type === "symbol"));
+      });
+    })
     .toBe(true);
-}
-
-async function expectThreeGlobeDragRotates(page: Page): Promise<void> {
-  const canvas = page.locator(".three-globe-canvas");
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("3D globe canvas is not visible");
-  const initialRotation = await threeGlobeRotation(page);
-  await page.mouse.move(box.x + box.width * 0.45, box.y + box.height * 0.5);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.68, box.y + box.height * 0.52, { steps: 6 });
-  await page.mouse.up();
-  await expect
-    .poll(async () => Math.abs((await threeGlobeRotation(page)) - initialRotation) > 0.05)
-    .toBe(true);
-}
-
-async function expectThreeRouteDebug(
-  page: Page,
-  expected: {
-    routeCount: number;
-    activeRouteIndex: number;
-    renderedProbeCount: number;
-    renderedRouteCount: number;
-    renderedActiveProbeMarkerCount: number;
-    renderedRouteNodeCount: number;
-    renderedSegmentCount: number;
-  },
-): Promise<void> {
-  await expect
-    .poll(async () =>
-      page.getByTestId("three-globe-stage").evaluate((node) => {
-        const stage = node as HTMLElement & {
-          __globalTraceThreeRouteCount?: number;
-          __globalTraceThreeActiveRouteIndex?: number;
-          __globalTraceThreeRenderedProbeCount?: number;
-          __globalTraceThreeRenderedRouteCount?: number;
-          __globalTraceThreeRenderedActiveProbeMarkerCount?: number;
-          __globalTraceThreeRenderedRouteNodeCount?: number;
-          __globalTraceThreeRenderedSegmentCount?: number;
-        };
-        return {
-          routeCount: stage.__globalTraceThreeRouteCount ?? -1,
-          activeRouteIndex: stage.__globalTraceThreeActiveRouteIndex ?? -1,
-          renderedProbeCount: stage.__globalTraceThreeRenderedProbeCount ?? -1,
-          renderedRouteCount: stage.__globalTraceThreeRenderedRouteCount ?? -1,
-          renderedActiveProbeMarkerCount: stage.__globalTraceThreeRenderedActiveProbeMarkerCount ?? -1,
-          renderedRouteNodeCount: stage.__globalTraceThreeRenderedRouteNodeCount ?? -1,
-          renderedSegmentCount: stage.__globalTraceThreeRenderedSegmentCount ?? -1,
-        };
-      }),
-    )
-    .toEqual(expected);
-}
-
-async function threeGlobeRotation(page: Page): Promise<number> {
-  return page.getByTestId("three-globe-stage").evaluate((node) => {
-    return (node as HTMLElement & { __globalTraceThreeRotationY?: number }).__globalTraceThreeRotationY ?? 0;
-  });
 }
 
 async function expectHopTableScrollsWithinPanel(page: Page): Promise<void> {
@@ -1010,6 +984,8 @@ async function mapScreenPoint(page: Page, coordinate: [number, number]): Promise
 interface DebugMap {
   getBounds: () => { contains: (coordinate: [number, number]) => boolean };
   getCanvas: () => HTMLElement;
+  getProjection?: () => { type: "mercator" | "globe" };
+  getStyle?: () => { layers?: Array<{ id?: string; type?: string }> };
   loaded?: () => boolean;
   project: (coordinate: [number, number]) => { x: number; y: number };
   queryRenderedFeatures?: (

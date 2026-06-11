@@ -9,6 +9,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import type { MapProjection } from "./mapProjection";
 
 interface ProbeMapProps {
   probes: GlobalpingProbe[];
@@ -17,6 +18,9 @@ interface ProbeMapProps {
   selectionNotice: string;
   selectionActive: boolean;
   mapStyleUrl: string;
+  mapProjection?: MapProjection;
+  boxSelectEnabled?: boolean;
+  ariaLabel?: string;
   onPickProbe: (probe: GlobalpingProbe) => void;
   onBoxSelect: (probes: GlobalpingProbe[]) => void;
   onClearSelection: () => void;
@@ -29,6 +33,9 @@ export function ProbeMap({
   selectionNotice,
   selectionActive,
   mapStyleUrl,
+  mapProjection = "mercator",
+  boxSelectEnabled = true,
+  ariaLabel = "probe map",
   onPickProbe,
   onBoxSelect,
   onClearSelection,
@@ -55,9 +62,12 @@ export function ProbeMap({
       style: mapStyleUrl,
       center: [8, 25],
       zoom: 1.2,
+      aroundCenter: mapProjection === "globe",
     });
+    let stopPulse: (() => void) | null = null;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.on("load", () => {
+      map.setProjection({ type: mapProjection });
       map.addSource("probes", {
         type: "geojson",
         data: probeFeatureCollection(probesRef.current, selectedProbeKeyRef.current),
@@ -72,10 +82,10 @@ export function ProbeMap({
         filter: ["has", "point_count"],
         paint: {
           "circle-radius": ["step", ["get", "point_count"], 17, 20, 22, 100, 28, 1000, 34],
-          "circle-color": ["step", ["get", "point_count"], "#8aa6a0", 20, "#71948d", 100, "#587f78"],
+          "circle-color": globeValue(mapProjection, "#42f2ff", ["step", ["get", "point_count"], "#8aa6a0", 20, "#71948d", 100, "#587f78"]),
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 1.6,
-          "circle-opacity": 0.86,
+          "circle-opacity": globeValue(mapProjection, 0.72, 0.86),
         },
       });
       map.addLayer({
@@ -85,8 +95,8 @@ export function ProbeMap({
         filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "selected"], true]],
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 12, 6, 18],
-          "circle-color": "rgba(79, 129, 121, 0.18)",
-          "circle-stroke-color": "rgba(79, 129, 121, 0.34)",
+          "circle-color": globeValue(mapProjection, "rgba(255, 236, 92, 0.24)", "rgba(79, 129, 121, 0.18)"),
+          "circle-stroke-color": globeValue(mapProjection, "rgba(255, 236, 92, 0.62)", "rgba(79, 129, 121, 0.34)"),
           "circle-stroke-width": 1,
         },
       });
@@ -105,12 +115,18 @@ export function ProbeMap({
             6,
             ["case", ["==", ["get", "selected"], true], 11, 7],
           ],
-          "circle-color": ["case", ["in", "eyeball-network", ["get", "tags"]], "#4f8179", "#a48e65"],
-          "circle-stroke-color": ["case", ["==", ["get", "selected"], true], "#1f3f3a", "#ffffff"],
+          "circle-color": globeValue(mapProjection, "#fff36a", ["case", ["in", "eyeball-network", ["get", "tags"]], "#4f8179", "#a48e65"]),
+          "circle-stroke-color": globeValue(mapProjection, "#2ffaff", ["case", ["==", ["get", "selected"], true], "#1f3f3a", "#ffffff"]),
           "circle-stroke-width": ["case", ["==", ["get", "selected"], true], 2.5, 1.2],
-          "circle-opacity": 0.9,
+          "circle-opacity": globeValue(mapProjection, 0.86, 0.9),
         },
       });
+      if (mapProjection === "globe") {
+        stopPulse = startGlobePulse(map, [
+          { layerId: "probe-clusters", property: "circle-opacity", min: 0.48, max: 0.92 },
+          { layerId: "probe-points", property: "circle-opacity", min: 0.56, max: 1 },
+        ]);
+      }
       fitVisibleProbes(map, probesRef.current);
     });
     const popup = new maplibregl.Popup({
@@ -180,6 +196,7 @@ export function ProbeMap({
     }
     return () => {
       resizeObserver?.disconnect();
+      stopPulse?.();
       popup.remove();
       map.off("click", "probe-points", pickProbeAtPoint);
       map.off("mouseenter", "probe-points", showProbePopup);
@@ -194,7 +211,7 @@ export function ProbeMap({
       map.remove();
       mapRef.current = null;
     };
-  }, [mapStyleUrl]);
+  }, [mapProjection, mapStyleUrl]);
 
   useEffect(() => {
     const source = mapRef.current?.getSource("probes") as GeoJSONSource | undefined;
@@ -204,6 +221,10 @@ export function ProbeMap({
   useEffect(() => {
     if (!selectionActive) setSelectedProbeKey(null);
   }, [selectionActive]);
+
+  useEffect(() => {
+    if (!boxSelectEnabled) setBoxMode(false);
+  }, [boxSelectEnabled]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -292,11 +313,11 @@ export function ProbeMap({
   }, [boxMode]);
 
   return (
-    <Surface asChild className="map-section" aria-label="probe map">
+    <Surface asChild className="map-section" aria-label={ariaLabel}>
       <section>
-      <div className="map-toolbar">
+      {(boxSelectEnabled || selectionActive) && <div className="map-toolbar">
         <LiquidGlassSurface variant="toolbar" className="map-toolbar-surface">
-          <Tooltip>
+          {boxSelectEnabled && <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant={boxMode ? "primary" : "ghost"}
@@ -312,7 +333,7 @@ export function ProbeMap({
               </Button>
             </TooltipTrigger>
             <TooltipContent>拖拽地图区域生成 magic probe 筛选</TooltipContent>
-          </Tooltip>
+          </Tooltip>}
           {selectionActive && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -333,7 +354,7 @@ export function ProbeMap({
             </Tooltip>
           )}
         </LiquidGlassSurface>
-      </div>
+      </div>}
       <div className="map-container" ref={containerRef} />
       <div className="map-status" aria-live="polite">
         <div>
@@ -426,6 +447,24 @@ function fitVisibleProbes(map: maplibregl.Map, probes: GlobalpingProbe[]): void 
     duration: 420,
     essential: true,
   });
+}
+
+function globeValue<T, U>(projection: MapProjection, globe: T, mercator: U): T | U {
+  return projection === "globe" ? globe : mercator;
+}
+
+function startGlobePulse(
+  map: maplibregl.Map,
+  targets: Array<{ layerId: string; property: string; min: number; max: number }>,
+): () => void {
+  let bright = false;
+  const interval = window.setInterval(() => {
+    bright = !bright;
+    for (const target of targets) {
+      map.setPaintProperty(target.layerId, target.property, bright ? target.max : target.min);
+    }
+  }, 1400);
+  return () => window.clearInterval(interval);
 }
 
 function probeBounds(probes: GlobalpingProbe[]): [[number, number], [number, number]] | null {
