@@ -19,7 +19,11 @@ for (const viewport of viewports) {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: "GlobalTrace" })).toBeVisible();
-    await expect(page.getByText("基于 Globalping Probe 与 NextTrace 数据的全球 MTR 路径观测")).toBeVisible();
+    await expect(
+      page.getByText(
+        "GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。",
+      ),
+    ).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
     await page.getByRole("button", { name: "主题：System" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -147,7 +151,7 @@ test("about page exposes provider attribution links", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "GlobalTrace" })).toBeVisible();
   await expect(
     page.getByText(
-      "GlobalTrace 是一个 Globalping x NextTrace 的 toy 项目，借助 Globalping 遍布全球的 Probe 发起 MTR，并结合 NextTrace 数据补充跳点地理位置与网络归属信息。",
+      "GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。",
     ),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: /Globalping API docs/ })).toHaveAttribute(

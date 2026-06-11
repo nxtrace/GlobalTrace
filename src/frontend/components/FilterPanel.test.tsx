@@ -52,7 +52,11 @@ describe("FilterPanel", () => {
       />,
     );
 
-    expect(screen.getByText("基于 Globalping Probe 与 NextTrace 数据的全球 MTR 路径观测")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText("当前筛选")).toBeInTheDocument();
     const chips = within(screen.getByTestId("filter-chips"));
     expect(chips.getByText("国家")).toBeInTheDocument();

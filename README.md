@@ -1,6 +1,6 @@
 # GlobalTrace
 
-GlobalTrace 是一个基于 Globalping MTR 测量的 traceroute 风格诊断工具。浏览器负责创建 Globalping measurement，Cloudflare Worker 负责 API、静态资源和 nxtrace enrichment。
+GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。
 
 ## 技术栈
 

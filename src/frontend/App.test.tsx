@@ -128,7 +128,7 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { name: "GlobalTrace" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "GlobalTrace 是一个 Globalping x NextTrace 的 toy 项目，借助 Globalping 遍布全球的 Probe 发起 MTR，并结合 NextTrace 数据补充跳点地理位置与网络归属信息。",
+        "GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Globalping API docs/ })).toHaveAttribute(

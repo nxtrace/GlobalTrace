@@ -28,8 +28,8 @@ export function AboutPage({ onBack }: AboutPageProps) {
             <div className="about-copy">
               <h1>GlobalTrace</h1>
               <p>
-                GlobalTrace 是一个 Globalping x NextTrace 的 toy 项目，借助 Globalping 遍布全球的 Probe 发起 MTR，并结合
-                NextTrace 数据补充跳点地理位置与网络归属信息。
+                GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe
+                发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。
               </p>
             </div>
             <div className="about-header-actions">

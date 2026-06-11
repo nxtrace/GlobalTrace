@@ -76,7 +76,10 @@ export function FilterPanel(props: FilterPanelProps) {
               aria-label="返回首页"
             >
               <h1>GlobalTrace</h1>
-              <p>基于 Globalping Probe 与 NextTrace 数据的全球 MTR 路径观测</p>
+              <p>
+                GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe
+                发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。
+              </p>
             </a>
             <div className="panel-title-actions">
               <Button
