@@ -108,7 +108,10 @@ describe("App", () => {
     expect(screen.getByText("已保存到本机浏览器")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
-    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(traceCreateBodies(fetchMock)).toHaveLength(1);
+      expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
+    });
     const traceCall = fetchMock.mock.calls.find(
       ([path, init]) => path === "https://api.globalping.io/v1/measurements" && init?.method === "POST",
     );
