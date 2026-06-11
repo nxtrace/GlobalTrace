@@ -8,6 +8,13 @@ It expresses Cloudflare WAF Rate Limiting as a zone-level `cloudflare_ruleset` i
 - The rule covers `POST /api/trace/enrich` and `POST /api/turnstile/verify`.
 - The default limit is 20 requests per 60 seconds by `cf.colo.id` and `ip.src`, with a 600 second block.
 
-Pass deployment-specific values through ignored `terraform/*.tfvars` files or command line variables.
+Create a private tfvars file from the tracked example:
+
+```bash
+cp terraform.tfvars.example production.tfvars
+terraform apply -var-file=production.tfvars
+```
+
+`production.tfvars` matches the ignored `*.tfvars` pattern. Do not commit real zone ids or production hostnames.
 
 Do not add `NXTRACE_API_V4_TOKEN` or `TURNSTILE_SECRET_KEY` to Terraform variables.

@@ -1,0 +1,5 @@
+cloudflare_zone_id      = "00000000000000000000000000000000"
+globaltrace_hostname    = "trace.example.com"
+api_rate_limit_period   = 60
+api_requests_per_period = 20
+api_mitigation_timeout  = 600

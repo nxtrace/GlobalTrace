@@ -67,7 +67,13 @@ Worker 调用 nxtrace batch 接口：
 - `assets.not_found_handling`: `single-page-application`
 - `assets.run_worker_first`: `/api/*`
 
-公开配置不包含 Cloudflare account、生产 hostname/routes 或 Turnstile site key。本机生产部署使用被 Git ignore 的 `wrangler.private.jsonc`，其中保存部署标识和生产 Worker vars。
+公开配置不包含 Cloudflare account、生产 hostname/routes 或 Turnstile site key。生产部署复制示例文件后填写私有值：
+
+```bash
+cp wrangler.private.example.jsonc wrangler.private.jsonc
+```
+
+`wrangler.private.jsonc` 被 Git ignore，用于保存部署标识和生产 Worker vars。
 
 生产必需 secrets 仍只写入 Cloudflare Worker secrets：
 
