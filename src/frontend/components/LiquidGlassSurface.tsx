@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { deferUntilIdle } from "../lib/defer";
 
 type LiquidGlassComponent = (typeof import("liquid-glass-react"))["default"];
+const LIQUID_GLASS_IDLE_TIMEOUT_MS = 4000;
 
 interface LiquidGlassSurfaceProps {
   children: ReactNode;
@@ -30,11 +31,11 @@ export function LiquidGlassSurface({
   useEffect(() => {
     if (!canUseLiquid || LiquidGlass) return;
     let active = true;
-    const cancel = deferUntilIdle(() => {
+    const cancel = deferUntilWindowLoadIdle(() => {
       void import("liquid-glass-react").then((module) => {
         if (active) setLiquidGlass(() => module.default);
       });
-    });
+    }, LIQUID_GLASS_IDLE_TIMEOUT_MS);
     return () => {
       active = false;
       cancel();
@@ -62,6 +63,29 @@ export function LiquidGlassSurface({
       )}
     </div>
   );
+}
+
+function deferUntilWindowLoadIdle(callback: () => void, timeoutMs: number): () => void {
+  if (typeof window === "undefined") return () => undefined;
+
+  let cancelled = false;
+  let cancelIdle: () => void = () => undefined;
+  const scheduleIdle = () => {
+    if (cancelled) return;
+    cancelIdle = deferUntilIdle(callback, timeoutMs);
+  };
+
+  if (typeof document === "undefined" || document.readyState === "complete") {
+    scheduleIdle();
+  } else {
+    window.addEventListener("load", scheduleIdle, { once: true });
+  }
+
+  return () => {
+    cancelled = true;
+    window.removeEventListener("load", scheduleIdle);
+    cancelIdle();
+  };
 }
 
 function useForceFallback(): boolean {

@@ -6,6 +6,18 @@ test("serves the built Vite app through Worker Static Assets", async ({ page, re
   const html = await response.text();
   expect(response.ok()).toBe(true);
   expect(html).toContain("/assets/");
+  expect(html).toContain('name="description"');
+
+  const assetPath = html.match(/src="([^"]*\/assets\/[^"]+\.js)"/)?.[1];
+  expect(assetPath).toBeTruthy();
+  const assetResponse = await request.get(assetPath as string);
+  expect(assetResponse.headers()["cache-control"]).toBe("public, max-age=31556952, immutable");
+
+  const robotsResponse = await request.get("/robots.txt");
+  const robots = await robotsResponse.text();
+  expect(robotsResponse.ok()).toBe(true);
+  expect(robots).toContain("User-agent: *");
+  expect(robots).not.toContain("<!doctype html>");
 
   const consoleErrors = collectConsoleErrors(page);
   await installStaticAssetMocks(page);

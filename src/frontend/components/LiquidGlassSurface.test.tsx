@@ -26,7 +26,9 @@ afterEach(() => {
 });
 
 describe("LiquidGlassSurface", () => {
-  it("renders fallback first and loads liquid glass after idle", async () => {
+  it("renders fallback first and loads liquid glass after window load and idle", async () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("loading");
+
     render(
       <LiquidGlassSurface>
         <span>Glass content</span>
@@ -35,7 +37,11 @@ describe("LiquidGlassSurface", () => {
     const surface = screen.getByText("Glass content").closest("[data-liquid-glass]");
 
     expect(surface).toHaveAttribute("data-liquid-glass-mode", "fallback");
+    expect(window.requestIdleCallback).not.toHaveBeenCalled();
 
+    window.dispatchEvent(new Event("load"));
+
+    await waitFor(() => expect(window.requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 4000 }));
     await waitFor(() => expect(surface).toHaveAttribute("data-liquid-glass-mode", "liquid"));
     expect(screen.getByTestId("liquid-glass-mock")).toBeInTheDocument();
   });
