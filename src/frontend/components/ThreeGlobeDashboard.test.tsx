@@ -229,6 +229,23 @@ describe("ThreeGlobeDashboard", () => {
     expect(onPickProbe).toHaveBeenCalledWith(laProbe);
   });
 
+  it("does not pick probes after dragging or pointer cancellation", async () => {
+    const onPickProbe = vi.fn();
+    renderDashboard({ onPickProbe });
+
+    await waitFor(() => expect(threeMock.FakeRenderer.instances).toHaveLength(1));
+
+    const canvas = threeMock.FakeRenderer.instances[0].domElement;
+    fireEvent.pointerDown(canvas, { clientX: 80, clientY: 80, pointerId: 1 });
+    fireEvent.pointerMove(canvas, { clientX: 120, clientY: 82, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { clientX: 120, clientY: 82, pointerId: 1 });
+
+    fireEvent.pointerDown(canvas, { clientX: 80, clientY: 80, pointerId: 2 });
+    fireEvent.pointerCancel(canvas, { clientX: 80, clientY: 80, pointerId: 2 });
+
+    expect(onPickProbe).not.toHaveBeenCalled();
+  });
+
   it("shows all result routes and highlights the selected route and hop", async () => {
     renderDashboard({ result: sampleResult, availableResult: sampleResult });
 

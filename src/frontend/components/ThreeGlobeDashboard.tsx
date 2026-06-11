@@ -15,6 +15,7 @@ const ROUTE_TUBE_RADIUS = 0.012;
 const ACTIVE_ROUTE_TUBE_RADIUS = 0.02;
 const AUTO_ROTATE_SPEED = 0.0012;
 const MAX_VISIBLE_HOPS = 64;
+const CLICK_DRAG_THRESHOLD_PX = 6;
 
 type Coordinate = [number, number];
 
@@ -107,6 +108,9 @@ export function ThreeGlobeDashboard({
   const interactionRef = useRef({
     hovering: false,
     dragging: false,
+    movedBeyondClick: false,
+    downX: 0,
+    downY: 0,
     lastX: 0,
     lastY: 0,
   });
@@ -193,6 +197,9 @@ export function ThreeGlobeDashboard({
     };
     const onPointerDown = (event: PointerEvent) => {
       interactionRef.current.dragging = true;
+      interactionRef.current.movedBeyondClick = false;
+      interactionRef.current.downX = event.clientX;
+      interactionRef.current.downY = event.clientY;
       interactionRef.current.lastX = event.clientX;
       interactionRef.current.lastY = event.clientY;
       renderer.domElement.setPointerCapture?.(event.pointerId);
@@ -202,16 +209,23 @@ export function ThreeGlobeDashboard({
       if (!interaction.dragging || !rootGroupRef.current) return;
       const dx = event.clientX - interaction.lastX;
       const dy = event.clientY - interaction.lastY;
+      const totalDx = event.clientX - interaction.downX;
+      const totalDy = event.clientY - interaction.downY;
+      if (Math.hypot(totalDx, totalDy) >= CLICK_DRAG_THRESHOLD_PX) {
+        interaction.movedBeyondClick = true;
+      }
       interaction.lastX = event.clientX;
       interaction.lastY = event.clientY;
+      if (!interaction.movedBeyondClick) return;
       rootGroupRef.current.rotation.y += dx * 0.006;
       rootGroupRef.current.rotation.x = clamp(rootGroupRef.current.rotation.x + dy * 0.004, -0.85, 0.85);
     };
-    const onPointerUp = (event: PointerEvent) => {
-      const wasDragging = interactionRef.current.dragging;
-      interactionRef.current.dragging = false;
+    const finishPointer = (event: PointerEvent, allowPick: boolean) => {
+      const interaction = interactionRef.current;
+      const shouldPick = interaction.dragging && allowPick && !interaction.movedBeyondClick;
+      interaction.dragging = false;
       renderer.domElement.releasePointerCapture?.(event.pointerId);
-      if (!wasDragging) return;
+      if (!shouldPick) return;
       setPointer(event);
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(hitProbeMeshesRef.current, false)[0]?.object;
@@ -219,6 +233,8 @@ export function ThreeGlobeDashboard({
       const probe = probesRef.current[probeIndex];
       if (probe) onPickProbeRef.current(probe);
     };
+    const onPointerUp = (event: PointerEvent) => finishPointer(event, true);
+    const onPointerCancel = (event: PointerEvent) => finishPointer(event, false);
     const onPointerEnter = () => {
       interactionRef.current.hovering = true;
     };
@@ -229,7 +245,7 @@ export function ThreeGlobeDashboard({
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     renderer.domElement.addEventListener("pointermove", onPointerMove);
     renderer.domElement.addEventListener("pointerup", onPointerUp);
-    renderer.domElement.addEventListener("pointercancel", onPointerUp);
+    renderer.domElement.addEventListener("pointercancel", onPointerCancel);
     renderer.domElement.addEventListener("pointerenter", onPointerEnter);
     renderer.domElement.addEventListener("pointerleave", onPointerLeave);
 
@@ -250,7 +266,7 @@ export function ThreeGlobeDashboard({
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("pointerup", onPointerUp);
-      renderer.domElement.removeEventListener("pointercancel", onPointerUp);
+      renderer.domElement.removeEventListener("pointercancel", onPointerCancel);
       renderer.domElement.removeEventListener("pointerenter", onPointerEnter);
       renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
