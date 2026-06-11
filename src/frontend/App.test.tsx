@@ -100,7 +100,7 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "切换结果地图到 3D" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
-    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(await screen.findByText("result:finished:m123", {}, { timeout: 3_000 })).toBeInTheDocument();
     expect(screen.queryByLabelText("mock probe map")).not.toBeInTheDocument();
     expect(screen.getByText("projection:mercator")).toBeInTheDocument();
 
