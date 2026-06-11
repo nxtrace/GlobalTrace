@@ -1,5 +1,6 @@
+import { useId } from "react";
 import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
-import type { FilterChip } from "../../shared/filters";
+import type { FilterChip, ProbeFilterSuggestions } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
@@ -20,6 +21,7 @@ interface FilterPanelProps {
   packets: number;
   limit: number;
   filters: TraceFilters;
+  filterSuggestions?: ProbeFilterSuggestions;
   chips: FilterChip[];
   visibleProbes: number;
   totalProbes: number;
@@ -51,7 +53,21 @@ interface FilterPanelProps {
   onSubmit: () => void;
 }
 
+const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
+  countries: [],
+  cities: [],
+  asns: [],
+  networks: [],
+};
+
 export function FilterPanel(props: FilterPanelProps) {
+  const suggestionId = useId();
+  const filterSuggestions = props.filterSuggestions ?? EMPTY_FILTER_SUGGESTIONS;
+  const countrySuggestionsId = `${suggestionId}-country-suggestions`;
+  const citySuggestionsId = `${suggestionId}-city-suggestions`;
+  const asnSuggestionsId = `${suggestionId}-asn-suggestions`;
+  const networkSuggestionsId = `${suggestionId}-network-suggestions`;
+
   const setFilter = (key: keyof TraceFilters, value: string | boolean) => {
     const nextValue = cleanFilterValue(value);
     if (key === "magic") {
@@ -210,21 +226,41 @@ export function FilterPanel(props: FilterPanelProps) {
                     />
                   </label>
                   <label className="field-label">
-                    <span>国家</span>
-                    <Input value={props.filters.country || ""} onChange={(event) => setFilter("country", event.target.value)} />
+                    <span>国家/地区</span>
+                    <Input
+                      list={countrySuggestionsId}
+                      value={props.filters.country || ""}
+                      onChange={(event) => setFilter("country", event.target.value)}
+                    />
                   </label>
                   <label className="field-label">
                     <span>城市</span>
-                    <Input value={props.filters.city || ""} onChange={(event) => setFilter("city", event.target.value)} />
+                    <Input
+                      list={citySuggestionsId}
+                      value={props.filters.city || ""}
+                      onChange={(event) => setFilter("city", event.target.value)}
+                    />
                   </label>
                   <label className="field-label">
                     <span>ASN</span>
-                    <Input value={props.filters.asn || ""} onChange={(event) => setFilter("asn", event.target.value)} />
+                    <Input
+                      list={asnSuggestionsId}
+                      value={props.filters.asn || ""}
+                      onChange={(event) => setFilter("asn", event.target.value)}
+                    />
                   </label>
                   <label className="field-label">
                     <span>network</span>
-                    <Input value={props.filters.network || ""} onChange={(event) => setFilter("network", event.target.value)} />
+                    <Input
+                      list={networkSuggestionsId}
+                      value={props.filters.network || ""}
+                      onChange={(event) => setFilter("network", event.target.value)}
+                    />
                   </label>
+                  <SuggestionList id={countrySuggestionsId} options={filterSuggestions.countries} />
+                  <SuggestionList id={citySuggestionsId} options={filterSuggestions.cities} />
+                  <SuggestionList id={asnSuggestionsId} options={filterSuggestions.asns} />
+                  <SuggestionList id={networkSuggestionsId} options={filterSuggestions.networks} />
                 </div>
 
                 <div className="segmented" aria-label="网络类型">
@@ -340,6 +376,16 @@ function ThemeIcon({ mode }: { mode: ThemeMode }) {
   if (mode === "light") return <Sun size={18} />;
   if (mode === "dark") return <Moon size={18} />;
   return <Monitor size={18} />;
+}
+
+function SuggestionList({ id, options }: { id: string; options: string[] }) {
+  return (
+    <datalist id={id}>
+      {options.map((option) => (
+        <option key={option} value={option} />
+      ))}
+    </datalist>
+  );
 }
 
 function cleanFilterValue(value: string | boolean): string | boolean | undefined {

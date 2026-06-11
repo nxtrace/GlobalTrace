@@ -348,7 +348,7 @@ export function ProbeMap({
       {status === "ready" && probes.length === 0 && (
         <div className="map-empty">
           <strong>没有匹配的在线 probe</strong>
-          <span>放宽国家、城市、ASN、network 或 tag 条件。</span>
+          <span>放宽国家/地区、城市、ASN、network 或 tag 条件。</span>
         </div>
       )}
       <div className="selection-box" ref={boxRef} />

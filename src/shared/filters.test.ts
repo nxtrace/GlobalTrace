@@ -5,6 +5,7 @@ import {
   filterProbes,
   filterSummaryText,
   magicFromSelectedProbes,
+  probeFilterSuggestions,
   probeToMagic,
 } from "./filters";
 import type { GlobalpingProbe } from "./types";
@@ -70,6 +71,28 @@ describe("shared filters", () => {
     expect(filterProbes(probes, { magic: "DE+Hetzner" })[0]?.location.city).toBe("Falkenstein");
   });
 
+  it("builds input suggestions from online probes", () => {
+    const suggestions = probeFilterSuggestions([
+      probes[1],
+      probes[0],
+      {
+        ...probes[1],
+        location: {
+          ...probes[1].location,
+          city: "",
+          network: "",
+        },
+      },
+    ]);
+
+    expect(suggestions).toEqual({
+      countries: ["DE", "US"],
+      cities: ["Falkenstein", "Los Angeles"],
+      asns: ["AS7922", "AS24940"],
+      networks: ["Comcast", "Hetzner Online"],
+    });
+  });
+
   it("turns a map-selected probe into a best-effort magic selector", () => {
     expect(probeToMagic(probes[0])).toBe("Falkenstein+DE+AS24940+datacenter-network");
     expect(probeToMagic(probes[0])).not.toContain("Hetzner");
@@ -77,7 +100,7 @@ describe("shared filters", () => {
 
   it("summarizes filters as chips and text", () => {
     expect(filterChips({ country: "US", eyeball: true })).toEqual([
-      { key: "country", label: "国家", value: "US" },
+      { key: "country", label: "国家/地区", value: "US" },
       { key: "eyeball", label: "类型", value: "eyeball" },
     ]);
     expect(filterSummaryText({ magic: "DE+Hetzner" })).toBe("magic: DE+Hetzner");

@@ -17,7 +17,7 @@ import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
 import { deferUntilIdle } from "./lib/defer";
-import { filterChips, filterProbes, magicFromSelectedProbes, probeToMagic } from "../shared/filters";
+import { filterChips, filterProbes, magicFromSelectedProbes, probeFilterSuggestions, probeToMagic } from "../shared/filters";
 import { measurementToTraceResponse } from "../shared/transform";
 import {
   DEFAULT_MAP_STYLE_URL,
@@ -84,6 +84,7 @@ export function App() {
   const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
   const turnstileReady = !config.turnstileSiteKey || Boolean(turnstileToken);
   const filteredProbes = useMemo(() => filterProbes(probes, filters), [filters, probes]);
+  const filterSuggestions = useMemo(() => probeFilterSuggestions(probes), [probes]);
   const chips = useMemo(() => filterChips(filters), [filters]);
   const quotaLabel = useMemo(() => {
     if (limitsStatus === "loading") return "诊断额度读取中";
@@ -398,6 +399,7 @@ export function App() {
           packets={packets}
           limit={limit}
           filters={filters}
+          filterSuggestions={filterSuggestions}
           chips={chips}
           visibleProbes={filteredProbes.length}
           totalProbes={probes.length}
@@ -629,7 +631,7 @@ function isAbortError(error: unknown): boolean {
 function userFacingErrorMessage(error: unknown, fallback: string): string {
   const message = error instanceof Error ? error.message : fallback;
   if (/parameter validation failed/i.test(message)) {
-    return `Globalping 筛选条件无效：${message} 请重置筛选，或改用国家、城市、ASN 等较短条件。`;
+    return `Globalping 筛选条件无效：${message} 请重置筛选，或改用国家/地区、城市、ASN 等较短条件。`;
   }
   return message;
 }

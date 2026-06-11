@@ -55,7 +55,7 @@ describe("FilterPanel", () => {
     expect(screen.getByText("Globalping x NextTrace 的全球路由追踪")).toBeInTheDocument();
     expect(screen.getByText("当前筛选")).toBeInTheDocument();
     const chips = within(screen.getByTestId("filter-chips"));
-    expect(chips.getByText("国家")).toBeInTheDocument();
+    expect(chips.getByText("国家/地区")).toBeInTheDocument();
     expect(chips.getByText("US")).toBeInTheDocument();
     expect(screen.getByText("12 / 120 probes 匹配")).toBeInTheDocument();
     expect(screen.getByText("已从地图选择 US+Los Angeles+AS7922")).toBeInTheDocument();
@@ -75,6 +75,7 @@ describe("FilterPanel", () => {
     expect(onReset).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    expect(screen.getByLabelText("国家/地区")).toBeVisible();
     expect(screen.getByLabelText("ASN")).toBeVisible();
     expect(screen.getByLabelText("network")).toBeVisible();
     expect(screen.getByLabelText("tag")).toBeVisible();
@@ -137,13 +138,31 @@ describe("FilterPanel", () => {
     renderPanel({ filters: { magic: "DE+AS24940" }, chips: filterChips({ magic: "DE+AS24940" }), onFiltersChange });
 
     fireEvent.click(screen.getByText("高级参数与精确筛选"));
-    fireEvent.change(screen.getByLabelText("国家"), { target: { value: "US" } });
+    fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "US" } });
     fireEvent.change(screen.getByLabelText("ASN"), { target: { value: "7922" } });
     fireEvent.change(screen.getByLabelText("network"), { target: { value: "Comcast" } });
 
     expect(onFiltersChange).toHaveBeenNthCalledWith(1, { magic: undefined, country: "US" });
     expect(onFiltersChange).toHaveBeenNthCalledWith(2, { magic: undefined, asn: "7922" });
     expect(onFiltersChange).toHaveBeenNthCalledWith(3, { magic: undefined, network: "Comcast" });
+  });
+
+  it("connects online probe suggestions to structured filter inputs", () => {
+    renderPanel({
+      filterSuggestions: {
+        countries: ["DE", "US"],
+        cities: ["Falkenstein", "Los Angeles"],
+        asns: ["AS7922", "AS24940"],
+        networks: ["Comcast", "Hetzner Online"],
+      },
+    });
+
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+
+    expectInputSuggestions(screen.getByLabelText("国家/地区"), ["DE", "US"]);
+    expectInputSuggestions(screen.getByLabelText("城市"), ["Falkenstein", "Los Angeles"]);
+    expectInputSuggestions(screen.getByLabelText("ASN"), ["AS7922", "AS24940"]);
+    expectInputSuggestions(screen.getByLabelText("network"), ["Comcast", "Hetzner Online"]);
   });
 
   it("preserves spaces while editing network filters", () => {
@@ -263,4 +282,11 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       {...overrides}
     />,
   );
+}
+
+function expectInputSuggestions(input: HTMLElement, values: string[]) {
+  const listId = (input as HTMLInputElement).getAttribute("list");
+  expect(listId).toBeTruthy();
+  const datalist = document.getElementById(listId || "");
+  expect(Array.from(datalist?.querySelectorAll("option") || []).map((option) => option.value)).toEqual(values);
 }

@@ -67,6 +67,25 @@ export function filterProbes(probes: GlobalpingProbe[], filters: TraceFilters): 
   return probes.filter((probe) => probeMatchesFilters(probe, filters));
 }
 
+export interface ProbeFilterSuggestions {
+  countries: string[];
+  cities: string[];
+  asns: string[];
+  networks: string[];
+}
+
+export function probeFilterSuggestions(probes: GlobalpingProbe[]): ProbeFilterSuggestions {
+  return {
+    countries: uniqueSorted(probes.map((probe) => probe.location.country)),
+    cities: uniqueSorted(probes.map((probe) => probe.location.city)),
+    asns: uniqueSorted(
+      probes.map((probe) => normalizeAsn(probe.location.asn)),
+      compareAsn,
+    ),
+    networks: uniqueSorted(probes.map((probe) => probe.location.network)),
+  };
+}
+
 export function probeMatchesFilters(probe: GlobalpingProbe, filters: TraceFilters): boolean {
   const magic = activeMagic(filters);
   if (magic) {
@@ -157,7 +176,7 @@ export function filterChips(filters: TraceFilters | undefined): FilterChip[] {
     return out;
   }
 
-  addChip(out, "country", "国家", filters?.country);
+  addChip(out, "country", "国家/地区", filters?.country);
   addChip(out, "city", "城市", filters?.city);
   addChip(out, "asn", "ASN", normalizeAsn(filters?.asn));
   addChip(out, "network", "network", filters?.network);
@@ -196,4 +215,14 @@ export function probeNetworkKind(probe: GlobalpingProbe): "eyeball" | "datacente
 function addChip(out: FilterChip[], key: string, label: string, value: unknown): void {
   const compacted = compactText(value);
   if (compacted) out.push({ key, label, value: compacted });
+}
+
+function uniqueSorted(values: Iterable<unknown>, compareFn?: (left: string, right: string) => number): string[] {
+  return Array.from(new Set(Array.from(values, compactText).filter(Boolean))).sort(compareFn);
+}
+
+function compareAsn(left: string, right: string): number {
+  const leftNumber = Number(left.replace(/^AS/i, ""));
+  const rightNumber = Number(right.replace(/^AS/i, ""));
+  return leftNumber - rightNumber || left.localeCompare(right);
 }

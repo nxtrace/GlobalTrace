@@ -49,7 +49,7 @@ for (const viewport of viewports) {
     await expect(page.getByLabel("IP 版本")).toHaveValue("6");
 
     await page.getByText("高级参数与精确筛选").click();
-    await page.getByLabel("国家").fill("US");
+    await page.getByLabel("国家/地区").fill("US");
     await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
     await expect.poll(mocks.styleRequests).toBe(1);
     await expectMapContainsCoordinate(page, [-118.24, 34.05]);
