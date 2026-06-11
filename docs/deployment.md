@@ -6,6 +6,29 @@
 
 公开的 `wrangler.jsonc` 只保存通用 Worker、Cloudflare Static Assets 和本地开发配置。生产 account、hostname/routes、Turnstile site key 等部署标识保存在被 Git ignore 的 `wrangler.private.jsonc`。
 
+默认部署路径是 GitHub Actions。手动 `wrangler.private.jsonc` 部署保留为 fallback。
+
+## GitHub CI/CD
+
+`.github/workflows/deploy.yml` 的行为：
+
+- `pull_request` to `master`：只运行验证，不部署。
+- `push` to `master`：验证通过后部署。
+- `workflow_dispatch`：允许从 GitHub UI 手动触发部署。
+
+CI 会用 `scripts/write-ci-wrangler-config.mjs` 从公开 `wrangler.jsonc` 生成 `.wrangler-ci.jsonc`，并注入 GitHub Secrets 中的部署标识。`.wrangler-ci.jsonc` 被 Git ignore，不要提交。
+
+GitHub repository secrets 必填：
+
+- `CLOUDFLARE_API_TOKEN`：Wrangler deploy 和写 Worker secrets 使用的 Cloudflare API token。
+- `CLOUDFLARE_ACCOUNT_ID`：Cloudflare account ID。
+- `GLOBALTRACE_HOSTNAME`：生产 hostname，只写域名，不带 `https://` 或路径。
+- `TURNSTILE_SITE_KEY`：Turnstile widget site key。
+- `NXTRACE_API_V4_TOKEN`：Worker secret。
+- `TURNSTILE_SECRET_KEY`：Worker secret。
+
+`CLOUDFLARE_API_TOKEN` 至少需要能部署 Worker、上传 assets、维护目标 route/custom domain，并写入 Worker secrets。若使用 zone route，还需要对应 zone 的 route 权限。
+
 ## 私有配置文件
 
 创建本机私有配置：
@@ -24,12 +47,13 @@ cp wrangler.private.example.jsonc wrangler.private.jsonc
 
 ## Cloudflare 前置条件
 
-- 本机存在 `wrangler.private.jsonc`。
-- `wrangler.private.jsonc` 包含生产 `account_id`、`routes` 或 `domains`、生产 `vars.TURNSTILE_SITE_KEY`。
+- GitHub repository secrets 已按上文配置。
 - Cloudflare 登录态或 API token 已允许 Wrangler 部署目标 Worker。
 - Cloudflare 里已创建 Turnstile widget，并拿到对应 site key。
 
-必需 Worker secrets：
+手动 fallback 部署还需要本机存在 `wrangler.private.jsonc`，且包含生产 `account_id`、`routes` 或 `domains`、生产 `vars.TURNSTILE_SITE_KEY`。
+
+手动设置 Worker secrets：
 
 ```bash
 npx wrangler secret put --config wrangler.private.jsonc NXTRACE_API_V4_TOKEN
@@ -51,6 +75,7 @@ git diff --check
 - `dist`
 - `.wrangler`
 - `.wrangler-home`
+- `.wrangler-ci.jsonc`
 - `.dev.vars`
 - `.env`
 - `wrangler.private.jsonc`
@@ -58,7 +83,7 @@ git diff --check
 - `test-results`
 - smoke 截图或临时文件
 
-当前仓库没有配置 git remote；除非任务明确要求同步远端，否则不要临时添加 remote。
+当前仓库默认通过 `origin` 的 GitHub Actions 部署；除非任务明确要求，不要在本地直接部署生产。
 
 ## 本地验证
 
@@ -87,14 +112,28 @@ npm run smoke:worker
 
 `smoke:browser` 使用本地 Vite server；`smoke:worker` 会构建 `dist`，再通过 `wrangler dev --local --assets dist` 验证 Worker Static Assets。
 
-## 部署
+## GitHub Actions 部署
+
+推送到 `master` 后，GitHub Actions 会执行：
+
+- `npm ci`
+- `npx playwright install --with-deps chromium`
+- `npm run typecheck`
+- `npm test`
+- `npm run build`
+- `npm run smoke`
+- 生成 `.wrangler-ci.jsonc`
+- `wrangler deploy --config .wrangler-ci.jsonc`
+- 线上检查 `/` 和 `/api/config`
+
+部署会同时发布 Worker 和静态资源。`assets.directory` 必须对应 CI 最新 `npm run build` 生成的 `dist`。
+
+## 手动 fallback 部署
 
 ```bash
 npm run build
 npx wrangler deploy --config wrangler.private.jsonc
 ```
-
-部署会同时发布 Worker 和静态资源。`assets.directory` 必须对应最新 `npm run build` 生成的 `dist`。
 
 等价脚本：
 
@@ -113,10 +152,10 @@ git status --short
 git diff --stat
 git add <本次相关文件>
 git commit -m "<conventional commit message>"
-npm run deploy:private
+git push origin master
 ```
 
-提交只暂存本次任务相关文件；不要把无关工作区改动带入 commit。
+提交只暂存本次任务相关文件；不要把无关工作区改动带入 commit。生产发布由 GitHub Actions 完成。
 
 ## 线上验证
 

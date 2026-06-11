@@ -16,6 +16,7 @@
 - 后端增强：Worker 调用 nxtrace API v4 batch GeoIP/ASN/whois。
 - Worker 名称：`globaltrace`。
 - 生产部署标识保存在 ignored `wrangler.private.jsonc`，不要提交。
+- 默认生产部署通过 GitHub Actions，不再从本机直接部署。
 
 ## 关键约束
 
@@ -29,7 +30,7 @@
 
 1. 用 `git status --short` 确认只包含本次任务相关文件。
 2. 用 `git diff --stat` 和必要的 `git diff -- <file>` 检查改动范围。
-3. 不提交 `dist`、`.wrangler`、`.wrangler-home`、`wrangler.private.jsonc`、`.dev.vars`、`.env`、`test-results`、临时截图或 smoke 产物。
+3. 不提交 `dist`、`.wrangler`、`.wrangler-home`、`.wrangler-ci.jsonc`、`wrangler.private.jsonc`、`.dev.vars`、`.env`、`test-results`、临时截图或 smoke 产物。
 4. docs-only 改动至少运行 `git diff --check`。
 
 ## 验证命令
@@ -54,7 +55,7 @@ npm run typecheck
 npm test
 npm run build
 npm run smoke
-npm run deploy:private
+git push origin master
 ```
 
 部署后至少验证：
@@ -64,7 +65,7 @@ curl -fsSI https://<private-hostname>/
 curl -fsSL https://<private-hostname>/api/config
 ```
 
-当前仓库没有配置 git remote；除非用户要求配置或同步远端，否则本地 commit + Cloudflare deploy 就是完整发布路径。
+生产发布由 GitHub Actions 完成。`npm run deploy:private` 只作为手动 fallback，除非用户明确要求，不要本机直接部署生产。
 
 ## 已知本机问题
 

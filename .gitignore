@@ -3,6 +3,7 @@ dist
 .npm-cache
 .wrangler
 .wrangler-home
+.wrangler-ci.jsonc
 wrangler.private.jsonc
 .dev.vars
 .env
