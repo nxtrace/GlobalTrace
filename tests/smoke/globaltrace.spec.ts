@@ -10,6 +10,15 @@ const viewports = [
   { name: "390x844", width: 390, height: 844 },
 ];
 
+const mobileResultViewports = [
+  { name: "320x568", width: 320, height: 568 },
+  { name: "360x740", width: 360, height: 740 },
+  { name: "390x844", width: 390, height: 844 },
+  { name: "430x932", width: 430, height: 932 },
+  { name: "768x1024", width: 768, height: 1024 },
+  { name: "844x390", width: 844, height: 390 },
+];
+
 for (const viewport of viewports) {
   test(`deterministic trace flow at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -195,6 +204,45 @@ for (const viewport of [
 
     await page.screenshot({
       path: `/tmp/${screenshotPrefix}-result-map-switch-${viewport.name}.png`,
+      fullPage: true,
+    });
+  });
+}
+
+for (const viewport of mobileResultViewports) {
+  test(`mobile result page controls stay inside layout at ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const consoleErrors = collectConsoleErrors(page);
+    await installMocks(page);
+
+    await page.goto("/?measurement=m-smoke");
+
+    await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+    await expect(page.getByRole("group", { name: "结果地图视图" })).toBeVisible();
+    await expectResultHeaderActions(page);
+    await expect(page.getByRole("button", { name: "切换结果地图到 2D" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "复制" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "关闭结果" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByLabel("trace result map")).toBeVisible();
+    await expectMapCanvasPainted(page);
+    await expectResultMapProjection(page, "mercator");
+
+    await page.getByRole("button", { name: "切换结果地图到 3D" }).click();
+
+    await expectResultMapProjection(page, "globe");
+    await expect(page.getByRole("button", { name: "切换结果地图到 3D" })).toHaveAttribute("aria-pressed", "true");
+    await expectResultMapStyleLoaded(page);
+    await page.getByText("raw output").click();
+    await page.getByText("whois / source details").click();
+    await expect(page.getByText("Host Loss% Avg")).toBeVisible();
+    await expect(page.getByText(/google-whois/)).toBeVisible();
+    await expectMobileResultLayout(page);
+    await expectNoPageOverflow(page);
+    expect(consoleErrors).toEqual([]);
+
+    await page.screenshot({
+      path: `/tmp/${screenshotPrefix}-mobile-result-${viewport.name}.png`,
       fullPage: true,
     });
   });
@@ -771,6 +819,7 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
     return {
       right: rect.right,
       documentClient: document.documentElement.clientWidth,
+      viewportHeight: window.innerHeight,
       children,
       toolbarHeight: toolbar?.getBoundingClientRect().height ?? 0,
       shareHeight: share?.getBoundingClientRect().height ?? 0,
@@ -783,7 +832,7 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
   expect(state.right).toBeLessThanOrEqual(state.documentClient);
   expect(state.children[0]?.className).toContain("result-map-toolbar");
   expect(state.children[1]?.className).toContain("share-surface");
-  if (state.documentClient > 820) {
+  if (state.documentClient > 820 && !(state.documentClient <= 900 && state.viewportHeight <= 560)) {
     const heights = [state.toolbarHeight, state.shareHeight, state.closeHeight];
     expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(2);
   } else {
@@ -811,31 +860,86 @@ async function expectResultMapGlobeDesktopSize(page: Page): Promise<void> {
 async function expectMobileResultLayout(page: Page): Promise<void> {
   const state = await page.evaluate(() => {
     const doc = document.documentElement;
+    const body = document.body;
+    const result = document.querySelector(".results-section") as HTMLElement | null;
+    const sectionHeader = document.querySelector(".results-section .section-header") as HTMLElement | null;
     const headerActions = document.querySelector(".result-header-actions") as HTMLElement | null;
     const toolbar = document.querySelector(".result-map-toolbar") as HTMLElement | null;
+    const viewSwitch = document.querySelector(".result-map-view-switch") as HTMLElement | null;
+    const share = document.querySelector(".share-surface") as HTMLElement | null;
     const switchButton = document.querySelector(".result-map-view-switch button") as HTMLElement | null;
     const copyButton = document.querySelector(".share-actions button") as HTMLElement | null;
     const closeButton = document.querySelector('.result-header-actions [aria-label="关闭结果"]') as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const map = document.querySelector(".result-map") as HTMLElement | null;
     const table = document.querySelector(".hop-table-scroll") as HTMLElement | null;
-    const raw = document.querySelector(".raw-output[open] pre") as HTMLElement | null;
-    const headerRect = headerActions?.getBoundingClientRect();
+    const rawBlocks = Array.from(document.querySelectorAll(".raw-output[open] pre")) as HTMLElement[];
+    const rectFor = (element: Element | null) => {
+      const rect = element?.getBoundingClientRect();
+      return rect
+        ? {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+            width: rect.width,
+            height: rect.height,
+          }
+        : { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
+    };
+    const actionButtons = Array.from(headerActions?.querySelectorAll("button") || []) as HTMLButtonElement[];
+    const buttonRects = actionButtons.map((button) => ({
+      label: button.getAttribute("aria-label") || button.textContent?.trim() || "",
+      ...rectFor(button),
+    }));
+    const overlaps: string[] = [];
+    for (let index = 0; index < buttonRects.length; index += 1) {
+      for (let next = index + 1; next < buttonRects.length; next += 1) {
+        const first = buttonRects[index];
+        const second = buttonRects[next];
+        if (!first || !second) continue;
+        const xOverlap = Math.min(first.right, second.right) - Math.max(first.left, second.left);
+        const yOverlap = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top);
+        if (xOverlap > 0.5 && yOverlap > 0.5) overlaps.push(`${first.label}/${second.label}`);
+      }
+    }
+    const resultRect = rectFor(result);
+    const sectionHeaderRect = rectFor(sectionHeader);
+    const actionsRect = headerActions?.getBoundingClientRect();
     const toolbarRect = toolbar?.getBoundingClientRect();
+    const viewSwitchRect = viewSwitch?.getBoundingClientRect();
+    const shareRect = share?.getBoundingClientRect();
     const buttonRect = switchButton?.getBoundingClientRect();
     const copyButtonRect = copyButton?.getBoundingClientRect();
     const closeButtonRect = closeButton?.getBoundingClientRect();
     const mapRect = map?.getBoundingClientRect();
+    const actionStyle = headerActions ? window.getComputedStyle(headerActions) : null;
     return {
       documentScroll: doc.scrollWidth,
       documentClient: doc.clientWidth,
-      headerWidth: headerRect?.width ?? 0,
-      headerRight: headerRect?.right ?? 0,
+      bodyScroll: body.scrollWidth,
+      bodyClient: body.clientWidth,
+      viewportHeight: window.innerHeight,
+      resultLeft: resultRect.left,
+      resultRight: resultRect.right,
+      resultWidth: resultRect.width,
+      sectionHeaderLeft: sectionHeaderRect.left,
+      sectionHeaderRight: sectionHeaderRect.right,
+      sectionHeaderWidth: sectionHeaderRect.width,
+      headerWidth: actionsRect?.width ?? 0,
+      headerRight: actionsRect?.right ?? 0,
+      headerDisplay: actionStyle?.display ?? "",
+      headerGridColumns: actionStyle?.gridTemplateColumns ?? "",
       toolbarWidth: toolbarRect?.width ?? 0,
       toolbarRight: toolbarRect?.right ?? 0,
+      toolbarBottom: toolbarRect?.bottom ?? 0,
+      viewSwitchWidth: viewSwitchRect?.width ?? 0,
+      shareSurfaceTop: shareRect?.top ?? 0,
       buttonHeight: buttonRect?.height ?? 0,
       copyButtonHeight: copyButtonRect?.height ?? 0,
+      copyButtonTop: copyButtonRect?.top ?? 0,
       closeButtonHeight: closeButtonRect?.height ?? 0,
+      closeButtonTop: closeButtonRect?.top ?? 0,
       tabsOverflowX: tabs ? window.getComputedStyle(tabs).overflowX : "",
       tabsScrollWidth: tabs?.scrollWidth ?? 0,
       tabsClientWidth: tabs?.clientWidth ?? 0,
@@ -843,24 +947,52 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       tableOverflowX: table ? window.getComputedStyle(table).overflowX : "",
       tableScrollWidth: table?.scrollWidth ?? 0,
       tableClientWidth: table?.clientWidth ?? 0,
-      rawMaxHeight: raw ? window.getComputedStyle(raw).maxHeight : "",
+      rawMaxHeights: rawBlocks.map((raw) => window.getComputedStyle(raw).maxHeight),
+      buttonRects,
+      overlaps,
     };
   });
   expect(state.documentScroll).toBeLessThanOrEqual(state.documentClient);
+  expect(state.bodyScroll).toBeLessThanOrEqual(state.bodyClient);
+  expect(state.resultLeft).toBeGreaterThanOrEqual(0);
+  expect(state.resultRight).toBeLessThanOrEqual(state.documentClient);
+  expect(state.sectionHeaderLeft).toBeGreaterThanOrEqual(state.resultLeft);
+  expect(state.sectionHeaderRight).toBeLessThanOrEqual(state.resultRight);
+  expect(state.sectionHeaderWidth).toBeLessThanOrEqual(state.resultWidth);
   expect(state.headerRight).toBeLessThanOrEqual(state.documentClient);
   expect(state.toolbarRight).toBeLessThanOrEqual(state.documentClient);
-  expect(state.headerWidth).toBeGreaterThan(250);
-  expect(state.toolbarWidth).toBeGreaterThan(250);
+  expect(state.headerRight).toBeLessThanOrEqual(state.resultRight);
+  expect(state.toolbarRight).toBeLessThanOrEqual(state.resultRight);
+  expect(state.headerDisplay).toBe("grid");
+  expect(state.headerGridColumns.split(" ").filter(Boolean)).toHaveLength(2);
+  expect(state.headerWidth).toBeGreaterThanOrEqual(Math.min(280, state.documentClient - 40));
+  expect(state.headerWidth).toBeLessThanOrEqual(state.resultWidth);
+  expect(state.toolbarWidth).toBeGreaterThanOrEqual(state.headerWidth - 1);
+  expect(state.viewSwitchWidth).toBeGreaterThanOrEqual(state.toolbarWidth - 10);
+  expect(state.buttonRects).toHaveLength(4);
+  expect(state.overlaps).toEqual([]);
+  for (const rect of state.buttonRects) {
+    expect(rect.left).toBeGreaterThanOrEqual(state.resultLeft);
+    expect(rect.right).toBeLessThanOrEqual(state.resultRight);
+    expect(rect.right).toBeLessThanOrEqual(state.documentClient);
+    expect(rect.height).toBeGreaterThanOrEqual(44);
+  }
   expect(state.buttonHeight).toBeGreaterThanOrEqual(44);
   expect(state.copyButtonHeight).toBeGreaterThanOrEqual(44);
   expect(state.closeButtonHeight).toBeGreaterThanOrEqual(44);
+  expect(Math.abs(state.shareSurfaceTop - state.closeButtonTop)).toBeLessThanOrEqual(2);
+  expect(state.copyButtonTop).toBeGreaterThanOrEqual(state.shareSurfaceTop);
+  expect(state.copyButtonTop).toBeGreaterThanOrEqual(state.toolbarBottom - 1);
   expect(["auto", "scroll"]).toContain(state.tabsOverflowX);
   expect(state.tabsScrollWidth).toBeGreaterThanOrEqual(state.tabsClientWidth);
   expect(state.mapHeight).toBeGreaterThanOrEqual(300);
   expect(state.mapHeight).toBeLessThanOrEqual(480);
   expect(["auto", "scroll"]).toContain(state.tableOverflowX);
   expect(state.tableScrollWidth).toBeGreaterThan(state.tableClientWidth);
-  expect(state.rawMaxHeight).toContain("px");
+  expect(state.rawMaxHeights).toHaveLength(2);
+  for (const maxHeight of state.rawMaxHeights) {
+    expect(maxHeight).toContain("px");
+  }
 }
 
 async function expectHopTableScrollsWithinPanel(page: Page): Promise<void> {
