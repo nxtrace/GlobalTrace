@@ -804,9 +804,8 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
   const state = await actions.evaluate((node) => {
     const rect = (node as HTMLElement).getBoundingClientRect();
     const toolbar = node.querySelector(".result-map-toolbar") as HTMLElement | null;
-    const share = node.querySelector(".share-surface") as HTMLElement | null;
     const switchButton = node.querySelector(".result-map-view-switch button") as HTMLElement | null;
-    const copyButton = node.querySelector(".share-actions button") as HTMLElement | null;
+    const copyButton = node.querySelector('[title="复制分享 URL"]') as HTMLElement | null;
     const closeButton = node.querySelector('[aria-label="关闭结果"]') as HTMLElement | null;
     const children = Array.from(node.children).map((child) => {
       const childRect = child.getBoundingClientRect();
@@ -822,7 +821,6 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
       viewportHeight: window.innerHeight,
       children,
       toolbarHeight: toolbar?.getBoundingClientRect().height ?? 0,
-      shareHeight: share?.getBoundingClientRect().height ?? 0,
       closeHeight: closeButton?.getBoundingClientRect().height ?? 0,
       switchButtonHeight: switchButton?.getBoundingClientRect().height ?? 0,
       copyButtonHeight: copyButton?.getBoundingClientRect().height ?? 0,
@@ -831,9 +829,10 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
   });
   expect(state.right).toBeLessThanOrEqual(state.documentClient);
   expect(state.children[0]?.className).toContain("result-map-toolbar");
-  expect(state.children[1]?.className).toContain("share-surface");
+  expect(state.children[1]?.className).toContain("result-command-button");
+  expect(state.children[2]?.className).toContain("result-command-button");
   if (state.documentClient > 820 && !(state.documentClient <= 900 && state.viewportHeight <= 560)) {
-    const heights = [state.toolbarHeight, state.shareHeight, state.closeHeight];
+    const heights = [state.toolbarHeight, state.copyButtonHeight, state.closeHeight];
     expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(2);
   } else {
     expect(state.switchButtonHeight).toBeGreaterThanOrEqual(44);
@@ -866,11 +865,10 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const headerActions = document.querySelector(".result-header-actions") as HTMLElement | null;
     const toolbar = document.querySelector(".result-map-toolbar") as HTMLElement | null;
     const viewSwitch = document.querySelector(".result-map-view-switch") as HTMLElement | null;
-    const share = document.querySelector(".share-surface") as HTMLElement | null;
     const switchButton = document.querySelector(".result-map-view-switch button") as HTMLElement | null;
     const twoDimensionalButton = document.querySelector('[aria-label="切换结果地图到 2D"]') as HTMLElement | null;
     const threeDimensionalButton = document.querySelector('[aria-label="切换结果地图到 3D"]') as HTMLElement | null;
-    const copyButton = document.querySelector(".share-actions button") as HTMLElement | null;
+    const copyButton = document.querySelector('[title="复制分享 URL"]') as HTMLElement | null;
     const closeButton = document.querySelector('.result-header-actions [aria-label="关闭结果"]') as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const map = document.querySelector(".result-map") as HTMLElement | null;
@@ -930,7 +928,6 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const actionsRect = headerActions?.getBoundingClientRect();
     const toolbarRect = toolbar?.getBoundingClientRect();
     const viewSwitchRect = viewSwitch?.getBoundingClientRect();
-    const shareRect = share?.getBoundingClientRect();
     const buttonRect = switchButton?.getBoundingClientRect();
     const copyButtonRect = copyButton?.getBoundingClientRect();
     const closeButtonRect = closeButton?.getBoundingClientRect();
@@ -957,7 +954,6 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       toolbarRight: toolbarRect?.right ?? 0,
       toolbarBottom: toolbarRect?.bottom ?? 0,
       viewSwitchWidth: viewSwitchRect?.width ?? 0,
-      shareSurfaceTop: shareRect?.top ?? 0,
       buttonHeight: buttonRect?.height ?? 0,
       copyButtonHeight: copyButtonRect?.height ?? 0,
       copyButtonTop: copyButtonRect?.top ?? 0,
@@ -1013,10 +1009,10 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.buttonHeight).toBeGreaterThanOrEqual(44);
   expect(state.copyButtonHeight).toBeGreaterThanOrEqual(44);
   expect(state.closeButtonHeight).toBeGreaterThanOrEqual(44);
-  expect(state.actionButtonStyles.copy.className).toContain("result-action-button");
-  expect(state.actionButtonStyles.close.className).toContain("result-action-button");
-  expect(state.actionButtonStyles.twoDimensional.className).toContain("result-action-button");
-  expect(state.actionButtonStyles.threeDimensional.className).toContain("result-action-button");
+  expect(state.actionButtonStyles.copy.className).toContain("result-command-button");
+  expect(state.actionButtonStyles.close.className).toContain("result-command-button");
+  expect(state.actionButtonStyles.twoDimensional.className).toContain("result-view-button");
+  expect(state.actionButtonStyles.threeDimensional.className).toContain("result-view-button");
   expect(state.actionButtonStyles.copy.backgroundColor).toBe(state.actionButtonStyles.close.backgroundColor);
   expect(state.actionButtonStyles.copy.borderColor).toBe(state.actionButtonStyles.close.borderColor);
   expect(state.actionButtonStyles.copy.color).toBe(state.actionButtonStyles.close.color);
@@ -1028,13 +1024,10 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   const inactiveViewButtonStyle = viewButtonStyles.find((style) => style.pressed !== "true");
   expect(activeViewButtonStyle).toBeTruthy();
   expect(inactiveViewButtonStyle).toBeTruthy();
-  expect(inactiveViewButtonStyle?.backgroundColor).toBe(state.actionButtonStyles.copy.backgroundColor);
-  expect(inactiveViewButtonStyle?.borderColor).toBe(state.actionButtonStyles.copy.borderColor);
-  expect(inactiveViewButtonStyle?.color).toBe(state.actionButtonStyles.copy.color);
+  expect(activeViewButtonStyle?.backgroundColor).not.toBe(inactiveViewButtonStyle?.backgroundColor);
   expect(activeViewButtonStyle?.backgroundColor).not.toBe(state.actionButtonStyles.copy.backgroundColor);
-  expect(activeViewButtonStyle?.color).not.toBe(state.actionButtonStyles.copy.color);
-  expect(Math.abs(state.shareSurfaceTop - state.closeButtonTop)).toBeLessThanOrEqual(2);
-  expect(state.copyButtonTop).toBeGreaterThanOrEqual(state.shareSurfaceTop);
+  expect(activeViewButtonStyle?.color).not.toBe(inactiveViewButtonStyle?.color);
+  expect(Math.abs(state.copyButtonTop - state.closeButtonTop)).toBeLessThanOrEqual(2);
   expect(state.copyButtonTop).toBeGreaterThanOrEqual(state.toolbarBottom - 1);
   if (state.documentClient <= 560) {
     expect(state.tabsFlexWrap).toBe("wrap");

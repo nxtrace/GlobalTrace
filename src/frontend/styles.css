@@ -361,7 +361,6 @@ button {
 .section-header,
 .status-bar,
 .map-toolbar,
-.share-actions,
 .summary-title,
 .probe-match-row {
   display: flex;
@@ -1002,7 +1001,7 @@ summary:focus-visible {
 }
 
 .result-map-toolbar-surface .liquid-glass-content {
-  padding: 4px;
+  padding: 0;
 }
 
 .result-map-toolbar-surface .liquid-glass-content,
@@ -1010,10 +1009,11 @@ summary:focus-visible {
   border-color: var(--control-border);
   background: var(--control-bg);
   box-shadow: var(--shadow-control);
+  overflow: hidden;
+  border-radius: 999px;
 }
 
-.result-map-toolbar-surface .glass,
-.share-surface .glass {
+.result-map-toolbar-surface .glass {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.12)),
     var(--control-bg);
@@ -1021,40 +1021,14 @@ summary:focus-visible {
 
 .result-map-view-switch {
   min-width: 0;
+  height: 40px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(58px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  gap: 2px;
 }
 
-.result-map-view-switch button {
-  height: 32px;
-  min-height: 32px;
-  border-radius: 10px;
-}
-
-.share-surface .liquid-glass-content {
-  padding: 4px;
-}
-
-.share-surface .liquid-glass-content,
-.share-surface .liquid-glass-fallback-content {
-  border-color: var(--control-border);
-  background: var(--control-bg);
-  box-shadow: var(--shadow-control);
-}
-
-.share-surface {
-  max-width: 100%;
-}
-
-.share-actions {
-  min-width: 0;
-  max-width: 100%;
-  justify-content: flex-end;
-}
-
-.share-actions button,
-.result-header-actions > button,
+.result-view-button,
+.result-command-button,
 .attribution-panel > button,
 .token-actions button {
   white-space: normal;
@@ -1062,32 +1036,51 @@ summary:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.result-header-actions > button {
+.result-view-button {
   height: 40px;
   min-height: 40px;
-}
-
-.result-action-button {
-  border: 1px solid var(--control-border);
-  background: var(--control-bg);
-  color: var(--ink);
+  padding-inline: 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
   font-weight: 720;
-  box-shadow: var(--shadow-control);
+  box-shadow: none;
 }
 
-.result-action-button:hover {
+.result-view-button:hover {
   background: var(--control-bg-hover);
   color: var(--ink);
 }
 
-.result-action-button[aria-pressed="true"] {
+.result-view-button[aria-pressed="true"] {
   border-color: var(--accent-border);
   background: var(--accent-soft);
   color: var(--accent-strong);
   box-shadow: var(--shadow-inset);
 }
 
-.result-action-button:disabled {
+.result-command-button {
+  height: 40px;
+  min-height: 40px;
+  padding-inline: 16px;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--control-bg);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 720;
+  box-shadow: var(--shadow-control);
+}
+
+.result-command-button:hover {
+  background: var(--control-bg-hover);
+  color: var(--ink);
+}
+
+.result-view-button:disabled,
+.result-command-button:disabled {
   opacity: 0.58;
   cursor: default;
   transform: none;
@@ -2254,29 +2247,21 @@ pre {
   .status-actions,
   .result-header-actions,
   .token-actions,
-  .attribution-panel,
-  .share-actions {
+  .attribution-panel {
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
   }
 
   .status-actions > *,
-  .result-header-actions > *,
-  .share-actions > * {
+  .result-header-actions > * {
     flex: 1 1 auto;
   }
 
-  .result-header-actions > .share-surface,
-  .share-surface .liquid-glass-content,
   .result-map-toolbar,
   .result-map-toolbar-surface,
   .result-map-toolbar-surface .liquid-glass-content {
     width: 100%;
-  }
-
-  .share-actions > * {
-    min-width: 100%;
   }
 
   .token-actions > div {
@@ -2308,9 +2293,8 @@ pre {
     width: 100%;
   }
 
-  .result-map-view-switch button,
-  .share-actions button,
-  .result-header-actions > button {
+  .result-view-button,
+  .result-command-button {
     height: 44px;
     min-height: 44px;
   }
@@ -2471,8 +2455,7 @@ pre {
     gap: 8px;
   }
 
-  .results-section .result-header-actions > *,
-  .results-section .share-actions > * {
+  .results-section .result-header-actions > * {
     min-width: 0;
   }
 
@@ -2488,27 +2471,16 @@ pre {
     grid-column: 1 / -1;
   }
 
-  .results-section .share-surface,
-  .results-section .share-surface .liquid-glass-content,
-  .results-section .share-surface .liquid-glass-fallback-content,
-  .results-section .share-actions,
-  .results-section .share-actions button,
-  .results-section .result-header-actions > button {
+  .results-section .result-command-button {
     width: 100%;
-  }
-
-  .results-section .share-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .results-section .result-map-view-switch {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .results-section .result-map-view-switch button,
-  .results-section .share-actions button,
-  .results-section .result-header-actions > button {
+  .results-section .result-view-button,
+  .results-section .result-command-button {
     min-height: 44px;
     height: 44px;
   }

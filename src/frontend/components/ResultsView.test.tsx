@@ -367,10 +367,14 @@ describe("ResultsView", () => {
     const closeButton = within(headerActions).getByRole("button", { name: "关闭结果" });
     const twoDimensionalButton = screen.getByRole("button", { name: "切换结果地图到 2D" });
     const threeDimensionalButton = screen.getByRole("button", { name: "切换结果地图到 3D" });
-    expect(copyButton).toHaveClass("result-action-button");
-    expect(closeButton).toHaveClass("result-action-button");
-    expect(twoDimensionalButton).toHaveClass("result-action-button", "result-view-button");
-    expect(threeDimensionalButton).toHaveClass("result-action-button", "result-view-button");
+    expect(headerActions.children[1]).toBe(copyButton);
+    expect(headerActions.children[2]).toBe(closeButton);
+    expect(copyButton).toHaveClass("result-command-button");
+    expect(closeButton).toHaveClass("result-command-button");
+    expect(twoDimensionalButton).toHaveClass("result-view-button");
+    expect(threeDimensionalButton).toHaveClass("result-view-button");
+    expect(twoDimensionalButton).not.toHaveClass("result-command-button");
+    expect(threeDimensionalButton).not.toHaveClass("result-command-button");
     expect(threeDimensionalButton).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 2D" }));
 

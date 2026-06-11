@@ -121,7 +121,7 @@ export function ResultsView({
             <Button
               variant="glass"
               size="sm"
-              className="result-action-button"
+              className="result-command-button"
               type="button"
               onClick={onClose}
               title="关闭结果"
@@ -204,7 +204,7 @@ function ResultMapToolbar({
           <Button
             variant="ghost"
             size="sm"
-            className="result-action-button result-view-button"
+            className="result-view-button"
             type="button"
             onClick={() => onMapProjectionChange?.("mercator")}
             aria-pressed={mapProjection === "mercator"}
@@ -217,7 +217,7 @@ function ResultMapToolbar({
           <Button
             variant="ghost"
             size="sm"
-            className="result-action-button result-view-button"
+            className="result-view-button"
             type="button"
             onClick={() => onMapProjectionChange?.("globe")}
             aria-pressed={mapProjection === "globe"}
@@ -248,21 +248,17 @@ function ShareButton({ measurementId }: { measurementId: string }) {
   };
 
   return (
-    <LiquidGlassSurface variant="toolbar" className="share-surface">
-      <div className="share-actions">
-        <Button
-          variant="glass"
-          size="sm"
-          className="result-action-button"
-          type="button"
-          onClick={copy}
-          title="复制分享 URL"
-        >
-          <Copy size={16} />
-          {copied ? "已复制" : "复制"}
-        </Button>
-      </div>
-    </LiquidGlassSurface>
+    <Button
+      variant="glass"
+      size="sm"
+      className="result-command-button"
+      type="button"
+      onClick={copy}
+      title="复制分享 URL"
+    >
+      <Copy size={16} />
+      {copied ? "已复制" : "复制"}
+    </Button>
   );
 }
 
