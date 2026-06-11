@@ -1,0 +1,13 @@
+node_modules
+dist
+.npm-cache
+.wrangler
+.wrangler-home
+wrangler.private.jsonc
+.dev.vars
+.env
+coverage
+test-results
+*.local
+terraform/*.tfvars
+tmp

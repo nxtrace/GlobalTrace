@@ -1,0 +1,538 @@
+import "maplibre-gl/dist/maplibre-gl.css";
+import { AlertCircle, Eye, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createTrace,
+  enrichTrace,
+  fetchCachedTrace,
+  fetchConfig,
+  fetchGlobalpingMeasurement,
+  fetchLimits,
+  fetchProbes,
+  type AppConfig,
+} from "./api";
+import { AboutPage } from "./components/AboutPage";
+import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
+import { LiquidGlassSurface } from "./components/LiquidGlassSurface";
+import { ProbeMap } from "./components/ProbeMap";
+import { ProbeTable } from "./components/ProbeTable";
+import { ResultsView } from "./components/ResultsView";
+import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
+import { Surface } from "./components/ui/surface";
+import { TooltipProvider } from "./components/ui/tooltip";
+import { filterChips, filterProbes, magicFromSelectedProbes, probeToMagic } from "../shared/filters";
+import { measurementToTraceResponse } from "../shared/transform";
+import {
+  DEFAULT_MAP_STYLE_URL,
+  DEFAULT_PROBE_LIMIT,
+  type GlobalpingLimitResponse,
+  type GlobalpingProbe,
+  type TraceFilters,
+  type TraceProtocol,
+  type TraceResultResponse,
+} from "../shared/types";
+import { nextThemeMode, type ThemeMode } from "./theme";
+import "./styles.css";
+
+export const POLL_DELAY_MS = 650;
+export const TRACE_MAX_POLL_ATTEMPTS = 120;
+const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
+const THEME_STORAGE_KEY = "globaltrace.themeMode";
+
+type WorkspaceMode = "select" | "result";
+type AppRoute = "/" | "/about";
+type TraceLoadSource = "created" | "shared";
+
+export function App() {
+  const [route, setRoute] = useState<AppRoute>(currentRoute);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
+  const [globalpingToken, setGlobalpingToken] = useState(readStoredGlobalpingToken);
+  const [globalpingTokenDraft, setGlobalpingTokenDraft] = useState(globalpingToken);
+  const [config, setConfig] = useState<AppConfig>({
+    turnstileSiteKey: import.meta.env.VITE_TURNSTILE_SITE_KEY || "",
+    mapStyleUrl: import.meta.env.VITE_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL,
+  });
+  const [target, setTarget] = useState("globalping.io");
+  const [protocol, setProtocol] = useState<TraceProtocol>("ICMP");
+  const [ipVersion, setIpVersion] = useState<IpVersionSelection>("");
+  const [port, setPort] = useState("");
+  const [packets, setPackets] = useState(3);
+  const [limit, setLimit] = useState(DEFAULT_PROBE_LIMIT);
+  const [filters, setFilters] = useState<TraceFilters>({ magic: "world" });
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileResetNonce, setTurnstileResetNonce] = useState(0);
+  const [probes, setProbes] = useState<GlobalpingProbe[]>([]);
+  const [probesStatus, setProbesStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [limits, setLimits] = useState<GlobalpingLimitResponse | null>(null);
+  const [limitsStatus, setLimitsStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [result, setResult] = useState<TraceResultResponse | null>(null);
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("select");
+  const [loading, setLoading] = useState(false);
+  const [sharedLoadingMeasurementId, setSharedLoadingMeasurementId] = useState("");
+  const [message, setMessage] = useState("");
+  const [selectionNotice, setSelectionNotice] = useState("");
+  const pollAbortRef = useRef<AbortController | null>(null);
+  const bootstrappedRef = useRef(false);
+  const createdMeasurementIdRef = useRef("");
+
+  const finalResult = result?.status === "in-progress" ? null : result;
+  const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
+  const turnstileReady = !config.turnstileSiteKey || Boolean(turnstileToken);
+  const filteredProbes = useMemo(() => filterProbes(probes, filters), [filters, probes]);
+  const chips = useMemo(() => filterChips(filters), [filters]);
+  const quotaLabel = useMemo(() => {
+    if (limitsStatus === "loading") return "诊断额度读取中";
+    if (limitsStatus === "error" || !limits) return "诊断额度暂不可用";
+    return `可创建诊断 ${limits.measurements.create.remaining}/${limits.measurements.create.limit}（${globalpingToken ? "Globalping Token" : "当前 IP"}）`;
+  }, [globalpingToken, limits, limitsStatus]);
+
+  useEffect(() => {
+    const onPopState = () => setRoute(currentRoute());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = themeMode;
+    writeStoredThemeMode(themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
+    if (route !== "/" || bootstrappedRef.current) return;
+    bootstrappedRef.current = true;
+    void bootstrap();
+  }, [route]);
+
+  useEffect(() => {
+    if (route !== "/") return;
+    void loadLimits(globalpingToken);
+  }, [globalpingToken, route]);
+
+  const loadTrace = useCallback(async (
+    measurementId: string,
+    poll: boolean,
+    nextGlobalpingToken: string,
+    nextTurnstileToken: string,
+    source: TraceLoadSource,
+  ) => {
+    pollAbortRef.current?.abort();
+    const controller = new AbortController();
+    pollAbortRef.current = controller;
+    setLoading(true);
+    if (source === "shared") {
+      setSharedLoadingMeasurementId(measurementId);
+      setWorkspaceMode("result");
+      setResult(null);
+      setMessage("");
+    } else {
+      setSharedLoadingMeasurementId("");
+    }
+    try {
+      const cached = await fetchCachedTrace(measurementId, controller.signal);
+      if (cached) {
+        setResult(cached);
+        setMessage("");
+        if (cached.status !== "in-progress") {
+          setWorkspaceMode("result");
+        }
+        return;
+      }
+
+      let measurement = await fetchGlobalpingMeasurement(measurementId, nextGlobalpingToken, controller.signal);
+      let current = measurementToTraceResponse(measurement);
+      setResult(current);
+      let attempts = 0;
+      while (poll && current.status === "in-progress" && attempts < TRACE_MAX_POLL_ATTEMPTS) {
+        attempts += 1;
+        await sleep(POLL_DELAY_MS, controller.signal);
+        measurement = await fetchGlobalpingMeasurement(measurementId, nextGlobalpingToken, controller.signal);
+        current = measurementToTraceResponse(measurement);
+        setResult(current);
+      }
+
+      if (current.status === "in-progress") {
+        setMessage("measurement 仍在运行，请稍后通过分享 URL 重新打开。");
+        return;
+      }
+
+      const enriched = await enrichTrace(measurement, nextTurnstileToken);
+      setResult(enriched);
+      setMessage("");
+      if (enriched.status !== "in-progress") {
+        setWorkspaceMode("result");
+      }
+    } catch (error) {
+      if (isAbortError(error)) return;
+      setMessage(userFacingErrorMessage(error, "加载 measurement 失败"));
+    } finally {
+      if (pollAbortRef.current === controller) {
+        pollAbortRef.current = null;
+        if (source === "shared") {
+          setSharedLoadingMeasurementId("");
+        }
+        setLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (route !== "/") return;
+    const id = new URL(window.location.href).searchParams.get("measurement");
+    if (id && id !== createdMeasurementIdRef.current) {
+      void loadTrace(id, true, globalpingToken, turnstileToken, "shared");
+    }
+  }, [globalpingToken, loadTrace, route, turnstileToken]);
+
+  useEffect(() => () => pollAbortRef.current?.abort(), []);
+
+  const bootstrap = async () => {
+    const nextConfig = await fetchConfig().catch(() => null);
+    if (nextConfig) {
+      setConfig((current) => ({
+        turnstileSiteKey: nextConfig.turnstileSiteKey || current.turnstileSiteKey,
+        mapStyleUrl: nextConfig.mapStyleUrl || current.mapStyleUrl,
+      }));
+    }
+
+    try {
+      const nextProbes = await fetchProbes();
+      setProbes(nextProbes.probes);
+      setProbesStatus("ready");
+    } catch (error) {
+      setProbesStatus("error");
+      setMessage(userFacingErrorMessage(error, "初始化失败"));
+    }
+
+  };
+
+  const loadLimits = async (token: string) => {
+    setLimitsStatus("loading");
+    try {
+      const nextLimits = await fetchLimits(token);
+      setLimits(nextLimits);
+      setLimitsStatus("ready");
+    } catch {
+      setLimits(null);
+      setLimitsStatus("error");
+    }
+  };
+
+  const submit = async () => {
+    const activeTurnstileToken = turnstileToken;
+    if (config.turnstileSiteKey && !activeTurnstileToken) {
+      setMessage("请先完成人机验证");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+    setWorkspaceMode("select");
+    try {
+      const created = await createTrace(
+        {
+          target,
+          protocol,
+          ipVersion: ipVersion || undefined,
+          port: port.trim() ? Number(port) : undefined,
+          packets,
+          limit,
+          filters,
+          turnstileToken: activeTurnstileToken,
+        },
+        globalpingToken,
+      );
+      createdMeasurementIdRef.current = created.measurementId;
+      const url = new URL(window.location.href);
+      url.searchParams.set("measurement", created.measurementId);
+      window.history.replaceState(null, "", url);
+      await loadTrace(created.measurementId, true, globalpingToken, activeTurnstileToken, "created");
+    } catch (error) {
+      setMessage(userFacingErrorMessage(error, "创建 trace 失败"));
+    } finally {
+      if (config.turnstileSiteKey) {
+        setTurnstileToken("");
+        setTurnstileResetNonce((current) => current + 1);
+      }
+      setLoading(false);
+    }
+  };
+
+  const pickProbe = useCallback((probe: GlobalpingProbe) => {
+    setFilters({ magic: probeToMagic(probe) });
+    setSelectionNotice(`已选择 ${probe.location.city || probe.location.country} · AS${probe.location.asn}`);
+  }, []);
+
+  const boxSelect = useCallback((selected: GlobalpingProbe[]) => {
+    if (!selected.length) {
+      setSelectionNotice("框选范围内没有可用 probe");
+      return;
+    }
+    const selection = magicFromSelectedProbes(selected, 10);
+    setFilters({ magic: selection.magic });
+    setLimit(Math.max(1, selection.selectedCount));
+    setSelectionNotice(
+      selection.capped
+        ? `框选 ${selected.length} 个 probes，已按上限取前 10 个`
+        : `框选 ${selection.selectedCount} 个 probes`,
+    );
+  }, []);
+
+  const reset = () => {
+    setFilters({ magic: "world" });
+    setWorkspaceMode("select");
+    setSharedLoadingMeasurementId("");
+    setLimit(DEFAULT_PROBE_LIMIT);
+    setPort("");
+    setPackets(3);
+    setProtocol("ICMP");
+    setIpVersion("");
+    setSelectionNotice("");
+  };
+
+  const handleFiltersChange = useCallback((nextFilters: TraceFilters) => {
+    setFilters(nextFilters);
+    setSelectionNotice("");
+  }, []);
+
+  const showResult = useCallback(() => {
+    if (finalResult) setWorkspaceMode("result");
+  }, [finalResult]);
+
+  const closeResult = useCallback(() => {
+    setWorkspaceMode("select");
+    setSharedLoadingMeasurementId("");
+  }, []);
+
+  const saveGlobalpingToken = useCallback(() => {
+    const trimmed = globalpingTokenDraft.trim();
+    setGlobalpingToken(trimmed);
+    setGlobalpingTokenDraft(trimmed);
+    writeStoredGlobalpingToken(trimmed);
+  }, [globalpingTokenDraft]);
+
+  const clearGlobalpingToken = useCallback(() => {
+    setGlobalpingToken("");
+    setGlobalpingTokenDraft("");
+    writeStoredGlobalpingToken("");
+  }, []);
+
+  const cycleThemeMode = useCallback(() => {
+    setThemeMode((current) => nextThemeMode(current));
+  }, []);
+
+  const navigateAbout = useCallback(() => {
+    window.history.pushState(null, "", "/about");
+    setRoute("/about");
+  }, []);
+
+  const navigateHome = useCallback(() => {
+    pollAbortRef.current?.abort();
+    pollAbortRef.current = null;
+    window.history.pushState(null, "", "/");
+    setWorkspaceMode("select");
+    setSharedLoadingMeasurementId("");
+    setMessage("");
+    setLoading(false);
+    setRoute("/");
+  }, []);
+
+  if (route === "/about") {
+    return (
+      <TooltipProvider delayDuration={180}>
+        <AboutPage onBack={navigateHome} />
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <TooltipProvider delayDuration={180}>
+      <main className={`app-shell${resultPriority ? " result-priority" : ""}`}>
+        <FilterPanel
+          target={target}
+          protocol={protocol}
+          ipVersion={ipVersion}
+          port={port}
+          packets={packets}
+          limit={limit}
+          filters={filters}
+          chips={chips}
+          visibleProbes={filteredProbes.length}
+          totalProbes={probes.length}
+          probesStatus={probesStatus}
+          quotaLabel={quotaLabel}
+          selectionNotice={selectionNotice}
+          loading={loading}
+          turnstileSiteKey={config.turnstileSiteKey}
+          turnstileReady={turnstileReady}
+          turnstileResetNonce={turnstileResetNonce}
+          globalpingTokenDraft={globalpingTokenDraft}
+          globalpingTokenSaved={Boolean(globalpingToken)}
+          themeMode={themeMode}
+          onTargetChange={setTarget}
+          onProtocolChange={setProtocol}
+          onIpVersionChange={setIpVersion}
+          onPortChange={setPort}
+          onPacketsChange={setPackets}
+          onLimitChange={setLimit}
+          onFiltersChange={handleFiltersChange}
+          onTurnstileToken={setTurnstileToken}
+          onGlobalpingTokenDraftChange={setGlobalpingTokenDraft}
+          onSaveGlobalpingToken={saveGlobalpingToken}
+          onClearGlobalpingToken={clearGlobalpingToken}
+          onCycleThemeMode={cycleThemeMode}
+          onNavigateHome={navigateHome}
+          onNavigateAbout={navigateAbout}
+          onReset={reset}
+          onSubmit={submit}
+        />
+
+        <div className="workspace">
+          <LiquidGlassSurface variant="toolbar" fullWidth className="status-surface">
+            <header className="status-bar">
+              <div>
+                <strong>网络路径诊断</strong>
+                <span>从全球探针发起 MTR，展示跳点延迟、丢包与地理信息</span>
+              </div>
+              <div className="status-actions">
+                {finalResult && workspaceMode === "select" && (
+                  <Button variant="glass" size="sm" type="button" onClick={showResult} aria-label="查看结果">
+                    <Eye size={16} />
+                    查看结果
+                  </Button>
+                )}
+                {limits && (
+                  <Badge variant="accent" className="quota-chip">
+                    {limits.measurements.create.remaining}/{limits.measurements.create.limit}
+                  </Badge>
+                )}
+              </div>
+            </header>
+          </LiquidGlassSurface>
+
+          {message && (
+            <Surface variant="flat" className="error-banner" role="alert">
+              <AlertCircle size={18} />
+              {message}
+            </Surface>
+          )}
+
+          {loading && !sharedLoadingMeasurementId && (
+            <Surface variant="flat" className="loading-strip">
+              <Loader2 size={18} className="spin" />
+              正在读取 measurement，完成后会自动展示结果。
+            </Surface>
+          )}
+
+          <div className="workspace-content">
+            {sharedLoadingMeasurementId ? (
+              <SharedResultLoading measurementId={sharedLoadingMeasurementId} />
+            ) : workspaceMode === "select" || !finalResult ? (
+              <div className="map-and-table">
+                <ProbeMap
+                  probes={filteredProbes}
+                  totalProbes={probes.length}
+                  status={probesStatus}
+                  selectionNotice={selectionNotice}
+                  mapStyleUrl={config.mapStyleUrl}
+                  onPickProbe={pickProbe}
+                  onBoxSelect={boxSelect}
+                />
+                <ProbeTable probes={filteredProbes} totalProbes={probes.length} status={probesStatus} onPick={pickProbe} />
+              </div>
+            ) : (
+              <ResultsView result={finalResult} mapStyleUrl={config.mapStyleUrl} onClose={closeResult} />
+            )}
+          </div>
+        </div>
+      </main>
+    </TooltipProvider>
+  );
+}
+
+function SharedResultLoading({ measurementId }: { measurementId: string }) {
+  return (
+    <Surface asChild className="shared-result-loading">
+      <section role="status" aria-live="polite" aria-label="正在打开分享结果">
+        <Loader2 size={24} className="spin" />
+        <div>
+          <h2>正在打开分享结果</h2>
+          <p>正在读取 Globalping measurement，完成后会自动展示结果。</p>
+          <span>{measurementId}</span>
+        </div>
+      </section>
+    </Surface>
+  );
+}
+
+function currentRoute(): AppRoute {
+  return window.location.pathname === "/about" ? "/about" : "/";
+}
+
+function readStoredGlobalpingToken(): string {
+  try {
+    return window.localStorage.getItem(GLOBALPING_TOKEN_STORAGE_KEY)?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeStoredGlobalpingToken(token: string): void {
+  try {
+    if (token) {
+      window.localStorage.setItem(GLOBALPING_TOKEN_STORAGE_KEY, token);
+    } else {
+      window.localStorage.removeItem(GLOBALPING_TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage failures; the token still works for the current tab.
+  }
+}
+
+function readStoredThemeMode(): ThemeMode {
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+  } catch {
+    return "system";
+  }
+}
+
+function writeStoredThemeMode(mode: ThemeMode): void {
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, mode);
+  } catch {
+    // Theme persistence is best-effort.
+  }
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+
+    const timer = window.setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timer);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+function userFacingErrorMessage(error: unknown, fallback: string): string {
+  const message = error instanceof Error ? error.message : fallback;
+  if (/parameter validation failed/i.test(message)) {
+    return `Globalping 筛选条件无效：${message} 请重置筛选，或改用国家、城市、ASN 等较短条件。`;
+  }
+  return message;
+}
