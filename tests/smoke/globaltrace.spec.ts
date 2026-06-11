@@ -58,6 +58,14 @@ for (const viewport of viewports) {
     if (viewport.name === "1440x1000") {
       await boxSelectLosAngelesWithOutsideRelease(page);
       await expect(page.getByLabel("probe map").getByText("框选 1 个 probes")).toBeVisible();
+      await expect(page.getByRole("button", { name: "取消地图筛选" })).toBeVisible();
+      await expect(page.getByLabel("probes")).toHaveValue("1");
+      await page.getByRole("button", { name: "取消地图筛选" }).click();
+      await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
+      await expect(page.getByTestId("filter-chips")).toContainText("world");
+      await expect(page.getByLabel("probe map").getByText("点选地图表示选择筛选条件，不承诺指定精确 probe")).toBeVisible();
+      await expect(page.getByRole("button", { name: "取消地图筛选" })).toHaveCount(0);
+      await expect(page.getByLabel("probes")).toHaveValue("3");
       await clickMapCoordinate(page, [-118.24, 34.05]);
       await expect(page.getByLabel("probe map").getByText("已选择 Los Angeles · AS7922")).toBeVisible();
       await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();

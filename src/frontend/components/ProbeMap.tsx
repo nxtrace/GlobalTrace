@@ -1,5 +1,5 @@
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
-import { BoxSelect, MousePointer2 } from "lucide-react";
+import { BoxSelect, MousePointer2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FeatureCollection, Point } from "geojson";
 import type { GlobalpingProbe } from "../../shared/types";
@@ -14,9 +14,11 @@ interface ProbeMapProps {
   totalProbes: number;
   status: "loading" | "ready" | "error";
   selectionNotice: string;
+  selectionActive: boolean;
   mapStyleUrl: string;
   onPickProbe: (probe: GlobalpingProbe) => void;
   onBoxSelect: (probes: GlobalpingProbe[]) => void;
+  onClearSelection: () => void;
 }
 
 export function ProbeMap({
@@ -24,9 +26,11 @@ export function ProbeMap({
   totalProbes,
   status,
   selectionNotice,
+  selectionActive,
   mapStyleUrl,
   onPickProbe,
   onBoxSelect,
+  onClearSelection,
 }: ProbeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -197,6 +201,10 @@ export function ProbeMap({
   }, [probes, selectedProbeKey]);
 
   useEffect(() => {
+    if (!selectionActive) setSelectedProbeKey(null);
+  }, [selectionActive]);
+
+  useEffect(() => {
     const map = mapRef.current;
     if (!map?.getSource("probes")) return;
     fitVisibleProbes(map, probes);
@@ -304,6 +312,25 @@ export function ProbeMap({
             </TooltipTrigger>
             <TooltipContent>拖拽地图区域生成 magic probe 筛选</TooltipContent>
           </Tooltip>
+          {selectionActive && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="tool-button"
+                  type="button"
+                  onClick={onClearSelection}
+                  title="取消地图筛选"
+                  aria-label="取消地图筛选"
+                >
+                  <X size={17} />
+                  取消
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>清除地图点选或框选生成的 probe 筛选</TooltipContent>
+            </Tooltip>
+          )}
         </LiquidGlassSurface>
       </div>
       <div className="map-container" ref={containerRef} />

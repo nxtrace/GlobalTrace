@@ -278,9 +278,11 @@ function probeMapElement(overrides: Partial<React.ComponentProps<typeof ProbeMap
       totalProbes={overrides.totalProbes ?? 3}
       status={overrides.status ?? "ready"}
       selectionNotice={overrides.selectionNotice ?? ""}
+      selectionActive={overrides.selectionActive ?? false}
       mapStyleUrl={overrides.mapStyleUrl ?? "/mock-style.json"}
       onPickProbe={overrides.onPickProbe ?? vi.fn()}
       onBoxSelect={overrides.onBoxSelect ?? vi.fn()}
+      onClearSelection={overrides.onClearSelection ?? vi.fn()}
     />
   );
 }

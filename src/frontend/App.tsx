@@ -73,9 +73,12 @@ export function App() {
   const [sharedLoadingMeasurementId, setSharedLoadingMeasurementId] = useState("");
   const [message, setMessage] = useState("");
   const [selectionNotice, setSelectionNotice] = useState("");
+  const [mapSelectionActive, setMapSelectionActive] = useState(false);
   const pollAbortRef = useRef<AbortController | null>(null);
   const bootstrappedRef = useRef(false);
   const createdMeasurementIdRef = useRef("");
+  const mapSelectionLimitBeforeRef = useRef<number | null>(null);
+  const mapSelectionLimitManuallyChangedRef = useRef(false);
 
   const finalResult = result?.status === "in-progress" ? null : result;
   const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
@@ -259,10 +262,17 @@ export function App() {
     }
   };
 
-  const pickProbe = useCallback((probe: GlobalpingProbe) => {
-    setFilters({ magic: probeToMagic(probe) });
-    setSelectionNotice(`已选择 ${probe.location.city || probe.location.country} · AS${probe.location.asn}`);
+  const resetMapSelectionLimitTracking = useCallback(() => {
+    mapSelectionLimitBeforeRef.current = null;
+    mapSelectionLimitManuallyChangedRef.current = false;
   }, []);
+
+  const pickProbe = useCallback((probe: GlobalpingProbe) => {
+    if (!mapSelectionActive) resetMapSelectionLimitTracking();
+    setFilters({ magic: probeToMagic(probe) });
+    setMapSelectionActive(true);
+    setSelectionNotice(`已选择 ${probe.location.city || probe.location.country} · AS${probe.location.asn}`);
+  }, [mapSelectionActive, resetMapSelectionLimitTracking]);
 
   const boxSelect = useCallback((selected: GlobalpingProbe[]) => {
     if (!selected.length) {
@@ -270,14 +280,30 @@ export function App() {
       return;
     }
     const selection = magicFromSelectedProbes(selected, 10);
+    const nextLimit = Math.max(1, selection.selectedCount);
+    if (!mapSelectionActive || mapSelectionLimitManuallyChangedRef.current || mapSelectionLimitBeforeRef.current === null) {
+      mapSelectionLimitBeforeRef.current = limit;
+    }
+    mapSelectionLimitManuallyChangedRef.current = false;
     setFilters({ magic: selection.magic });
-    setLimit(Math.max(1, selection.selectedCount));
+    setLimit(nextLimit);
+    setMapSelectionActive(true);
     setSelectionNotice(
       selection.capped
         ? `框选 ${selected.length} 个 probes，已按上限取前 10 个`
         : `框选 ${selection.selectedCount} 个 probes`,
     );
-  }, []);
+  }, [limit, mapSelectionActive]);
+
+  const clearMapSelection = useCallback(() => {
+    setFilters({ magic: "world" });
+    setSelectionNotice("");
+    if (!mapSelectionLimitManuallyChangedRef.current && mapSelectionLimitBeforeRef.current !== null) {
+      setLimit(mapSelectionLimitBeforeRef.current);
+    }
+    setMapSelectionActive(false);
+    resetMapSelectionLimitTracking();
+  }, [resetMapSelectionLimitTracking]);
 
   const reset = () => {
     setFilters({ magic: "world" });
@@ -289,12 +315,23 @@ export function App() {
     setProtocol("ICMP");
     setIpVersion("");
     setSelectionNotice("");
+    setMapSelectionActive(false);
+    resetMapSelectionLimitTracking();
   };
 
   const handleFiltersChange = useCallback((nextFilters: TraceFilters) => {
     setFilters(nextFilters);
     setSelectionNotice("");
-  }, []);
+    setMapSelectionActive(false);
+    resetMapSelectionLimitTracking();
+  }, [resetMapSelectionLimitTracking]);
+
+  const handleLimitChange = useCallback((nextLimit: number) => {
+    if (mapSelectionActive) {
+      mapSelectionLimitManuallyChangedRef.current = true;
+    }
+    setLimit(nextLimit);
+  }, [mapSelectionActive]);
 
   const showResult = useCallback(() => {
     if (finalResult) setWorkspaceMode("result");
@@ -375,7 +412,7 @@ export function App() {
           onIpVersionChange={setIpVersion}
           onPortChange={setPort}
           onPacketsChange={setPackets}
-          onLimitChange={setLimit}
+          onLimitChange={handleLimitChange}
           onFiltersChange={handleFiltersChange}
           onTurnstileToken={setTurnstileToken}
           onGlobalpingTokenDraftChange={setGlobalpingTokenDraft}
@@ -436,9 +473,11 @@ export function App() {
                     totalProbes={probes.length}
                     status={probesStatus}
                     selectionNotice={selectionNotice}
+                    selectionActive={mapSelectionActive}
                     mapStyleUrl={config.mapStyleUrl}
                     onPickProbe={pickProbe}
                     onBoxSelect={boxSelect}
+                    onClearSelection={clearMapSelection}
                   />
                 </Suspense>
                 <ProbeTable probes={filteredProbes} totalProbes={probes.length} status={probesStatus} onPick={pickProbe} />
