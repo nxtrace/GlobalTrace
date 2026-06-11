@@ -190,6 +190,20 @@ describe("ResultsView", () => {
     expect(within(table).getAllByText("8.8.8.8")).toHaveLength(1);
   });
 
+  it("deduplicates owner and ISP text while preserving distinct domains", () => {
+    render(<ResultsView result={ownerFormattingResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("中国移动 / chinamobileltd.com 移动")).toBeInTheDocument();
+    expect(within(table).queryByText("中国移动 / 中国移动 / chinamobileltd.com 移动")).not.toBeInTheDocument();
+    expect(within(table).getByText("Cloudflare, Inc. / cloudflare.com")).toBeInTheDocument();
+    expect(within(table).getByText("Example ISP")).toBeInTheDocument();
+
+    const emptyOwnerRow = within(table).getByText("192.0.2.4").closest("tr");
+    expect(emptyOwnerRow).not.toBeNull();
+    expect(within(emptyOwnerRow!).getByText("-")).toBeInTheDocument();
+  });
+
   it("renders a close action when provided", () => {
     const onClose = vi.fn();
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} onClose={onClose} />);
@@ -540,6 +554,42 @@ const sameHostnameResult: TraceResultResponse = {
           ...sampleResult.results[0].hops[0],
           hostname: "8.8.8.8",
         },
+      ],
+    },
+  ],
+};
+
+const ownerFormattingResult: TraceResultResponse = {
+  ...sampleResult,
+  measurementId: "m-owner-formatting",
+  results: [
+    {
+      ...sampleResult.results[0],
+      hops: [
+        hopWithGeo(1, "192.0.2.1", 39.9, 116.4, {
+          country: "中国",
+          owner: "中国移动",
+          isp: " 中国移动 ",
+          domain: "chinamobileltd.com 移动",
+        }),
+        hopWithGeo(2, "192.0.2.2", 37.7, -122.4, {
+          country_en: "United States",
+          owner: "Cloudflare, Inc.",
+          isp: "cloudflare, inc.",
+          domain: "cloudflare.com",
+        }),
+        hopWithGeo(3, "192.0.2.3", 37.7, -122.4, {
+          country_en: "United States",
+          owner: " ",
+          isp: "Example ISP",
+          domain: "",
+        }),
+        hopWithGeo(4, "192.0.2.4", 37.7, -122.4, {
+          country_en: "United States",
+          owner: " ",
+          isp: "",
+          domain: undefined,
+        }),
       ],
     },
   ],

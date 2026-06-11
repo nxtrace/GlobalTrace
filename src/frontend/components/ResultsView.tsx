@@ -786,7 +786,18 @@ function formatAsn(hop: TraceHop): string {
 }
 
 function formatOwner(hop: TraceHop): string {
-  return [hop.geo?.owner, hop.geo?.isp, hop.geo?.domain].filter(Boolean).join(" / ") || "-";
+  const seen = new Set<string>();
+  const values = [hop.geo?.owner, hop.geo?.isp, hop.geo?.domain]
+    .map((item) => item?.trim())
+    .filter((item): item is string => {
+      if (!item) return false;
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  return values.join(" / ") || "-";
 }
 
 function formatRegion(hop: TraceHop): string {
