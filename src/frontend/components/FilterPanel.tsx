@@ -164,6 +164,16 @@ export function FilterPanel(props: FilterPanelProps) {
                   />
                 </label>
               </div>
+
+              <label className="field-label">
+                <span>magic string</span>
+                <Textarea
+                  value={props.filters.magic || ""}
+                  onChange={(event) => setFilter("magic", event.target.value)}
+                  rows={3}
+                  placeholder="US+Comcast+eyeball-network, DE+Hetzner"
+                />
+              </label>
             </section>
           </Surface>
 
@@ -239,16 +249,6 @@ export function FilterPanel(props: FilterPanelProps) {
                 <label className="field-label">
                   <span>tag</span>
                   <Input value={props.filters.tag || ""} onChange={(event) => setFilter("tag", event.target.value)} />
-                </label>
-
-                <label className="field-label">
-                  <span>magic string</span>
-                  <Textarea
-                    value={props.filters.magic || ""}
-                    onChange={(event) => setFilter("magic", event.target.value)}
-                    rows={3}
-                    placeholder="US+Comcast+eyeball-network, DE+Hetzner"
-                  />
                 </label>
 
                 <div className="token-section">
@@ -344,8 +344,7 @@ function ThemeIcon({ mode }: { mode: ThemeMode }) {
 
 function cleanFilterValue(value: string | boolean): string | boolean | undefined {
   if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed || undefined;
+    return value.trim() ? value : undefined;
   }
   return value || undefined;
 }

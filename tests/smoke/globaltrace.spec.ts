@@ -124,7 +124,6 @@ test("desktop filter summary constrains long magic content and keeps run control
 
   await page.goto("/");
   await expect(page.getByRole("button", { name: "开始网络路径诊断" })).toBeVisible();
-  await page.getByText("高级参数与精确筛选").click();
   const longMagic = Array.from({ length: 20 }, (_, index) => `Novosibirsk-${index}+RU+AS${21000 + index}+datacenter-network`).join(
     ", ",
   );
@@ -256,7 +255,6 @@ test("mobile advanced panel and Turnstile widget stay in normal flow", async ({ 
   await expect(page.getByLabel("ASN")).toHaveValue("7922");
   await expect(page.getByLabel("network")).toHaveValue("Comcast");
   await expect(page.getByLabel("tag")).toBeVisible();
-  await expect(page.getByLabel("magic string")).toBeVisible();
   await expect(page.getByLabel("Globalping Token")).toBeVisible();
 
   await expectNoPageOverflow(page);

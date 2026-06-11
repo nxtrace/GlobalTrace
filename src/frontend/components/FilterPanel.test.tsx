@@ -61,6 +61,7 @@ describe("FilterPanel", () => {
     expect(screen.getByText("已从地图选择 US+Los Angeles+AS7922")).toBeInTheDocument();
     expect(screen.getByText("本地模式，无 Turnstile site key")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "主题：System" })).toBeInTheDocument();
+    expect(screen.getByLabelText("magic string")).toBeVisible();
     expect(screen.getByLabelText("Globalping Token")).not.toBeVisible();
     expect(screen.getByText(/Powered by/)).toBeInTheDocument();
     expect(screen.getByText("×")).toBeInTheDocument();
@@ -75,7 +76,8 @@ describe("FilterPanel", () => {
     expect(screen.getByLabelText("ASN")).toBeVisible();
     expect(screen.getByLabelText("network")).toBeVisible();
     expect(screen.getByLabelText("tag")).toBeVisible();
-    expect(screen.getByLabelText("magic string")).toBeVisible();
+    const advancedPanel = screen.getByText("高级参数与精确筛选").closest("details") as HTMLElement;
+    expect(within(advancedPanel).queryByLabelText("magic string")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Globalping Token")).toBeVisible();
     expect(screen.getByText("未使用个人 Token")).toBeVisible();
     fireEvent.change(screen.getByLabelText("magic string"), { target: { value: "DE+Hetzner" } });
@@ -137,6 +139,18 @@ describe("FilterPanel", () => {
     expect(onFiltersChange).toHaveBeenNthCalledWith(1, { magic: undefined, country: "US" });
     expect(onFiltersChange).toHaveBeenNthCalledWith(2, { magic: undefined, asn: "7922" });
     expect(onFiltersChange).toHaveBeenNthCalledWith(3, { magic: undefined, network: "Comcast" });
+  });
+
+  it("preserves spaces while editing network filters", () => {
+    const onFiltersChange = vi.fn();
+    renderPanel({ filters: {}, chips: filterChips({}), onFiltersChange });
+
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    fireEvent.change(screen.getByLabelText("network"), { target: { value: "Hetzner Online " } });
+    fireEvent.change(screen.getByLabelText("network"), { target: { value: "   " } });
+
+    expect(onFiltersChange).toHaveBeenNthCalledWith(1, { magic: undefined, network: "Hetzner Online " });
+    expect(onFiltersChange).toHaveBeenNthCalledWith(2, { magic: undefined, network: undefined });
   });
 
   it("disables the run action and shows loading/error statuses", () => {
