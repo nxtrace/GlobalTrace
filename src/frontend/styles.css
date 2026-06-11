@@ -718,6 +718,7 @@ summary:focus-visible {
 
 .token-actions > span,
 .attribution-panel > span {
+  flex: 1 1 auto;
   min-width: 0;
   color: var(--ink-muted);
   font-size: 12px;
@@ -732,15 +733,17 @@ summary:focus-visible {
   gap: 6px;
 }
 
-.attribution-actions {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .attribution-panel {
   padding: 10px 12px;
+}
+
+.attribution-panel > button {
+  flex: none;
+}
+
+.attribution-separator {
+  color: var(--ink-muted);
+  font-weight: 800;
 }
 
 .attribution-panel a,
@@ -926,7 +929,7 @@ summary:focus-visible {
 
 .share-actions button,
 .result-header-actions > button,
-.attribution-actions > *,
+.attribution-panel > button,
 .token-actions button {
   white-space: normal;
   text-align: center;
@@ -1123,6 +1126,15 @@ summary:focus-visible {
 .map-container {
   height: clamp(430px, 58svh, 650px);
   background: var(--map-bg);
+}
+
+.map-loading-placeholder {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  color: var(--ink-muted);
+  font-weight: 720;
 }
 
 .map-section .maplibregl-canvas {
@@ -1779,7 +1791,28 @@ pre {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
+}
+
+.about-copy {
+  min-width: min(100%, 520px);
+  flex: 1 1 auto;
+  max-width: 680px;
+}
+
+.about-copy p,
+.about-card p {
+  overflow-wrap: anywhere;
+}
+
+.about-header-actions {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .about-grid {
@@ -1796,12 +1829,31 @@ pre {
 }
 
 .about-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: flex-start;
   gap: 12px;
   padding: 16px;
 }
 
-.about-card svg {
+.about-card-icon {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--control-border);
+  border-radius: 12px;
+  background: var(--control-bg);
+  color: var(--accent-strong);
+}
+
+.about-card > div {
+  min-width: 0;
+}
+
+.about-card svg,
+.about-links svg {
   flex: none;
   color: var(--accent-strong);
 }
@@ -1823,9 +1875,9 @@ pre {
 
 .about-links a {
   min-width: 0;
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   border: 1px solid var(--control-border);
   border-radius: 12px;
@@ -2011,11 +2063,7 @@ pre {
     flex: 1;
   }
 
-  .attribution-actions {
-    flex-wrap: wrap;
-  }
-
-  .attribution-actions > * {
+  .attribution-panel > button {
     flex: 0 1 auto;
   }
 
@@ -2065,13 +2113,14 @@ pre {
     overflow-wrap: anywhere;
   }
 
-  .about-header,
-  .about-card {
+  .about-header {
     flex-direction: column;
   }
 
-  .about-header .inline-flex {
+  .about-header .inline-flex,
+  .about-header-actions {
     align-self: flex-start;
+    justify-content: flex-start;
   }
 
   .about-links a {

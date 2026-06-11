@@ -63,12 +63,10 @@ describe("FilterPanel", () => {
     expect(screen.getByRole("button", { name: "主题：System" })).toBeInTheDocument();
     expect(screen.getByLabelText("Globalping Token")).not.toBeVisible();
     expect(screen.getByText(/Powered by/)).toBeInTheDocument();
+    expect(screen.getByText("×")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Globalping" })).toHaveAttribute("href", "https://globalping.io/");
     expect(screen.getByRole("link", { name: "NextTrace" })).toHaveAttribute("href", "https://www.nxtrace.org/");
-    expect(screen.getByRole("link", { name: "GlobalTrace GitHub" })).toHaveAttribute(
-      "href",
-      "https://github.com/nxtrace/GlobalTrace",
-    );
+    expect(screen.queryByRole("link", { name: "GlobalTrace GitHub" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(onReset).toHaveBeenCalledTimes(1);

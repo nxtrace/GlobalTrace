@@ -1,6 +1,6 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import { AlertCircle, Eye, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createTrace,
   enrichTrace,
@@ -14,9 +14,7 @@ import {
 import { AboutPage } from "./components/AboutPage";
 import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
 import { LiquidGlassSurface } from "./components/LiquidGlassSurface";
-import { ProbeMap } from "./components/ProbeMap";
 import { ProbeTable } from "./components/ProbeTable";
-import { ResultsView } from "./components/ResultsView";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
@@ -43,6 +41,9 @@ const THEME_STORAGE_KEY = "globaltrace.themeMode";
 type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
 type TraceLoadSource = "created" | "shared";
+
+const ProbeMap = lazy(() => import("./components/ProbeMap").then((module) => ({ default: module.ProbeMap })));
+const ResultsView = lazy(() => import("./components/ResultsView").then((module) => ({ default: module.ResultsView })));
 
 export function App() {
   const [route, setRoute] = useState<AppRoute>(currentRoute);
@@ -429,24 +430,57 @@ export function App() {
               <SharedResultLoading measurementId={sharedLoadingMeasurementId} />
             ) : workspaceMode === "select" || !finalResult ? (
               <div className="map-and-table">
-                <ProbeMap
-                  probes={filteredProbes}
-                  totalProbes={probes.length}
-                  status={probesStatus}
-                  selectionNotice={selectionNotice}
-                  mapStyleUrl={config.mapStyleUrl}
-                  onPickProbe={pickProbe}
-                  onBoxSelect={boxSelect}
-                />
+                <Suspense fallback={<ProbeMapFallback />}>
+                  <ProbeMap
+                    probes={filteredProbes}
+                    totalProbes={probes.length}
+                    status={probesStatus}
+                    selectionNotice={selectionNotice}
+                    mapStyleUrl={config.mapStyleUrl}
+                    onPickProbe={pickProbe}
+                    onBoxSelect={boxSelect}
+                  />
+                </Suspense>
                 <ProbeTable probes={filteredProbes} totalProbes={probes.length} status={probesStatus} onPick={pickProbe} />
               </div>
             ) : (
-              <ResultsView result={finalResult} mapStyleUrl={config.mapStyleUrl} onClose={closeResult} />
+              <Suspense fallback={<ResultsViewFallback />}>
+                <ResultsView result={finalResult} mapStyleUrl={config.mapStyleUrl} onClose={closeResult} />
+              </Suspense>
             )}
           </div>
         </div>
       </main>
     </TooltipProvider>
+  );
+}
+
+function ProbeMapFallback() {
+  return (
+    <Surface asChild className="map-section" aria-label="正在加载 probe map">
+      <section role="status" aria-live="polite">
+        <div className="map-container map-loading-placeholder">
+          <Loader2 size={22} className="spin" />
+          <span>正在加载地图</span>
+        </div>
+      </section>
+    </Surface>
+  );
+}
+
+function ResultsViewFallback() {
+  return (
+    <Surface asChild className="result-empty">
+      <section role="status" aria-live="polite" aria-label="正在加载结果视图">
+        <div className="empty-hero">
+          <Loader2 size={20} className="spin" />
+          <div>
+            <h2>正在加载结果视图</h2>
+            <p>地图与 hop 明细加载完成后会自动显示。</p>
+          </div>
+        </div>
+      </section>
+    </Surface>
   );
 }
 

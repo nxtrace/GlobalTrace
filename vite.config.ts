@@ -13,6 +13,15 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1100,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/maplibre-gl") && !id.endsWith(".css")) return "vendor-maplibre";
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) return "vendor-react";
+        },
+      },
+    },
   },
   server: {
     host: "127.0.0.1",

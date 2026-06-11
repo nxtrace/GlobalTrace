@@ -155,6 +155,12 @@ test("about page exposes provider attribution links", async ({ page }) => {
     "href",
     "https://github.com/nxtrace/NTrace-core",
   );
+  await expect(page.getByRole("link", { name: /GlobalTrace GitHub/ })).toHaveAttribute(
+    "href",
+    "https://github.com/nxtrace/GlobalTrace",
+  );
+  await expect(page.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
+  await expectNoMapJavaScriptLoaded(page);
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -405,6 +411,16 @@ async function expectNoPageOverflow(page: Page): Promise<void> {
   }));
   expect(widths.documentScroll).toBeLessThanOrEqual(widths.documentClient);
   expect(widths.bodyScroll).toBeLessThanOrEqual(widths.bodyClient);
+}
+
+async function expectNoMapJavaScriptLoaded(page: Page): Promise<void> {
+  const scripts = await page.evaluate(() =>
+    performance
+      .getEntriesByType("resource")
+      .filter((entry): entry is PerformanceResourceTiming => entry instanceof PerformanceResourceTiming && entry.initiatorType === "script")
+      .map((entry) => entry.name),
+  );
+  expect(scripts.filter((name) => !/\.css(?:\?|$)/.test(name) && /maplibre|ProbeMap|ResultsView/.test(name))).toEqual([]);
 }
 
 async function expectFilterSummaryConstrainsLongChips(page: Page): Promise<void> {

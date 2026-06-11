@@ -1,4 +1,4 @@
-import { Filter, Github, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
+import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import type { FilterChip } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import { themeModeLabel, type ThemeMode } from "../theme";
@@ -305,23 +305,15 @@ export function FilterPanel(props: FilterPanelProps) {
               <a href="https://globalping.io/" target="_blank" rel="noreferrer">
                 Globalping
               </a>{" "}
-              +{" "}
+              <span className="attribution-separator">×</span>{" "}
               <a href="https://www.nxtrace.org/" target="_blank" rel="noreferrer">
                 NextTrace
               </a>
             </span>
-            <div className="attribution-actions">
-              <Button asChild variant="ghost" size="sm">
-                <a href="https://github.com/nxtrace/GlobalTrace" target="_blank" rel="noreferrer" aria-label="GlobalTrace GitHub">
-                  <Github size={15} />
-                  GitHub
-                </a>
-              </Button>
-              <Button variant="ghost" size="sm" type="button" onClick={props.onNavigateAbout} aria-label="关于 GlobalTrace">
-                <Info size={15} />
-                关于
-              </Button>
-            </div>
+            <Button variant="ghost" size="sm" type="button" onClick={props.onNavigateAbout} aria-label="关于 GlobalTrace">
+              <Info size={15} />
+              关于
+            </Button>
           </Surface>
 
           <LiquidGlassSurface variant="button" fullWidth className="run-action-surface">

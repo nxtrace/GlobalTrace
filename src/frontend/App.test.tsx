@@ -61,7 +61,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
-    expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
     expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
     expect(screen.getByText("249/250")).toBeInTheDocument();
@@ -140,6 +140,7 @@ describe("App", () => {
       "href",
       "https://github.com/nxtrace/GlobalTrace",
     );
+    expect(screen.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
   });
 
   it("updates filters when a map probe is selected", async () => {
@@ -147,7 +148,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByRole("button", { name: "pick first probe" }));
+    fireEvent.click(await screen.findByRole("button", { name: "pick first probe" }));
 
     await waitFor(() => {
       expect(screen.getAllByText("已选择 Los Angeles · AS7922").length).toBeGreaterThan(0);
@@ -163,7 +164,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByRole("button", { name: "box many probes" }));
+    fireEvent.click(await screen.findByRole("button", { name: "box many probes" }));
 
     await waitFor(() => {
       expect(screen.getAllByText("框选 12 个 probes，已按上限取前 10 个").length).toBeGreaterThan(0);
@@ -262,7 +263,7 @@ describe("App", () => {
 
     expect(window.location.pathname).toBe("/");
     expect(window.location.search).toBe("");
-    expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
   });
 
@@ -330,19 +331,19 @@ describe("App", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("https://api.globalping.io/v1/measurements/m123", expect.anything());
     });
-    expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "查看结果" })).not.toBeInTheDocument();
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭结果" }));
-    expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "查看结果" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "查看结果" }));
-    expect(screen.getByText("result:finished:m123")).toBeInTheDocument();
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
   });
 
   it("stops polling stuck measurements and keeps the share URL usable", async () => {
@@ -350,6 +351,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
+    await screen.findByLabelText("mock probe map");
     vi.useFakeTimers();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
