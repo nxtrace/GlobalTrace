@@ -24,11 +24,7 @@ test("serves the built Vite app through Worker Static Assets", async ({ page, re
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "GlobalTrace" })).toBeVisible();
-  await expect(
-    page.getByText(
-      "GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。",
-    ),
-  ).toBeVisible();
+  await expect(page.getByText("Globalping x NextTrace 的全球路由追踪")).toBeVisible();
   await expect(page.getByText("1 / 1 probes 匹配")).toBeVisible();
   await expect(page.locator("[data-liquid-glass]").first()).toBeVisible();
 
