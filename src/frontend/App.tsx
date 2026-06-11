@@ -603,11 +603,7 @@ function currentRoute(): AppRoute {
 }
 
 function hasReusableSharedResult(result: TraceResultResponse | null, measurementId: string): boolean {
-  return (
-    result?.measurementId === measurementId &&
-    result.status !== "in-progress" &&
-    (result.enrichment.status === "complete" || result.enrichment.status === "partial")
-  );
+  return result?.measurementId === measurementId && result.status !== "in-progress";
 }
 
 function readStoredGlobalpingToken(): string {
