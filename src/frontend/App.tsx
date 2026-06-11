@@ -127,6 +127,11 @@ export function App() {
     void loadLimits(globalpingToken);
   }, [globalpingToken, route]);
 
+  const resetTurnstile = useCallback(() => {
+    setTurnstileToken("");
+    setTurnstileResetNonce((current) => current + 1);
+  }, []);
+
   const loadTrace = useCallback(async (
     measurementId: string,
     poll: boolean,
@@ -134,6 +139,7 @@ export function App() {
     nextTurnstileToken: string,
     source: TraceLoadSource,
   ) => {
+    let turnstileTokenConsumed = false;
     pollAbortRef.current?.abort();
     const controller = new AbortController();
     pollAbortRef.current = controller;
@@ -174,6 +180,9 @@ export function App() {
         return;
       }
 
+      if (source === "shared" && nextTurnstileToken) {
+        turnstileTokenConsumed = true;
+      }
       const enriched = await enrichTrace(measurement, nextTurnstileToken);
       setResult(enriched);
       setMessage("");
@@ -190,9 +199,12 @@ export function App() {
           setSharedLoadingMeasurementId("");
         }
         setLoading(false);
+        if (turnstileTokenConsumed) {
+          resetTurnstile();
+        }
       }
     }
-  }, []);
+  }, [resetTurnstile]);
 
   useEffect(() => {
     if (route !== "/" || !configReady) return;
@@ -278,8 +290,7 @@ export function App() {
       setMessage(userFacingErrorMessage(error, "创建 trace 失败"));
     } finally {
       if (config.turnstileSiteKey) {
-        setTurnstileToken("");
-        setTurnstileResetNonce((current) => current + 1);
+        resetTurnstile();
       }
       setLoading(false);
     }

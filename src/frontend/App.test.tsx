@@ -327,6 +327,47 @@ describe("App", () => {
     ]);
   });
 
+  it("resets Turnstile after a shared result and uses a fresh token for the next trace", async () => {
+    const fetchMock = mockApi({ traceStatus: () => "finished", turnstileSiteKey: "site-key" });
+    let callback: ((token: string) => void) | undefined;
+    let tokenCount = 0;
+    const issueToken = () => {
+      tokenCount += 1;
+      callback?.(`turnstile-token-${tokenCount}`);
+    };
+    window.turnstile = {
+      render: vi.fn((element, options) => {
+        callback = options.callback;
+        const widget = document.createElement("div");
+        widget.className = "mock-turnstile-widget";
+        element.appendChild(widget);
+        window.setTimeout(issueToken, 0);
+        return "widget-id";
+      }),
+      reset: vi.fn(() => {
+        window.setTimeout(issueToken, 0);
+      }),
+    };
+    window.history.replaceState(null, "", "/?measurement=m123");
+
+    render(<App />);
+
+    await waitFor(() => expect(tokenCount).toBe(1));
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
+    expect(traceEnrichBodies(fetchMock)[0].turnstileToken).toBe("turnstile-token-1");
+    await waitFor(() => expect(window.turnstile?.reset).toHaveBeenCalledWith("widget-id"));
+    await waitFor(() => expect(tokenCount).toBe(2));
+
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+
+    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(2));
+    expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual([
+      "turnstile-token-1",
+      "turnstile-token-2",
+    ]);
+  });
+
   it("keeps an enriched shared result when Turnstile expires", async () => {
     const fetchMock = mockApi({
       traceStatus: () => "finished",
