@@ -168,6 +168,26 @@ describe("App", () => {
     expect(within(chips).queryByText("magic")).not.toBeInTheDocument();
   });
 
+  it("narrows field suggestions with other structured filters", async () => {
+    mockApi();
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    const countryInput = screen.getByLabelText("国家/地区");
+    fireEvent.change(countryInput, { target: { value: "US" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
+    });
+
+    fireEvent.blur(countryInput);
+    fireEvent.focus(screen.getByLabelText("network"));
+    const networkListbox = screen.getByRole("listbox", { name: "候选列表" });
+    expect(within(networkListbox).getByRole("option", { name: "Comcast" })).toBeInTheDocument();
+    expect(within(networkListbox).queryByRole("option", { name: "Hetzner Online" })).not.toBeInTheDocument();
+  });
+
   it("caps box selection at ten probes and updates the probe limit", async () => {
     const fetchMock = mockApi();
     render(<App />);

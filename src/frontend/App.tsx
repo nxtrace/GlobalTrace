@@ -84,7 +84,7 @@ export function App() {
   const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
   const turnstileReady = !config.turnstileSiteKey || Boolean(turnstileToken);
   const filteredProbes = useMemo(() => filterProbes(probes, filters), [filters, probes]);
-  const filterSuggestions = useMemo(() => probeFilterSuggestions(probes), [probes]);
+  const filterSuggestions = useMemo(() => probeFilterSuggestions(probes, filters), [filters, probes]);
   const chips = useMemo(() => filterChips(filters), [filters]);
   const quotaLabel = useMemo(() => {
     if (limitsStatus === "loading") return "诊断额度读取中";

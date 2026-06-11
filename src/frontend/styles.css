@@ -674,6 +674,49 @@ summary:focus-visible {
   min-width: 0;
 }
 
+.suggestion-input {
+  position: relative;
+  min-width: 0;
+}
+
+.suggestion-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--control-border);
+  border-radius: 14px;
+  background: var(--panel-solid);
+  color: var(--ink);
+  box-shadow: var(--shadow-popover);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.suggestion-option {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.25;
+  cursor: default;
+  overflow-wrap: anywhere;
+}
+
+.suggestion-option:hover,
+.suggestion-option[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 .advanced-panel-body > .token-section {
   margin-top: 2px;
   padding-top: 12px;

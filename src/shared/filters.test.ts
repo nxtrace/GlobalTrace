@@ -93,6 +93,18 @@ describe("shared filters", () => {
     });
   });
 
+  it("narrows input suggestions with other structured filters", () => {
+    const suggestions = probeFilterSuggestions(probes, {
+      country: "US",
+      network: "Hetzner Online",
+      magic: "DE+Hetzner",
+    });
+
+    expect(suggestions.networks).toEqual(["Comcast"]);
+    expect(suggestions.countries).toEqual(["DE"]);
+    expect(probeFilterSuggestions(probes, { country: "US", eyeball: true }).asns).toEqual(["AS7922"]);
+  });
+
   it("turns a map-selected probe into a best-effort magic selector", () => {
     expect(probeToMagic(probes[0])).toBe("Falkenstein+DE+AS24940+datacenter-network");
     expect(probeToMagic(probes[0])).not.toContain("Hetzner");

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import type { GlobalpingLimitResponse, GlobalpingProbe, TraceResultResponse } from "../../src/shared/types";
 
 const screenshotPrefix = process.env.GLOBALTRACE_SCREENSHOT_PREFIX || "globaltrace-liquid-glass";
@@ -51,6 +51,14 @@ for (const viewport of viewports) {
     await page.getByText("高级参数与精确筛选").click();
     await page.getByLabel("国家/地区").fill("US");
     await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
+    await expect(page.locator("datalist")).toHaveCount(0);
+    await page.getByLabel("network").click();
+    const networkSuggestions = page.getByRole("listbox", { name: "候选列表" });
+    await expect(networkSuggestions.getByRole("option", { name: "Comcast" })).toBeVisible();
+    await expect(networkSuggestions.getByRole("option", { name: "Hetzner Online" })).toHaveCount(0);
+    await expect(networkSuggestions.getByRole("option", { name: "ExampleNet" })).toHaveCount(0);
+    await expectSuggestionPopoverReadable(networkSuggestions);
+    await page.keyboard.press("Escape");
     await expect.poll(mocks.styleRequests).toBe(1);
     await expectMapContainsCoordinate(page, [-118.24, 34.05]);
     await expectMapProjectsCoordinateInsideCanvas(page, [-118.24, 34.05]);
@@ -481,6 +489,22 @@ async function expectLightModePanelBoundaries(page: Page): Promise<void> {
   expect(state.tableBorder).toBe("rgba(41, 56, 52, 0.16)");
   expect(state.panelBorderColor).not.toBe("rgba(255, 255, 255, 0.62)");
   expect(state.panelBorderWidth).toBe("1px");
+}
+
+async function expectSuggestionPopoverReadable(popover: Locator): Promise<void> {
+  const state = await popover.evaluate((node) => {
+    const popoverStyle = window.getComputedStyle(node);
+    const option = node.querySelector('[role="option"]');
+    const optionStyle = option ? window.getComputedStyle(option) : null;
+    return {
+      popoverBackground: popoverStyle.backgroundColor,
+      popoverColor: popoverStyle.color,
+      optionColor: optionStyle?.color ?? "",
+    };
+  });
+  expect(state.popoverBackground).not.toBe("rgba(0, 0, 0, 0)");
+  expect(state.popoverColor).not.toBe(state.popoverBackground);
+  expect(state.optionColor).not.toBe(state.popoverBackground);
 }
 
 async function expectDarkMapControls(page: Page): Promise<void> {

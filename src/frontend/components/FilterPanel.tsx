@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useEffect, useId, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import type { FilterChip, ProbeFilterSuggestions } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
@@ -59,14 +59,10 @@ const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
   asns: [],
   networks: [],
 };
+const MAX_VISIBLE_SUGGESTIONS = 8;
 
 export function FilterPanel(props: FilterPanelProps) {
-  const suggestionId = useId();
   const filterSuggestions = props.filterSuggestions ?? EMPTY_FILTER_SUGGESTIONS;
-  const countrySuggestionsId = `${suggestionId}-country-suggestions`;
-  const citySuggestionsId = `${suggestionId}-city-suggestions`;
-  const asnSuggestionsId = `${suggestionId}-asn-suggestions`;
-  const networkSuggestionsId = `${suggestionId}-network-suggestions`;
 
   const setFilter = (key: keyof TraceFilters, value: string | boolean) => {
     const nextValue = cleanFilterValue(value);
@@ -227,40 +223,40 @@ export function FilterPanel(props: FilterPanelProps) {
                   </label>
                   <label className="field-label">
                     <span>国家/地区</span>
-                    <Input
-                      list={countrySuggestionsId}
+                    <SuggestionInput
+                      label="国家/地区"
                       value={props.filters.country || ""}
-                      onChange={(event) => setFilter("country", event.target.value)}
+                      options={filterSuggestions.countries}
+                      onChange={(value) => setFilter("country", value)}
                     />
                   </label>
                   <label className="field-label">
                     <span>城市</span>
-                    <Input
-                      list={citySuggestionsId}
+                    <SuggestionInput
+                      label="城市"
                       value={props.filters.city || ""}
-                      onChange={(event) => setFilter("city", event.target.value)}
+                      options={filterSuggestions.cities}
+                      onChange={(value) => setFilter("city", value)}
                     />
                   </label>
                   <label className="field-label">
                     <span>ASN</span>
-                    <Input
-                      list={asnSuggestionsId}
+                    <SuggestionInput
+                      label="ASN"
                       value={props.filters.asn || ""}
-                      onChange={(event) => setFilter("asn", event.target.value)}
+                      options={filterSuggestions.asns}
+                      onChange={(value) => setFilter("asn", value)}
                     />
                   </label>
                   <label className="field-label">
                     <span>network</span>
-                    <Input
-                      list={networkSuggestionsId}
+                    <SuggestionInput
+                      label="network"
                       value={props.filters.network || ""}
-                      onChange={(event) => setFilter("network", event.target.value)}
+                      options={filterSuggestions.networks}
+                      onChange={(value) => setFilter("network", value)}
                     />
                   </label>
-                  <SuggestionList id={countrySuggestionsId} options={filterSuggestions.countries} />
-                  <SuggestionList id={citySuggestionsId} options={filterSuggestions.cities} />
-                  <SuggestionList id={asnSuggestionsId} options={filterSuggestions.asns} />
-                  <SuggestionList id={networkSuggestionsId} options={filterSuggestions.networks} />
                 </div>
 
                 <div className="segmented" aria-label="网络类型">
@@ -378,13 +374,106 @@ function ThemeIcon({ mode }: { mode: ThemeMode }) {
   return <Monitor size={18} />;
 }
 
-function SuggestionList({ id, options }: { id: string; options: string[] }) {
+function SuggestionInput({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const listboxId = useId();
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const visibleOptions = useMemo(() => {
+    const query = value.trim().toLowerCase();
+    const matches = query ? options.filter((option) => option.toLowerCase().includes(query)) : options;
+    return matches.slice(0, MAX_VISIBLE_SUGGESTIONS);
+  }, [options, value]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [options, value]);
+
+  const showOptions = open && visibleOptions.length > 0;
+  const activeOptionId = showOptions ? `${listboxId}-${activeIndex}` : undefined;
+
+  const selectOption = (option: string) => {
+    onChange(option);
+    setOpen(false);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+
+    if (!visibleOptions.length) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => Math.min(current + 1, visibleOptions.length - 1));
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => Math.max(current - 1, 0));
+      return;
+    }
+
+    if (event.key === "Enter" && showOptions) {
+      event.preventDefault();
+      selectOption(visibleOptions[activeIndex]);
+    }
+  };
+
+  const handleOptionMouseDown = (event: MouseEvent<HTMLDivElement>, option: string) => {
+    event.preventDefault();
+    selectOption(option);
+  };
+
   return (
-    <datalist id={id}>
-      {options.map((option) => (
-        <option key={option} value={option} />
-      ))}
-    </datalist>
+    <div className="suggestion-input">
+      <Input
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={handleKeyDown}
+        role="combobox"
+        aria-label={label}
+        aria-autocomplete="list"
+        aria-expanded={showOptions}
+        aria-controls={listboxId}
+        aria-activedescendant={activeOptionId}
+      />
+      {showOptions && (
+        <div id={listboxId} className="suggestion-popover" role="listbox" aria-label="候选列表">
+          {visibleOptions.map((option, index) => (
+            <div
+              id={`${listboxId}-${index}`}
+              className="suggestion-option"
+              key={option}
+              role="option"
+              aria-selected={index === activeIndex}
+              onMouseDown={(event) => handleOptionMouseDown(event, option)}
+            >
+              {option}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

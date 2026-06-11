@@ -74,15 +74,15 @@ export interface ProbeFilterSuggestions {
   networks: string[];
 }
 
-export function probeFilterSuggestions(probes: GlobalpingProbe[]): ProbeFilterSuggestions {
+export function probeFilterSuggestions(probes: GlobalpingProbe[], filters: TraceFilters = {}): ProbeFilterSuggestions {
   return {
-    countries: uniqueSorted(probes.map((probe) => probe.location.country)),
-    cities: uniqueSorted(probes.map((probe) => probe.location.city)),
+    countries: uniqueSorted(suggestionProbes(probes, filters, "country").map((probe) => probe.location.country)),
+    cities: uniqueSorted(suggestionProbes(probes, filters, "city").map((probe) => probe.location.city)),
     asns: uniqueSorted(
-      probes.map((probe) => normalizeAsn(probe.location.asn)),
+      suggestionProbes(probes, filters, "asn").map((probe) => normalizeAsn(probe.location.asn)),
       compareAsn,
     ),
-    networks: uniqueSorted(probes.map((probe) => probe.location.network)),
+    networks: uniqueSorted(suggestionProbes(probes, filters, "network").map((probe) => probe.location.network)),
   };
 }
 
@@ -225,4 +225,12 @@ function compareAsn(left: string, right: string): number {
   const leftNumber = Number(left.replace(/^AS/i, ""));
   const rightNumber = Number(right.replace(/^AS/i, ""));
   return leftNumber - rightNumber || left.localeCompare(right);
+}
+
+function suggestionProbes(
+  probes: GlobalpingProbe[],
+  filters: TraceFilters,
+  excludedField: "country" | "city" | "asn" | "network",
+): GlobalpingProbe[] {
+  return filterProbes(probes, { ...filters, magic: undefined, [excludedField]: undefined });
 }

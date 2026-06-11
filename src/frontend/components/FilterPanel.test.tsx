@@ -148,21 +148,62 @@ describe("FilterPanel", () => {
   });
 
   it("connects online probe suggestions to structured filter inputs", () => {
+    const onFiltersChange = vi.fn();
     renderPanel({
+      filters: {},
+      chips: filterChips({}),
       filterSuggestions: {
         countries: ["DE", "US"],
         cities: ["Falkenstein", "Los Angeles"],
         asns: ["AS7922", "AS24940"],
         networks: ["Comcast", "Hetzner Online"],
       },
+      onFiltersChange,
     });
 
     fireEvent.click(screen.getByText("高级参数与精确筛选"));
 
-    expectInputSuggestions(screen.getByLabelText("国家/地区"), ["DE", "US"]);
-    expectInputSuggestions(screen.getByLabelText("城市"), ["Falkenstein", "Los Angeles"]);
-    expectInputSuggestions(screen.getByLabelText("ASN"), ["AS7922", "AS24940"]);
-    expectInputSuggestions(screen.getByLabelText("network"), ["Comcast", "Hetzner Online"]);
+    expect(document.querySelector("datalist")).toBeNull();
+
+    const countryInput = screen.getByLabelText("国家/地区");
+    fireEvent.focus(countryInput);
+    expectSuggestionOptions(["DE", "US"]);
+    fireEvent.blur(countryInput);
+
+    const networkInput = screen.getByLabelText("network");
+    fireEvent.focus(networkInput);
+    fireEvent.mouseDown(screen.getByRole("option", { name: "Hetzner Online" }));
+    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, network: "Hetzner Online" });
+
+    const asnInput = screen.getByLabelText("ASN");
+    fireEvent.focus(asnInput);
+    fireEvent.keyDown(asnInput, { key: "ArrowDown" });
+    fireEvent.keyDown(asnInput, { key: "Enter" });
+    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, asn: "AS24940" });
+  });
+
+  it("filters visible suggestions by the current input without blocking free text", () => {
+    const onFiltersChange = vi.fn();
+    renderPanel({
+      filters: { network: "com" },
+      chips: filterChips({ network: "com" }),
+      filterSuggestions: {
+        countries: ["DE", "US"],
+        cities: ["Falkenstein", "Los Angeles"],
+        asns: ["AS7922", "AS24940"],
+        networks: ["Comcast", "Hetzner Online"],
+      },
+      onFiltersChange,
+    });
+
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    const networkInput = screen.getByLabelText("network");
+    fireEvent.focus(networkInput);
+
+    expectSuggestionOptions(["Comcast"]);
+
+    fireEvent.change(networkInput, { target: { value: "custom network" } });
+    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, network: "custom network" });
   });
 
   it("preserves spaces while editing network filters", () => {
@@ -284,9 +325,7 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
   );
 }
 
-function expectInputSuggestions(input: HTMLElement, values: string[]) {
-  const listId = (input as HTMLInputElement).getAttribute("list");
-  expect(listId).toBeTruthy();
-  const datalist = document.getElementById(listId || "");
-  expect(Array.from(datalist?.querySelectorAll("option") || []).map((option) => option.value)).toEqual(values);
+function expectSuggestionOptions(values: string[]) {
+  const listbox = screen.getByRole("listbox", { name: "候选列表" });
+  expect(within(listbox).getAllByRole("option").map((option) => option.textContent)).toEqual(values);
 }
