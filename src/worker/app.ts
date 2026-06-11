@@ -113,7 +113,7 @@ export function createApp() {
   });
 
   app.notFound((c) => c.json(jsonError("not found"), 404));
-  app.onError((error, c) => {
+  app.onError((error, _c) => {
     const status = error instanceof HttpError ? error.status : 502;
     const details = error instanceof HttpError ? error.details : undefined;
     return createJsonResponse(jsonError(error.message, details), { status });

@@ -711,7 +711,8 @@ function normalizeCountry(value: string | undefined): string {
 
 function normalizeNextCoordinate(coordinate: ResultMapCoordinate, previous: ResultMapCoordinate | undefined): ResultMapCoordinate {
   if (!previous) return coordinate;
-  let [lng, lat] = coordinate;
+  let [lng] = coordinate;
+  const [, lat] = coordinate;
   while (lng - previous[0] >= 180) lng -= 360;
   while (lng - previous[0] < -180) lng += 360;
   return [lng, lat];

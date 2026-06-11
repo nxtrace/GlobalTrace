@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createApp } from "./app";
+import { DEFAULT_MAP_STYLE_URL } from "../shared/types";
+import { createApp, handleRequest } from "./app";
 import type { WorkerEnv } from "./env";
 
 const env: WorkerEnv = {
@@ -15,6 +16,23 @@ afterEach(() => {
 });
 
 describe("worker API", () => {
+  it("returns runtime config defaults and env overrides", async () => {
+    const app = createApp();
+
+    const defaults = await app.fetch(new Request("https://globaltrace.test/api/config"), env);
+    const configured = await app.fetch(new Request("https://globaltrace.test/api/config"), {
+      ...env,
+      MAP_STYLE_URL: "https://tiles.example.com/style.json",
+      TURNSTILE_SITE_KEY: "site-key",
+    });
+
+    await expect(defaults.json()).resolves.toEqual({ turnstileSiteKey: "", mapStyleUrl: DEFAULT_MAP_STYLE_URL });
+    await expect(configured.json()).resolves.toEqual({
+      turnstileSiteKey: "site-key",
+      mapStyleUrl: "https://tiles.example.com/style.json",
+    });
+  });
+
   it("rejects invalid JSON bodies", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -33,6 +51,24 @@ describe("worker API", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects oversized enrich bodies before parsing JSON", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        body: "x".repeat(256_001),
+      }),
+      env,
+    );
+    const body = (await response.json()) as { error: { message: string } };
+
+    expect(response.status).toBe(400);
+    expect(body.error.message).toBe("request body is too large");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("rejects invalid uploaded measurements before enrichment", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -46,6 +82,26 @@ describe("worker API", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects uploaded measurements with invalid IDs", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const measurement = finishedMeasurement();
+    measurement.id = "bad/id";
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        body: JSON.stringify({ measurement }),
+      }),
+      env,
+    );
+    const body = (await response.json()) as { error: { message: string } };
+
+    expect(response.status).toBe(400);
+    expect(body.error.message).toBe("measurement.id is invalid");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -71,6 +127,47 @@ describe("worker API", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects uploaded measurements with oversized raw output or hop arrays", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = createApp();
+    const rawOutputMeasurement = finishedMeasurement();
+    rawOutputMeasurement.results[0].result.rawOutput = "x".repeat(20_001);
+    const hopsMeasurement = finishedMeasurement();
+    hopsMeasurement.results[0].result.hops = Array.from({ length: 65 }, () => ({
+      resolvedAddress: "8.8.8.8",
+      resolvedHostname: "dns.google",
+      asn: [15169],
+      timings: [{ rtt: 1 }],
+      stats: { min: 1, avg: 1, max: 1, total: 1, rcv: 1, drop: 0, loss: 0 },
+    }));
+
+    const rawOutputResponse = await app.fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        body: JSON.stringify({ measurement: rawOutputMeasurement }),
+      }),
+      env,
+    );
+    const hopsResponse = await app.fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        body: JSON.stringify({ measurement: hopsMeasurement }),
+      }),
+      env,
+    );
+
+    await expect(rawOutputResponse.json()).resolves.toMatchObject({
+      error: { message: "result.rawOutput must contain at most 20000 characters" },
+    });
+    await expect(hopsResponse.json()).resolves.toMatchObject({
+      error: { message: "result.hops must contain at most 64 items" },
+    });
+    expect(rawOutputResponse.status).toBe(400);
+    expect(hopsResponse.status).toBe(400);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -253,6 +350,19 @@ describe("worker API", () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
+  });
+
+  it("serves static assets outside API routes", async () => {
+    const assetsFetch = vi.fn().mockResolvedValue(new Response("asset response"));
+    const request = new Request("https://globaltrace.test/");
+
+    const response = await handleRequest(request, {
+      ...env,
+      ASSETS: { fetch: assetsFetch } as unknown as Fetcher,
+    });
+
+    await expect(response.text()).resolves.toBe("asset response");
+    expect(assetsFetch).toHaveBeenCalledWith(request);
   });
 });
 
