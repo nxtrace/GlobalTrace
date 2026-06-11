@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI
 
 on:
   pull_request:
@@ -57,59 +57,3 @@ jobs:
 
       - name: Smoke tests
         run: npm run smoke
-
-  deploy:
-    name: Deploy
-    needs: verify
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: globaltrace-production
-      cancel-in-progress: false
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Generate Wrangler CI config
-        run: node scripts/write-ci-wrangler-config.mjs
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          GLOBALTRACE_HOSTNAME: ${{ secrets.GLOBALTRACE_HOSTNAME }}
-          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
-
-      - name: Deploy to Cloudflare
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config .wrangler-ci.jsonc
-
-      - name: Smoke deployed Worker
-        run: |
-          set -euo pipefail
-          curl -fsSI -o /dev/null "https://${GLOBALTRACE_HOSTNAME}/"
-          curl -fsSL "https://${GLOBALTRACE_HOSTNAME}/api/config" | node -e '
-            let input = "";
-            process.stdin.on("data", (chunk) => { input += chunk; });
-            process.stdin.on("end", () => {
-              const body = JSON.parse(input);
-              if (!body.turnstileSiteKey || !body.mapStyleUrl) {
-                throw new Error("api/config missing expected fields");
-              }
-              console.log("api/config ok");
-            });
-          '
-        env:
-          GLOBALTRACE_HOSTNAME: ${{ secrets.GLOBALTRACE_HOSTNAME }}

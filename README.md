@@ -75,14 +75,13 @@ cp wrangler.private.example.jsonc wrangler.private.jsonc
 
 `wrangler.private.jsonc` 被 Git ignore，用于保存部署标识和生产 Worker vars。
 
-默认生产部署由 GitHub Actions 执行。需要在 GitHub repository secrets 中配置：
+默认生产部署由 Cloudflare Workers Builds 执行；GitHub Actions 只做验证，不再部署。
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-- `GLOBALTRACE_HOSTNAME`
-- `TURNSTILE_SITE_KEY`
-- `NXTRACE_API_V4_TOKEN`
-- `TURNSTILE_SECRET_KEY`
+Cloudflare Build 配置：
+
+- Build command: `npm run build`
+- Deploy command: `node scripts/write-ci-wrangler-config.mjs && npx wrangler deploy --config .wrangler-ci.jsonc`
+- Build variables: `NODE_VERSION=24`、`CLOUDFLARE_ACCOUNT_ID`、`GLOBALTRACE_HOSTNAME`、`TURNSTILE_SITE_KEY`
 
 生产必需 secrets 仍只写入 Cloudflare Worker secrets：
 
@@ -92,6 +91,8 @@ npx wrangler secret put --config wrangler.private.jsonc TURNSTILE_SECRET_KEY
 ```
 
 不要把真实 secret 写入 Git、Terraform、测试 fixture、文档示例或 frontend `VITE_*` 值。`TURNSTILE_SITE_KEY` 是公开值，但本仓库把生产 site key 也放在 ignored 私有配置中，避免公开仓库暴露部署标识。
+
+迁移到 Cloudflare Builds 后，GitHub repository secrets 中可删除：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`GLOBALTRACE_HOSTNAME`、`TURNSTILE_SITE_KEY`、`NXTRACE_API_V4_TOKEN`、`TURNSTILE_SECRET_KEY`。
 
 手动生产部署保留为 fallback：
 

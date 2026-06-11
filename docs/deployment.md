@@ -2,32 +2,57 @@
 
 ## 目标
 
-发布 `globaltrace` Worker 和 `dist` 静态资源到私有 Cloudflare 部署目标。
+发布 `globaltrace` Worker 和 `dist` 静态资源到 Cloudflare 生产部署目标。
 
 公开的 `wrangler.jsonc` 只保存通用 Worker、Cloudflare Static Assets 和本地开发配置。生产 account、hostname/routes、Turnstile site key 等部署标识保存在被 Git ignore 的 `wrangler.private.jsonc`。
 
-默认部署路径是 GitHub Actions。手动 `wrangler.private.jsonc` 部署保留为 fallback。
+默认部署路径是 Cloudflare Workers Builds。手动 `wrangler.private.jsonc` 部署保留为 fallback。
 
-## GitHub CI/CD
+## GitHub 验证和 Cloudflare Builds
 
 `.github/workflows/deploy.yml` 的行为：
 
-- `pull_request` to `master`：只运行验证，不部署。
-- `push` to `master`：验证通过后部署。
-- `workflow_dispatch`：允许从 GitHub UI 手动触发部署。
+- `pull_request` to `master`：运行验证，不部署。
+- `push` to `master`：运行验证，不部署；生产部署由 Cloudflare Builds 接管。
+- `workflow_dispatch`：允许从 GitHub UI 手动触发验证。
 
-CI 会用 `scripts/write-ci-wrangler-config.mjs` 从公开 `wrangler.jsonc` 生成 `.wrangler-ci.jsonc`，并注入 GitHub Secrets 中的部署标识。`.wrangler-ci.jsonc` 被 Git ignore，不要提交。
+Cloudflare Builds 连接 `nxtrace/GlobalTrace` 后，生产构建配置：
 
-GitHub repository secrets 必填：
+- Root directory: `/`
+- Production branch: `master`
+- Build command: `npm run build`
+- Deploy command: `node scripts/write-ci-wrangler-config.mjs && npx wrangler deploy --config .wrangler-ci.jsonc`
 
-- `CLOUDFLARE_API_TOKEN`：Wrangler deploy 和写 Worker secrets 使用的 Cloudflare API token。
+默认禁用 non-production branch builds。若需要保留预览构建，Non-production deploy command 使用：
+
+```bash
+node scripts/write-ci-wrangler-config.mjs && npx wrangler versions upload --config .wrangler-ci.jsonc
+```
+
+Cloudflare Build variables 必填：
+
+- `NODE_VERSION=24`
 - `CLOUDFLARE_ACCOUNT_ID`：Cloudflare account ID。
 - `GLOBALTRACE_HOSTNAME`：生产 hostname，只写域名，不带 `https://` 或路径。
 - `TURNSTILE_SITE_KEY`：Turnstile widget site key。
+
+Cloudflare Worker runtime secrets 必填：
+
 - `NXTRACE_API_V4_TOKEN`：Worker secret。
 - `TURNSTILE_SECRET_KEY`：Worker secret。
 
-`CLOUDFLARE_API_TOKEN` 至少需要能部署 Worker、上传 assets、维护目标 route/custom domain，并写入 Worker secrets。若使用 zone route，还需要对应 zone 的 route 权限。
+不要在 Cloudflare Build variables 里新增 `CLOUDFLARE_API_TOKEN`；Cloudflare Builds 使用它自己的 Workers Builds API token。
+
+迁移完成并确认 GitHub workflow 不再引用后，GitHub repository secrets 可删除：
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `GLOBALTRACE_HOSTNAME`
+- `TURNSTILE_SITE_KEY`
+- `NXTRACE_API_V4_TOKEN`
+- `TURNSTILE_SECRET_KEY`
+
+删除前提：仓库外没有其它自动化依赖这些 GitHub repository secrets。
 
 ## 私有配置文件
 
@@ -47,8 +72,10 @@ cp wrangler.private.example.jsonc wrangler.private.jsonc
 
 ## Cloudflare 前置条件
 
-- GitHub repository secrets 已按上文配置。
-- Cloudflare 登录态或 API token 已允许 Wrangler 部署目标 Worker。
+- Cloudflare Builds 已连接 `nxtrace/GlobalTrace`。
+- Cloudflare Builds API token 已允许 Wrangler 部署目标 Worker。
+- Cloudflare Build variables 已按上文配置。
+- Cloudflare Worker runtime secrets 已按上文配置。
 - Cloudflare 里已创建 Turnstile widget，并拿到对应 site key。
 
 手动 fallback 部署还需要本机存在 `wrangler.private.jsonc`，且包含生产 `account_id`、`routes` 或 `domains`、生产 `vars.TURNSTILE_SITE_KEY`。
@@ -83,7 +110,7 @@ git diff --check
 - `test-results`
 - smoke 截图或临时文件
 
-当前仓库默认通过 `origin` 的 GitHub Actions 部署；除非任务明确要求，不要在本地直接部署生产。
+当前仓库默认通过 Cloudflare Builds 部署 `origin/master`；除非任务明确要求，不要在本地直接部署生产。
 
 ## 本地验证
 
@@ -112,21 +139,15 @@ npm run smoke:worker
 
 `smoke:browser` 使用本地 Vite server；`smoke:worker` 会构建 `dist`，再通过 `wrangler dev --local --assets dist` 验证 Worker Static Assets。
 
-## GitHub Actions 部署
+## Cloudflare Builds 部署
 
-推送到 `master` 后，GitHub Actions 会执行：
+推送到 `master` 后：
 
-- `npm ci`
-- `npx playwright install --with-deps chromium`
-- `npm run typecheck`
-- `npm test`
-- `npm run build`
-- `npm run smoke`
-- 生成 `.wrangler-ci.jsonc`
-- `wrangler deploy --config .wrangler-ci.jsonc`
-- 线上检查 `/` 和 `/api/config`
+- GitHub Actions 执行验证：lint、typecheck、coverage test、build、smoke。
+- Cloudflare Builds 执行 `npm run build`。
+- Cloudflare Builds 执行 `node scripts/write-ci-wrangler-config.mjs && npx wrangler deploy --config .wrangler-ci.jsonc`。
 
-部署会同时发布 Worker 和静态资源。`assets.directory` 必须对应 CI 最新 `npm run build` 生成的 `dist`。
+部署会同时发布 Worker 和静态资源。`assets.directory` 必须对应 Cloudflare Builds 最新 `npm run build` 生成的 `dist`。
 
 ## 手动 fallback 部署
 
@@ -155,7 +176,7 @@ git commit -m "<conventional commit message>"
 git push origin master
 ```
 
-提交只暂存本次任务相关文件；不要把无关工作区改动带入 commit。生产发布由 GitHub Actions 完成。
+提交只暂存本次任务相关文件；不要把无关工作区改动带入 commit。生产发布由 Cloudflare Builds 完成。
 
 ## 线上验证
 

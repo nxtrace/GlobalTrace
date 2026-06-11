@@ -16,7 +16,7 @@
 - 后端增强：Worker 调用 nxtrace API v4 batch GeoIP/ASN/whois。
 - Worker 名称：`globaltrace`。
 - 生产部署标识保存在 ignored `wrangler.private.jsonc`，不要提交。
-- 默认生产部署通过 GitHub Actions，不再从本机直接部署。
+- 默认生产部署通过 Cloudflare Workers Builds，不再从本机直接部署。
 
 ## 关键约束
 
@@ -65,7 +65,7 @@ curl -fsSI https://<private-hostname>/
 curl -fsSL https://<private-hostname>/api/config
 ```
 
-生产发布由 GitHub Actions 完成。`npm run deploy:private` 只作为手动 fallback，除非用户明确要求，不要本机直接部署生产。
+生产发布由 Cloudflare Workers Builds 完成。`npm run deploy:private` 只作为手动 fallback，除非用户明确要求，不要本机直接部署生产。
 
 ## 已知本机问题
 
