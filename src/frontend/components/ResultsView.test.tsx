@@ -343,10 +343,16 @@ describe("ResultsView", () => {
         mapStyleUrl="about:blank"
         mapProjection="globe"
         onMapProjectionChange={onMapProjectionChange}
+        onClose={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("group", { name: "结果地图视图" })).toBeInTheDocument();
+    const toolbar = screen.getByRole("group", { name: "结果地图视图" });
+    const headerActions = toolbar.closest(".result-header-actions") as HTMLElement;
+    expect(headerActions).not.toBeNull();
+    expect(headerActions.firstElementChild).toBe(toolbar);
+    expect(within(headerActions).getByRole("button", { name: "复制" })).toBeInTheDocument();
+    expect(within(headerActions).getByRole("button", { name: "关闭结果" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "切换结果地图到 3D" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 2D" }));
 
@@ -362,12 +368,17 @@ describe("ResultsView", () => {
     expect(map.layers.map((layer) => layer.id)).toContain("result-hop-labels");
     expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({ "circle-radius": 14 });
     expect(map.layers.find((layer) => layer.id === "result-selected-hop")?.paint).toMatchObject({ "circle-radius": 19 });
+    expect(screen.getByLabelText("trace result map")).toHaveAttribute("data-map-projection", "mercator");
+    expect(screen.getByLabelText("trace result map")).not.toHaveClass("result-map-globe");
     expect(map.fitBoundsCalls.at(-1)).toEqual([
       [
         [-122.08, 34.05],
         [-118.24, 37.39],
       ],
-      expect.objectContaining({ maxZoom: 5.8 }),
+      expect.objectContaining({
+        padding: { top: 38, right: 38, bottom: 38, left: 38 },
+        maxZoom: 5.8,
+      }),
     ]);
     expect(map.setProjectionCalls).toEqual([{ type: "mercator" }]);
   });
@@ -380,6 +391,18 @@ describe("ResultsView", () => {
 
     expect(map.options).toMatchObject({ aroundCenter: true });
     expect(map.setProjectionCalls).toEqual([{ type: "globe" }]);
+    expect(screen.getByLabelText("trace result map")).toHaveClass("result-map-globe");
+    expect(screen.getByLabelText("trace result map")).toHaveAttribute("data-map-projection", "globe");
+    expect(map.fitBoundsCalls.at(-1)).toEqual([
+      [
+        [-122.08, 34.05],
+        [-118.24, 37.39],
+      ],
+      expect.objectContaining({
+        padding: { top: 96, right: 120, bottom: 96, left: 120 },
+        maxZoom: 4.4,
+      }),
+    ]);
     expect(map.layers.find((layer) => layer.id === "result-line-glow")?.paint).toMatchObject({
       "line-color": "#7ffff5",
       "line-width": 9,
@@ -414,7 +437,7 @@ describe("ResultsView", () => {
     expect(map.setProjectionCalls).toEqual([{ type: "globe" }]);
     expect(map.easeToCalls.at(-1)).toMatchObject({
       center: [139.76, 35.68],
-      zoom: 5,
+      zoom: 4.2,
     });
   });
 

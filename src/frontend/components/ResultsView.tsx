@@ -115,6 +115,7 @@ export function ResultsView({
           </p>
         </div>
         <div className="result-header-actions">
+          {renderMap && <ResultMapToolbar mapProjection={mapProjection} onMapProjectionChange={onMapProjectionChange} />}
           <ShareButton measurementId={result.measurementId} />
           {onClose && (
             <Button variant="glass" size="sm" type="button" onClick={onClose} title="关闭结果" aria-label="关闭结果">
@@ -145,17 +146,14 @@ export function ResultsView({
         </TabsList>
         <TabsContent value={String(selected)} className="probe-tab-content">
           {renderMap && (
-            <>
-              <ResultMapToolbar mapProjection={mapProjection} onMapProjectionChange={onMapProjectionChange} />
-              <ResultMap
-                data={mapData}
-                mapStyleUrl={mapStyleUrl}
-                mapProjection={mapProjection}
-                selectedRouteNodeId={selectedRouteNodeId}
-                mapFocusRequest={mapFocusRequest}
-                onSelectRouteNode={(nodeId) => selectRouteNode(nodeId)}
-              />
-            </>
+            <ResultMap
+              data={mapData}
+              mapStyleUrl={mapStyleUrl}
+              mapProjection={mapProjection}
+              selectedRouteNodeId={selectedRouteNodeId}
+              mapFocusRequest={mapFocusRequest}
+              onSelectRouteNode={(nodeId) => selectRouteNode(nodeId)}
+            />
           )}
 
           <EnrichmentStrip result={result} />
@@ -510,14 +508,14 @@ function ResultMap({
           { layerId: "result-points", property: "circle-opacity", min: 0.58, max: 1 },
         ]);
       }
-      fitResultMap(map, dataRef.current);
+      fitResultMap(map, dataRef.current, mapProjection);
     });
     const resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => map.resize());
     resizeObserver?.observe(containerRef.current);
     requestAnimationFrame(() => {
       map.resize();
-      fitResultMap(map, dataRef.current);
+      fitResultMap(map, dataRef.current, mapProjection);
     });
     mapRef.current = map;
     if (import.meta.env.DEV) {
@@ -553,7 +551,7 @@ function ResultMap({
       element.__globalTraceSelectedRouteNodeId = selectedRouteNodeIdRef.current;
     }
     if (map && source) {
-      fitResultMap(map, data);
+      fitResultMap(map, data, mapProjection);
       applySelectedRouteNode(map, selectedRouteNodeIdRef.current, data, popupRef);
     }
   }, [data]);
@@ -575,7 +573,7 @@ function ResultMap({
     map.easeTo({ center: node.coordinate, duration: 420, essential: true });
   }, [data, mapFocusRequest, selectedRouteNodeId]);
 
-  return <div className="result-map" ref={containerRef} aria-label="trace result map" />;
+  return <div className={`result-map${mapProjection === "globe" ? " result-map-globe" : ""}`} data-map-projection={mapProjection} ref={containerRef} aria-label="trace result map" />;
 }
 
 export function buildResultMapData(
@@ -682,8 +680,9 @@ function routeNodePopupBody(hops: TraceHop[]): string {
     .join("\n");
 }
 
-function fitResultMap(map: maplibregl.Map, data: ResultMapData): void {
+function fitResultMap(map: maplibregl.Map, data: ResultMapData, mapProjection: MapProjection): void {
   const coordinates = data.fitCoordinates;
+  const globe = mapProjection === "globe";
   if (coordinates.length === 0) {
     map.easeTo({
       center: RESULT_MAP_DEFAULT_CENTER,
@@ -696,7 +695,7 @@ function fitResultMap(map: maplibregl.Map, data: ResultMapData): void {
   if (coordinates.length === 1) {
     map.easeTo({
       center: coordinates[0],
-      zoom: RESULT_MAP_SINGLE_POINT_ZOOM,
+      zoom: globe ? 4.2 : RESULT_MAP_SINGLE_POINT_ZOOM,
       duration: 420,
       essential: true,
     });
@@ -706,15 +705,15 @@ function fitResultMap(map: maplibregl.Map, data: ResultMapData): void {
   if (!bounds) {
     map.easeTo({
       center: coordinates[0],
-      zoom: RESULT_MAP_SINGLE_POINT_ZOOM,
+      zoom: globe ? 4.2 : RESULT_MAP_SINGLE_POINT_ZOOM,
       duration: 420,
       essential: true,
     });
     return;
   }
   map.fitBounds(bounds, {
-    padding: { top: 38, right: 38, bottom: 38, left: 38 },
-    maxZoom: RESULT_MAP_MAX_ZOOM,
+    padding: globe ? { top: 96, right: 120, bottom: 96, left: 120 } : { top: 38, right: 38, bottom: 38, left: 38 },
+    maxZoom: globe ? 4.4 : RESULT_MAP_MAX_ZOOM,
     duration: 420,
     essential: true,
   });

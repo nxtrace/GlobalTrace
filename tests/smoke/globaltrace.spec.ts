@@ -150,6 +150,7 @@ for (const viewport of [
 
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
     await expect(page.getByRole("group", { name: "结果地图视图" })).toBeVisible();
+    await expectResultHeaderActions(page);
     await expect(page.getByRole("button", { name: "切换结果地图到 2D" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
     await expectHopTableColumns(page);
@@ -164,6 +165,9 @@ for (const viewport of [
     await expect(page.getByRole("button", { name: "切换结果地图到 3D" })).toHaveAttribute("aria-pressed", "true");
     await expectResultMapHasCountryLabelStyle(page);
     await expectResultMapGlobeLineStyle(page);
+    if (viewport.name === "1440x1000") {
+      await expectResultMapGlobeDesktopSize(page);
+    }
     await expectResultMapStyleLoaded(page);
     await expectResultMapContainsCoordinate(page, [-118.24, 34.05]);
     await expectResultMapContainsCoordinate(page, [-122.08, 37.39]);
@@ -742,22 +746,70 @@ async function expectResultMapGlobeLineStyle(page: Page): Promise<void> {
   });
 }
 
+async function expectResultHeaderActions(page: Page): Promise<void> {
+  const actions = page.locator(".result-header-actions");
+  await expect(actions.getByRole("group", { name: "结果地图视图" })).toBeVisible();
+  await expect(actions.getByRole("button", { name: "切换结果地图到 2D" })).toBeVisible();
+  await expect(actions.getByRole("button", { name: "切换结果地图到 3D" })).toBeVisible();
+  await expect(actions.getByRole("button", { name: "复制" })).toBeVisible();
+  await expect(actions.getByRole("button", { name: "关闭结果" })).toBeVisible();
+  const state = await actions.evaluate((node) => {
+    const rect = (node as HTMLElement).getBoundingClientRect();
+    const children = Array.from(node.children).map((child) => {
+      const childRect = child.getBoundingClientRect();
+      return {
+        className: child.className,
+        left: childRect.left,
+        right: childRect.right,
+      };
+    });
+    return {
+      right: rect.right,
+      documentClient: document.documentElement.clientWidth,
+      children,
+    };
+  });
+  expect(state.right).toBeLessThanOrEqual(state.documentClient);
+  expect(state.children[0]?.className).toContain("result-map-toolbar");
+  expect(state.children[1]?.className).toContain("share-surface");
+}
+
+async function expectResultMapGlobeDesktopSize(page: Page): Promise<void> {
+  const state = await page.locator(".result-map").evaluate((node) => {
+    const element = node as HTMLElement;
+    const rect = element.getBoundingClientRect();
+    return {
+      height: rect.height,
+      className: element.className,
+      projection: element.dataset.mapProjection,
+    };
+  });
+  expect(state.height).toBeGreaterThanOrEqual(600);
+  expect(state.className).toContain("result-map-globe");
+  expect(state.projection).toBe("globe");
+}
+
 async function expectMobileResultLayout(page: Page): Promise<void> {
   const state = await page.evaluate(() => {
     const doc = document.documentElement;
+    const headerActions = document.querySelector(".result-header-actions") as HTMLElement | null;
     const toolbar = document.querySelector(".result-map-toolbar") as HTMLElement | null;
     const switchButton = document.querySelector(".result-map-view-switch button") as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const map = document.querySelector(".result-map") as HTMLElement | null;
     const table = document.querySelector(".hop-table-scroll") as HTMLElement | null;
     const raw = document.querySelector(".raw-output[open] pre") as HTMLElement | null;
+    const headerRect = headerActions?.getBoundingClientRect();
     const toolbarRect = toolbar?.getBoundingClientRect();
     const buttonRect = switchButton?.getBoundingClientRect();
     const mapRect = map?.getBoundingClientRect();
     return {
       documentScroll: doc.scrollWidth,
       documentClient: doc.clientWidth,
+      headerWidth: headerRect?.width ?? 0,
+      headerRight: headerRect?.right ?? 0,
       toolbarWidth: toolbarRect?.width ?? 0,
+      toolbarRight: toolbarRect?.right ?? 0,
       buttonHeight: buttonRect?.height ?? 0,
       tabsOverflowX: tabs ? window.getComputedStyle(tabs).overflowX : "",
       tabsScrollWidth: tabs?.scrollWidth ?? 0,
@@ -770,11 +822,15 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     };
   });
   expect(state.documentScroll).toBeLessThanOrEqual(state.documentClient);
+  expect(state.headerRight).toBeLessThanOrEqual(state.documentClient);
+  expect(state.toolbarRight).toBeLessThanOrEqual(state.documentClient);
+  expect(state.headerWidth).toBeGreaterThan(250);
   expect(state.toolbarWidth).toBeGreaterThan(250);
   expect(state.buttonHeight).toBeGreaterThanOrEqual(44);
   expect(["auto", "scroll"]).toContain(state.tabsOverflowX);
   expect(state.tabsScrollWidth).toBeGreaterThanOrEqual(state.tabsClientWidth);
   expect(state.mapHeight).toBeGreaterThanOrEqual(300);
+  expect(state.mapHeight).toBeLessThanOrEqual(480);
   expect(["auto", "scroll"]).toContain(state.tableOverflowX);
   expect(state.tableScrollWidth).toBeGreaterThan(state.tableClientWidth);
   expect(state.rawMaxHeight).toContain("px");

@@ -992,8 +992,7 @@ summary:focus-visible {
 
 .result-map-toolbar {
   min-width: 0;
-  display: flex;
-  justify-content: flex-end;
+  flex: 0 1 auto;
 }
 
 .result-map-toolbar-surface,
@@ -1016,7 +1015,7 @@ summary:focus-visible {
 .result-map-view-switch {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  grid-template-columns: repeat(2, minmax(58px, 1fr));
   gap: 6px;
 }
 
@@ -1581,6 +1580,10 @@ tbody tr:hover {
   background: var(--map-bg);
 }
 
+.result-map-globe {
+  height: clamp(620px, 72svh, 900px);
+}
+
 .result-map-popup {
   display: grid;
   gap: 5px;
@@ -1946,6 +1949,10 @@ pre {
   .app-shell.result-priority .workspace {
     order: -1;
   }
+
+  .result-map-globe {
+    height: clamp(460px, 60svh, 720px);
+  }
 }
 
 @media (max-width: 820px) {
@@ -1996,6 +2003,10 @@ pre {
 
   .result-map {
     height: clamp(320px, 42svh, 480px);
+  }
+
+  .result-map-globe {
+    height: clamp(340px, 48svh, 480px);
   }
 
   .hop-table-scroll {
