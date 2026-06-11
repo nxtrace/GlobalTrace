@@ -184,9 +184,9 @@ describe("ResultsView", () => {
     expect(screen.getByText("GeoIP: 完成")).toBeInTheDocument();
     expect(within(table).getByText("8.8.8.8")).toBeInTheDocument();
     expect(within(table).getByText("dns.google")).toBeInTheDocument();
-    expect(screen.getByText("AS15169")).toBeInTheDocument();
-    expect(screen.getByText("Google LLC / Google")).toBeInTheDocument();
-    expect(screen.getByText("美国，加利福尼亚，山景城")).toBeInTheDocument();
+    expect(within(table).getByText("AS15169")).toBeInTheDocument();
+    expect(within(table).getByText("Google LLC / Google")).toBeInTheDocument();
+    expect(within(table).getByText("美国，加利福尼亚，山景城")).toBeInTheDocument();
     expect(screen.getByText("raw output")).toBeInTheDocument();
   });
 
@@ -203,7 +203,7 @@ describe("ResultsView", () => {
   it("falls back to English GeoIP fields when Chinese fields are absent", () => {
     render(<ResultsView result={englishOnlyRegionResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    expect(screen.getByText("United States，California，Mountain View")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("United States，California，Mountain View")).toBeInTheDocument();
   });
 
   it("treats hostname values matching the IP as empty in the visible hop table", () => {
@@ -257,8 +257,9 @@ describe("ResultsView", () => {
     expect(screen.getByText("Los Angeles")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Tokyo/ }));
 
-    expect(screen.getByText("203.0.113.9")).toBeInTheDocument();
-    expect(screen.getByText("AS64500")).toBeInTheDocument();
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("203.0.113.9")).toBeInTheDocument();
+    expect(within(table).getByText("AS64500")).toBeInTheDocument();
   });
 
   it("updates target metrics when the active probe changes", () => {
@@ -305,6 +306,17 @@ describe("ResultsView", () => {
     expect(screen.getByText(/google-whois/)).toBeInTheDocument();
     expect(screen.getByText(/8.8.8.0\/24/)).toBeInTheDocument();
     expect(screen.getByText(/"source": "mock"/)).toBeInTheDocument();
+  });
+
+  it("keeps mobile hop cards wired to hop selection", async () => {
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    const card = screen.getByText("TTL 1").closest("button");
+    expect(card).not.toBeNull();
+    fireEvent.click(card!);
+
+    await waitFor(() => expect(card).toHaveClass("selected"));
+    expect(screen.getByLabelText("hop details")).toContainElement(card);
   });
 
   it("renders in-progress polling and no-hop states", () => {
@@ -559,7 +571,7 @@ async function latestMap(): Promise<InstanceType<typeof maplibreMock.FakeMap>> {
 }
 
 function rowForText(text: string): HTMLTableRowElement {
-  const row = screen.getByText(text).closest("tr");
+  const row = within(screen.getByRole("table")).getByText(text).closest("tr");
   if (!row) throw new Error(`row not found for ${text}`);
   return row as HTMLTableRowElement;
 }

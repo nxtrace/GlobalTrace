@@ -96,8 +96,8 @@ for (const viewport of viewports) {
     await expect(page.getByRole("button", { name: "复制" })).toBeVisible();
     await expect(page.getByLabel("probe map")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "在线 probes" })).toHaveCount(0);
-    await expect(page.getByText("AS15169")).toBeVisible();
-    await expect(page.getByText("Google LLC / Google")).toBeVisible();
+    await expectVisibleHopText(page, "AS15169");
+    await expectVisibleHopText(page, "Google LLC / Google");
     await expectHopTableColumns(page);
     await expect(page.getByLabel("trace result map")).toBeVisible();
     await expectMapCanvasPainted(page);
@@ -163,7 +163,7 @@ for (const viewport of [
     await expect(page.getByRole("button", { name: "切换结果地图到 2D" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
     await expectHopTableColumns(page);
-    await expect(page.locator(".hop-table").getByText("8.8.8.8", { exact: true })).toBeVisible();
+    await expectVisibleHopText(page, "8.8.8.8");
     await expect(page.getByLabel("trace result map")).toBeVisible();
     await expectMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
@@ -194,7 +194,7 @@ for (const viewport of [
     await expectProbeMapProjection(page, "mercator");
     await expect(page.getByRole("button", { name: "查看结果" })).toBeVisible();
     await page.getByRole("button", { name: "查看结果" }).click();
-    await expect(page.locator(".hop-table").getByText("8.8.8.8", { exact: true })).toBeVisible();
+    await expectVisibleHopText(page, "8.8.8.8");
     await expectResultMapProjection(page, "globe");
 
     await expect(page).toHaveURL(/measurement=m-smoke/);
@@ -348,7 +348,7 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
   await expect(page.locator('.hop-table tr[data-ttl="1"]')).toHaveClass(/selected/);
   await expect(page.locator('.hop-table tr[data-ttl="2"]')).toHaveClass(/selected/);
   await expectResultSelectedRouteNode(page, "route-node-1-2");
-  await page.locator('.hop-table tr[data-ttl="5"]').click();
+  await clickVisibleHop(page, 5);
   await expect(page.locator('.hop-table tr[data-ttl="1"]')).not.toHaveClass(/selected/);
   await expect(page.locator('.hop-table tr[data-ttl="5"]')).toHaveClass(/selected/);
   await expectResultSelectedRouteNode(page, "route-node-5");
@@ -873,6 +873,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const map = document.querySelector(".result-map") as HTMLElement | null;
     const table = document.querySelector(".hop-table-scroll") as HTMLElement | null;
+    const cards = document.querySelector(".hop-card-list") as HTMLElement | null;
     const rawBlocks = Array.from(document.querySelectorAll(".raw-output[open] pre")) as HTMLElement[];
     const rectFor = (element: Element | null) => {
       const rect = element?.getBoundingClientRect();
@@ -913,6 +914,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const copyButtonRect = copyButton?.getBoundingClientRect();
     const closeButtonRect = closeButton?.getBoundingClientRect();
     const mapRect = map?.getBoundingClientRect();
+    const cardRects = Array.from(cards?.querySelectorAll(".hop-card") || []).map(rectFor);
     const actionStyle = headerActions ? window.getComputedStyle(headerActions) : null;
     return {
       documentScroll: doc.scrollWidth,
@@ -940,13 +942,17 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       copyButtonTop: copyButtonRect?.top ?? 0,
       closeButtonHeight: closeButtonRect?.height ?? 0,
       closeButtonTop: closeButtonRect?.top ?? 0,
+      tabsFlexWrap: tabs ? window.getComputedStyle(tabs).flexWrap : "",
       tabsOverflowX: tabs ? window.getComputedStyle(tabs).overflowX : "",
       tabsScrollWidth: tabs?.scrollWidth ?? 0,
       tabsClientWidth: tabs?.clientWidth ?? 0,
       mapHeight: mapRect?.height ?? 0,
+      tableDisplay: table ? window.getComputedStyle(table).display : "",
       tableOverflowX: table ? window.getComputedStyle(table).overflowX : "",
       tableScrollWidth: table?.scrollWidth ?? 0,
       tableClientWidth: table?.clientWidth ?? 0,
+      cardListDisplay: cards ? window.getComputedStyle(cards).display : "",
+      cardRects,
       rawMaxHeights: rawBlocks.map((raw) => window.getComputedStyle(raw).maxHeight),
       buttonRects,
       overlaps,
@@ -983,12 +989,24 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(Math.abs(state.shareSurfaceTop - state.closeButtonTop)).toBeLessThanOrEqual(2);
   expect(state.copyButtonTop).toBeGreaterThanOrEqual(state.shareSurfaceTop);
   expect(state.copyButtonTop).toBeGreaterThanOrEqual(state.toolbarBottom - 1);
-  expect(["auto", "scroll"]).toContain(state.tabsOverflowX);
-  expect(state.tabsScrollWidth).toBeGreaterThanOrEqual(state.tabsClientWidth);
+  if (state.documentClient <= 560) {
+    expect(state.tabsFlexWrap).toBe("wrap");
+    expect(state.tabsOverflowX).toBe("visible");
+  } else {
+    expect(["auto", "scroll"]).toContain(state.tabsOverflowX);
+    expect(state.tabsScrollWidth).toBeGreaterThanOrEqual(state.tabsClientWidth);
+  }
   expect(state.mapHeight).toBeGreaterThanOrEqual(300);
   expect(state.mapHeight).toBeLessThanOrEqual(480);
-  expect(["auto", "scroll"]).toContain(state.tableOverflowX);
-  expect(state.tableScrollWidth).toBeGreaterThan(state.tableClientWidth);
+  expect(state.tableDisplay).toBe("none");
+  expect(state.cardListDisplay).toBe("grid");
+  expect(state.cardRects.length).toBeGreaterThan(0);
+  for (const rect of state.cardRects) {
+    expect(rect.left).toBeGreaterThanOrEqual(state.resultLeft);
+    expect(rect.right).toBeLessThanOrEqual(state.resultRight);
+    expect(rect.width).toBeGreaterThan(0);
+    expect(rect.height).toBeGreaterThan(44);
+  }
   expect(state.rawMaxHeights).toHaveLength(2);
   for (const maxHeight of state.rawMaxHeights) {
     expect(maxHeight).toContain("px");
@@ -998,14 +1016,39 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
 async function expectHopTableScrollsWithinPanel(page: Page): Promise<void> {
   const state = await page.locator(".hop-table-scroll").evaluate((node) => {
     const item = node as HTMLElement;
+    const cardList = document.querySelector(".hop-card-list") as HTMLElement | null;
+    const cards = Array.from(cardList?.querySelectorAll(".hop-card") || []) as HTMLElement[];
+    const result = document.querySelector(".results-section") as HTMLElement | null;
+    const resultRect = result?.getBoundingClientRect();
+    const cardRects = cards.map((card) => {
+      const rect = card.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
+    });
     return {
+      display: window.getComputedStyle(item).display,
       overflowX: window.getComputedStyle(item).overflowX,
       clientWidth: item.clientWidth,
       scrollWidth: item.scrollWidth,
+      cardListDisplay: cardList ? window.getComputedStyle(cardList).display : "",
+      resultLeft: resultRect?.left ?? 0,
+      resultRight: resultRect?.right ?? 0,
+      cardRects,
       documentScroll: document.documentElement.scrollWidth,
       documentClient: document.documentElement.clientWidth,
     };
   });
+  if (state.display === "none") {
+    expect(state.cardListDisplay).toBe("grid");
+    expect(state.cardRects.length).toBeGreaterThan(0);
+    for (const rect of state.cardRects) {
+      expect(rect.left).toBeGreaterThanOrEqual(state.resultLeft);
+      expect(rect.right).toBeLessThanOrEqual(state.resultRight);
+      expect(rect.width).toBeGreaterThan(0);
+      expect(rect.height).toBeGreaterThan(44);
+    }
+    expect(state.documentScroll).toBeLessThanOrEqual(state.documentClient);
+    return;
+  }
   expect(["auto", "scroll"]).toContain(state.overflowX);
   expect(state.scrollWidth).toBeGreaterThanOrEqual(state.clientWidth);
   expect(state.documentScroll).toBeLessThanOrEqual(state.documentClient);
@@ -1014,6 +1057,19 @@ async function expectHopTableScrollsWithinPanel(page: Page): Promise<void> {
 async function expectHopTableColumns(page: Page): Promise<void> {
   const headers = await page.locator(".hop-table th").allInnerTexts();
   expect(headers).toEqual(["TTL", "IP / hostname", "loss", "avg", "min", "max", "ASN", "region", "owner / ISP"]);
+}
+
+async function expectVisibleHopText(page: Page, text: string): Promise<void> {
+  await expect(page.locator(".hop-table:visible, .hop-card-list:visible").getByText(text, { exact: true })).toBeVisible();
+}
+
+async function clickVisibleHop(page: Page, ttl: number): Promise<void> {
+  const card = page.locator(`.hop-card[data-ttl="${ttl}"]:visible`);
+  if (await card.count()) {
+    await card.click();
+    return;
+  }
+  await page.locator(`.hop-table tr[data-ttl="${ttl}"]`).click();
 }
 
 async function expectMapContainsCoordinate(page: Page, coordinate: [number, number]): Promise<void> {

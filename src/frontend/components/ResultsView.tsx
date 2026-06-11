@@ -261,12 +261,14 @@ function HopTable({
   onSelectHop: (ttl: number) => void;
 }) {
   const rowRefs = useRef<Record<number, HTMLTableRowElement | null>>({});
+  const cardRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const selectedTtls = selectedRouteNodeId ? (mapData.routeNodeById.get(selectedRouteNodeId)?.ttlList ?? []) : [];
 
   useEffect(() => {
     const firstTtl = selectedTtls[0];
     if (firstTtl === undefined) return;
-    rowRefs.current[firstTtl]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    rowRefs.current[firstTtl]?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    cardRefs.current[firstTtl]?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   }, [selectedRouteNodeId, selectedTtls]);
 
   if (!active.hops.length) {
@@ -328,6 +330,46 @@ function HopTable({
             })}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="hop-card-list" aria-label="hop details">
+        {active.hops.map((hop) => {
+          const routeNodeId = mapData.routeNodeIdByTtl.get(hop.ttl) || null;
+          const selected = selectedTtls.includes(hop.ttl);
+          const linked = Boolean(routeNodeId);
+          return (
+            <button
+              key={`${hop.ttl}-${hop.ip || "empty"}-card`}
+              ref={(node) => {
+                cardRefs.current[hop.ttl] = node;
+              }}
+              className={`hop-card${linked ? " map-linked" : ""}${selected ? " selected" : ""}`}
+              type="button"
+              data-ttl={hop.ttl}
+              data-route-node-id={routeNodeId || undefined}
+              aria-pressed={selected}
+              title={linked ? `定位 TTL ${hop.ttl}` : `TTL ${hop.ttl} 没有可定位 GeoIP`}
+              onClick={() => onSelectHop(hop.ttl)}
+            >
+              <span className="hop-card-ttl">TTL {hop.ttl}</span>
+              <span className="hop-card-endpoint">{renderEndpoint(hop)}</span>
+              <span className="hop-card-stat">
+                <span>loss</span>
+                <strong>{formatPercent(hop.stats?.loss)}</strong>
+              </span>
+              <span className="hop-card-stat">
+                <span>avg</span>
+                <strong>{formatMs(hop.stats?.avg)}</strong>
+              </span>
+              <span className="hop-card-meta">{formatAsn(hop)}</span>
+              <span className="hop-card-detail">{formatRegion(hop)}</span>
+              <span className="hop-card-detail">{formatOwner(hop)}</span>
+              <span className="hop-card-timing">
+                min {formatMs(hop.stats?.min)} · max {formatMs(hop.stats?.max)}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <details className="raw-output">

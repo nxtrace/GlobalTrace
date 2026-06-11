@@ -1379,6 +1379,11 @@ summary:focus-visible {
   font-weight: 720;
 }
 
+.results-section .section-header h2,
+.results-section .section-header p {
+  overflow-wrap: anywhere;
+}
+
 .table-scroll {
   max-width: 100%;
   max-height: 370px;
@@ -1519,6 +1524,13 @@ tbody tr:hover {
     box-shadow 160ms ease;
 }
 
+.probe-tabs button strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .probe-tabs button:hover {
   transform: translateY(-1px);
   background: var(--hover-bg);
@@ -1579,6 +1591,8 @@ tbody tr:hover {
 }
 
 .result-map {
+  width: 100%;
+  max-width: 100%;
   height: clamp(300px, 34svh, 440px);
   border: 1px solid var(--table-border);
   border-radius: 18px;
@@ -1765,6 +1779,98 @@ tbody tr:hover {
   max-width: 260px;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.hop-card-list {
+  display: none;
+}
+
+.hop-card {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: 8px 10px;
+  padding: 11px;
+  border: 1px solid var(--table-border);
+  border-radius: 14px;
+  background: var(--table-bg);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.hop-card.map-linked:hover {
+  background: var(--table-row-hover);
+}
+
+.hop-card.selected {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.hop-card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.hop-card-ttl {
+  align-self: center;
+  border: 1px solid var(--muted-border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--muted-bg);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.hop-card-endpoint {
+  min-width: 0;
+  grid-column: span 1;
+}
+
+.hop-card-stat {
+  display: grid;
+  gap: 2px;
+  min-width: 54px;
+  text-align: right;
+}
+
+.hop-card-stat span {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.hop-card-stat strong {
+  font-size: 13px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.hop-card-meta,
+.hop-card-detail,
+.hop-card-timing {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.hop-card-meta {
+  grid-column: 1 / -1;
+  color: var(--ink);
+  font-weight: 720;
+}
+
+.hop-card-detail,
+.hop-card-timing {
+  grid-column: 1 / -1;
 }
 
 .endpoint-stack {
@@ -1965,6 +2071,7 @@ pre {
   .app-shell {
     gap: 12px;
     padding: 10px;
+    overflow-x: hidden;
   }
 
   .workspace {
@@ -2008,15 +2115,20 @@ pre {
   }
 
   .result-map {
-    height: clamp(320px, 42svh, 480px);
+    height: clamp(300px, 42svh, 440px);
   }
 
   .result-map-globe {
-    height: clamp(340px, 48svh, 480px);
+    height: clamp(320px, 48svh, 460px);
   }
 
   .hop-table-scroll {
-    max-height: min(52svh, 500px);
+    display: none;
+  }
+
+  .hop-card-list {
+    display: grid;
+    gap: 9px;
   }
 
   .map-container {
@@ -2082,6 +2194,10 @@ pre {
     padding: 11px;
   }
 
+  .results-section {
+    gap: 11px;
+  }
+
   .status-bar {
     min-height: auto;
     padding: 8px;
@@ -2141,7 +2257,8 @@ pre {
   }
 
   .result-map {
-    height: clamp(320px, 46svh, 440px);
+    height: clamp(300px, 44svh, 400px);
+    border-radius: 14px;
   }
 
   .result-map-view-switch {
@@ -2173,16 +2290,20 @@ pre {
   }
 
   .probe-tabs {
-    flex-direction: row;
+    flex-wrap: wrap;
+    overflow-x: visible;
     padding-bottom: 2px;
   }
 
   .probe-tabs button {
-    flex: 0 0 min(180px, 72vw);
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+    min-height: 50px;
+    padding: 8px 9px;
   }
 
   .hop-table-scroll {
-    max-height: min(48svh, 420px);
+    display: none;
   }
 
   pre {
@@ -2195,11 +2316,84 @@ pre {
 
   .metric {
     padding: 9px;
+    border-radius: 12px;
   }
 
   .metric strong {
     white-space: normal;
     overflow-wrap: anywhere;
+  }
+
+  .hop-card {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .hop-card-stat {
+    min-width: 48px;
+  }
+
+  .hop-card-ttl {
+    padding: 4px 7px;
+  }
+
+  .hop-card-endpoint {
+    grid-column: 2 / span 1;
+  }
+
+  .hop-card-timing {
+    display: none;
+  }
+
+  .probe-table {
+    min-width: 0;
+  }
+
+  .probe-table thead {
+    display: none;
+  }
+
+  .probe-table,
+  .probe-table tbody,
+  .probe-table tr,
+  .probe-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .probe-table tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 10px;
+    padding: 10px;
+    border-bottom: 1px solid var(--table-border);
+  }
+
+  .probe-table td {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .probe-table td:nth-child(1) {
+    grid-column: 1;
+    font-weight: 760;
+  }
+
+  .probe-table td:nth-child(2),
+  .probe-table td:nth-child(3),
+  .probe-table td:nth-child(4) {
+    grid-column: 1;
+    color: var(--ink-soft);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .probe-table td:nth-child(5) {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: center;
   }
 
   .about-header {
@@ -2274,6 +2468,15 @@ pre {
   .results-section .result-header-actions > button {
     min-height: 44px;
     height: 44px;
+  }
+
+  .results-section .hop-table-scroll {
+    display: none;
+  }
+
+  .results-section .hop-card-list {
+    display: grid;
+    gap: 9px;
   }
 }
 
