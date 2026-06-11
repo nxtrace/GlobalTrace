@@ -36,6 +36,39 @@ vi.mock("./components/ResultsView", () => ({
   ),
 }));
 
+vi.mock("./components/ThreeGlobeDashboard", () => ({
+  ThreeGlobeDashboard: (props: {
+    probes: GlobalpingProbe[];
+    selectionNotice: string;
+    result: TraceResultResponse | null;
+    availableResult: TraceResultResponse | null;
+    onPickProbe: (probe: GlobalpingProbe) => void;
+    onShowResult: () => void;
+    onCloseResult: () => void;
+  }) => (
+    <section aria-label="mock 3d globe">
+      <span>{props.selectionNotice || "no 3d selection"}</span>
+      <button type="button" onClick={() => props.onPickProbe(props.probes[0])}>
+        pick 3d first probe
+      </button>
+      {props.result ? (
+        <>
+          <span>{`3d-result:${props.result.status}:${props.result.measurementId}`}</span>
+          <button type="button" onClick={props.onCloseResult}>
+            关闭 3D 结果
+          </button>
+        </>
+      ) : props.availableResult ? (
+        <button type="button" onClick={props.onShowResult}>
+          查看 3D 结果
+        </button>
+      ) : (
+        <span>no 3d result</span>
+      )}
+    </section>
+  ),
+}));
+
 beforeEach(() => {
   Object.defineProperty(window, "localStorage", {
     configurable: true,
@@ -62,10 +95,35 @@ describe("App", () => {
 
     expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
+    expect(screen.queryByLabelText("mock 3d globe")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
     expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
     expect(screen.getByText("249/250")).toBeInTheDocument();
     expect(document.documentElement.dataset.theme).toBe("system");
+  });
+
+  it("defaults to 2D and persists the 3D view mode locally", async () => {
+    mockApi();
+
+    const first = render(<App />);
+
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
+    expect(window.localStorage.getItem("globaltrace.viewMode")).toBe("2d");
+
+    fireEvent.click(screen.getByRole("button", { name: "切换到 3D 视图" }));
+    expect(await screen.findByLabelText("mock 3d globe")).toBeInTheDocument();
+    expect(screen.queryByLabelText("mock probe map")).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("globaltrace.viewMode")).toBe("3d");
+
+    first.unmount();
+    const second = render(<App />);
+    expect(await screen.findByLabelText("mock 3d globe")).toBeInTheDocument();
+
+    second.unmount();
+    window.localStorage.clear();
+    render(<App />);
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
+    expect(screen.queryByLabelText("mock 3d globe")).not.toBeInTheDocument();
   });
 
   it("persists theme mode locally", async () => {
@@ -168,6 +226,22 @@ describe("App", () => {
     expect(within(chips).queryByText("magic")).not.toBeInTheDocument();
   });
 
+  it("updates filters when a 3D globe probe is selected", async () => {
+    mockApi();
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByRole("button", { name: "切换到 3D 视图" }));
+    fireEvent.click(await screen.findByRole("button", { name: "pick 3d first probe" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("已选择 Los Angeles · AS7922").length).toBeGreaterThan(0);
+    });
+    expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
+    const chips = screen.getByTestId("filter-chips");
+    expect(chips).toHaveTextContent("Los Angeles+US+AS7922+eyeball-network");
+  });
+
   it("narrows field suggestions with other structured filters", async () => {
     mockApi();
     render(<App />);
@@ -219,6 +293,20 @@ describe("App", () => {
     expect(window.location.search).toBe("?measurement=m123");
     expect(fetchMock).toHaveBeenCalledWith("https://api.globalping.io/v1/measurements", expect.objectContaining({ method: "POST" }));
     expect(traceCreateBodies(fetchMock)[0].measurementOptions).not.toHaveProperty("ipVersion");
+  });
+
+  it("keeps the share URL contract when creating a trace from 3D mode", async () => {
+    const fetchMock = mockApi();
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByRole("button", { name: "切换到 3D 视图" }));
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+
+    expect(await screen.findByText("3d-result:finished:m123")).toBeInTheDocument();
+    expect(window.location.search).toBe("?measurement=m123");
+    expect(window.location.href).not.toContain("view=");
+    expect(traceCreateBodies(fetchMock)).toHaveLength(1);
   });
 
   it("resets Turnstile after a trace and uses a fresh token for the next trace", async () => {

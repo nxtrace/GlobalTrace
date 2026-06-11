@@ -10,7 +10,7 @@ import {
   fetchProbes,
   type AppConfig,
 } from "./api";
-import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
+import { FilterPanel, type IpVersionSelection, type ViewMode } from "./components/FilterPanel";
 import { LiquidGlassSurface } from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
 import { Badge } from "./components/ui/badge";
@@ -35,6 +35,7 @@ export const POLL_DELAY_MS = 650;
 export const TRACE_MAX_POLL_ATTEMPTS = 120;
 const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
+const VIEW_MODE_STORAGE_KEY = "globaltrace.viewMode";
 
 type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
@@ -43,10 +44,14 @@ type TraceLoadSource = "created" | "shared";
 const AboutPage = lazy(() => import("./components/AboutPage").then((module) => ({ default: module.AboutPage })));
 const ProbeMap = lazy(() => import("./components/ProbeMap").then((module) => ({ default: module.ProbeMap })));
 const ResultsView = lazy(() => import("./components/ResultsView").then((module) => ({ default: module.ResultsView })));
+const ThreeGlobeDashboard = lazy(() =>
+  import("./components/ThreeGlobeDashboard").then((module) => ({ default: module.ThreeGlobeDashboard })),
+);
 
 export function App() {
   const [route, setRoute] = useState<AppRoute>(currentRoute);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
+  const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
   const [globalpingToken, setGlobalpingToken] = useState(readStoredGlobalpingToken);
   const [globalpingTokenDraft, setGlobalpingTokenDraft] = useState(globalpingToken);
   const [config, setConfig] = useState<AppConfig>({
@@ -103,6 +108,10 @@ export function App() {
     document.documentElement.dataset.theme = themeMode;
     writeStoredThemeMode(themeMode);
   }, [themeMode]);
+
+  useEffect(() => {
+    writeStoredViewMode(viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     if (route !== "/" || bootstrappedRef.current) return;
@@ -375,6 +384,10 @@ export function App() {
     setThemeMode((current) => nextThemeMode(current));
   }, []);
 
+  const changeViewMode = useCallback((nextMode: ViewMode) => {
+    setViewMode(nextMode);
+  }, []);
+
   const navigateAbout = useCallback(() => {
     window.history.pushState(null, "", "/about");
     setRoute("/about");
@@ -423,6 +436,7 @@ export function App() {
           globalpingTokenDraft={globalpingTokenDraft}
           globalpingTokenSaved={Boolean(globalpingToken)}
           themeMode={themeMode}
+          viewMode={viewMode}
           onTargetChange={setTarget}
           onProtocolChange={setProtocol}
           onIpVersionChange={setIpVersion}
@@ -435,6 +449,7 @@ export function App() {
           onSaveGlobalpingToken={saveGlobalpingToken}
           onClearGlobalpingToken={clearGlobalpingToken}
           onCycleThemeMode={cycleThemeMode}
+          onViewModeChange={changeViewMode}
           onNavigateHome={navigateHome}
           onNavigateAbout={navigateAbout}
           onReset={reset}
@@ -481,6 +496,24 @@ export function App() {
           <div className="workspace-content">
             {sharedLoadingMeasurementId ? (
               <SharedResultLoading measurementId={sharedLoadingMeasurementId} />
+            ) : viewMode === "3d" ? (
+              <Suspense fallback={<ThreeGlobeFallback />}>
+                <ThreeGlobeDashboard
+                  probes={filteredProbes}
+                  totalProbes={probes.length}
+                  probesStatus={probesStatus}
+                  selectionNotice={selectionNotice}
+                  selectionActive={mapSelectionActive}
+                  result={workspaceMode === "result" ? finalResult : null}
+                  availableResult={finalResult}
+                  loading={loading}
+                  themeMode={themeMode}
+                  onPickProbe={pickProbe}
+                  onClearSelection={clearMapSelection}
+                  onShowResult={showResult}
+                  onCloseResult={closeResult}
+                />
+              </Suspense>
             ) : workspaceMode === "select" || !finalResult ? (
               <div className="map-and-table">
                 {probeMapReady ? (
@@ -559,6 +592,17 @@ function ResultsViewFallback() {
   );
 }
 
+function ThreeGlobeFallback() {
+  return (
+    <Surface asChild className="three-dashboard-loading" aria-label="正在加载 3D 地球视图">
+      <section role="status" aria-live="polite">
+        <Loader2 size={24} className="spin" />
+        <span>正在加载 3D 地球</span>
+      </section>
+    </Surface>
+  );
+}
+
 function SharedResultLoading({ measurementId }: { measurementId: string }) {
   return (
     <Surface asChild className="shared-result-loading">
@@ -620,6 +664,22 @@ function writeStoredThemeMode(mode: ThemeMode): void {
     window.localStorage.setItem(THEME_STORAGE_KEY, mode);
   } catch {
     // Theme persistence is best-effort.
+  }
+}
+
+function readStoredViewMode(): ViewMode {
+  try {
+    return window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "3d" ? "3d" : "2d";
+  } catch {
+    return "2d";
+  }
+}
+
+function writeStoredViewMode(mode: ViewMode): void {
+  try {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  } catch {
+    // View mode persistence is best-effort.
   }
 }
 

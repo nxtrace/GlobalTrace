@@ -125,6 +125,53 @@ for (const viewport of viewports) {
   });
 }
 
+for (const viewport of [
+  { name: "1440x1000", width: 1440, height: 1000 },
+  { name: "390x844", width: 390, height: 844 },
+]) {
+  test(`3D globe dashboard at ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const consoleErrors = collectConsoleErrors(page);
+    await installMocks(page);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "切换到 3D 视图" }).click();
+
+    await expect(page.getByLabel("3D 地球视图")).toBeVisible();
+    await expect(page.getByText("GLOBALPING × NEXTTRACE")).toBeVisible();
+    await expect(page.getByText("3 / 3 probes")).toBeVisible();
+    await expectThreeCanvasPainted(page);
+    await expectThreeGlobeAutoRotates(page);
+    await expectThreeGlobeDragRotates(page);
+    await expectNoPageOverflow(page);
+
+    await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+
+    await expect(page.getByText("routes")).toBeVisible();
+    await expect(page.getByText("1/1")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Los Angeles/ })).toHaveClass(/active/);
+    await expect(page.getByRole("button", { name: /TTL 1/ })).toBeVisible();
+    await expect(page.getByText("8.8.8.8")).toBeVisible();
+    await expectThreeRouteDebug(page, { routeCount: 1, activeRouteIndex: 0 });
+    await expectThreeCanvasPainted(page);
+
+    await page.getByRole("button", { name: "关闭 3D 结果" }).click();
+    await expect(page.getByRole("button", { name: "查看 3D 结果" })).toBeVisible();
+    await page.getByRole("button", { name: "查看 3D 结果" }).click();
+    await expect(page.getByText("8.8.8.8")).toBeVisible();
+
+    await expect(page).toHaveURL(/measurement=m-smoke/);
+    await expect(page).not.toHaveURL(/view=/);
+    await expectNoPageOverflow(page);
+    expect(consoleErrors).toEqual([]);
+
+    await page.screenshot({
+      path: `/tmp/${screenshotPrefix}-3d-${viewport.name}.png`,
+      fullPage: true,
+    });
+  });
+}
+
 test("desktop filter summary constrains long magic content and keeps run controls visible", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const consoleErrors = collectConsoleErrors(page);
@@ -592,6 +639,67 @@ async function expectMapCanvasPainted(page: Page): Promise<void> {
   expect(state.width).toBeGreaterThan(250);
   expect(state.height).toBeGreaterThan(250);
   expect(state.dataUrlLength).toBeGreaterThan(1000);
+}
+
+async function expectThreeCanvasPainted(page: Page): Promise<void> {
+  const canvas = page.locator(".three-globe-canvas");
+  await expect(canvas).toBeVisible();
+  const state = await canvas.evaluate((node) => {
+    const item = node as HTMLCanvasElement;
+    const rect = item.getBoundingClientRect();
+    return {
+      width: rect.width,
+      height: rect.height,
+      dataUrlLength: item.toDataURL("image/png").length,
+    };
+  });
+  expect(state.width).toBeGreaterThan(250);
+  expect(state.height).toBeGreaterThan(250);
+  expect(state.dataUrlLength).toBeGreaterThan(1000);
+}
+
+async function expectThreeGlobeAutoRotates(page: Page): Promise<void> {
+  const initialRotation = await threeGlobeRotation(page);
+  await expect
+    .poll(async () => Math.abs((await threeGlobeRotation(page)) - initialRotation) > 0.002)
+    .toBe(true);
+}
+
+async function expectThreeGlobeDragRotates(page: Page): Promise<void> {
+  const canvas = page.locator(".three-globe-canvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("3D globe canvas is not visible");
+  const initialRotation = await threeGlobeRotation(page);
+  await page.mouse.move(box.x + box.width * 0.45, box.y + box.height * 0.5);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.68, box.y + box.height * 0.52, { steps: 6 });
+  await page.mouse.up();
+  await expect
+    .poll(async () => Math.abs((await threeGlobeRotation(page)) - initialRotation) > 0.05)
+    .toBe(true);
+}
+
+async function expectThreeRouteDebug(page: Page, expected: { routeCount: number; activeRouteIndex: number }): Promise<void> {
+  await expect
+    .poll(async () =>
+      page.getByTestId("three-globe-stage").evaluate((node) => {
+        const stage = node as HTMLElement & {
+          __globalTraceThreeRouteCount?: number;
+          __globalTraceThreeActiveRouteIndex?: number;
+        };
+        return {
+          routeCount: stage.__globalTraceThreeRouteCount ?? -1,
+          activeRouteIndex: stage.__globalTraceThreeActiveRouteIndex ?? -1,
+        };
+      }),
+    )
+    .toEqual(expected);
+}
+
+async function threeGlobeRotation(page: Page): Promise<number> {
+  return page.getByTestId("three-globe-stage").evaluate((node) => {
+    return (node as HTMLElement & { __globalTraceThreeRotationY?: number }).__globalTraceThreeRotationY ?? 0;
+  });
 }
 
 async function expectHopTableScrollsWithinPanel(page: Page): Promise<void> {
