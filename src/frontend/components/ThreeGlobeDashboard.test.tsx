@@ -271,12 +271,16 @@ describe("ThreeGlobeDashboard", () => {
       __globalTraceThreeActiveRouteIndex?: number;
       __globalTraceThreeRenderedProbeCount?: number;
       __globalTraceThreeRenderedRouteCount?: number;
+      __globalTraceThreeRenderedActiveProbeMarkerCount?: number;
+      __globalTraceThreeRenderedRouteNodeCount?: number;
       __globalTraceThreeRenderedSegmentCount?: number;
     };
     expect(stage.__globalTraceThreeRouteCount).toBe(2);
     expect(stage.__globalTraceThreeRenderedProbeCount).toBe(0);
     expect(stage.__globalTraceThreeRenderedRouteCount).toBe(1);
-    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedActiveProbeMarkerCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedRouteNodeCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(0);
     const routeCards = within(screen.getByLabelText("3D probe routes"));
     expect(routeCards.getByRole("button", { name: /Los Angeles/ })).toHaveClass("active");
 
@@ -290,26 +294,48 @@ describe("ThreeGlobeDashboard", () => {
     expect(routeCards.getByRole("button", { name: /Tokyo/ })).toHaveClass("active");
     expect(stage.__globalTraceThreeActiveRouteIndex).toBe(1);
     expect(stage.__globalTraceThreeRenderedRouteCount).toBe(1);
-    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedActiveProbeMarkerCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedRouteNodeCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(0);
 
     fireEvent.click(screen.getByRole("button", { name: /TTL 2/ }));
     expect(screen.getByRole("button", { name: /TTL 2/ })).toHaveClass("active");
   });
 
-  it("keeps repeated-coordinate hops in the list but skips their route segment", async () => {
+  it("merges repeated-coordinate hops into one globe route node", async () => {
     renderDashboard({ result: repeatedCoordinateResult, availableResult: repeatedCoordinateResult });
 
     await waitFor(() => expect(threeMock.FakeRenderer.instances).toHaveLength(1));
     const stage = screen.getByTestId("three-globe-stage") as HTMLDivElement & {
+      __globalTraceThreeRenderedActiveProbeMarkerCount?: number;
+      __globalTraceThreeRenderedRouteNodeCount?: number;
       __globalTraceThreeRenderedRouteCount?: number;
       __globalTraceThreeRenderedSegmentCount?: number;
     };
 
     expect(stage.__globalTraceThreeRenderedRouteCount).toBe(1);
-    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(2);
+    expect(stage.__globalTraceThreeRenderedActiveProbeMarkerCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedRouteNodeCount).toBe(2);
+    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(1);
     expect(screen.getByRole("button", { name: /TTL 1/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /TTL 2/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /TTL 3/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /TTL 2/ }));
+    expect(screen.getByRole("button", { name: /TTL 2/ })).toHaveClass("active");
+  });
+
+  it("merges nearby hops within 20 km and does not draw a short segment", async () => {
+    renderDashboard({ result: nearbyCoordinateResult, availableResult: nearbyCoordinateResult });
+
+    await waitFor(() => expect(threeMock.FakeRenderer.instances).toHaveLength(1));
+    const stage = screen.getByTestId("three-globe-stage") as HTMLDivElement & {
+      __globalTraceThreeRenderedRouteNodeCount?: number;
+      __globalTraceThreeRenderedSegmentCount?: number;
+    };
+
+    expect(stage.__globalTraceThreeRenderedRouteNodeCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(0);
   });
 
   it("cleans up the renderer on unmount", async () => {
@@ -329,7 +355,13 @@ describe("ThreeGlobeDashboard", () => {
   it("skips hops without drawable GeoIP coordinates", () => {
     const routes = buildGlobeRoutes(invalidHopResult);
 
-    expect(routes[0].points.map((point) => point.ttl).filter(Boolean)).toEqual([2]);
+    expect(routes[0].nodes.map((node) => node.ttlList).flat()).toEqual([2]);
+  });
+
+  it("filters coarse country hops and keeps distant globe route nodes separate", () => {
+    const routes = buildGlobeRoutes(coarseAndDistantResult);
+
+    expect(routes[0].nodes.map((node) => node.ttlList)).toEqual([[2], [3]]);
   });
 });
 
@@ -480,6 +512,60 @@ const repeatedCoordinateResult: TraceResultResponse = {
           ttl: 3,
           ip: "198.51.100.3",
           geo: { ip: "198.51.100.3", lng: 139.76, lat: 35.68, city: "Tokyo", country: "JP" },
+        },
+      ],
+    },
+  ],
+};
+
+const nearbyCoordinateResult: TraceResultResponse = {
+  ...sampleResult,
+  probesCount: 1,
+  results: [
+    {
+      ...sampleResult.results[0],
+      hops: [
+        {
+          ...sampleResult.results[0].hops[0],
+          ttl: 1,
+          ip: "203.0.113.1",
+          geo: { ip: "203.0.113.1", lng: -122.08, lat: 37.39, city: "San Jose", country: "US" },
+        },
+        {
+          ...sampleResult.results[0].hops[0],
+          ttl: 2,
+          ip: "203.0.113.2",
+          geo: { ip: "203.0.113.2", lng: -122.09, lat: 37.4, city: "San Jose", country: "US" },
+        },
+      ],
+    },
+  ],
+};
+
+const coarseAndDistantResult: TraceResultResponse = {
+  ...sampleResult,
+  probesCount: 1,
+  results: [
+    {
+      ...sampleResult.results[0],
+      hops: [
+        {
+          ...sampleResult.results[0].hops[0],
+          ttl: 1,
+          ip: "203.0.113.1",
+          geo: { ip: "203.0.113.1", lng: -98, lat: 39, country_en: "United States", prov_en: "", city_en: "" },
+        },
+        {
+          ...sampleResult.results[0].hops[0],
+          ttl: 2,
+          ip: "203.0.113.2",
+          geo: { ip: "203.0.113.2", lng: -122.08, lat: 37.39, city: "San Jose", country: "US" },
+        },
+        {
+          ...sampleResult.results[0].hops[0],
+          ttl: 3,
+          ip: "198.51.100.3",
+          geo: { ip: "198.51.100.3", lng: -121.7, lat: 37.7, city: "Fremont", country: "US" },
         },
       ],
     },

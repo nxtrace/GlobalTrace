@@ -157,7 +157,9 @@ for (const viewport of [
       activeRouteIndex: 0,
       renderedProbeCount: 0,
       renderedRouteCount: 1,
-      renderedSegmentCount: 1,
+      renderedActiveProbeMarkerCount: 1,
+      renderedRouteNodeCount: 1,
+      renderedSegmentCount: 0,
     });
     await expectThreeCanvasPainted(page);
 
@@ -692,6 +694,8 @@ async function expectThreeRouteDebug(
     activeRouteIndex: number;
     renderedProbeCount: number;
     renderedRouteCount: number;
+    renderedActiveProbeMarkerCount: number;
+    renderedRouteNodeCount: number;
     renderedSegmentCount: number;
   },
 ): Promise<void> {
@@ -703,6 +707,8 @@ async function expectThreeRouteDebug(
           __globalTraceThreeActiveRouteIndex?: number;
           __globalTraceThreeRenderedProbeCount?: number;
           __globalTraceThreeRenderedRouteCount?: number;
+          __globalTraceThreeRenderedActiveProbeMarkerCount?: number;
+          __globalTraceThreeRenderedRouteNodeCount?: number;
           __globalTraceThreeRenderedSegmentCount?: number;
         };
         return {
@@ -710,6 +716,8 @@ async function expectThreeRouteDebug(
           activeRouteIndex: stage.__globalTraceThreeActiveRouteIndex ?? -1,
           renderedProbeCount: stage.__globalTraceThreeRenderedProbeCount ?? -1,
           renderedRouteCount: stage.__globalTraceThreeRenderedRouteCount ?? -1,
+          renderedActiveProbeMarkerCount: stage.__globalTraceThreeRenderedActiveProbeMarkerCount ?? -1,
+          renderedRouteNodeCount: stage.__globalTraceThreeRenderedRouteNodeCount ?? -1,
           renderedSegmentCount: stage.__globalTraceThreeRenderedSegmentCount ?? -1,
         };
       }),

@@ -3,7 +3,15 @@ import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { AlertTriangle, Clock3, Copy, Route, Server, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import type { Feature, FeatureCollection } from "geojson";
-import type { NxtraceGeo, TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
+import type { TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
+import {
+  buildRouteNodeIdByTtl,
+  buildRouteNodesForHops,
+  nearestWorldCoordinate,
+  validMapCoordinate,
+  type ResultRouteCoordinate,
+  type ResultRouteNode as SharedResultRouteNode,
+} from "../lib/resultRouteNodes";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -15,9 +23,8 @@ const RESULT_MAP_DEFAULT_CENTER: [number, number] = [8, 25];
 const RESULT_MAP_DEFAULT_ZOOM = 1.4;
 const RESULT_MAP_SINGLE_POINT_ZOOM = 5;
 const RESULT_MAP_MAX_ZOOM = 5.8;
-const COORDINATE_EQUALITY_EPSILON = 1e-6;
 
-type ResultMapCoordinate = [number, number];
+type ResultMapCoordinate = ResultRouteCoordinate;
 
 interface ResultMapData {
   featureCollection: FeatureCollection;
@@ -27,16 +34,7 @@ interface ResultMapData {
   routeNodeIdByTtl: Map<number, string>;
 }
 
-interface RouteNode {
-  coordinate: ResultMapCoordinate;
-  hops: TraceHop[];
-}
-
-interface ResultRouteNode extends RouteNode {
-  nodeId: string;
-  ttlList: number[];
-  label: string;
-  primaryHop: TraceHop;
+interface ResultRouteNode extends SharedResultRouteNode {
   popupTitle: string;
   popupBody: string;
 }
@@ -505,7 +503,7 @@ export function buildResultMapData(
     });
   }
 
-  const routeNodes = active ? routeNodesForHops(active.hops).map((node, index) => routeNodeMetadata(node, index)) : [];
+  const routeNodes = active ? buildRouteNodesForHops(active.hops).map(resultRouteNodeMetadata) : [];
   const routeCoordinates = routeNodes.map((node) => node.coordinate);
   if (routeCoordinates.length > 1) {
     features.push({
@@ -530,10 +528,7 @@ export function buildResultMapData(
     });
   }
   const routeNodeById = new Map(routeNodes.map((node) => [node.nodeId, node]));
-  const routeNodeIdByTtl = new Map<number, string>();
-  for (const node of routeNodes) {
-    for (const ttl of node.ttlList) routeNodeIdByTtl.set(ttl, node.nodeId);
-  }
+  const routeNodeIdByTtl = buildRouteNodeIdByTtl(routeNodes);
 
   return {
     featureCollection: { type: "FeatureCollection", features },
@@ -544,33 +539,10 @@ export function buildResultMapData(
   };
 }
 
-function routeNodesForHops(hops: TraceHop[]): RouteNode[] {
-  const nodes: RouteNode[] = [];
-  for (const hop of hops) {
-    if (!hopDrawableGeo(hop.geo)) continue;
-    const previous = nodes.at(-1)?.coordinate;
-    const coordinate = normalizeNextCoordinate([hop.geo?.lng as number, hop.geo?.lat as number], previous);
-    const last = nodes.at(-1);
-    if (last && sameCoordinate(last.coordinate, coordinate)) {
-      last.hops.push(hop);
-      continue;
-    }
-    nodes.push({ coordinate, hops: [hop] });
-  }
-  return nodes;
-}
-
-function routeNodeMetadata(node: RouteNode, index: number): ResultRouteNode {
-  const ttlList = ttlListForHops(node.hops);
-  const label = routeNodeLabel(ttlList);
-  const primaryHop = node.hops[0];
+function resultRouteNodeMetadata(node: SharedResultRouteNode): ResultRouteNode {
   return {
     ...node,
-    nodeId: `route-node-${ttlList.join("-") || index}`,
-    ttlList,
-    label,
-    primaryHop,
-    popupTitle: `TTL ${label}`,
+    popupTitle: `TTL ${node.label}`,
     popupBody: routeNodePopupBody(node.hops),
   };
 }
@@ -686,63 +658,6 @@ function coordinateBounds(coordinates: ResultMapCoordinate[]): [ResultMapCoordin
     [west, south],
     [east, north],
   ];
-}
-
-function hopDrawableGeo(geo: NxtraceGeo | undefined): geo is NxtraceGeo & { lng: number; lat: number } {
-  return validMapCoordinate(geo?.lng, geo?.lat) && !coarseCountryGeo(geo);
-}
-
-function validMapCoordinate(lng: unknown, lat: unknown): boolean {
-  if (typeof lng !== "number" || typeof lat !== "number" || !Number.isFinite(lng) || !Number.isFinite(lat)) return false;
-  if (lng < -180 || lng > 180 || lat < -90 || lat > 90) return false;
-  return !(lng === 0 && lat === 0);
-}
-
-function coarseCountryGeo(geo: NxtraceGeo | undefined): boolean {
-  const country = normalizeCountry(geo?.country_en || geo?.country);
-  if (!["china", "中国", "united states", "united states of america", "美国", "russia", "russian federation", "俄罗斯"].includes(country)) {
-    return false;
-  }
-  return ![geo?.prov, geo?.prov_en, geo?.city, geo?.city_en].some((value) => value?.trim());
-}
-
-function normalizeCountry(value: string | undefined): string {
-  return value?.trim().toLowerCase() || "";
-}
-
-function normalizeNextCoordinate(coordinate: ResultMapCoordinate, previous: ResultMapCoordinate | undefined): ResultMapCoordinate {
-  if (!previous) return coordinate;
-  let [lng] = coordinate;
-  const [, lat] = coordinate;
-  while (lng - previous[0] >= 180) lng -= 360;
-  while (lng - previous[0] < -180) lng += 360;
-  return [lng, lat];
-}
-
-function nearestWorldCoordinate(coordinate: ResultMapCoordinate, reference: ResultMapCoordinate): ResultMapCoordinate {
-  const [lng, lat] = coordinate;
-  let nearest = lng;
-  for (const candidate of [lng - 720, lng - 360, lng, lng + 360, lng + 720]) {
-    if (Math.abs(candidate - reference[0]) < Math.abs(nearest - reference[0])) {
-      nearest = candidate;
-    }
-  }
-  return [nearest, lat];
-}
-
-function sameCoordinate(left: ResultMapCoordinate, right: ResultMapCoordinate): boolean {
-  return Math.abs(left[0] - right[0]) <= COORDINATE_EQUALITY_EPSILON && Math.abs(left[1] - right[1]) <= COORDINATE_EQUALITY_EPSILON;
-}
-
-function ttlListForHops(hops: TraceHop[]): number[] {
-  return [...new Set(hops.map((hop) => hop.ttl).filter(Number.isFinite))];
-}
-
-function routeNodeLabel(ttls: number[]): string {
-  if (ttls.length === 0) return "?";
-  if (ttls.length === 1) return String(ttls[0]);
-  const contiguous = ttls.every((ttl, index) => index === 0 || ttl === ttls[index - 1] + 1);
-  return contiguous ? `${ttls[0]}-${ttls.at(-1)}` : `${ttls[0]}+`;
 }
 
 function escapeHtml(value: string): string {

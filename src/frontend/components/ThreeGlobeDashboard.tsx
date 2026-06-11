@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { probeToMagic } from "../../shared/filters";
 import type { GlobalpingProbe, TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
 import naturalEarthLines from "../assets/natural-earth-110m-lines.json";
+import { buildRouteNodesForHops, validMapCoordinate, type ResultRouteNode } from "../lib/resultRouteNodes";
 import type { ThemeMode } from "../theme";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -16,6 +17,7 @@ const AUTO_ROTATE_SPEED = 0.0012;
 const MAX_VISIBLE_HOPS = 64;
 const CLICK_DRAG_THRESHOLD_PX = 6;
 const COORDINATE_EPSILON = 0.000001;
+const GLOBE_ROUTE_MERGE_DISTANCE_KM = 20;
 
 type Coordinate = [number, number];
 
@@ -46,6 +48,8 @@ interface GlobeDebugElement extends HTMLDivElement {
   __globalTraceThreeActiveRouteIndex?: number;
   __globalTraceThreeRenderedProbeCount?: number;
   __globalTraceThreeRenderedRouteCount?: number;
+  __globalTraceThreeRenderedActiveProbeMarkerCount?: number;
+  __globalTraceThreeRenderedRouteNodeCount?: number;
   __globalTraceThreeRenderedSegmentCount?: number;
   __globalTraceThreeRotationY?: number;
   __globalTraceThreeRendererDisposed?: boolean;
@@ -55,20 +59,16 @@ interface GlobeRoute {
   id: string;
   resultIndex: number;
   probe: TraceProbeResult["probe"];
-  points: GlobeRoutePoint[];
+  probeCoordinate: Coordinate | null;
+  nodes: ResultRouteNode[];
   status: string;
-}
-
-interface GlobeRoutePoint {
-  coordinate: Coordinate;
-  kind: "probe" | "hop";
-  ttl?: number;
-  hop?: TraceHop;
 }
 
 interface RouteMeshRender {
   objects: THREE.Object3D[];
   renderedRouteCount: number;
+  renderedActiveProbeMarkerCount: number;
+  renderedRouteNodeCount: number;
   renderedSegmentCount: number;
 }
 
@@ -136,6 +136,7 @@ export function ThreeGlobeDashboard({
   const palette = useMemo(() => globePalette(themeMode), [themeMode]);
   const routes = useMemo(() => buildGlobeRoutes(result), [result]);
   const activeRoute = routes[activeRouteIndex] || routes[0] || null;
+  const activeRouteHops = activeRoute?.nodes.flatMap((node) => node.hops) || [];
 
   probesRef.current = probes;
   onPickProbeRef.current = onPickProbe;
@@ -321,6 +322,8 @@ export function ThreeGlobeDashboard({
       containerRef.current.__globalTraceThreeActiveRouteIndex = activeRouteIndex;
       containerRef.current.__globalTraceThreeRenderedProbeCount = probeMeshes.length;
       containerRef.current.__globalTraceThreeRenderedRouteCount = routeRender.renderedRouteCount;
+      containerRef.current.__globalTraceThreeRenderedActiveProbeMarkerCount = routeRender.renderedActiveProbeMarkerCount;
+      containerRef.current.__globalTraceThreeRenderedRouteNodeCount = routeRender.renderedRouteNodeCount;
       containerRef.current.__globalTraceThreeRenderedSegmentCount = routeRender.renderedSegmentCount;
     }
   }, [activeRoute, activeRouteIndex, palette, probes, result, routes.length, selectedHopTtl]);
@@ -402,18 +405,18 @@ export function ThreeGlobeDashboard({
                 ))}
               </div>
 
-              {activeRoute ? (
+              {activeRoute && activeRouteHops.length ? (
                 <div className="three-hop-list" aria-label="3D active route hops">
-                  {activeRoute.points.filter((point) => point.kind === "hop" && point.hop).slice(0, MAX_VISIBLE_HOPS).map((point) => (
+                  {activeRouteHops.slice(0, MAX_VISIBLE_HOPS).map((hop) => (
                     <button
-                      key={`${activeRoute.id}-${point.ttl}`}
+                      key={`${activeRoute.id}-${hop.ttl}`}
                       type="button"
-                      className={selectedHopTtl === point.ttl ? "three-hop-row active" : "three-hop-row"}
-                      onClick={() => setSelectedHopTtl(point.ttl ?? null)}
+                      className={selectedHopTtl === hop.ttl ? "three-hop-row active" : "three-hop-row"}
+                      onClick={() => setSelectedHopTtl(hop.ttl)}
                     >
-                      <span>TTL {point.ttl}</span>
-                      <strong>{point.hop?.ip || "*"}</strong>
-                      <small>{hopMeta(point.hop)}</small>
+                      <span>TTL {hop.ttl}</span>
+                      <strong>{hop.ip || "*"}</strong>
+                      <small>{hopMeta(hop)}</small>
                     </button>
                   ))}
                 </div>
@@ -458,20 +461,16 @@ function Metric({ label, value }: { label: string; value: string }) {
 export function buildGlobeRoutes(result: TraceResultResponse | null): GlobeRoute[] {
   if (!result) return [];
   return result.results.map((item, index) => {
-    const points: GlobeRoutePoint[] = [];
-    if (validCoordinate(item.probe.longitude, item.probe.latitude)) {
-      points.push({ coordinate: [item.probe.longitude, item.probe.latitude], kind: "probe" });
-    }
-    for (const hop of item.hops) {
-      if (!validCoordinate(hop.geo?.lng, hop.geo?.lat)) continue;
-      points.push({ coordinate: [hop.geo?.lng as number, hop.geo?.lat as number], kind: "hop", ttl: hop.ttl, hop });
-    }
+    const probeCoordinate: Coordinate | null = validMapCoordinate(item.probe.longitude, item.probe.latitude)
+      ? [item.probe.longitude, item.probe.latitude]
+      : null;
     return {
       id: item.id || `route-${index}`,
       resultIndex: index,
       probe: item.probe,
+      probeCoordinate,
+      nodes: buildRouteNodesForHops(item.hops, { mergeDistanceKm: GLOBE_ROUTE_MERGE_DISTANCE_KM }),
       status: item.status,
-      points,
     };
   });
 }
@@ -548,7 +547,7 @@ function createGraticuleLines(palette: GlobePalette): THREE.Object3D {
 
 function createProbeMeshes(probes: GlobalpingProbe[], palette: GlobePalette): THREE.Object3D[] {
   return probes.flatMap((probe, index) => {
-    if (!validCoordinate(probe.location.longitude, probe.location.latitude)) return [];
+    if (!validMapCoordinate(probe.location.longitude, probe.location.latitude)) return [];
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(PROBE_RADIUS, 14, 10),
       new THREE.MeshBasicMaterial({ color: probeColor(probe, palette), transparent: true, opacity: palette.probeOpacity }),
@@ -567,12 +566,22 @@ function createRouteMeshes(
 ): RouteMeshRender {
   const objects: THREE.Object3D[] = [];
   let renderedSegmentCount = 0;
+  let renderedActiveProbeMarkerCount = 0;
   if (!route) {
-    return { objects, renderedRouteCount: 0, renderedSegmentCount };
+    return { objects, renderedRouteCount: 0, renderedActiveProbeMarkerCount, renderedRouteNodeCount: 0, renderedSegmentCount };
   }
-  for (let pointIndex = 1; pointIndex < route.points.length; pointIndex += 1) {
-    const start = route.points[pointIndex - 1].coordinate;
-    const end = route.points[pointIndex].coordinate;
+  if (route.probeCoordinate) {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.052, 16, 12),
+      new THREE.MeshBasicMaterial({ color: probeResultColor(route.probe, palette), transparent: true, opacity: palette.probeOpacity }),
+    );
+    mesh.position.copy(latLngToVector(route.probeCoordinate[0], route.probeCoordinate[1], GLOBE_RADIUS * 1.052));
+    objects.push(mesh);
+    renderedActiveProbeMarkerCount = 1;
+  }
+  for (let pointIndex = 1; pointIndex < route.nodes.length; pointIndex += 1) {
+    const start = route.nodes[pointIndex - 1].coordinate;
+    const end = route.nodes[pointIndex].coordinate;
     if (sameCoordinate(start, end)) continue;
     const curvePoints = arcPoints(start, end);
     const geometry = new THREE.TubeGeometry(
@@ -592,8 +601,8 @@ function createRouteMeshes(
     ));
     renderedSegmentCount += 1;
   }
-  for (const point of route.points) {
-    const selected = point.kind === "hop" && point.ttl === selectedHopTtl;
+  for (const node of route.nodes) {
+    const selected = selectedHopTtl !== null && node.ttlList.includes(selectedHopTtl);
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(selected ? 0.07 : 0.048, 16, 12),
       new THREE.MeshBasicMaterial({
@@ -602,10 +611,16 @@ function createRouteMeshes(
         opacity: palette.routeNodeOpacity,
       }),
     );
-    mesh.position.copy(latLngToVector(point.coordinate[0], point.coordinate[1], GLOBE_RADIUS * 1.055));
+    mesh.position.copy(latLngToVector(node.coordinate[0], node.coordinate[1], GLOBE_RADIUS * 1.055));
     objects.push(mesh);
   }
-  return { objects, renderedRouteCount: objects.length ? 1 : 0, renderedSegmentCount };
+  return {
+    objects,
+    renderedRouteCount: objects.length ? 1 : 0,
+    renderedActiveProbeMarkerCount,
+    renderedRouteNodeCount: route.nodes.length,
+    renderedSegmentCount,
+  };
 }
 
 function sameCoordinate(start: Coordinate, end: Coordinate): boolean {
@@ -660,9 +675,17 @@ function disposeObject(object: THREE.Object3D): void {
 }
 
 function probeColor(probe: GlobalpingProbe, palette: GlobePalette): number {
-  const tags = probe.tags.map((tag) => tag.toLowerCase());
-  if (tags.includes("eyeball-network")) return palette.probeEyeball;
-  if (tags.includes("datacenter-network")) return palette.probeDatacenter;
+  return probeTagsColor(probe.tags, palette);
+}
+
+function probeResultColor(probe: TraceProbeResult["probe"], palette: GlobePalette): number {
+  return probeTagsColor(probe.tags, palette);
+}
+
+function probeTagsColor(tags: string[], palette: GlobePalette): number {
+  const normalized = tags.map((tag) => tag.toLowerCase());
+  if (normalized.includes("eyeball-network")) return palette.probeEyeball;
+  if (normalized.includes("datacenter-network")) return palette.probeDatacenter;
   return palette.probeOther;
 }
 
@@ -709,20 +732,6 @@ export function globePalette(themeMode: ThemeMode): GlobePalette {
         activeRouteOpacity: 0.88,
         routeNodeOpacity: 0.92,
       };
-}
-
-function validCoordinate(lng: unknown, lat: unknown): boolean {
-  return (
-    typeof lng === "number" &&
-    typeof lat === "number" &&
-    Number.isFinite(lng) &&
-    Number.isFinite(lat) &&
-    lng >= -180 &&
-    lng <= 180 &&
-    lat >= -90 &&
-    lat <= 90 &&
-    !(lng === 0 && lat === 0)
-  );
 }
 
 function routeLatencyLabel(item: TraceProbeResult): string {
