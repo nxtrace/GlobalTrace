@@ -1002,7 +1002,7 @@ summary:focus-visible {
 }
 
 .result-map-toolbar-surface .liquid-glass-content {
-  padding: 6px;
+  padding: 4px;
 }
 
 .result-map-toolbar-surface .liquid-glass-content,
@@ -1020,7 +1020,8 @@ summary:focus-visible {
 }
 
 .result-map-view-switch button {
-  min-height: 44px;
+  height: 32px;
+  min-height: 32px;
   border-radius: 10px;
 }
 
@@ -1045,6 +1046,11 @@ summary:focus-visible {
   white-space: normal;
   text-align: center;
   overflow-wrap: anywhere;
+}
+
+.result-header-actions > button {
+  height: 40px;
+  min-height: 40px;
 }
 
 .primary-action {
@@ -2140,6 +2146,13 @@ pre {
 
   .result-map-view-switch {
     width: 100%;
+  }
+
+  .result-map-view-switch button,
+  .share-actions button,
+  .result-header-actions > button {
+    height: 44px;
+    min-height: 44px;
   }
 
   .map-toolbar {

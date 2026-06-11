@@ -755,6 +755,11 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
   await expect(actions.getByRole("button", { name: "关闭结果" })).toBeVisible();
   const state = await actions.evaluate((node) => {
     const rect = (node as HTMLElement).getBoundingClientRect();
+    const toolbar = node.querySelector(".result-map-toolbar") as HTMLElement | null;
+    const share = node.querySelector(".share-surface") as HTMLElement | null;
+    const switchButton = node.querySelector(".result-map-view-switch button") as HTMLElement | null;
+    const copyButton = node.querySelector(".share-actions button") as HTMLElement | null;
+    const closeButton = node.querySelector('[aria-label="关闭结果"]') as HTMLElement | null;
     const children = Array.from(node.children).map((child) => {
       const childRect = child.getBoundingClientRect();
       return {
@@ -767,11 +772,25 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
       right: rect.right,
       documentClient: document.documentElement.clientWidth,
       children,
+      toolbarHeight: toolbar?.getBoundingClientRect().height ?? 0,
+      shareHeight: share?.getBoundingClientRect().height ?? 0,
+      closeHeight: closeButton?.getBoundingClientRect().height ?? 0,
+      switchButtonHeight: switchButton?.getBoundingClientRect().height ?? 0,
+      copyButtonHeight: copyButton?.getBoundingClientRect().height ?? 0,
+      closeButtonHeight: closeButton?.getBoundingClientRect().height ?? 0,
     };
   });
   expect(state.right).toBeLessThanOrEqual(state.documentClient);
   expect(state.children[0]?.className).toContain("result-map-toolbar");
   expect(state.children[1]?.className).toContain("share-surface");
+  if (state.documentClient > 820) {
+    const heights = [state.toolbarHeight, state.shareHeight, state.closeHeight];
+    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(2);
+  } else {
+    expect(state.switchButtonHeight).toBeGreaterThanOrEqual(44);
+    expect(state.copyButtonHeight).toBeGreaterThanOrEqual(44);
+    expect(state.closeButtonHeight).toBeGreaterThanOrEqual(44);
+  }
 }
 
 async function expectResultMapGlobeDesktopSize(page: Page): Promise<void> {
@@ -795,6 +814,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const headerActions = document.querySelector(".result-header-actions") as HTMLElement | null;
     const toolbar = document.querySelector(".result-map-toolbar") as HTMLElement | null;
     const switchButton = document.querySelector(".result-map-view-switch button") as HTMLElement | null;
+    const copyButton = document.querySelector(".share-actions button") as HTMLElement | null;
+    const closeButton = document.querySelector('.result-header-actions [aria-label="关闭结果"]') as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const map = document.querySelector(".result-map") as HTMLElement | null;
     const table = document.querySelector(".hop-table-scroll") as HTMLElement | null;
@@ -802,6 +823,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const headerRect = headerActions?.getBoundingClientRect();
     const toolbarRect = toolbar?.getBoundingClientRect();
     const buttonRect = switchButton?.getBoundingClientRect();
+    const copyButtonRect = copyButton?.getBoundingClientRect();
+    const closeButtonRect = closeButton?.getBoundingClientRect();
     const mapRect = map?.getBoundingClientRect();
     return {
       documentScroll: doc.scrollWidth,
@@ -811,6 +834,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       toolbarWidth: toolbarRect?.width ?? 0,
       toolbarRight: toolbarRect?.right ?? 0,
       buttonHeight: buttonRect?.height ?? 0,
+      copyButtonHeight: copyButtonRect?.height ?? 0,
+      closeButtonHeight: closeButtonRect?.height ?? 0,
       tabsOverflowX: tabs ? window.getComputedStyle(tabs).overflowX : "",
       tabsScrollWidth: tabs?.scrollWidth ?? 0,
       tabsClientWidth: tabs?.clientWidth ?? 0,
@@ -827,6 +852,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.headerWidth).toBeGreaterThan(250);
   expect(state.toolbarWidth).toBeGreaterThan(250);
   expect(state.buttonHeight).toBeGreaterThanOrEqual(44);
+  expect(state.copyButtonHeight).toBeGreaterThanOrEqual(44);
+  expect(state.closeButtonHeight).toBeGreaterThanOrEqual(44);
   expect(["auto", "scroll"]).toContain(state.tabsOverflowX);
   expect(state.tabsScrollWidth).toBeGreaterThanOrEqual(state.tabsClientWidth);
   expect(state.mapHeight).toBeGreaterThanOrEqual(300);
