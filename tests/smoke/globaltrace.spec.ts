@@ -152,7 +152,13 @@ for (const viewport of [
     await expect(page.getByRole("button", { name: /Los Angeles/ })).toHaveClass(/active/);
     await expect(page.getByRole("button", { name: /TTL 1/ })).toBeVisible();
     await expect(page.getByText("8.8.8.8")).toBeVisible();
-    await expectThreeRouteDebug(page, { routeCount: 1, activeRouteIndex: 0 });
+    await expectThreeRouteDebug(page, {
+      routeCount: 1,
+      activeRouteIndex: 0,
+      renderedProbeCount: 0,
+      renderedRouteCount: 1,
+      renderedSegmentCount: 1,
+    });
     await expectThreeCanvasPainted(page);
 
     await page.getByRole("button", { name: "关闭 3D 结果" }).click();
@@ -679,17 +685,32 @@ async function expectThreeGlobeDragRotates(page: Page): Promise<void> {
     .toBe(true);
 }
 
-async function expectThreeRouteDebug(page: Page, expected: { routeCount: number; activeRouteIndex: number }): Promise<void> {
+async function expectThreeRouteDebug(
+  page: Page,
+  expected: {
+    routeCount: number;
+    activeRouteIndex: number;
+    renderedProbeCount: number;
+    renderedRouteCount: number;
+    renderedSegmentCount: number;
+  },
+): Promise<void> {
   await expect
     .poll(async () =>
       page.getByTestId("three-globe-stage").evaluate((node) => {
         const stage = node as HTMLElement & {
           __globalTraceThreeRouteCount?: number;
           __globalTraceThreeActiveRouteIndex?: number;
+          __globalTraceThreeRenderedProbeCount?: number;
+          __globalTraceThreeRenderedRouteCount?: number;
+          __globalTraceThreeRenderedSegmentCount?: number;
         };
         return {
           routeCount: stage.__globalTraceThreeRouteCount ?? -1,
           activeRouteIndex: stage.__globalTraceThreeActiveRouteIndex ?? -1,
+          renderedProbeCount: stage.__globalTraceThreeRenderedProbeCount ?? -1,
+          renderedRouteCount: stage.__globalTraceThreeRenderedRouteCount ?? -1,
+          renderedSegmentCount: stage.__globalTraceThreeRenderedSegmentCount ?? -1,
         };
       }),
     )

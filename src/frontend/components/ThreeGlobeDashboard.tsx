@@ -11,11 +11,11 @@ import { Surface } from "./ui/surface";
 
 const GLOBE_RADIUS = 2.8;
 const PROBE_RADIUS = 0.038;
-const ROUTE_TUBE_RADIUS = 0.012;
 const ACTIVE_ROUTE_TUBE_RADIUS = 0.02;
 const AUTO_ROTATE_SPEED = 0.0012;
 const MAX_VISIBLE_HOPS = 64;
 const CLICK_DRAG_THRESHOLD_PX = 6;
+const COORDINATE_EPSILON = 0.000001;
 
 type Coordinate = [number, number];
 
@@ -44,6 +44,9 @@ interface GlobeDebugElement extends HTMLDivElement {
   __globalTraceThreeProbeCount?: number;
   __globalTraceThreeRouteCount?: number;
   __globalTraceThreeActiveRouteIndex?: number;
+  __globalTraceThreeRenderedProbeCount?: number;
+  __globalTraceThreeRenderedRouteCount?: number;
+  __globalTraceThreeRenderedSegmentCount?: number;
   __globalTraceThreeRotationY?: number;
   __globalTraceThreeRendererDisposed?: boolean;
 }
@@ -63,6 +66,12 @@ interface GlobeRoutePoint {
   hop?: TraceHop;
 }
 
+interface RouteMeshRender {
+  objects: THREE.Object3D[];
+  renderedRouteCount: number;
+  renderedSegmentCount: number;
+}
+
 interface GlobePalette {
   background: number;
   ocean: number;
@@ -73,7 +82,6 @@ interface GlobePalette {
   probeDatacenter: number;
   probeOther: number;
   activeRoute: number;
-  inactiveRoutes: number[];
   selectedHop: number;
   routeNode: number;
   globeEmissiveIntensity: number;
@@ -82,7 +90,6 @@ interface GlobePalette {
   graticuleOpacity: number;
   probeOpacity: number;
   activeRouteOpacity: number;
-  inactiveRouteOpacity: number;
   routeNodeOpacity: number;
 }
 
@@ -299,19 +306,24 @@ export function ThreeGlobeDashboard({
     clearGroup(probeGroup);
     clearGroup(routeGroup);
     hitProbeMeshesRef.current = [];
-    for (const child of createProbeMeshes(probes, palette)) {
+    const probeMeshes = result ? [] : createProbeMeshes(probes, palette);
+    const routeRender = createRouteMeshes(activeRoute, selectedHopTtl, palette);
+    for (const child of probeMeshes) {
       probeGroup.add(child);
       hitProbeMeshesRef.current.push(child);
     }
-    for (const child of createRouteMeshes(routes, activeRouteIndex, selectedHopTtl, palette)) {
+    for (const child of routeRender.objects) {
       routeGroup.add(child);
     }
     if (containerRef.current) {
       containerRef.current.__globalTraceThreeProbeCount = probes.length;
       containerRef.current.__globalTraceThreeRouteCount = routes.length;
       containerRef.current.__globalTraceThreeActiveRouteIndex = activeRouteIndex;
+      containerRef.current.__globalTraceThreeRenderedProbeCount = probeMeshes.length;
+      containerRef.current.__globalTraceThreeRenderedRouteCount = routeRender.renderedRouteCount;
+      containerRef.current.__globalTraceThreeRenderedSegmentCount = routeRender.renderedSegmentCount;
     }
-  }, [activeRouteIndex, palette, probes, routes, selectedHopTtl]);
+  }, [activeRoute, activeRouteIndex, palette, probes, result, routes.length, selectedHopTtl]);
 
   const selectRoute = (index: number) => {
     setActiveRouteIndex(index);
@@ -549,58 +561,63 @@ function createProbeMeshes(probes: GlobalpingProbe[], palette: GlobePalette): TH
 }
 
 function createRouteMeshes(
-  routes: GlobeRoute[],
-  activeRouteIndex: number,
+  route: GlobeRoute | null,
   selectedHopTtl: number | null,
   palette: GlobePalette,
-): THREE.Object3D[] {
+): RouteMeshRender {
   const objects: THREE.Object3D[] = [];
-  routes.forEach((route, index) => {
-    if (route.points.length < 2) return;
-    const active = index === activeRouteIndex;
-    const color = active ? palette.activeRoute : palette.inactiveRoutes[index % palette.inactiveRoutes.length];
-    for (let pointIndex = 1; pointIndex < route.points.length; pointIndex += 1) {
-      const curvePoints = arcPoints(route.points[pointIndex - 1].coordinate, route.points[pointIndex].coordinate, active);
-      const geometry = new THREE.TubeGeometry(
-        new THREE.CatmullRomCurve3(curvePoints),
-        active ? 36 : 24,
-        active ? ACTIVE_ROUTE_TUBE_RADIUS : ROUTE_TUBE_RADIUS,
-        7,
-        false,
-      );
-      objects.push(new THREE.Mesh(
-        geometry,
-        new THREE.MeshBasicMaterial({
-          color,
-          transparent: true,
-          opacity: active ? palette.activeRouteOpacity : palette.inactiveRouteOpacity,
-        }),
-      ));
-    }
-    if (!active) return;
-    for (const point of route.points) {
-      const selected = point.kind === "hop" && point.ttl === selectedHopTtl;
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(selected ? 0.07 : 0.048, 16, 12),
-        new THREE.MeshBasicMaterial({
-          color: selected ? palette.selectedHop : palette.routeNode,
-          transparent: true,
-          opacity: palette.routeNodeOpacity,
-        }),
-      );
-      mesh.position.copy(latLngToVector(point.coordinate[0], point.coordinate[1], GLOBE_RADIUS * 1.055));
-      objects.push(mesh);
-    }
-  });
-  return objects;
+  let renderedSegmentCount = 0;
+  if (!route) {
+    return { objects, renderedRouteCount: 0, renderedSegmentCount };
+  }
+  for (let pointIndex = 1; pointIndex < route.points.length; pointIndex += 1) {
+    const start = route.points[pointIndex - 1].coordinate;
+    const end = route.points[pointIndex].coordinate;
+    if (sameCoordinate(start, end)) continue;
+    const curvePoints = arcPoints(start, end);
+    const geometry = new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3(curvePoints),
+      36,
+      ACTIVE_ROUTE_TUBE_RADIUS,
+      7,
+      false,
+    );
+    objects.push(new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        color: palette.activeRoute,
+        transparent: true,
+        opacity: palette.activeRouteOpacity,
+      }),
+    ));
+    renderedSegmentCount += 1;
+  }
+  for (const point of route.points) {
+    const selected = point.kind === "hop" && point.ttl === selectedHopTtl;
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(selected ? 0.07 : 0.048, 16, 12),
+      new THREE.MeshBasicMaterial({
+        color: selected ? palette.selectedHop : palette.routeNode,
+        transparent: true,
+        opacity: palette.routeNodeOpacity,
+      }),
+    );
+    mesh.position.copy(latLngToVector(point.coordinate[0], point.coordinate[1], GLOBE_RADIUS * 1.055));
+    objects.push(mesh);
+  }
+  return { objects, renderedRouteCount: objects.length ? 1 : 0, renderedSegmentCount };
 }
 
-function arcPoints(start: Coordinate, end: Coordinate, active: boolean): THREE.Vector3[] {
+function sameCoordinate(start: Coordinate, end: Coordinate): boolean {
+  return Math.abs(start[0] - end[0]) < COORDINATE_EPSILON && Math.abs(start[1] - end[1]) < COORDINATE_EPSILON;
+}
+
+function arcPoints(start: Coordinate, end: Coordinate): THREE.Vector3[] {
   const startVector = latLngToVector(start[0], start[1], 1).normalize();
   const endVector = latLngToVector(end[0], end[1], 1).normalize();
   const angle = startVector.angleTo(endVector);
-  const lift = (active ? 0.72 : 0.5) + Math.min(angle, Math.PI) * 0.22;
-  const steps = active ? 32 : 22;
+  const lift = 0.72 + Math.min(angle, Math.PI) * 0.22;
+  const steps = 32;
   const points: THREE.Vector3[] = [];
   for (let step = 0; step <= steps; step += 1) {
     const t = step / steps;
@@ -662,7 +679,6 @@ export function globePalette(themeMode: ThemeMode): GlobePalette {
         probeDatacenter: 0xf2bd45,
         probeOther: 0x69a7ff,
         activeRoute: 0x29e6cf,
-        inactiveRoutes: [0x8b6cf6, 0x38bdf8, 0xf6c044, 0x1dd3a6],
         selectedHop: 0xffcf4a,
         routeNode: 0xe6edf3,
         globeEmissiveIntensity: 0.05,
@@ -671,7 +687,6 @@ export function globePalette(themeMode: ThemeMode): GlobePalette {
         graticuleOpacity: 0.09,
         probeOpacity: 0.96,
         activeRouteOpacity: 0.86,
-        inactiveRouteOpacity: 0.16,
         routeNodeOpacity: 0.94,
       }
     : {
@@ -684,7 +699,6 @@ export function globePalette(themeMode: ThemeMode): GlobePalette {
         probeDatacenter: 0xd59013,
         probeOther: 0x2f6db5,
         activeRoute: 0x009e9a,
-        inactiveRoutes: [0x4276d8, 0x7a5bd6, 0xd28a10, 0x16a77f],
         selectedHop: 0xc98300,
         routeNode: 0x1f2a36,
         globeEmissiveIntensity: 0.08,
@@ -693,7 +707,6 @@ export function globePalette(themeMode: ThemeMode): GlobePalette {
         graticuleOpacity: 0.16,
         probeOpacity: 0.9,
         activeRouteOpacity: 0.88,
-        inactiveRouteOpacity: 0.24,
         routeNodeOpacity: 0.92,
       };
 }

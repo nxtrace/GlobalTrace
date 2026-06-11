@@ -228,7 +228,6 @@ describe("ThreeGlobeDashboard", () => {
     expect(dark.background).not.toBe(light.background);
     expect(dark.boundaryOpacity).toBeLessThan(light.boundaryOpacity);
     expect(dark.graticuleOpacity).toBeLessThan(light.graticuleOpacity);
-    expect(dark.inactiveRouteOpacity).toBeLessThan(light.inactiveRouteOpacity);
   });
 
   it("renders the globe scene and picks probes through the 3D canvas", async () => {
@@ -262,25 +261,55 @@ describe("ThreeGlobeDashboard", () => {
     expect(onPickProbe).not.toHaveBeenCalled();
   });
 
-  it("shows all result routes and highlights the selected route and hop", async () => {
-    renderDashboard({ result: sampleResult, availableResult: sampleResult });
+  it("shows all result route cards but only renders the active route on the globe", async () => {
+    const onPickProbe = vi.fn();
+    renderDashboard({ result: sampleResult, availableResult: sampleResult, onPickProbe });
 
     await waitFor(() => expect(threeMock.FakeRenderer.instances).toHaveLength(1));
     const stage = screen.getByTestId("three-globe-stage") as HTMLDivElement & {
       __globalTraceThreeRouteCount?: number;
       __globalTraceThreeActiveRouteIndex?: number;
+      __globalTraceThreeRenderedProbeCount?: number;
+      __globalTraceThreeRenderedRouteCount?: number;
+      __globalTraceThreeRenderedSegmentCount?: number;
     };
     expect(stage.__globalTraceThreeRouteCount).toBe(2);
+    expect(stage.__globalTraceThreeRenderedProbeCount).toBe(0);
+    expect(stage.__globalTraceThreeRenderedRouteCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(1);
     const routeCards = within(screen.getByLabelText("3D probe routes"));
     expect(routeCards.getByRole("button", { name: /Los Angeles/ })).toHaveClass("active");
+
+    const canvas = threeMock.FakeRenderer.instances[0].domElement;
+    fireEvent.pointerDown(canvas, { clientX: 80, clientY: 80, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { clientX: 80, clientY: 80, pointerId: 1 });
+    expect(onPickProbe).not.toHaveBeenCalled();
 
     fireEvent.click(routeCards.getByRole("button", { name: /Tokyo/ }));
 
     expect(routeCards.getByRole("button", { name: /Tokyo/ })).toHaveClass("active");
     expect(stage.__globalTraceThreeActiveRouteIndex).toBe(1);
+    expect(stage.__globalTraceThreeRenderedRouteCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(1);
 
     fireEvent.click(screen.getByRole("button", { name: /TTL 2/ }));
     expect(screen.getByRole("button", { name: /TTL 2/ })).toHaveClass("active");
+  });
+
+  it("keeps repeated-coordinate hops in the list but skips their route segment", async () => {
+    renderDashboard({ result: repeatedCoordinateResult, availableResult: repeatedCoordinateResult });
+
+    await waitFor(() => expect(threeMock.FakeRenderer.instances).toHaveLength(1));
+    const stage = screen.getByTestId("three-globe-stage") as HTMLDivElement & {
+      __globalTraceThreeRenderedRouteCount?: number;
+      __globalTraceThreeRenderedSegmentCount?: number;
+    };
+
+    expect(stage.__globalTraceThreeRenderedRouteCount).toBe(1);
+    expect(stage.__globalTraceThreeRenderedSegmentCount).toBe(2);
+    expect(screen.getByRole("button", { name: /TTL 1/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /TTL 2/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /TTL 3/ })).toBeInTheDocument();
   });
 
   it("cleans up the renderer on unmount", async () => {
@@ -422,6 +451,36 @@ const invalidHopResult: TraceResultResponse = {
       hops: [
         { ...sampleResult.results[0].hops[0], ttl: 1, geo: { ip: "203.0.113.1", lng: 0, lat: 0 } },
         { ...sampleResult.results[0].hops[0], ttl: 2, geo: { ip: "203.0.113.2", lng: 10, lat: 20 } },
+      ],
+    },
+  ],
+};
+
+const repeatedCoordinateResult: TraceResultResponse = {
+  ...sampleResult,
+  probesCount: 1,
+  results: [
+    {
+      ...sampleResult.results[0],
+      hops: [
+        {
+          ...sampleResult.results[0].hops[0],
+          ttl: 1,
+          ip: "203.0.113.1",
+          geo: { ip: "203.0.113.1", lng: -122.08, lat: 37.39, city: "San Jose", country: "US" },
+        },
+        {
+          ...sampleResult.results[0].hops[0],
+          ttl: 2,
+          ip: "203.0.113.2",
+          geo: { ip: "203.0.113.2", lng: -122.08, lat: 37.39, city: "San Jose", country: "US" },
+        },
+        {
+          ...sampleResult.results[0].hops[0],
+          ttl: 3,
+          ip: "198.51.100.3",
+          geo: { ip: "198.51.100.3", lng: 139.76, lat: 35.68, city: "Tokyo", country: "JP" },
+        },
       ],
     },
   ],
