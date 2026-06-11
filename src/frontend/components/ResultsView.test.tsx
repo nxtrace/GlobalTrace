@@ -315,8 +315,8 @@ describe("ResultsView", () => {
     act(() => map.triggerLoad());
 
     expect(map.layers.map((layer) => layer.id)).toContain("result-hop-labels");
-    expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({ "circle-radius": 16 });
-    expect(map.layers.find((layer) => layer.id === "result-selected-hop")?.paint).toMatchObject({ "circle-radius": 22 });
+    expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({ "circle-radius": 14 });
+    expect(map.layers.find((layer) => layer.id === "result-selected-hop")?.paint).toMatchObject({ "circle-radius": 19 });
     expect(map.fitBoundsCalls.at(-1)).toEqual([
       [
         [-122.08, 34.05],
