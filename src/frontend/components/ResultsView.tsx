@@ -353,7 +353,7 @@ function ResultMap({
         source: "result",
         filter: selectedHopFilter(selectedRouteNodeIdRef.current),
         paint: {
-          "circle-radius": 15,
+          "circle-radius": 22,
           "circle-color": "rgba(88, 127, 120, 0.18)",
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 2.5,
@@ -377,7 +377,7 @@ function ResultMap({
         source: "result",
         filter: ["==", ["get", "kind"], "hop"],
         paint: {
-          "circle-radius": 9,
+          "circle-radius": 16,
           "circle-color": "#587f78",
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 1.3,
