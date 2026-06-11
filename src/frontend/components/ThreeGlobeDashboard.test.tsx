@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GlobalpingProbe, TraceResultResponse } from "../../shared/types";
-import { buildGlobeRoutes, ThreeGlobeDashboard } from "./ThreeGlobeDashboard";
+import { buildGlobeRoutes, globePalette, ThreeGlobeDashboard } from "./ThreeGlobeDashboard";
 
 const threeMock = vi.hoisted(() => {
   class FakeVector3 {
@@ -215,6 +215,22 @@ afterEach(() => {
 });
 
 describe("ThreeGlobeDashboard", () => {
+  it("uses distinct dark and light map palettes", () => {
+    const dark = globePalette("dark");
+    const light = globePalette("light");
+
+    expect(dark.background).toBe(0x050a12);
+    expect(dark.ocean).toBe(0x071522);
+    expect(dark.activeRoute).toBe(0x29e6cf);
+    expect(light.background).toBe(0xf5f8fb);
+    expect(light.ocean).toBe(0xdceaf1);
+    expect(light.activeRoute).toBe(0x009e9a);
+    expect(dark.background).not.toBe(light.background);
+    expect(dark.boundaryOpacity).toBeLessThan(light.boundaryOpacity);
+    expect(dark.graticuleOpacity).toBeLessThan(light.graticuleOpacity);
+    expect(dark.inactiveRouteOpacity).toBeLessThan(light.inactiveRouteOpacity);
+  });
+
   it("renders the globe scene and picks probes through the 3D canvas", async () => {
     const onPickProbe = vi.fn();
     renderDashboard({ onPickProbe });

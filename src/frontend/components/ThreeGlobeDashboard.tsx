@@ -76,6 +76,14 @@ interface GlobePalette {
   inactiveRoutes: number[];
   selectedHop: number;
   routeNode: number;
+  globeEmissiveIntensity: number;
+  atmosphereOpacity: number;
+  boundaryOpacity: number;
+  graticuleOpacity: number;
+  probeOpacity: number;
+  activeRouteOpacity: number;
+  inactiveRouteOpacity: number;
+  routeNodeOpacity: number;
 }
 
 const earthAsset = naturalEarthLines as NaturalEarthLinesAsset;
@@ -475,7 +483,7 @@ function createGlobeMesh(palette: GlobePalette): THREE.Object3D {
       metalness: 0.08,
       roughness: 0.74,
       emissive: palette.ocean,
-      emissiveIntensity: 0.12,
+      emissiveIntensity: palette.globeEmissiveIntensity,
     }),
   );
   const atmosphere = new THREE.Mesh(
@@ -483,7 +491,7 @@ function createGlobeMesh(palette: GlobePalette): THREE.Object3D {
     new THREE.MeshBasicMaterial({
       color: palette.atmosphere,
       transparent: true,
-      opacity: 0.14,
+      opacity: palette.atmosphereOpacity,
       side: THREE.BackSide,
     }),
   );
@@ -502,7 +510,7 @@ function createBoundaryLines(palette: GlobePalette): THREE.Object3D {
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   return new THREE.LineSegments(
     geometry,
-    new THREE.LineBasicMaterial({ color: palette.boundary, transparent: true, opacity: 0.34 }),
+    new THREE.LineBasicMaterial({ color: palette.boundary, transparent: true, opacity: palette.boundaryOpacity }),
   );
 }
 
@@ -522,7 +530,7 @@ function createGraticuleLines(palette: GlobePalette): THREE.Object3D {
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   return new THREE.LineSegments(
     geometry,
-    new THREE.LineBasicMaterial({ color: palette.graticule, transparent: true, opacity: 0.18 }),
+    new THREE.LineBasicMaterial({ color: palette.graticule, transparent: true, opacity: palette.graticuleOpacity }),
   );
 }
 
@@ -531,7 +539,7 @@ function createProbeMeshes(probes: GlobalpingProbe[], palette: GlobePalette): TH
     if (!validCoordinate(probe.location.longitude, probe.location.latitude)) return [];
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(PROBE_RADIUS, 14, 10),
-      new THREE.MeshBasicMaterial({ color: probeColor(probe, palette), transparent: true, opacity: 0.94 }),
+      new THREE.MeshBasicMaterial({ color: probeColor(probe, palette), transparent: true, opacity: palette.probeOpacity }),
     );
     mesh.position.copy(latLngToVector(probe.location.longitude, probe.location.latitude, GLOBE_RADIUS * 1.04));
     mesh.userData.probeIndex = index;
@@ -562,7 +570,11 @@ function createRouteMeshes(
       );
       objects.push(new THREE.Mesh(
         geometry,
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: active ? 0.78 : 0.22 }),
+        new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity: active ? palette.activeRouteOpacity : palette.inactiveRouteOpacity,
+        }),
       ));
     }
     if (!active) return;
@@ -570,7 +582,11 @@ function createRouteMeshes(
       const selected = point.kind === "hop" && point.ttl === selectedHopTtl;
       const mesh = new THREE.Mesh(
         new THREE.SphereGeometry(selected ? 0.07 : 0.048, 16, 12),
-        new THREE.MeshBasicMaterial({ color: selected ? palette.selectedHop : palette.routeNode, transparent: true, opacity: 0.98 }),
+        new THREE.MeshBasicMaterial({
+          color: selected ? palette.selectedHop : palette.routeNode,
+          transparent: true,
+          opacity: palette.routeNodeOpacity,
+        }),
       );
       mesh.position.copy(latLngToVector(point.coordinate[0], point.coordinate[1], GLOBE_RADIUS * 1.055));
       objects.push(mesh);
@@ -633,36 +649,52 @@ function probeColor(probe: GlobalpingProbe, palette: GlobePalette): number {
   return palette.probeOther;
 }
 
-function globePalette(themeMode: ThemeMode): GlobePalette {
+export function globePalette(themeMode: ThemeMode): GlobePalette {
   const dark = themeMode === "dark" || (themeMode === "system" && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
   return dark
     ? {
-        background: 0x071014,
-        ocean: 0x0d2530,
-        atmosphere: 0x40d5ff,
-        boundary: 0x8bd5cc,
-        graticule: 0x4f8179,
-        probeEyeball: 0x70e3d4,
-        probeDatacenter: 0xd9bd73,
-        probeOther: 0x9fb3ff,
-        activeRoute: 0x55f2ff,
-        inactiveRoutes: [0x8c7dff, 0xe8c767, 0x5ba8ff, 0x6ed7a7],
-        selectedHop: 0xffc857,
-        routeNode: 0xffffff,
+        background: 0x050a12,
+        ocean: 0x071522,
+        atmosphere: 0x5aa9ff,
+        boundary: 0x5e6f80,
+        graticule: 0x243549,
+        probeEyeball: 0x31e6cc,
+        probeDatacenter: 0xf2bd45,
+        probeOther: 0x69a7ff,
+        activeRoute: 0x29e6cf,
+        inactiveRoutes: [0x8b6cf6, 0x38bdf8, 0xf6c044, 0x1dd3a6],
+        selectedHop: 0xffcf4a,
+        routeNode: 0xe6edf3,
+        globeEmissiveIntensity: 0.05,
+        atmosphereOpacity: 0.18,
+        boundaryOpacity: 0.24,
+        graticuleOpacity: 0.09,
+        probeOpacity: 0.96,
+        activeRouteOpacity: 0.86,
+        inactiveRouteOpacity: 0.16,
+        routeNodeOpacity: 0.94,
       }
     : {
-        background: 0xeaf0f4,
-        ocean: 0xd9e7ed,
-        atmosphere: 0x4f8179,
-        boundary: 0x3f6b64,
-        graticule: 0x7f9f99,
-        probeEyeball: 0x2f8379,
-        probeDatacenter: 0x9c7d31,
-        probeOther: 0x4769b2,
-        activeRoute: 0x008da3,
-        inactiveRoutes: [0x7769d6, 0xb98916, 0x3476d0, 0x4b9876],
-        selectedHop: 0xc07a00,
-        routeNode: 0x20312e,
+        background: 0xf5f8fb,
+        ocean: 0xdceaf1,
+        atmosphere: 0x79a6bf,
+        boundary: 0x6f7f8b,
+        graticule: 0xa9b8c2,
+        probeEyeball: 0x008f8b,
+        probeDatacenter: 0xd59013,
+        probeOther: 0x2f6db5,
+        activeRoute: 0x009e9a,
+        inactiveRoutes: [0x4276d8, 0x7a5bd6, 0xd28a10, 0x16a77f],
+        selectedHop: 0xc98300,
+        routeNode: 0x1f2a36,
+        globeEmissiveIntensity: 0.08,
+        atmosphereOpacity: 0.16,
+        boundaryOpacity: 0.38,
+        graticuleOpacity: 0.16,
+        probeOpacity: 0.9,
+        activeRouteOpacity: 0.88,
+        inactiveRouteOpacity: 0.24,
+        routeNodeOpacity: 0.92,
       };
 }
 

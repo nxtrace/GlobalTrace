@@ -1610,11 +1610,20 @@ tbody tr:hover {
   overflow: hidden;
   border: 1px solid var(--glass-border);
   border-radius: 18px;
-  background:
-    radial-gradient(circle at 70% 20%, rgba(88, 127, 120, 0.18), transparent 36%),
-    radial-gradient(circle at 10% 80%, rgba(100, 93, 168, 0.14), transparent 32%),
-    var(--section-bg);
+  background: linear-gradient(180deg, rgba(247, 250, 252, 0.96), rgba(232, 240, 246, 0.94)), var(--section-bg);
   box-shadow: var(--shadow-panel);
+}
+
+:root[data-theme="dark"] .three-dashboard,
+:root[data-theme="dark"] .three-dashboard-loading {
+  background: linear-gradient(180deg, rgba(6, 11, 19, 0.98), rgba(3, 7, 13, 0.98));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .three-dashboard,
+  :root[data-theme="system"] .three-dashboard-loading {
+    background: linear-gradient(180deg, rgba(6, 11, 19, 0.98), rgba(3, 7, 13, 0.98));
+  }
 }
 
 .three-dashboard > section {
@@ -1638,22 +1647,16 @@ tbody tr:hover {
   min-width: 0;
   min-height: 100%;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(112, 185, 175, 0.16), transparent 42%),
-    linear-gradient(135deg, rgba(7, 16, 20, 0.08), rgba(8, 18, 24, 0.2));
+  background: linear-gradient(135deg, #f5f8fb 0%, #eaf2f7 52%, #dceaf1 100%);
 }
 
 :root[data-theme="dark"] .three-globe-stage {
-  background:
-    radial-gradient(circle at 50% 50%, rgba(85, 242, 255, 0.14), transparent 42%),
-    linear-gradient(135deg, rgba(4, 12, 17, 0.94), rgba(10, 18, 31, 0.88));
+  background: linear-gradient(135deg, #030713 0%, #07121f 54%, #02050c 100%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] .three-globe-stage {
-    background:
-      radial-gradient(circle at 50% 50%, rgba(85, 242, 255, 0.14), transparent 42%),
-      linear-gradient(135deg, rgba(4, 12, 17, 0.94), rgba(10, 18, 31, 0.88));
+    background: linear-gradient(135deg, #030713 0%, #07121f 54%, #02050c 100%);
   }
 }
 
