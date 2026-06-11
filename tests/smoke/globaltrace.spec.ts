@@ -1126,17 +1126,17 @@ async function expectMapProjectsCoordinateInsideCanvas(page: Page, coordinate: [
 async function clickResultMapRouteNode(page: Page, nodeId: string): Promise<void> {
   const canvas = page.locator(".result-map .maplibregl-canvas");
   await canvas.scrollIntoViewIfNeeded();
-  let point: { x: number; y: number } | null = null;
   await expect
     .poll(async () => {
-      point = await resultMapRouteNodeCanvasPoint(page, nodeId);
-      return Boolean(point);
+      const point = await resultMapRouteNodeCanvasPoint(page, nodeId);
+      const box = await canvas.boundingBox();
+      if (!point || !box) return null;
+      await page.mouse.click(box.x + point.x, box.y + point.y);
+      return page.locator(".result-map").evaluate((node) => {
+        return (node as HTMLElement & { __globalTraceSelectedRouteNodeId?: string | null }).__globalTraceSelectedRouteNodeId || null;
+      });
     })
-    .toBe(true);
-  if (!point) throw new Error(`route node ${nodeId} is not clickable`);
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("result map canvas is not visible");
-  await page.mouse.click(box.x + point.x, box.y + point.y);
+    .toBe(nodeId);
 }
 
 async function clickMapCoordinate(page: Page, coordinate: [number, number]): Promise<void> {
