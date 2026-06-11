@@ -428,16 +428,6 @@ button {
   color: var(--ink);
 }
 
-.view-mode-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.view-mode-switch button {
-  border-radius: 10px;
-}
-
 h1,
 h2 {
   margin: 0;
@@ -1000,6 +990,41 @@ summary:focus-visible {
     var(--map-control-bg);
 }
 
+.result-map-toolbar {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.result-map-toolbar-surface,
+.result-map-toolbar-surface .liquid-glass-content,
+.result-map-toolbar-surface .liquid-glass-fallback-content {
+  max-width: 100%;
+}
+
+.result-map-toolbar-surface .liquid-glass-content {
+  padding: 6px;
+}
+
+.result-map-toolbar-surface .liquid-glass-content,
+.result-map-toolbar-surface .liquid-glass-fallback-content {
+  border-color: var(--map-control-border);
+  background: var(--map-control-bg);
+  box-shadow: var(--map-control-shadow);
+}
+
+.result-map-view-switch {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  gap: 6px;
+}
+
+.result-map-view-switch button {
+  min-height: 44px;
+  border-radius: 10px;
+}
+
 .share-surface .liquid-glass-content {
   padding: 4px;
 }
@@ -1465,10 +1490,13 @@ tbody tr:hover {
   display: flex;
   align-items: stretch;
   gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .probe-tabs button {
-  min-width: 0;
+  flex: 1 0 min(180px, 70vw);
+  min-width: 160px;
   min-height: 52px;
   display: grid;
   gap: 3px;
@@ -1546,7 +1574,7 @@ tbody tr:hover {
 }
 
 .result-map {
-  height: clamp(280px, 32vh, 420px);
+  height: clamp(300px, 34svh, 440px);
   border: 1px solid var(--table-border);
   border-radius: 18px;
   overflow: hidden;
@@ -1687,6 +1715,7 @@ tbody tr:hover {
 
 .hop-table-scroll {
   max-height: min(60vh, 640px);
+  overscroll-behavior: contain;
 }
 
 .hop-table {
@@ -1760,6 +1789,7 @@ tbody tr:hover {
 }
 
 pre {
+  max-height: min(52svh, 520px);
   overflow: auto;
   margin: 10px 0 0;
   white-space: pre-wrap;
@@ -1964,6 +1994,14 @@ pre {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .result-map {
+    height: clamp(320px, 42svh, 480px);
+  }
+
+  .hop-table-scroll {
+    max-height: min(52svh, 500px);
+  }
+
   .map-container {
     height: clamp(340px, 48svh, 520px);
   }
@@ -2054,7 +2092,10 @@ pre {
   }
 
   .result-header-actions > .share-surface,
-  .share-surface .liquid-glass-content {
+  .share-surface .liquid-glass-content,
+  .result-map-toolbar,
+  .result-map-toolbar-surface,
+  .result-map-toolbar-surface .liquid-glass-content {
     width: 100%;
   }
 
@@ -2083,7 +2124,11 @@ pre {
   }
 
   .result-map {
-    height: clamp(260px, 36vh, 360px);
+    height: clamp(320px, 46svh, 440px);
+  }
+
+  .result-map-view-switch {
+    width: 100%;
   }
 
   .map-toolbar {
@@ -2104,7 +2149,20 @@ pre {
   }
 
   .probe-tabs {
-    flex-direction: column;
+    flex-direction: row;
+    padding-bottom: 2px;
+  }
+
+  .probe-tabs button {
+    flex: 0 0 min(180px, 72vw);
+  }
+
+  .hop-table-scroll {
+    max-height: min(48svh, 420px);
+  }
+
+  pre {
+    max-height: min(44svh, 380px);
   }
 
   .result-metrics {

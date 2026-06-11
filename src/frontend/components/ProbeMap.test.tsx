@@ -227,22 +227,6 @@ describe("ProbeMap", () => {
     expect(map.setProjectionCalls).toEqual([{ type: "mercator" }]);
   });
 
-  it("uses globe projection and disables box selection when requested", () => {
-    renderMap({ mapProjection: "globe", boxSelectEnabled: false, ariaLabel: "3D 地球视图" });
-    const map = latestMap();
-
-    act(() => map.triggerLoad());
-
-    expect(screen.getByLabelText("3D 地球视图")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "框选" })).not.toBeInTheDocument();
-    expect(map.options).toMatchObject({ aroundCenter: true });
-    expect(map.setProjectionCalls).toEqual([{ type: "globe" }]);
-    expect(map.layers.find((layer) => layer.id === "probe-points")?.paint).toMatchObject({
-      "circle-color": "#fff36a",
-      "circle-stroke-color": "#2ffaff",
-    });
-  });
-
   it("moves to a single filtered probe", async () => {
     const { rerender } = renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
     const map = latestMap();
@@ -311,9 +295,6 @@ function probeMapElement(overrides: Partial<React.ComponentProps<typeof ProbeMap
       selectionNotice={overrides.selectionNotice ?? ""}
       selectionActive={overrides.selectionActive ?? false}
       mapStyleUrl={overrides.mapStyleUrl ?? "/mock-style.json"}
-      mapProjection={overrides.mapProjection}
-      boxSelectEnabled={overrides.boxSelectEnabled}
-      ariaLabel={overrides.ariaLabel}
       onPickProbe={overrides.onPickProbe ?? vi.fn()}
       onBoxSelect={overrides.onBoxSelect ?? vi.fn()}
       onClearSelection={overrides.onClearSelection ?? vi.fn()}

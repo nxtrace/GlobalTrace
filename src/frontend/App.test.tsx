@@ -8,33 +8,44 @@ vi.mock("./components/ProbeMap", () => ({
   ProbeMap: (props: {
     probes: GlobalpingProbe[];
     selectionNotice: string;
-    mapProjection?: "mercator" | "globe";
-    boxSelectEnabled?: boolean;
-    ariaLabel?: string;
     onPickProbe: (probe: GlobalpingProbe) => void;
     onBoxSelect: (probes: GlobalpingProbe[]) => void;
   }) => (
-    <section aria-label={props.ariaLabel === "3D 地球视图" ? "mock 3d globe map" : "mock probe map"}>
+    <section aria-label="mock probe map">
       <span>{props.selectionNotice || "no selection"}</span>
-      <span>{`projection:${props.mapProjection || "mercator"}`}</span>
-      <span>{`box:${props.boxSelectEnabled === false ? "off" : "on"}`}</span>
+      <span>probe-projection:mercator</span>
+      <span>box:on</span>
       <button type="button" onClick={() => props.onPickProbe(props.probes[0])}>
-        {props.mapProjection === "globe" ? "pick 3d first probe" : "pick first probe"}
+        pick first probe
       </button>
-      {props.boxSelectEnabled !== false && (
-        <button type="button" onClick={() => props.onBoxSelect(repeatProbes(props.probes[0], 12))}>
-          box many probes
-        </button>
-      )}
+      <button type="button" onClick={() => props.onBoxSelect(repeatProbes(props.probes[0], 12))}>
+        box many probes
+      </button>
     </section>
   ),
 }));
 
 vi.mock("./components/ResultsView", () => ({
-  ResultsView: ({ result, mapProjection, onClose }: { result: TraceResultResponse | null; mapProjection?: "mercator" | "globe"; onClose?: () => void }) => (
+  ResultsView: ({
+    result,
+    mapProjection,
+    onMapProjectionChange,
+    onClose,
+  }: {
+    result: TraceResultResponse | null;
+    mapProjection?: "mercator" | "globe";
+    onMapProjectionChange?: (value: "mercator" | "globe") => void;
+    onClose?: () => void;
+  }) => (
     <section aria-label="mock results">
       {result ? `result:${result.status}:${result.measurementId}` : "no result"}
       <span>{`projection:${mapProjection || "mercator"}`}</span>
+      <button type="button" aria-pressed={mapProjection === "mercator"} onClick={() => onMapProjectionChange?.("mercator")}>
+        切换结果地图到 2D
+      </button>
+      <button type="button" aria-pressed={mapProjection === "globe"} onClick={() => onMapProjectionChange?.("globe")}>
+        切换结果地图到 3D
+      </button>
       {onClose && (
         <button type="button" onClick={onClose}>
           关闭结果
@@ -70,37 +81,37 @@ describe("App", () => {
 
     expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
-    expect(screen.queryByLabelText("mock 3d globe map")).not.toBeInTheDocument();
+    expect(screen.getByText("probe-projection:mercator")).toBeInTheDocument();
+    expect(screen.getByText("box:on")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "切换到 3D 视图" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
     expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
     expect(screen.getByText("249/250")).toBeInTheDocument();
     expect(document.documentElement.dataset.theme).toBe("system");
   });
 
-  it("defaults to 2D and persists the 3D view mode locally", async () => {
+  it("keeps probe selection in 2D and persists the result map projection locally", async () => {
     mockApi();
 
-    const first = render(<App />);
+    render(<App />);
 
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(window.localStorage.getItem("globaltrace.viewMode")).toBe("2d");
+    expect(screen.queryByRole("button", { name: "切换结果地图到 3D" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "切换到 3D 视图" }));
-    expect(await screen.findByLabelText("mock 3d globe map")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(screen.queryByLabelText("mock probe map")).not.toBeInTheDocument();
+    expect(screen.getByText("projection:mercator")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 3D" }));
     expect(screen.getByText("projection:globe")).toBeInTheDocument();
-    expect(screen.getByText("box:off")).toBeInTheDocument();
     expect(window.localStorage.getItem("globaltrace.viewMode")).toBe("3d");
 
-    first.unmount();
-    const second = render(<App />);
-    expect(await screen.findByLabelText("mock 3d globe map")).toBeInTheDocument();
-
-    second.unmount();
-    window.localStorage.clear();
-    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "关闭结果" }));
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
-    expect(screen.queryByLabelText("mock 3d globe map")).not.toBeInTheDocument();
+    expect(screen.getByText("probe-projection:mercator")).toBeInTheDocument();
+    expect(screen.getByText("box:on")).toBeInTheDocument();
   });
 
   it("persists theme mode locally", async () => {
@@ -203,22 +214,6 @@ describe("App", () => {
     expect(within(chips).queryByText("magic")).not.toBeInTheDocument();
   });
 
-  it("updates filters when a 3D globe probe is selected", async () => {
-    mockApi();
-    render(<App />);
-
-    await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByRole("button", { name: "切换到 3D 视图" }));
-    fireEvent.click(await screen.findByRole("button", { name: "pick 3d first probe" }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText("已选择 Los Angeles · AS7922").length).toBeGreaterThan(0);
-    });
-    expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
-    const chips = screen.getByTestId("filter-chips");
-    expect(chips).toHaveTextContent("Los Angeles+US+AS7922+eyeball-network");
-  });
-
   it("narrows field suggestions with other structured filters", async () => {
     mockApi();
     render(<App />);
@@ -272,15 +267,15 @@ describe("App", () => {
     expect(traceCreateBodies(fetchMock)[0].measurementOptions).not.toHaveProperty("ipVersion");
   });
 
-  it("keeps the share URL contract when creating a trace from 3D mode", async () => {
+  it("keeps the share URL contract when switching the result map to 3D", async () => {
     const fetchMock = mockApi();
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByRole("button", { name: "切换到 3D 视图" }));
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 3D" }));
     expect(screen.getByText("projection:globe")).toBeInTheDocument();
     expect(window.location.search).toBe("?measurement=m123");
     expect(window.location.href).not.toContain("view=");

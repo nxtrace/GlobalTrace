@@ -33,7 +33,6 @@ describe("FilterPanel", () => {
         globalpingTokenDraft=""
         globalpingTokenSaved={false}
         themeMode="system"
-        viewMode="2d"
         onTargetChange={vi.fn()}
         onProtocolChange={vi.fn()}
         onIpVersionChange={vi.fn()}
@@ -46,7 +45,6 @@ describe("FilterPanel", () => {
         onSaveGlobalpingToken={vi.fn()}
         onClearGlobalpingToken={vi.fn()}
         onCycleThemeMode={vi.fn()}
-        onViewModeChange={vi.fn()}
         onNavigateHome={vi.fn()}
         onNavigateAbout={vi.fn()}
         onReset={onReset}
@@ -63,8 +61,8 @@ describe("FilterPanel", () => {
     expect(screen.getByText("已从地图选择 US+Los Angeles+AS7922")).toBeInTheDocument();
     expect(screen.getByText("本地模式，无 Turnstile site key")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "主题：System" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "切换到 2D 视图" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "切换到 3D 视图" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("button", { name: "切换到 2D 视图" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "切换到 3D 视图" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toBeVisible();
     expect(screen.getByLabelText("eyeball")).not.toBeVisible();
     expect(screen.getByLabelText("datacenter")).not.toBeVisible();
@@ -274,16 +272,6 @@ describe("FilterPanel", () => {
     expect(onNavigateAbout).toHaveBeenCalledTimes(1);
   });
 
-  it("switches between 2D and 3D view modes", () => {
-    const onViewModeChange = vi.fn();
-    renderPanel({ viewMode: "3d", onViewModeChange });
-
-    expect(screen.getByRole("button", { name: "切换到 3D 视图" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("button", { name: "切换到 2D 视图" }));
-
-    expect(onViewModeChange).toHaveBeenCalledWith("2d");
-  });
-
   it("navigates home from the brand link", () => {
     const onNavigateHome = vi.fn();
     renderPanel({ onNavigateHome });
@@ -318,7 +306,6 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       globalpingTokenDraft=""
       globalpingTokenSaved={false}
       themeMode="system"
-      viewMode="2d"
       onTargetChange={vi.fn()}
       onProtocolChange={vi.fn()}
       onIpVersionChange={vi.fn()}
@@ -331,7 +318,6 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       onSaveGlobalpingToken={vi.fn()}
       onClearGlobalpingToken={vi.fn()}
       onCycleThemeMode={vi.fn()}
-      onViewModeChange={vi.fn()}
       onNavigateHome={vi.fn()}
       onNavigateAbout={vi.fn()}
       onReset={vi.fn()}

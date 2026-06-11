@@ -10,12 +10,13 @@ import {
   fetchProbes,
   type AppConfig,
 } from "./api";
-import { FilterPanel, type IpVersionSelection, type ViewMode } from "./components/FilterPanel";
+import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
 import { LiquidGlassSurface } from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
+import type { MapProjection } from "./components/mapProjection";
 import { deferUntilIdle } from "./lib/defer";
 import { filterChips, filterProbes, magicFromSelectedProbes, probeFilterSuggestions, probeToMagic } from "../shared/filters";
 import { measurementToTraceResponse } from "../shared/transform";
@@ -35,7 +36,7 @@ export const POLL_DELAY_MS = 650;
 export const TRACE_MAX_POLL_ATTEMPTS = 120;
 const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
-const VIEW_MODE_STORAGE_KEY = "globaltrace.viewMode";
+const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
 
 type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
@@ -48,7 +49,7 @@ const ResultsView = lazy(() => import("./components/ResultsView").then((module) 
 export function App() {
   const [route, setRoute] = useState<AppRoute>(currentRoute);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
-  const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
+  const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
   const [globalpingToken, setGlobalpingToken] = useState(readStoredGlobalpingToken);
   const [globalpingTokenDraft, setGlobalpingTokenDraft] = useState(globalpingToken);
   const [config, setConfig] = useState<AppConfig>({
@@ -107,8 +108,8 @@ export function App() {
   }, [themeMode]);
 
   useEffect(() => {
-    writeStoredViewMode(viewMode);
-  }, [viewMode]);
+    writeStoredResultMapProjection(resultMapProjection);
+  }, [resultMapProjection]);
 
   useEffect(() => {
     if (route !== "/" || bootstrappedRef.current) return;
@@ -381,10 +382,6 @@ export function App() {
     setThemeMode((current) => nextThemeMode(current));
   }, []);
 
-  const changeViewMode = useCallback((nextMode: ViewMode) => {
-    setViewMode(nextMode);
-  }, []);
-
   const navigateAbout = useCallback(() => {
     window.history.pushState(null, "", "/about");
     setRoute("/about");
@@ -433,7 +430,6 @@ export function App() {
           globalpingTokenDraft={globalpingTokenDraft}
           globalpingTokenSaved={Boolean(globalpingToken)}
           themeMode={themeMode}
-          viewMode={viewMode}
           onTargetChange={setTarget}
           onProtocolChange={setProtocol}
           onIpVersionChange={setIpVersion}
@@ -446,7 +442,6 @@ export function App() {
           onSaveGlobalpingToken={saveGlobalpingToken}
           onClearGlobalpingToken={clearGlobalpingToken}
           onCycleThemeMode={cycleThemeMode}
-          onViewModeChange={changeViewMode}
           onNavigateHome={navigateHome}
           onNavigateAbout={navigateAbout}
           onReset={reset}
@@ -504,9 +499,6 @@ export function App() {
                       selectionNotice={selectionNotice}
                       selectionActive={mapSelectionActive}
                       mapStyleUrl={config.mapStyleUrl}
-                      mapProjection={viewMode === "3d" ? "globe" : "mercator"}
-                      boxSelectEnabled={viewMode !== "3d"}
-                      ariaLabel={viewMode === "3d" ? "3D 地球视图" : "probe map"}
                       onPickProbe={pickProbe}
                       onBoxSelect={boxSelect}
                       onClearSelection={clearMapSelection}
@@ -522,7 +514,8 @@ export function App() {
                 <ResultsView
                   result={finalResult}
                   mapStyleUrl={config.mapStyleUrl}
-                  mapProjection={viewMode === "3d" ? "globe" : "mercator"}
+                  mapProjection={resultMapProjection}
+                  onMapProjectionChange={setResultMapProjection}
                   onClose={closeResult}
                 />
               </Suspense>
@@ -643,19 +636,19 @@ function writeStoredThemeMode(mode: ThemeMode): void {
   }
 }
 
-function readStoredViewMode(): ViewMode {
+function readStoredResultMapProjection(): MapProjection {
   try {
-    return window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "3d" ? "3d" : "2d";
+    return window.localStorage.getItem(RESULT_MAP_PROJECTION_STORAGE_KEY) === "3d" ? "globe" : "mercator";
   } catch {
-    return "2d";
+    return "mercator";
   }
 }
 
-function writeStoredViewMode(mode: ViewMode): void {
+function writeStoredResultMapProjection(projection: MapProjection): void {
   try {
-    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+    window.localStorage.setItem(RESULT_MAP_PROJECTION_STORAGE_KEY, projection === "globe" ? "3d" : "2d");
   } catch {
-    // View mode persistence is best-effort.
+    // Result map projection persistence is best-effort.
   }
 }
 

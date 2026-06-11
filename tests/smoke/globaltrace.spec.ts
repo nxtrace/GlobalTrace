@@ -39,6 +39,7 @@ for (const viewport of viewports) {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
     await expect(page.getByText("可创建诊断 249/250（当前 IP）")).toBeVisible();
+    await expect(page.getByRole("button", { name: "切换到 3D 视图" })).toHaveCount(0);
     await expect(page.locator(".maplibregl-canvas")).toBeVisible();
     await expectDarkMapControls(page);
     await expect(page.locator("[data-liquid-glass]").first()).toBeVisible();
@@ -91,6 +92,7 @@ for (const viewport of viewports) {
     await expectHopTableColumns(page);
     await expect(page.getByLabel("trace result map")).toBeVisible();
     await expectMapCanvasPainted(page);
+    await expectResultMapProjection(page, "mercator");
     await expectResultMapContainsCoordinate(page, [-118.24, 34.05]);
     await expectResultMapContainsCoordinate(page, [-122.08, 37.39]);
     await expectResultMapStyleLoaded(page);
@@ -129,40 +131,54 @@ for (const viewport of [
   { name: "1440x1000", width: 1440, height: 1000 },
   { name: "390x844", width: 390, height: 844 },
 ]) {
-  test(`3D globe dashboard at ${viewport.name}`, async ({ page }) => {
+  test(`result map 2D and 3D switch at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const consoleErrors = collectConsoleErrors(page);
     await installMocks(page);
 
     await page.goto("/");
-    await page.getByRole("button", { name: "切换到 3D 视图" }).click();
 
-    await expect(page.getByLabel("3D 地球视图")).toBeVisible();
-    await expect(page.getByLabel("3D 地球视图").getByText("3 / 3 probes", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "框选" })).toHaveCount(0);
+    await expect(page.getByLabel("probe map")).toBeVisible();
+    await expect(page.getByLabel("probe map").getByText("3 / 3 probes", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "框选" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "切换到 3D 视图" })).toHaveCount(0);
     await expectMapCanvasPainted(page);
-    await expectProbeMapProjection(page, "globe");
-    await expectProbeMapHasCountryLabelStyle(page);
+    await expectProbeMapProjection(page, "mercator");
     await expectNoPageOverflow(page);
 
     await page.getByRole("button", { name: "开始网络路径诊断" }).click();
 
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+    await expect(page.getByRole("group", { name: "结果地图视图" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "切换结果地图到 2D" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
     await expectHopTableColumns(page);
     await expect(page.locator(".hop-table").getByText("8.8.8.8", { exact: true })).toBeVisible();
     await expect(page.getByLabel("trace result map")).toBeVisible();
     await expectMapCanvasPainted(page);
+    await expectResultMapProjection(page, "mercator");
+
+    await page.getByRole("button", { name: "切换结果地图到 3D" }).click();
+
     await expectResultMapProjection(page, "globe");
+    await expect(page.getByRole("button", { name: "切换结果地图到 3D" })).toHaveAttribute("aria-pressed", "true");
+    await expectResultMapHasCountryLabelStyle(page);
+    await expectResultMapGlobeLineStyle(page);
     await expectResultMapStyleLoaded(page);
     await expectResultMapContainsCoordinate(page, [-118.24, 34.05]);
     await expectResultMapContainsCoordinate(page, [-122.08, 37.39]);
     await page.getByText("raw output").click();
     await page.getByText("whois / source details").click();
     await expect(page.getByText("Host Loss% Avg")).toBeVisible();
+    if (viewport.name === "390x844") {
+      await expectMobileResultLayout(page);
+    }
 
     await page.getByRole("button", { name: "关闭结果" }).click();
-    await expect(page.getByLabel("3D 地球视图")).toBeVisible();
+    await expect(page.getByLabel("probe map")).toBeVisible();
+    await expect(page.getByRole("button", { name: "框选" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "结果地图视图" })).toHaveCount(0);
+    await expectProbeMapProjection(page, "mercator");
     await expect(page.getByRole("button", { name: "查看结果" })).toBeVisible();
     await page.getByRole("button", { name: "查看结果" }).click();
     await expect(page.locator(".hop-table").getByText("8.8.8.8", { exact: true })).toBeVisible();
@@ -174,7 +190,7 @@ for (const viewport of [
     expect(consoleErrors).toEqual([]);
 
     await page.screenshot({
-      path: `/tmp/${screenshotPrefix}-3d-${viewport.name}.png`,
+      path: `/tmp/${screenshotPrefix}-result-map-switch-${viewport.name}.png`,
       fullPage: true,
     });
   });
@@ -694,15 +710,74 @@ async function expectResultMapProjection(page: Page, projection: "mercator" | "g
     .toBe(projection);
 }
 
-async function expectProbeMapHasCountryLabelStyle(page: Page): Promise<void> {
+async function expectResultMapHasCountryLabelStyle(page: Page): Promise<void> {
   await expect
     .poll(async () => {
-      return page.locator(".map-container").evaluate((node) => {
-        const map = (node as HTMLElement & { __globalTraceMap?: DebugMap }).__globalTraceMap;
+      return page.locator(".result-map").evaluate((node) => {
+        const map = (node as HTMLElement & { __globalTraceResultMap?: DebugMap }).__globalTraceResultMap;
         return Boolean(map?.getStyle?.().layers?.some((layer) => layer.id === "country-label" && layer.type === "symbol"));
       });
     })
     .toBe(true);
+}
+
+async function expectResultMapGlobeLineStyle(page: Page): Promise<void> {
+  const style = await page.locator(".result-map").evaluate((node) => {
+    const map = (node as HTMLElement & { __globalTraceResultMap?: DebugMap }).__globalTraceResultMap;
+    const layers = map?.getStyle?.().layers || [];
+    const glow = layers.find((layer) => layer.id === "result-line-glow") as { paint?: Record<string, unknown> } | undefined;
+    const line = layers.find((layer) => layer.id === "result-line") as { paint?: Record<string, unknown> } | undefined;
+    return { glow: glow?.paint, line: line?.paint };
+  });
+  expect(style.glow).toMatchObject({
+    "line-color": "#7ffff5",
+    "line-width": 9,
+    "line-opacity": 0.34,
+    "line-blur": 3.2,
+  });
+  expect(style.line).toMatchObject({
+    "line-color": "#72fff3",
+    "line-width": 4.8,
+    "line-opacity": 1,
+  });
+}
+
+async function expectMobileResultLayout(page: Page): Promise<void> {
+  const state = await page.evaluate(() => {
+    const doc = document.documentElement;
+    const toolbar = document.querySelector(".result-map-toolbar") as HTMLElement | null;
+    const switchButton = document.querySelector(".result-map-view-switch button") as HTMLElement | null;
+    const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
+    const map = document.querySelector(".result-map") as HTMLElement | null;
+    const table = document.querySelector(".hop-table-scroll") as HTMLElement | null;
+    const raw = document.querySelector(".raw-output[open] pre") as HTMLElement | null;
+    const toolbarRect = toolbar?.getBoundingClientRect();
+    const buttonRect = switchButton?.getBoundingClientRect();
+    const mapRect = map?.getBoundingClientRect();
+    return {
+      documentScroll: doc.scrollWidth,
+      documentClient: doc.clientWidth,
+      toolbarWidth: toolbarRect?.width ?? 0,
+      buttonHeight: buttonRect?.height ?? 0,
+      tabsOverflowX: tabs ? window.getComputedStyle(tabs).overflowX : "",
+      tabsScrollWidth: tabs?.scrollWidth ?? 0,
+      tabsClientWidth: tabs?.clientWidth ?? 0,
+      mapHeight: mapRect?.height ?? 0,
+      tableOverflowX: table ? window.getComputedStyle(table).overflowX : "",
+      tableScrollWidth: table?.scrollWidth ?? 0,
+      tableClientWidth: table?.clientWidth ?? 0,
+      rawMaxHeight: raw ? window.getComputedStyle(raw).maxHeight : "",
+    };
+  });
+  expect(state.documentScroll).toBeLessThanOrEqual(state.documentClient);
+  expect(state.toolbarWidth).toBeGreaterThan(250);
+  expect(state.buttonHeight).toBeGreaterThanOrEqual(44);
+  expect(["auto", "scroll"]).toContain(state.tabsOverflowX);
+  expect(state.tabsScrollWidth).toBeGreaterThanOrEqual(state.tabsClientWidth);
+  expect(state.mapHeight).toBeGreaterThanOrEqual(300);
+  expect(["auto", "scroll"]).toContain(state.tableOverflowX);
+  expect(state.tableScrollWidth).toBeGreaterThan(state.tableClientWidth);
+  expect(state.rawMaxHeight).toContain("px");
 }
 
 async function expectHopTableScrollsWithinPanel(page: Page): Promise<void> {

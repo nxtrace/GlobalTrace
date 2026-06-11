@@ -1,6 +1,6 @@
 import "./maplibre.css";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
-import { AlertTriangle, Clock3, Copy, Route, Server, X } from "lucide-react";
+import { AlertTriangle, Clock3, Copy, Globe2, Map as MapIcon, Route, Server, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import type { Feature, FeatureCollection } from "geojson";
 import type { TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
@@ -50,11 +50,19 @@ interface ResultsViewProps {
   result: TraceResultResponse | null;
   mapStyleUrl: string;
   mapProjection?: MapProjection;
+  onMapProjectionChange?: (value: MapProjection) => void;
   renderMap?: boolean;
   onClose?: () => void;
 }
 
-export function ResultsView({ result, mapStyleUrl, mapProjection = "mercator", renderMap = true, onClose }: ResultsViewProps) {
+export function ResultsView({
+  result,
+  mapStyleUrl,
+  mapProjection = "mercator",
+  onMapProjectionChange,
+  renderMap = true,
+  onClose,
+}: ResultsViewProps) {
   const [selected, setSelected] = useState(0);
   const [selectedRouteNodeId, setSelectedRouteNodeId] = useState<string | null>(null);
   const [mapFocusRequest, setMapFocusRequest] = useState(0);
@@ -137,14 +145,17 @@ export function ResultsView({ result, mapStyleUrl, mapProjection = "mercator", r
         </TabsList>
         <TabsContent value={String(selected)} className="probe-tab-content">
           {renderMap && (
-            <ResultMap
-              data={mapData}
-              mapStyleUrl={mapStyleUrl}
-              mapProjection={mapProjection}
-              selectedRouteNodeId={selectedRouteNodeId}
-              mapFocusRequest={mapFocusRequest}
-              onSelectRouteNode={(nodeId) => selectRouteNode(nodeId)}
-            />
+            <>
+              <ResultMapToolbar mapProjection={mapProjection} onMapProjectionChange={onMapProjectionChange} />
+              <ResultMap
+                data={mapData}
+                mapStyleUrl={mapStyleUrl}
+                mapProjection={mapProjection}
+                selectedRouteNodeId={selectedRouteNodeId}
+                mapFocusRequest={mapFocusRequest}
+                onSelectRouteNode={(nodeId) => selectRouteNode(nodeId)}
+              />
+            </>
           )}
 
           <EnrichmentStrip result={result} />
@@ -170,6 +181,47 @@ export function ResultsView({ result, mapStyleUrl, mapProjection = "mercator", r
       </Tabs>
       </section>
     </Surface>
+  );
+}
+
+function ResultMapToolbar({
+  mapProjection,
+  onMapProjectionChange,
+}: {
+  mapProjection: MapProjection;
+  onMapProjectionChange?: (value: MapProjection) => void;
+}) {
+  return (
+    <div className="result-map-toolbar" role="group" aria-label="结果地图视图">
+      <LiquidGlassSurface variant="toolbar" className="result-map-toolbar-surface">
+        <div className="result-map-view-switch">
+          <Button
+            variant={mapProjection === "mercator" ? "primary" : "ghost"}
+            size="sm"
+            type="button"
+            onClick={() => onMapProjectionChange?.("mercator")}
+            aria-pressed={mapProjection === "mercator"}
+            aria-label="切换结果地图到 2D"
+            disabled={!onMapProjectionChange && mapProjection !== "mercator"}
+          >
+            <MapIcon size={16} />
+            2D
+          </Button>
+          <Button
+            variant={mapProjection === "globe" ? "primary" : "ghost"}
+            size="sm"
+            type="button"
+            onClick={() => onMapProjectionChange?.("globe")}
+            aria-pressed={mapProjection === "globe"}
+            aria-label="切换结果地图到 3D"
+            disabled={!onMapProjectionChange && mapProjection !== "globe"}
+          >
+            <Globe2 size={16} />
+            3D
+          </Button>
+        </div>
+      </LiquidGlassSurface>
+    </div>
   );
 }
 
@@ -345,6 +397,21 @@ function ResultMap({
     map.on("load", () => {
       map.setProjection({ type: mapProjection });
       map.addSource("result", { type: "geojson", data: dataRef.current.featureCollection });
+      if (mapProjection === "globe") {
+        map.addLayer({
+          id: "result-line-glow",
+          type: "line",
+          source: "result",
+          filter: ["==", ["get", "kind"], "path"],
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "#7ffff5",
+            "line-width": 9,
+            "line-opacity": 0.34,
+            "line-blur": 3.2,
+          },
+        });
+      }
       map.addLayer({
         id: "result-line",
         type: "line",
@@ -352,10 +419,10 @@ function ResultMap({
         filter: ["==", ["get", "kind"], "path"],
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": globeValue(mapProjection, "#28f7d8", "#587f78"),
-          "line-width": globeValue(mapProjection, 3.4, 2.5),
-          "line-opacity": globeValue(mapProjection, 0.92, 0.76),
-          "line-blur": globeValue(mapProjection, 1.2, 0),
+          "line-color": globeValue(mapProjection, "#72fff3", "#587f78"),
+          "line-width": globeValue(mapProjection, 4.8, 2.5),
+          "line-opacity": globeValue(mapProjection, 1, 0.76),
+          "line-blur": globeValue(mapProjection, 0.4, 0),
         },
       });
       map.addLayer({

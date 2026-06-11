@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { Filter, Globe2, Info, KeyRound, Map as MapIcon, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
+import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import type { FilterChip, ProbeFilterSuggestions } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import { themeModeLabel, type ThemeMode } from "../theme";
@@ -12,7 +12,6 @@ import { Surface } from "./ui/surface";
 import { Switch } from "./ui/switch";
 
 export type IpVersionSelection = "" | 4 | 6;
-export type ViewMode = "2d" | "3d";
 
 interface FilterPanelProps {
   target: string;
@@ -36,7 +35,6 @@ interface FilterPanelProps {
   globalpingTokenDraft: string;
   globalpingTokenSaved: boolean;
   themeMode: ThemeMode;
-  viewMode: ViewMode;
   onTargetChange: (value: string) => void;
   onProtocolChange: (value: TraceProtocol) => void;
   onIpVersionChange: (value: IpVersionSelection) => void;
@@ -49,7 +47,6 @@ interface FilterPanelProps {
   onSaveGlobalpingToken: () => void;
   onClearGlobalpingToken: () => void;
   onCycleThemeMode: () => void;
-  onViewModeChange: (value: ViewMode) => void;
   onNavigateHome: () => void;
   onNavigateAbout: () => void;
   onReset: () => void;
@@ -108,31 +105,6 @@ export function FilterPanel(props: FilterPanelProps) {
                 <RotateCcw size={18} />
               </Button>
             </div>
-          </div>
-
-          <div className="view-mode-switch" role="group" aria-label="地图视图">
-            <Button
-              variant={props.viewMode === "2d" ? "primary" : "glass"}
-              size="sm"
-              type="button"
-              onClick={() => props.onViewModeChange("2d")}
-              aria-pressed={props.viewMode === "2d"}
-              aria-label="切换到 2D 视图"
-            >
-              <MapIcon size={16} />
-              2D
-            </Button>
-            <Button
-              variant={props.viewMode === "3d" ? "primary" : "glass"}
-              size="sm"
-              type="button"
-              onClick={() => props.onViewModeChange("3d")}
-              aria-pressed={props.viewMode === "3d"}
-              aria-label="切换到 3D 视图"
-            >
-              <Globe2 size={16} />
-              3D
-            </Button>
           </div>
 
           <Surface asChild variant="flat" className="control-section primary-controls" aria-label="基础参数">

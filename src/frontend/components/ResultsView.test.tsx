@@ -322,6 +322,37 @@ describe("ResultsView", () => {
     expect(screen.getByText("1 batch error")).toBeInTheDocument();
   });
 
+  it("renders the result map projection switch and reports changes", () => {
+    const onMapProjectionChange = vi.fn();
+    render(
+      <ResultsView
+        result={sampleResult}
+        mapStyleUrl="about:blank"
+        mapProjection="globe"
+        renderMap={false}
+        onMapProjectionChange={onMapProjectionChange}
+      />,
+    );
+
+    expect(screen.queryByRole("group", { name: "结果地图视图" })).not.toBeInTheDocument();
+
+    cleanup();
+    render(
+      <ResultsView
+        result={sampleResult}
+        mapStyleUrl="about:blank"
+        mapProjection="globe"
+        onMapProjectionChange={onMapProjectionChange}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "结果地图视图" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "切换结果地图到 3D" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 2D" }));
+
+    expect(onMapProjectionChange).toHaveBeenCalledWith("mercator");
+  });
+
   it("fits the result map to the active probe and hop GeoIP points", async () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" />);
     const map = await latestMap();
@@ -349,9 +380,17 @@ describe("ResultsView", () => {
 
     expect(map.options).toMatchObject({ aroundCenter: true });
     expect(map.setProjectionCalls).toEqual([{ type: "globe" }]);
+    expect(map.layers.find((layer) => layer.id === "result-line-glow")?.paint).toMatchObject({
+      "line-color": "#7ffff5",
+      "line-width": 9,
+      "line-opacity": 0.34,
+      "line-blur": 3.2,
+    });
     expect(map.layers.find((layer) => layer.id === "result-line")?.paint).toMatchObject({
-      "line-color": "#28f7d8",
-      "line-blur": 1.2,
+      "line-color": "#72fff3",
+      "line-width": 4.8,
+      "line-opacity": 1,
+      "line-blur": 0.4,
     });
     expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({
       "circle-color": "#fff36a",
