@@ -1780,6 +1780,7 @@ pre {
   box-shadow: var(--shadow-panel);
 }
 
+.about-panel,
 .about-panel > section,
 .about-grid,
 .about-links {
@@ -1864,6 +1865,7 @@ pre {
 }
 
 .about-links {
+  margin-top: 8px;
   padding: 16px;
 }
 
