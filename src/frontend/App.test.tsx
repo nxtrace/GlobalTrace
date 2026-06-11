@@ -136,6 +136,10 @@ describe("App", () => {
       "href",
       "https://github.com/nxtrace/NTrace-core",
     );
+    expect(screen.getByRole("link", { name: /GlobalTrace GitHub/ })).toHaveAttribute(
+      "href",
+      "https://github.com/nxtrace/GlobalTrace",
+    );
   });
 
   it("updates filters when a map probe is selected", async () => {

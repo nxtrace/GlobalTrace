@@ -732,6 +732,13 @@ summary:focus-visible {
   gap: 6px;
 }
 
+.attribution-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .attribution-panel {
   padding: 10px 12px;
 }
@@ -919,7 +926,7 @@ summary:focus-visible {
 
 .share-actions button,
 .result-header-actions > button,
-.attribution-panel button,
+.attribution-actions > *,
 .token-actions button {
   white-space: normal;
   text-align: center;
@@ -2004,7 +2011,11 @@ pre {
     flex: 1;
   }
 
-  .attribution-panel button {
+  .attribution-actions {
+    flex-wrap: wrap;
+  }
+
+  .attribution-actions > * {
     flex: 0 1 auto;
   }
 

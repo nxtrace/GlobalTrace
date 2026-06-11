@@ -65,6 +65,10 @@ describe("FilterPanel", () => {
     expect(screen.getByText(/Powered by/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Globalping" })).toHaveAttribute("href", "https://globalping.io/");
     expect(screen.getByRole("link", { name: "NextTrace" })).toHaveAttribute("href", "https://www.nxtrace.org/");
+    expect(screen.getByRole("link", { name: "GlobalTrace GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/nxtrace/GlobalTrace",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(onReset).toHaveBeenCalledTimes(1);

@@ -22,6 +22,7 @@ if (hostname.includes("://") || hostname.includes("/") || /\s/.test(hostname)) {
 
 const config = JSON.parse(await readFile(inputPath, "utf8"));
 config.account_id = requiredEnv.CLOUDFLARE_ACCOUNT_ID.trim();
+config.workers_dev = false;
 config.routes = [
   {
     pattern: hostname,

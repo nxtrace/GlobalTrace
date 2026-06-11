@@ -13,6 +13,7 @@ const attributionLinks = [
   { label: "Globalping GitHub", href: "https://github.com/jsdelivr/globalping" },
   { label: "NextTrace", href: "https://www.nxtrace.org/" },
   { label: "NTrace-core GitHub", href: "https://github.com/nxtrace/NTrace-core" },
+  { label: "GlobalTrace GitHub", href: "https://github.com/nxtrace/GlobalTrace" },
 ];
 
 export function AboutPage({ onBack }: AboutPageProps) {
