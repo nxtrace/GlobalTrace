@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import type { FilterChip, ProbeFilterSuggestions } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
@@ -55,6 +55,7 @@ const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
   cities: [],
   asns: [],
   networks: [],
+  magicStrings: [],
 };
 const MAX_VISIBLE_SUGGESTIONS = 8;
 
@@ -157,11 +158,10 @@ export function FilterPanel(props: FilterPanelProps) {
 
               <label className="field-label">
                 <span>magic string</span>
-                <Textarea
-                  value={props.filters.magic || ""}
-                  onChange={(event) => setFilter("magic", event.target.value)}
-                  rows={3}
-                  placeholder="US+Comcast+eyeball-network, DE+Hetzner"
+                <MagicSuggestionTextarea
+                  value={visibleMagicValue(props.filters.magic)}
+                  options={filterSuggestions.magicStrings}
+                  onChange={(value) => setFilter("magic", value)}
                 />
               </label>
             </section>
@@ -363,6 +363,128 @@ export function FilterPanel(props: FilterPanelProps) {
   );
 }
 
+function MagicSuggestionTextarea({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const listboxId = useId();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [cursorPosition, setCursorPosition] = useState(value.length);
+  const visibleOptions = useMemo(() => {
+    const query = magicSegmentAt(value, cursorPosition).query.toLowerCase();
+    const matches = query ? options.filter((option) => option.toLowerCase().includes(query)) : options;
+    return matches.slice(0, MAX_VISIBLE_SUGGESTIONS);
+  }, [cursorPosition, options, value]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [options, value, cursorPosition]);
+
+  const showOptions = open && visibleOptions.length > 0;
+  const activeOptionId = showOptions ? `${listboxId}-${activeIndex}` : undefined;
+
+  const updateCursorPosition = (textarea: HTMLTextAreaElement) => {
+    setCursorPosition(textarea.selectionStart ?? textarea.value.length);
+  };
+
+  const selectOption = (option: string) => {
+    const position = textareaRef.current?.selectionStart ?? cursorPosition;
+    const segment = magicSegmentAt(value, position);
+    const nextValue = replaceMagicSegment(value, segment.start, segment.end, option);
+    const leadingWhitespace = value.slice(segment.start, segment.end).match(/^\s*/)?.[0] ?? "";
+    onChange(nextValue);
+    setOpen(false);
+    setCursorPosition(segment.start + leadingWhitespace.length + option.length);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Escape") {
+      setOpen(false);
+      return;
+    }
+
+    if (!visibleOptions.length) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => Math.min(current + 1, visibleOptions.length - 1));
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => Math.max(current - 1, 0));
+      return;
+    }
+
+    if (event.key === "Enter" && showOptions) {
+      event.preventDefault();
+      selectOption(visibleOptions[activeIndex]);
+    }
+  };
+
+  const handleOptionMouseDown = (event: MouseEvent<HTMLDivElement>, option: string) => {
+    event.preventDefault();
+    selectOption(option);
+  };
+
+  return (
+    <div className="suggestion-input">
+      <Textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+          updateCursorPosition(event.target);
+          setOpen(true);
+        }}
+        onFocus={(event) => {
+          updateCursorPosition(event.target);
+          setOpen(true);
+        }}
+        onBlur={() => window.setTimeout(() => setOpen(false), 0)}
+        onClick={(event) => updateCursorPosition(event.currentTarget)}
+        onKeyUp={(event) => updateCursorPosition(event.currentTarget)}
+        onSelect={(event) => updateCursorPosition(event.currentTarget)}
+        onKeyDown={handleKeyDown}
+        rows={3}
+        placeholder="US+Comcast+eyeball-network, DE+Hetzner"
+        role="combobox"
+        aria-label="magic string"
+        aria-autocomplete="list"
+        aria-expanded={showOptions}
+        aria-controls={listboxId}
+        aria-activedescendant={activeOptionId}
+      />
+      {showOptions && (
+        <div id={listboxId} className="suggestion-popover" role="listbox" aria-label="候选列表">
+          {visibleOptions.map((option, index) => (
+            <div
+              id={`${listboxId}-${index}`}
+              className="suggestion-option"
+              key={option}
+              role="option"
+              aria-selected={index === activeIndex}
+              onMouseDown={(event) => handleOptionMouseDown(event, option)}
+            >
+              {option}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ThemeIcon({ mode }: { mode: ThemeMode }) {
   if (mode === "light") return <Sun size={18} />;
   if (mode === "dark") return <Moon size={18} />;
@@ -477,6 +599,25 @@ function cleanFilterValue(value: string | boolean): string | boolean | undefined
     return value.trim() ? value : undefined;
   }
   return value || undefined;
+}
+
+function visibleMagicValue(value: string | undefined): string {
+  return value?.trim().toLowerCase() === "world" ? "" : value || "";
+}
+
+function magicSegmentAt(value: string, position: number): { start: number; end: number; query: string } {
+  const cursor = Math.max(0, Math.min(position, value.length));
+  const start = value.lastIndexOf(",", Math.max(0, cursor - 1)) + 1;
+  const nextComma = value.indexOf(",", cursor);
+  const end = nextComma === -1 ? value.length : nextComma;
+  return { start, end, query: value.slice(start, end).trim() };
+}
+
+function replaceMagicSegment(value: string, start: number, end: number, option: string): string {
+  const segment = value.slice(start, end);
+  const leadingWhitespace = segment.match(/^\s*/)?.[0] ?? "";
+  const trailingWhitespace = segment.trim() ? segment.match(/\s*$/)?.[0] ?? "" : "";
+  return `${value.slice(0, start)}${leadingWhitespace}${option}${trailingWhitespace}${value.slice(end)}`;
 }
 
 function parseIpVersionSelection(value: string): IpVersionSelection {

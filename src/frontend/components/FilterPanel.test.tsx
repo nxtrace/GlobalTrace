@@ -5,6 +5,11 @@ import { filterChips } from "../../shared/filters";
 import { FilterPanel } from "./FilterPanel";
 import type { TraceFilters } from "../../shared/types";
 
+const MAGIC_SUGGESTIONS = [
+  "Los Angeles+US+AS7922+eyeball-network",
+  "Falkenstein+DE+AS24940+datacenter-network",
+];
+
 describe("FilterPanel", () => {
   it("shows active filters, advanced controls, and reset action", () => {
     const filters: TraceFilters = { country: "US", city: "Los Angeles", eyeball: true };
@@ -133,6 +138,64 @@ describe("FilterPanel", () => {
     expect(onIpVersionChange).toHaveBeenNthCalledWith(2, "");
   });
 
+  it("shows the example placeholder instead of default world magic", () => {
+    renderPanel();
+
+    const magicInput = screen.getByLabelText("magic string");
+    expect(magicInput).toHaveValue("");
+    expect(magicInput).toHaveAttribute("placeholder", "US+Comcast+eyeball-network, DE+Hetzner");
+    expect(screen.getByTestId("filter-chips")).toHaveTextContent("world");
+  });
+
+  it("shows magic string suggestions and selects them with the keyboard", () => {
+    const onFiltersChange = vi.fn();
+    renderPanel({
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: [],
+        magicStrings: MAGIC_SUGGESTIONS,
+      },
+      onFiltersChange,
+    });
+
+    const magicInput = screen.getByLabelText("magic string");
+    fireEvent.focus(magicInput);
+    expectSuggestionOptions(MAGIC_SUGGESTIONS);
+
+    fireEvent.keyDown(magicInput, { key: "ArrowDown" });
+    fireEvent.keyDown(magicInput, { key: "Enter" });
+
+    expect(onFiltersChange).toHaveBeenCalledWith({ magic: "Falkenstein+DE+AS24940+datacenter-network" });
+  });
+
+  it("filters magic suggestions by the current comma-separated segment", () => {
+    const onFiltersChange = vi.fn();
+    renderPanel({
+      filters: { magic: "US, Falk" },
+      chips: filterChips({ magic: "US, Falk" }),
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: [],
+        magicStrings: MAGIC_SUGGESTIONS,
+      },
+      onFiltersChange,
+    });
+
+    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
+    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    fireEvent.focus(magicInput);
+
+    expectSuggestionOptions(["Falkenstein+DE+AS24940+datacenter-network"]);
+
+    fireEvent.mouseDown(screen.getByRole("option", { name: "Falkenstein+DE+AS24940+datacenter-network" }));
+
+    expect(onFiltersChange).toHaveBeenCalledWith({ magic: "US, Falkenstein+DE+AS24940+datacenter-network" });
+  });
+
   it("clears magic when structured filters are edited", () => {
     const onFiltersChange = vi.fn();
     renderPanel({ filters: { magic: "DE+AS24940" }, chips: filterChips({ magic: "DE+AS24940" }), onFiltersChange });
@@ -157,6 +220,7 @@ describe("FilterPanel", () => {
         cities: ["Falkenstein", "Los Angeles"],
         asns: ["AS7922", "AS24940"],
         networks: ["Comcast", "Hetzner Online"],
+        magicStrings: MAGIC_SUGGESTIONS,
       },
       onFiltersChange,
     });
@@ -192,6 +256,7 @@ describe("FilterPanel", () => {
         cities: ["Falkenstein", "Los Angeles"],
         asns: ["AS7922", "AS24940"],
         networks: ["Comcast", "Hetzner Online"],
+        magicStrings: MAGIC_SUGGESTIONS,
       },
       onFiltersChange,
     });

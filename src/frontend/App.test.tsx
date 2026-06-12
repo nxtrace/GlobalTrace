@@ -87,6 +87,7 @@ describe("App", () => {
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
     expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
     expect(screen.getByText("249/250")).toBeInTheDocument();
+    expect(screen.getByLabelText("magic string")).toHaveValue("");
     expect(document.documentElement.dataset.theme).toBe("system");
   });
 
@@ -232,6 +233,27 @@ describe("App", () => {
     const networkListbox = screen.getByRole("listbox", { name: "候选列表" });
     expect(within(networkListbox).getByRole("option", { name: "Comcast" })).toBeInTheDocument();
     expect(within(networkListbox).queryByRole("option", { name: "Hetzner Online" })).not.toBeInTheDocument();
+  });
+
+  it("connects online probe suggestions to the magic string input", async () => {
+    mockApi();
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    const magicInput = screen.getByLabelText("magic string");
+    expect(magicInput).toHaveValue("");
+
+    fireEvent.focus(magicInput);
+    const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
+    expect(within(magicListbox).getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" })).toBeInTheDocument();
+    expect(within(magicListbox).getByRole("option", { name: "Falkenstein+DE+AS24940+datacenter-network" })).toBeInTheDocument();
+
+    fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
+    });
+    expect(magicInput).toHaveValue("Los Angeles+US+AS7922+eyeball-network");
   });
 
   it("caps box selection at ten probes and updates the probe limit", async () => {

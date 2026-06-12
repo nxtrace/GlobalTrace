@@ -72,6 +72,7 @@ export interface ProbeFilterSuggestions {
   cities: string[];
   asns: string[];
   networks: string[];
+  magicStrings: string[];
 }
 
 export function probeFilterSuggestions(probes: GlobalpingProbe[], filters: TraceFilters = {}): ProbeFilterSuggestions {
@@ -83,6 +84,7 @@ export function probeFilterSuggestions(probes: GlobalpingProbe[], filters: Trace
       compareAsn,
     ),
     networks: uniqueSorted(suggestionProbes(probes, filters, "network").map((probe) => probe.location.network)),
+    magicStrings: Array.from(new Set(filterProbes(probes, { ...filters, magic: undefined }).map(probeToMagic))),
   };
 }
 

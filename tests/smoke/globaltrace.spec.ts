@@ -48,6 +48,13 @@ for (const viewport of viewports) {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
     await expect(page.getByText("可创建诊断 249/250（当前 IP）")).toBeVisible();
+    const magicInput = page.getByLabel("magic string");
+    await expect(magicInput).toHaveValue("");
+    await magicInput.click();
+    const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
+    await expect(magicSuggestions.getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" })).toBeVisible();
+    await expect(magicSuggestions.getByRole("option", { name: "Falkenstein+DE+AS24940+datacenter-network" })).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "切换到 3D 视图" })).toHaveCount(0);
     await expect(page.locator(".maplibregl-canvas")).toBeVisible();
     await expectDarkMapControls(page);

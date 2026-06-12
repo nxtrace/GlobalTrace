@@ -90,6 +90,11 @@ describe("shared filters", () => {
       cities: ["Falkenstein", "Los Angeles"],
       asns: ["AS7922", "AS24940"],
       networks: ["Comcast", "Hetzner Online"],
+      magicStrings: [
+        "Los Angeles+US+AS7922+eyeball-network",
+        "Falkenstein+DE+AS24940+datacenter-network",
+        "US+AS7922+eyeball-network",
+      ],
     });
   });
 
@@ -103,6 +108,9 @@ describe("shared filters", () => {
     expect(suggestions.networks).toEqual(["Comcast"]);
     expect(suggestions.countries).toEqual(["DE"]);
     expect(probeFilterSuggestions(probes, { country: "US", eyeball: true }).asns).toEqual(["AS7922"]);
+    expect(probeFilterSuggestions(probes, { country: "US", magic: "DE+Hetzner" }).magicStrings).toEqual([
+      "Los Angeles+US+AS7922+eyeball-network",
+    ]);
   });
 
   it("turns a map-selected probe into a best-effort magic selector", () => {
