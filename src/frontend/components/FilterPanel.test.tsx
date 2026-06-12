@@ -14,11 +14,22 @@ const CHINA_MAGIC_SUGGESTIONS = [
   "CN+AS4134",
   "Shanghai+CN+AS4134+eyeball-network",
 ];
+const CHINA_NETWORK_MAGIC_SUGGESTIONS = [
+  "CN+Shanghai",
+  "CN+AS4134",
+  "CN+China Telecom",
+  "CN+AS4134+China Telecom",
+  "Shanghai+CN+China Telecom",
+  "Shanghai+CN+AS4134+China Telecom",
+  "Shanghai+CN+AS4134+eyeball-network",
+];
 const NETWORK_MAGIC_SUGGESTIONS = [
   "US+Los Angeles",
   "US+AS7922",
   "US+Comcast",
   "US+AS7922+Comcast",
+  "Los Angeles+US+Comcast",
+  "Los Angeles+US+AS7922+Comcast",
   "Los Angeles+US+AS7922+eyeball-network",
 ];
 
@@ -169,7 +180,10 @@ describe("FilterPanel", () => {
 
     const magicInput = screen.getByLabelText("magic string");
     expect(magicInput).toHaveValue("");
-    expect(magicInput).toHaveAttribute("placeholder", "Los Angeles+US+AS7922+eyeball-network, Shanghai+CN+AS4134");
+    expect(magicInput).toHaveAttribute(
+      "placeholder",
+      "Los Angeles+US+AS7922+Comcast, Shanghai+CN+AS4134+China Telecom",
+    );
     fireEvent.focus(magicInput);
     expect(screen.queryByRole("listbox", { name: "候选列表" })).not.toBeInTheDocument();
     expect(screen.getByTestId("filter-chips")).toHaveTextContent("world");
@@ -312,7 +326,12 @@ describe("FilterPanel", () => {
     magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
     fireEvent.focus(magicInput);
 
-    expectSuggestionOptions(["US+Comcast", "US+AS7922+Comcast"]);
+    expectSuggestionOptions([
+      "US+Comcast",
+      "US+AS7922+Comcast",
+      "Los Angeles+US+Comcast",
+      "Los Angeles+US+AS7922+Comcast",
+    ]);
 
     first.unmount();
     renderPanel({
@@ -331,7 +350,56 @@ describe("FilterPanel", () => {
     const updatedMagicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
     updatedMagicInput.setSelectionRange(updatedMagicInput.value.length, updatedMagicInput.value.length);
     fireEvent.focus(updatedMagicInput);
-    expectSuggestionOptions(["US+AS7922+Comcast"]);
+    expectSuggestionOptions([
+      "US+AS7922+Comcast",
+      "Los Angeles+US+AS7922+Comcast",
+    ]);
+  });
+
+  it("matches network and city magic suggestions with partial network tokens", () => {
+    const first = renderPanel({
+      filters: { magic: "China Telecom+Sh" },
+      chips: filterChips({ magic: "China Telecom+Sh" }),
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: ["China Telecom"],
+        tags: ["eyeball-network"],
+        magicStrings: CHINA_NETWORK_MAGIC_SUGGESTIONS,
+      },
+    });
+
+    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
+    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    fireEvent.focus(magicInput);
+
+    expectSuggestionOptions([
+      "Shanghai+CN+China Telecom",
+      "Shanghai+CN+AS4134+China Telecom",
+    ]);
+
+    first.unmount();
+    renderPanel({
+      filters: { magic: "AS4134+China Tele" },
+      chips: filterChips({ magic: "AS4134+China Tele" }),
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: ["China Telecom"],
+        tags: ["eyeball-network"],
+        magicStrings: CHINA_NETWORK_MAGIC_SUGGESTIONS,
+      },
+    });
+
+    const updatedMagicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
+    updatedMagicInput.setSelectionRange(updatedMagicInput.value.length, updatedMagicInput.value.length);
+    fireEvent.focus(updatedMagicInput);
+    expectSuggestionOptions([
+      "CN+AS4134+China Telecom",
+      "Shanghai+CN+AS4134+China Telecom",
+    ]);
   });
 
   it("clears magic when structured filters are edited", () => {

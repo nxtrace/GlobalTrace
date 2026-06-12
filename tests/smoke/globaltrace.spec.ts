@@ -54,10 +54,10 @@ for (const viewport of viewports) {
     await expect(page.getByRole("listbox", { name: "候选列表" })).toHaveCount(0);
     await magicInput.fill("US+Com");
     const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
-    await expect(magicSuggestions.getByRole("option", { name: "US+Comcast" })).toBeVisible();
-    await expect(magicSuggestions.getByRole("option", { name: "US+AS7922+Comcast" })).toBeVisible();
+    await expect(magicSuggestions.getByRole("option", { name: "US+Comcast", exact: true })).toBeVisible();
+    await expect(magicSuggestions.getByRole("option", { name: "US+AS7922+Comcast", exact: true })).toBeVisible();
     await expectSuggestionPopoverOnTop(magicSuggestions);
-    await magicSuggestions.getByRole("option", { name: "US+Comcast" }).click();
+    await magicSuggestions.getByRole("option", { name: "US+Comcast", exact: true }).click();
     await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
     await expect(magicInput).toHaveValue("US+Comcast");
     await magicInput.fill("");
@@ -370,6 +370,9 @@ test("generic magic and tag suggestions come from visible mock probes", async ({
   const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
   await expect(magicSuggestions.getByRole("option", { name: "CN+Shanghai" })).toBeVisible();
   await expect(magicSuggestions.getByRole("option", { name: "Shanghai+CN+AS4134+eyeball-network" })).toBeVisible();
+  await magicInput.fill("China Telecom+Sh");
+  await expect(page.getByText("2 / 4 probes 匹配")).toBeVisible();
+  await expect(magicSuggestions.getByRole("option", { name: "Shenzhen+CN+AS4134+China Telecom" })).toBeVisible();
 
   await page.getByRole("button", { name: "重置筛选" }).click();
   await expect(magicInput).toHaveValue("");

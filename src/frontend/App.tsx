@@ -1,5 +1,5 @@
 import { AlertCircle, Eye, Loader2 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   createTrace,
   enrichTrace,
@@ -105,7 +105,8 @@ export function App() {
   const finalResult = result?.status === "in-progress" ? null : result;
   const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
   const canSubmit = configReady && !turnstileGate;
-  const filteredProbes = useMemo(() => filterProbes(probes, filters), [filters, probes]);
+  const deferredFilters = useDeferredValue(filters);
+  const filteredProbes = useMemo(() => filterProbes(probes, deferredFilters), [deferredFilters, probes]);
   const filterSuggestionFilters = useMemo<TraceFilters>(() => ({
     country: filters.country,
     city: filters.city,

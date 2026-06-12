@@ -413,6 +413,14 @@ describe("App", () => {
     expect(within(magicListbox).getByRole("option", { name: "CN+AS4134" })).toBeInTheDocument();
     expect(within(magicListbox).getByRole("option", { name: "Shenzhen+CN+AS4134+eyeball-network" })).toBeInTheDocument();
     expect(within(magicListbox).getByRole("option", { name: "Nanning+CN+AS4134+eyeball-network" })).toBeInTheDocument();
+
+    fireEvent.change(magicInput, { target: { value: "China Telecom+Sh" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("2 / 4 probes 匹配")).toBeInTheDocument();
+    });
+    const networkMagicListbox = screen.getByRole("listbox", { name: "候选列表" });
+    expect(within(networkMagicListbox).getByRole("option", { name: "Shenzhen+CN+AS4134+China Telecom" })).toBeInTheDocument();
   });
 
   it("shows generic magic suggestions for partial city tokens", async () => {

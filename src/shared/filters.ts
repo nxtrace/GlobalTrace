@@ -294,6 +294,8 @@ function magicSuggestionsForProbes(probes: GlobalpingProbe[]): string[] {
     addMagicCandidate(generic, [country, asn]);
     addMagicCandidate(generic, [country, network]);
     addMagicCandidate(generic, [country, asn, network]);
+    addMagicCandidate(generic, [city, country, network]);
+    addMagicCandidate(generic, [city, country, asn, network]);
     full.add(probeToMagic(probe));
   }
   return Array.from(new Set([...generic, ...full]));

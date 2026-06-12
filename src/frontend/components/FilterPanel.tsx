@@ -66,7 +66,7 @@ const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
   magicStrings: [],
 };
 const MAX_VISIBLE_SUGGESTIONS = 8;
-const MAGIC_PLACEHOLDER = "Los Angeles+US+AS7922+eyeball-network, Shanghai+CN+AS4134";
+const MAGIC_PLACEHOLDER = "Los Angeles+US+AS7922+Comcast, Shanghai+CN+AS4134+China Telecom";
 
 interface IndexedMagicToken {
   lower: string;
