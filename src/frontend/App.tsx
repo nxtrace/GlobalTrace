@@ -28,6 +28,7 @@ import {
   probeToMagic,
 } from "../shared/filters";
 import { measurementToTraceResponse } from "../shared/transform";
+import type { GlobalpingMeasurement } from "../shared/globalping";
 import {
   DEFAULT_MAP_STYLE_URL,
   DEFAULT_PROBE_LIMIT,
@@ -41,7 +42,8 @@ import {
 import { nextThemeMode, type ThemeMode } from "./theme";
 import "./styles.css";
 
-export const POLL_DELAY_MS = 650;
+export const POLL_DELAY_MS = 1000;
+export const ENRICH_AFTER_FINISHED_DELAY_MS = 500;
 export const TRACE_MAX_POLL_ATTEMPTS = 120;
 const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
@@ -193,14 +195,14 @@ export function App() {
       }
 
       let measurement = await fetchGlobalpingMeasurement(measurementId, nextGlobalpingToken, controller.signal);
-      let current = measurementToTraceResponse(measurement);
+      let current = mtrMeasurementToTraceResponse(measurement);
       setResult(current);
       let attempts = 0;
       while (poll && current.status === "in-progress" && attempts < TRACE_MAX_POLL_ATTEMPTS) {
         attempts += 1;
         await sleep(POLL_DELAY_MS, controller.signal);
         measurement = await fetchGlobalpingMeasurement(measurementId, nextGlobalpingToken, controller.signal);
-        current = measurementToTraceResponse(measurement);
+        current = mtrMeasurementToTraceResponse(measurement);
         setResult(current);
       }
 
@@ -211,7 +213,7 @@ export function App() {
 
       const enriched =
         enrichmentMode === "worker"
-          ? await enrichTrace(measurementId)
+          ? await enrichTraceAfterGlobalpingCooldown(measurementId, controller.signal)
           : await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, { signal: controller.signal });
       setResult(enriched);
       setMessage("");
@@ -220,6 +222,9 @@ export function App() {
       }
     } catch (error) {
       if (isAbortError(error)) return;
+      if (isNonMtrMeasurementError(error)) {
+        setResult(null);
+      }
       setMessage(userFacingErrorMessage(error, "加载 measurement 失败"));
     } finally {
       if (pollAbortRef.current === controller) {
@@ -447,9 +452,19 @@ export function App() {
     setNexttraceTokenDraft(trimmed);
     writeStoredNexttraceToken(trimmed);
     if (trimmed && result?.status === "finished" && result.measurementId) {
-      void loadTrace(result.measurementId, false, globalpingToken, trimmed, "created", "nexttraceToken");
+      setLoading(true);
+      void enrichTraceWithNexttraceToken(result, trimmed)
+        .then((enriched) => {
+          setResult(enriched);
+          setMessage("");
+          setWorkspaceMode("result");
+        })
+        .catch((error: unknown) => {
+          setMessage(userFacingErrorMessage(error, "加载 measurement 失败"));
+        })
+        .finally(() => setLoading(false));
     }
-  }, [globalpingToken, loadTrace, nexttraceTokenDraft, result]);
+  }, [nexttraceTokenDraft, result]);
 
   const clearNexttraceToken = useCallback(() => {
     setNexttraceToken("");
@@ -782,6 +797,22 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
       { once: true },
     );
   });
+}
+
+async function enrichTraceAfterGlobalpingCooldown(measurementId: string, signal: AbortSignal): Promise<TraceResultResponse> {
+  await sleep(ENRICH_AFTER_FINISHED_DELAY_MS, signal);
+  return enrichTrace(measurementId, signal);
+}
+
+function mtrMeasurementToTraceResponse(measurement: GlobalpingMeasurement): TraceResultResponse {
+  if (measurement.type !== "mtr") {
+    throw new Error("measurement.type must be mtr");
+  }
+  return measurementToTraceResponse(measurement);
+}
+
+function isNonMtrMeasurementError(error: unknown): boolean {
+  return error instanceof Error && error.message === "measurement.type must be mtr";
 }
 
 function isAbortError(error: unknown): boolean {

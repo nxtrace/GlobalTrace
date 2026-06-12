@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, POLL_DELAY_MS, TRACE_MAX_POLL_ATTEMPTS } from "./App";
+import { App, ENRICH_AFTER_FINISHED_DELAY_MS, POLL_DELAY_MS, TRACE_MAX_POLL_ATTEMPTS } from "./App";
+import { measurementToTraceResponse } from "../shared/transform";
 import type { GlobalpingProbe, TraceResultResponse } from "../shared/types";
 import type { GlobalpingMeasurement } from "../shared/globalping";
 
@@ -215,7 +216,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
     });
-    expect(fetchMock.mock.calls.filter(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toHaveLength(3);
+    expect(fetchMock.mock.calls.filter(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toHaveLength(1);
     expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
   });
 
@@ -556,6 +557,29 @@ describe("App", () => {
     await waitFor(() => expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]));
   });
 
+  it("waits after Globalping reports finished before worker enrichment", async () => {
+    const fetchMock = mockApi({ traceStatus: (polls) => (polls === 1 ? "in-progress" : "finished") });
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.filter(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toHaveLength(1);
+    });
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.filter(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toHaveLength(2);
+    }, { timeout: POLL_DELAY_MS + 500 });
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+
+    await waitMs(ENRICH_AFTER_FINISHED_DELAY_MS - 100);
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+
+    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]), { timeout: 500 });
+  });
+
   it("opens shared results directly when legacy config includes a Turnstile site key", async () => {
     const fetchMock = mockApi({ traceStatus: () => "finished", legacyTurnstileSiteKey: "site-key" });
     window.history.replaceState(null, "", "/?measurement=m123");
@@ -565,6 +589,20 @@ describe("App", () => {
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(screen.queryByText(/Turnstile/)).not.toBeInTheDocument();
     expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]);
+  });
+
+  it("rejects shared non-MTR measurements without rendering a temporary result", async () => {
+    const fetchMock = mockApi({
+      traceStatus: () => "finished",
+      measurement: (status) => ({ ...globalpingMeasurement(status), type: "ping" }),
+    });
+    window.history.replaceState(null, "", "/?measurement=m123");
+
+    render(<App />);
+
+    expect(await screen.findByText("measurement.type must be mtr")).toBeInTheDocument();
+    expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
   });
 
   it("returns to the home view from the brand link", async () => {
@@ -638,7 +676,7 @@ describe("App", () => {
   });
 
   it("keeps probe selection visible while polling, then lets users close and reopen results", async () => {
-    const fetchMock = mockApi();
+    const fetchMock = mockApi({ traceStatus: (polls) => (polls === 1 ? "in-progress" : "finished") });
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
@@ -651,7 +689,7 @@ describe("App", () => {
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "查看结果" })).not.toBeInTheDocument();
 
-    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(await screen.findByText("result:finished:m123", {}, { timeout: POLL_DELAY_MS + ENRICH_AFTER_FINISHED_DELAY_MS + 1000 })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭结果" }));
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
@@ -770,11 +808,11 @@ function mockApi(
     }
     if (path === "https://api.globalping.io/v1/measurements/m123") {
       tracePolls += 1;
-      const status = options.traceStatus?.(tracePolls) ?? (tracePolls === 1 ? "in-progress" : "finished");
+      const status = options.traceStatus?.(tracePolls) ?? "finished";
       return json((options.measurement || globalpingMeasurement)(status));
     }
     if (path === "/api/trace/enrich" && init?.method === "POST") {
-      return json(traceResult("finished", options.enrichmentStatus));
+      return json(traceResultFromMeasurement(options.measurement?.("finished"), options.enrichmentStatus));
     }
     if (path === `https://ipinfo.io/${FALLBACK_HOP_IP}`) {
       return json({
@@ -930,6 +968,17 @@ function traceResult(
   };
 }
 
+function traceResultFromMeasurement(
+  measurement: GlobalpingMeasurement | undefined,
+  enrichmentStatus: TraceResultResponse["enrichment"]["status"] = "skipped",
+): TraceResultResponse {
+  if (!measurement) return traceResult("finished", enrichmentStatus);
+  return {
+    ...measurementToTraceResponse(measurement),
+    enrichment: { status: enrichmentStatus, cached: 0, fetched: 0, errors: [] },
+  };
+}
+
 function globalpingMeasurementWithHop(status: TraceResultResponse["status"]): GlobalpingMeasurement {
   const measurement = globalpingMeasurement(status);
   if (status !== "finished") return measurement;
@@ -962,6 +1011,10 @@ function globalpingMeasurementWithHop(status: TraceResultResponse["status"]): Gl
 }
 
 const FALLBACK_HOP_IP = "206.83.141.0";
+
+function waitMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 const probes: GlobalpingProbe[] = [
   {

@@ -41,7 +41,7 @@ if (create.status !== 202) {
 const created = (await create.json()) as { id: string };
 let lastStatus = "";
 for (let attempt = 0; attempt < 20; attempt += 1) {
-  await new Promise((resolve) => setTimeout(resolve, 650));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
   const measurementResponse = await fetch(`https://api.globalping.io/v1/measurements/${encodeURIComponent(created.id)}`, {
     headers: { Accept: "application/json" },
   });
@@ -55,7 +55,7 @@ for (let attempt = 0; attempt < 20; attempt += 1) {
       new Request("https://globaltrace.local/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ measurement }),
+        body: JSON.stringify({ measurementId: created.id }),
       }),
       env,
     );

@@ -52,6 +52,7 @@ describe("frontend api helpers", () => {
   });
 
   it("enriches completed Globalping measurements through the local Worker", async () => {
+    const controller = new AbortController();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -69,9 +70,10 @@ describe("frontend api helpers", () => {
       ),
     );
 
-    await expect(enrichTrace("m123")).resolves.toMatchObject({ measurementId: "m123" });
+    await expect(enrichTrace("m123", controller.signal)).resolves.toMatchObject({ measurementId: "m123" });
     const [, init] = vi.mocked(fetch).mock.calls[0];
     expect(init?.method).toBe("POST");
+    expect(init?.signal).toBe(controller.signal);
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/trace/enrich");
     expect(JSON.parse(String(init?.body))).toMatchObject({
       measurementId: "m123",

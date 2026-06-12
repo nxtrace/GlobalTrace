@@ -93,11 +93,12 @@ export async function fetchCachedTrace(measurementId: string, signal?: AbortSign
   return body as TraceResultResponse;
 }
 
-export async function enrichTrace(measurementId: string): Promise<TraceResultResponse> {
+export async function enrichTrace(measurementId: string, signal?: AbortSignal): Promise<TraceResultResponse> {
   const request: TraceEnrichRequest = { measurementId };
   return apiJson<TraceResultResponse>("/api/trace/enrich", {
     method: "POST",
     body: JSON.stringify(request),
+    signal,
   });
 }
 
