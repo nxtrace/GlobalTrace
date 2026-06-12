@@ -1214,6 +1214,65 @@ summary:focus-visible {
   max-width: 100%;
 }
 
+.turnstile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(7, 11, 12, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.turnstile-dialog {
+  width: min(100%, 390px);
+  max-height: calc(100svh - 36px);
+  display: grid;
+  gap: 16px;
+  overflow: auto;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-panel);
+}
+
+.turnstile-dialog-copy {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+}
+
+.turnstile-dialog-copy h2,
+.turnstile-dialog-copy p {
+  margin: 0;
+}
+
+.turnstile-dialog-copy h2 {
+  color: var(--ink);
+  font-size: 20px;
+}
+
+.turnstile-dialog-copy p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.turnstile-dialog .turnstile-box {
+  justify-items: center;
+  text-align: center;
+}
+
+.turnstile-dialog .turnstile-widget-shell {
+  width: min(300px, 100%);
+}
+
+.turnstile-dialog-actions {
+  display: flex;
+  justify-content: center;
+}
+
 .status-bar {
   min-height: 52px;
   padding: 9px 10px;

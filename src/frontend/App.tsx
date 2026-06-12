@@ -13,6 +13,7 @@ import {
 import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
 import { LiquidGlassSurface } from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
+import { TurnstileBox } from "./components/TurnstileBox";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
@@ -41,6 +42,7 @@ const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
 type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
 type TraceLoadSource = "created" | "shared";
+type TurnstileGate = { kind: "create" } | { kind: "shared"; measurementId: string };
 
 const AboutPage = lazy(() => import("./components/AboutPage").then((module) => ({ default: module.AboutPage })));
 const ProbeMap = lazy(() => import("./components/ProbeMap").then((module) => ({ default: module.ProbeMap })));
@@ -63,8 +65,8 @@ export function App() {
   const [packets, setPackets] = useState(3);
   const [limit, setLimit] = useState(DEFAULT_PROBE_LIMIT);
   const [filters, setFilters] = useState<TraceFilters>({ magic: "world" });
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const [turnstileResetNonce, setTurnstileResetNonce] = useState(0);
+  const [turnstileGate, setTurnstileGate] = useState<TurnstileGate | null>(null);
+  const [dismissedSharedTurnstileId, setDismissedSharedTurnstileId] = useState("");
   const [configReady, setConfigReady] = useState(false);
   const [probes, setProbes] = useState<GlobalpingProbe[]>([]);
   const [probesStatus, setProbesStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -81,12 +83,19 @@ export function App() {
   const pollAbortRef = useRef<AbortController | null>(null);
   const bootstrappedRef = useRef(false);
   const createdMeasurementIdRef = useRef("");
+  const sharedTraceStartedRef = useRef("");
   const mapSelectionLimitBeforeRef = useRef<number | null>(null);
   const mapSelectionLimitManuallyChangedRef = useRef(false);
 
   const finalResult = result?.status === "in-progress" ? null : result;
   const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
-  const turnstileReady = configReady && (!config.turnstileSiteKey || Boolean(turnstileToken));
+  const canSubmit = configReady && !turnstileGate;
+  const sharedTurnstileDismissed = Boolean(
+    sharedLoadingMeasurementId &&
+      config.turnstileSiteKey &&
+      dismissedSharedTurnstileId === sharedLoadingMeasurementId &&
+      !turnstileGate,
+  );
   const filteredProbes = useMemo(() => filterProbes(probes, filters), [filters, probes]);
   const filterSuggestions = useMemo(() => probeFilterSuggestions(probes, filters), [filters, probes]);
   const chips = useMemo(() => filterChips(filters), [filters]);
@@ -127,11 +136,6 @@ export function App() {
     void loadLimits(globalpingToken);
   }, [globalpingToken, route]);
 
-  const resetTurnstile = useCallback(() => {
-    setTurnstileToken("");
-    setTurnstileResetNonce((current) => current + 1);
-  }, []);
-
   const loadTrace = useCallback(async (
     measurementId: string,
     poll: boolean,
@@ -139,7 +143,6 @@ export function App() {
     nextTurnstileToken: string,
     source: TraceLoadSource,
   ) => {
-    let turnstileTokenConsumed = false;
     pollAbortRef.current?.abort();
     const controller = new AbortController();
     pollAbortRef.current = controller;
@@ -180,9 +183,6 @@ export function App() {
         return;
       }
 
-      if (source === "shared" && nextTurnstileToken) {
-        turnstileTokenConsumed = true;
-      }
       const enriched = await enrichTrace(measurement, nextTurnstileToken);
       setResult(enriched);
       setMessage("");
@@ -199,28 +199,39 @@ export function App() {
           setSharedLoadingMeasurementId("");
         }
         setLoading(false);
-        if (turnstileTokenConsumed) {
-          resetTurnstile();
-        }
       }
     }
-  }, [resetTurnstile]);
+  }, []);
 
   useEffect(() => {
     if (route !== "/" || !configReady) return;
     const id = new URL(window.location.href).searchParams.get("measurement");
     if (!id || id === createdMeasurementIdRef.current) return;
+    if (sharedTraceStartedRef.current === id) return;
     if (hasReusableSharedResult(result, id)) return;
-    if (config.turnstileSiteKey && !turnstileToken) {
+    if (config.turnstileSiteKey) {
       if (result?.measurementId !== id) {
         setSharedLoadingMeasurementId(id);
         setWorkspaceMode("result");
         setMessage("");
       }
+      if (dismissedSharedTurnstileId === id) return;
+      if (turnstileGate?.kind === "shared" && turnstileGate.measurementId === id) return;
+      setTurnstileGate({ kind: "shared", measurementId: id });
       return;
     }
-    void loadTrace(id, true, globalpingToken, turnstileToken, "shared");
-  }, [config.turnstileSiteKey, configReady, globalpingToken, loadTrace, route, turnstileToken]);
+    sharedTraceStartedRef.current = id;
+    void loadTrace(id, true, globalpingToken, "", "shared");
+  }, [
+    config.turnstileSiteKey,
+    configReady,
+    dismissedSharedTurnstileId,
+    globalpingToken,
+    loadTrace,
+    result,
+    route,
+    turnstileGate,
+  ]);
 
   useEffect(() => () => pollAbortRef.current?.abort(), []);
 
@@ -257,13 +268,7 @@ export function App() {
     }
   };
 
-  const submit = async () => {
-    const activeTurnstileToken = turnstileToken;
-    if (config.turnstileSiteKey && !activeTurnstileToken) {
-      setMessage("请先完成人机验证");
-      return;
-    }
-
+  const createAndLoadTrace = useCallback(async (activeTurnstileToken: string) => {
     setLoading(true);
     setMessage("");
     setWorkspaceMode("select");
@@ -289,12 +294,50 @@ export function App() {
     } catch (error) {
       setMessage(userFacingErrorMessage(error, "创建 trace 失败"));
     } finally {
-      if (config.turnstileSiteKey) {
-        resetTurnstile();
-      }
       setLoading(false);
     }
-  };
+  }, [filters, globalpingToken, ipVersion, limit, loadTrace, packets, port, protocol, target]);
+
+  const submit = useCallback(() => {
+    if (!configReady) return;
+    if (config.turnstileSiteKey) {
+      setMessage("");
+      setTurnstileGate({ kind: "create" });
+      return;
+    }
+    void createAndLoadTrace("");
+  }, [config.turnstileSiteKey, configReady, createAndLoadTrace]);
+
+  const handleTurnstileToken = useCallback((token: string) => {
+    if (!token || !turnstileGate) return;
+    const gate = turnstileGate;
+    setTurnstileGate(null);
+    setDismissedSharedTurnstileId("");
+    setMessage("");
+    if (gate.kind === "shared") {
+      sharedTraceStartedRef.current = gate.measurementId;
+      void loadTrace(gate.measurementId, true, globalpingToken, token, "shared");
+      return;
+    }
+    void createAndLoadTrace(token);
+  }, [createAndLoadTrace, globalpingToken, loadTrace, turnstileGate]);
+
+  const cancelTurnstileGate = useCallback(() => {
+    if (turnstileGate?.kind === "shared") {
+      setDismissedSharedTurnstileId(turnstileGate.measurementId);
+      setSharedLoadingMeasurementId(turnstileGate.measurementId);
+      setWorkspaceMode("result");
+    }
+    setTurnstileGate(null);
+  }, [turnstileGate]);
+
+  const retrySharedTurnstile = useCallback((measurementId: string) => {
+    setDismissedSharedTurnstileId("");
+    setMessage("");
+    setSharedLoadingMeasurementId(measurementId);
+    setWorkspaceMode("result");
+    setTurnstileGate({ kind: "shared", measurementId });
+  }, []);
 
   const resetMapSelectionLimitTracking = useCallback(() => {
     mapSelectionLimitBeforeRef.current = null;
@@ -404,6 +447,9 @@ export function App() {
     window.history.pushState(null, "", "/");
     setWorkspaceMode("select");
     setSharedLoadingMeasurementId("");
+    setTurnstileGate(null);
+    setDismissedSharedTurnstileId("");
+    sharedTraceStartedRef.current = "";
     setMessage("");
     setLoading(false);
     setRoute("/");
@@ -436,8 +482,7 @@ export function App() {
           selectionNotice={selectionNotice}
           loading={loading}
           turnstileSiteKey={config.turnstileSiteKey}
-          turnstileReady={turnstileReady}
-          turnstileResetNonce={turnstileResetNonce}
+          canSubmit={canSubmit}
           globalpingTokenDraft={globalpingTokenDraft}
           globalpingTokenSaved={Boolean(globalpingToken)}
           themeMode={themeMode}
@@ -448,7 +493,6 @@ export function App() {
           onPacketsChange={setPackets}
           onLimitChange={handleLimitChange}
           onFiltersChange={handleFiltersChange}
-          onTurnstileToken={setTurnstileToken}
           onGlobalpingTokenDraftChange={setGlobalpingTokenDraft}
           onSaveGlobalpingToken={saveGlobalpingToken}
           onClearGlobalpingToken={clearGlobalpingToken}
@@ -498,7 +542,11 @@ export function App() {
 
           <div className="workspace-content">
             {sharedLoadingMeasurementId ? (
-              <SharedResultLoading measurementId={sharedLoadingMeasurementId} />
+              <SharedResultLoading
+                measurementId={sharedLoadingMeasurementId}
+                requiresTurnstile={sharedTurnstileDismissed}
+                onVerify={retrySharedTurnstile}
+              />
             ) : workspaceMode === "select" || !finalResult ? (
               <div className="map-and-table">
                 {probeMapReady ? (
@@ -533,6 +581,14 @@ export function App() {
             )}
           </div>
         </div>
+        {turnstileGate && config.turnstileSiteKey && (
+          <TurnstileDialog
+            gate={turnstileGate}
+            siteKey={config.turnstileSiteKey}
+            onToken={handleTurnstileToken}
+            onCancel={cancelTurnstileGate}
+          />
+        )}
     </main>
   );
 }
@@ -583,15 +639,62 @@ function ResultsViewFallback() {
   );
 }
 
-function SharedResultLoading({ measurementId }: { measurementId: string }) {
+function TurnstileDialog({
+  gate,
+  siteKey,
+  onToken,
+  onCancel,
+}: {
+  gate: TurnstileGate;
+  siteKey: string;
+  onToken: (token: string) => void;
+  onCancel: () => void;
+}) {
+  const title = gate.kind === "shared" ? "验证后打开分享结果" : "验证后开始诊断";
+  const description = gate.kind === "shared" ? "完成 Turnstile 后会自动读取 measurement 并展示结果。" : "完成 Turnstile 后会自动创建并运行诊断。";
+
+  return (
+    <div className="turnstile-overlay">
+      <Surface asChild className="turnstile-dialog">
+        <section role="dialog" aria-modal="true" aria-labelledby="turnstile-dialog-title">
+          <div className="turnstile-dialog-copy">
+            <h2 id="turnstile-dialog-title">{title}</h2>
+            <p>{description}</p>
+          </div>
+          <TurnstileBox siteKey={siteKey} onToken={onToken} />
+          <div className="turnstile-dialog-actions">
+            <Button variant="ghost" size="sm" type="button" onClick={onCancel}>
+              取消
+            </Button>
+          </div>
+        </section>
+      </Surface>
+    </div>
+  );
+}
+
+function SharedResultLoading({
+  measurementId,
+  requiresTurnstile,
+  onVerify,
+}: {
+  measurementId: string;
+  requiresTurnstile?: boolean;
+  onVerify?: (measurementId: string) => void;
+}) {
   return (
     <Surface asChild className="shared-result-loading">
       <section role="status" aria-live="polite" aria-label="正在打开分享结果">
-        <Loader2 size={24} className="spin" />
+        {!requiresTurnstile && <Loader2 size={24} className="spin" />}
         <div>
-          <h2>正在打开分享结果</h2>
-          <p>正在读取 Globalping measurement，完成后会自动展示结果。</p>
+          <h2>{requiresTurnstile ? "需要完成人机验证" : "正在打开分享结果"}</h2>
+          <p>{requiresTurnstile ? "完成 Turnstile 后会自动打开分享结果。" : "正在读取 Globalping measurement，完成后会自动展示结果。"}</p>
           <span>{measurementId}</span>
+          {requiresTurnstile && (
+            <Button variant="glass" size="sm" type="button" onClick={() => onVerify?.(measurementId)}>
+              继续验证
+            </Button>
+          )}
         </div>
       </section>
     </Surface>

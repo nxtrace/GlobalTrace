@@ -45,14 +45,17 @@ export function TurnstileBox({ siteKey, resetNonce = 0, onToken }: TurnstileBoxP
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
         callback: (token) => {
+          if (!active) return;
           onToken(token);
           setState("已验证");
         },
         "expired-callback": () => {
+          if (!active) return;
           onToken("");
           setState("已过期");
         },
         "error-callback": () => {
+          if (!active) return;
           onToken("");
           setState("验证失败");
         },

@@ -28,8 +28,7 @@ describe("FilterPanel", () => {
         selectionNotice="已从地图选择 US+Los Angeles+AS7922"
         loading={false}
         turnstileSiteKey=""
-        turnstileReady={true}
-        turnstileResetNonce={0}
+        canSubmit={true}
         globalpingTokenDraft=""
         globalpingTokenSaved={false}
         themeMode="system"
@@ -40,7 +39,6 @@ describe("FilterPanel", () => {
         onPacketsChange={vi.fn()}
         onLimitChange={vi.fn()}
         onFiltersChange={onFiltersChange}
-        onTurnstileToken={vi.fn()}
         onGlobalpingTokenDraftChange={vi.fn()}
         onSaveGlobalpingToken={vi.fn()}
         onClearGlobalpingToken={vi.fn()}
@@ -229,15 +227,16 @@ describe("FilterPanel", () => {
     expect(screen.getByText("诊断额度暂不可用")).toBeInTheDocument();
   });
 
-  it("requires a fresh Turnstile token when Turnstile is configured", () => {
-    const first = renderPanel({ turnstileSiteKey: "site-key", turnstileReady: false });
+  it("keeps the run action available when Turnstile is configured", () => {
+    const first = renderPanel({ turnstileSiteKey: "site-key", canSubmit: true });
 
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeDisabled();
+    expect(screen.getByText("Turnstile 已配置")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
 
     first.unmount();
-    renderPanel({ turnstileSiteKey: "site-key", turnstileReady: true });
+    renderPanel({ turnstileSiteKey: "site-key", canSubmit: false });
 
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeDisabled();
   });
 
   it("updates token controls, theme, and about actions", () => {
@@ -301,8 +300,7 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       selectionNotice=""
       loading={false}
       turnstileSiteKey=""
-      turnstileReady={true}
-      turnstileResetNonce={0}
+      canSubmit={true}
       globalpingTokenDraft=""
       globalpingTokenSaved={false}
       themeMode="system"
@@ -313,7 +311,6 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       onPacketsChange={vi.fn()}
       onLimitChange={vi.fn()}
       onFiltersChange={vi.fn()}
-      onTurnstileToken={vi.fn()}
       onGlobalpingTokenDraftChange={vi.fn()}
       onSaveGlobalpingToken={vi.fn()}
       onClearGlobalpingToken={vi.fn()}

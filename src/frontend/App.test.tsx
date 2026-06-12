@@ -282,7 +282,7 @@ describe("App", () => {
     expect(traceCreateBodies(fetchMock)).toHaveLength(1);
   });
 
-  it("resets Turnstile after a trace and uses a fresh token for the next trace", async () => {
+  it("opens Turnstile after submit and uses a fresh token for each trace", async () => {
     const fetchMock = mockApi({ traceStatus: () => "finished", turnstileSiteKey: "site-key" });
     let callback: ((token: string) => void) | undefined;
     let tokenCount = 0;
@@ -299,27 +299,29 @@ describe("App", () => {
         window.setTimeout(issueToken, 0);
         return "widget-id";
       }),
-      reset: vi.fn(() => {
-        window.setTimeout(issueToken, 0);
-      }),
+      reset: vi.fn(),
     };
 
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    await waitFor(() => expect(tokenCount).toBe(1));
-    await waitFor(() => expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled());
+    expect(screen.queryByText("验证后开始诊断")).not.toBeInTheDocument();
+    expect(document.querySelector(".mock-turnstile-widget")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
+    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
+    await waitFor(() => expect(tokenCount).toBe(1));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
     expect(traceEnrichBodies(fetchMock)[0].turnstileToken).toBe("turnstile-token-1");
-    await waitFor(() => expect(window.turnstile?.reset).toHaveBeenCalledWith("widget-id"));
-    await waitFor(() => expect(tokenCount).toBe(2));
+    expect(window.turnstile?.reset).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
+    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
+    await waitFor(() => expect(tokenCount).toBe(2));
     await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(2));
     expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual([
       "turnstile-token-1",
@@ -327,7 +329,7 @@ describe("App", () => {
     ]);
   });
 
-  it("resets Turnstile after a shared result and uses a fresh token for the next trace", async () => {
+  it("opens Turnstile immediately for shared results and uses a fresh token for the next trace", async () => {
     const fetchMock = mockApi({ traceStatus: () => "finished", turnstileSiteKey: "site-key" });
     let callback: ((token: string) => void) | undefined;
     let tokenCount = 0;
@@ -344,23 +346,23 @@ describe("App", () => {
         window.setTimeout(issueToken, 0);
         return "widget-id";
       }),
-      reset: vi.fn(() => {
-        window.setTimeout(issueToken, 0);
-      }),
+      reset: vi.fn(),
     };
     window.history.replaceState(null, "", "/?measurement=m123");
 
     render(<App />);
 
+    expect(await screen.findByRole("dialog", { name: "验证后打开分享结果" })).toBeInTheDocument();
     await waitFor(() => expect(tokenCount).toBe(1));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
     expect(traceEnrichBodies(fetchMock)[0].turnstileToken).toBe("turnstile-token-1");
-    await waitFor(() => expect(window.turnstile?.reset).toHaveBeenCalledWith("widget-id"));
-    await waitFor(() => expect(tokenCount).toBe(2));
+    expect(window.turnstile?.reset).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
+    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
+    await waitFor(() => expect(tokenCount).toBe(2));
     await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(2));
     expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual([
       "turnstile-token-1",
@@ -368,7 +370,7 @@ describe("App", () => {
     ]);
   });
 
-  it("keeps an enriched shared result when Turnstile expires", async () => {
+  it("keeps an enriched shared result if Turnstile expires after the dialog closes", async () => {
     const fetchMock = mockApi({
       traceStatus: () => "finished",
       turnstileSiteKey: "site-key",
@@ -392,6 +394,7 @@ describe("App", () => {
 
     render(<App />);
 
+    expect(await screen.findByRole("dialog", { name: "验证后打开分享结果" })).toBeInTheDocument();
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
     expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual(["turnstile-token-1"]);
@@ -399,7 +402,6 @@ describe("App", () => {
     act(() => {
       expiredCallback?.();
     });
-    await waitFor(() => expect(screen.getByText("已过期")).toBeInTheDocument());
     await new Promise((resolve) => window.setTimeout(resolve, 0));
 
     expect(screen.getByText("result:finished:m123")).toBeInTheDocument();
@@ -412,12 +414,76 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    await waitFor(() => expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeDisabled());
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
+    expect(screen.getByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
     expect(screen.getByText("等待验证")).toBeInTheDocument();
     expect(traceCreateBodies(fetchMock)).toHaveLength(0);
+  });
+
+  it("cancels homepage Turnstile without creating a trace", async () => {
+    const fetchMock = mockApi({ turnstileSiteKey: "site-key" });
+    window.turnstile = {
+      render: vi.fn((element) => {
+        const widget = document.createElement("div");
+        widget.className = "mock-turnstile-widget";
+        element.appendChild(widget);
+        return "widget-id";
+      }),
+      reset: vi.fn(),
+    };
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "验证后开始诊断" })).not.toBeInTheDocument());
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
+    expect(traceCreateBodies(fetchMock)).toHaveLength(0);
+  });
+
+  it("cancels and retries shared Turnstile", async () => {
+    const fetchMock = mockApi({ traceStatus: () => "finished", turnstileSiteKey: "site-key" });
+    let callback: ((token: string) => void) | undefined;
+    window.turnstile = {
+      render: vi.fn((element, options) => {
+        callback = options.callback;
+        const widget = document.createElement("div");
+        widget.className = "mock-turnstile-widget";
+        element.appendChild(widget);
+        return "widget-id";
+      }),
+      reset: vi.fn(),
+    };
+    window.history.replaceState(null, "", "/?measurement=m123");
+
+    render(<App />);
+
+    expect(await screen.findByRole("dialog", { name: "验证后打开分享结果" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "验证后打开分享结果" })).not.toBeInTheDocument());
+    expect(screen.getByText("需要完成人机验证")).toBeInTheDocument();
+    expect(screen.getByText("完成 Turnstile 后会自动打开分享结果。")).toBeInTheDocument();
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "继续验证" }));
+    expect(await screen.findByRole("dialog", { name: "验证后打开分享结果" })).toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector(".mock-turnstile-widget")).toBeInTheDocument());
+    act(() => {
+      callback?.("turnstile-token-1");
+    });
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
+    expect(traceEnrichBodies(fetchMock)[0].turnstileToken).toBe("turnstile-token-1");
   });
 
   it("returns to the home view from the brand link", async () => {

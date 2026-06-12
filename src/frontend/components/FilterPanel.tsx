@@ -4,7 +4,6 @@ import type { FilterChip, ProbeFilterSuggestions } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
-import { TurnstileBox } from "./TurnstileBox";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input, NativeSelect, Textarea } from "./ui/input";
@@ -30,8 +29,7 @@ interface FilterPanelProps {
   selectionNotice: string;
   loading: boolean;
   turnstileSiteKey: string;
-  turnstileReady: boolean;
-  turnstileResetNonce: number;
+  canSubmit: boolean;
   globalpingTokenDraft: string;
   globalpingTokenSaved: boolean;
   themeMode: ThemeMode;
@@ -42,7 +40,6 @@ interface FilterPanelProps {
   onPacketsChange: (value: number) => void;
   onLimitChange: (value: number) => void;
   onFiltersChange: (value: TraceFilters) => void;
-  onTurnstileToken: (token: string) => void;
   onGlobalpingTokenDraftChange: (token: string) => void;
   onSaveGlobalpingToken: () => void;
   onClearGlobalpingToken: () => void;
@@ -325,12 +322,6 @@ export function FilterPanel(props: FilterPanelProps) {
             </div>
           </Surface>
 
-          <TurnstileBox
-            siteKey={props.turnstileSiteKey}
-            resetNonce={props.turnstileResetNonce}
-            onToken={props.onTurnstileToken}
-          />
-
           <Surface variant="flat" className="attribution-panel">
             <span>
               Powered by{" "}
@@ -354,7 +345,7 @@ export function FilterPanel(props: FilterPanelProps) {
               size="lg"
               className="primary-action"
               type="button"
-              disabled={props.loading || !props.turnstileReady}
+              disabled={props.loading || !props.canSubmit}
               onClick={props.onSubmit}
               aria-label="开始网络路径诊断"
             >

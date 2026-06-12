@@ -251,19 +251,23 @@ for (const viewport of mobileResultViewports) {
 test("desktop filter summary constrains long magic content and keeps run controls visible", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const consoleErrors = collectConsoleErrors(page);
-  await installMocks(page, { turnstileSiteKey: "site-key" });
+  await installMocks(page, { turnstileSiteKey: "site-key", turnstileAutoToken: false });
 
   await page.goto("/");
   await expect(page.getByRole("button", { name: "开始网络路径诊断" })).toBeVisible();
+  await expect(page.locator(".mock-turnstile-widget")).toHaveCount(0);
   const longMagic = Array.from({ length: 20 }, (_, index) => `Novosibirsk-${index}+RU+AS${21000 + index}+datacenter-network`).join(
     ", ",
   );
   await page.getByLabel("magic string").fill(longMagic);
 
   await expect(page.getByTestId("filter-chips")).toContainText("Novosibirsk-0+RU+AS21000+datacenter-network");
-  await expect(page.locator(".mock-turnstile-widget")).toBeVisible();
   await expect(page.getByRole("button", { name: "开始网络路径诊断" })).toBeVisible();
   await expectFilterSummaryConstrainsLongChips(page);
+  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+  await expect(page.getByRole("dialog", { name: "验证后开始诊断" })).toBeVisible();
+  await expect(page.locator(".mock-turnstile-widget")).toBeVisible();
+  await expectTurnstileDialogCentered(page);
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -371,15 +375,15 @@ test("result route map normalizes antimeridian paths", async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
-test("mobile advanced panel and Turnstile widget stay in normal flow", async ({ page }) => {
+test("mobile advanced panel opens Turnstile in a centered dialog", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
-  await installMocks(page, { turnstileSiteKey: "site-key" });
+  await installMocks(page, { turnstileSiteKey: "site-key", turnstileAutoToken: false });
 
   await page.goto("/");
 
   await expect(page.getByText("Turnstile 已配置")).toBeVisible();
-  await expect(page.locator(".mock-turnstile-widget")).toBeVisible();
+  await expect(page.locator(".mock-turnstile-widget")).toHaveCount(0);
   await page.getByText("高级参数与精确筛选").click();
   await page.getByLabel("ASN").fill("7922");
   await page.getByLabel("network").fill("Comcast");
@@ -388,8 +392,33 @@ test("mobile advanced panel and Turnstile widget stay in normal flow", async ({ 
   await expect(page.getByLabel("tag")).toBeVisible();
   await expect(page.getByLabel("Globalping Token")).toBeVisible();
 
+  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+  await expect(page.getByRole("dialog", { name: "验证后开始诊断" })).toBeVisible();
+  await expect(page.locator(".mock-turnstile-widget")).toBeVisible();
   await expectNoPageOverflow(page);
-  await expectTurnstileStaysInFilterFlow(page);
+  await expectTurnstileDialogCentered(page);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("shared result opens Turnstile in a centered dialog before loading", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page, { turnstileSiteKey: "site-key", turnstileAutoToken: false });
+
+  await page.goto("/?measurement=m-smoke");
+
+  await expect(page.getByRole("dialog", { name: "验证后打开分享结果" })).toBeVisible();
+  await expect(page.locator(".mock-turnstile-widget")).toBeVisible();
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toHaveCount(0);
+  await expectTurnstileDialogCentered(page);
+
+  await page.evaluate(() => {
+    (window as unknown as { __issueMockTurnstile?: () => void }).__issueMockTurnstile?.();
+  });
+
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "验证后打开分享结果" })).toHaveCount(0);
+  await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
 
@@ -434,6 +463,7 @@ interface MockHandles {
 interface MockOptions {
   expectedIpVersion?: 4 | 6;
   turnstileSiteKey?: string;
+  turnstileAutoToken?: boolean;
   traceResponse?: TraceResultResponse;
   beforeMeasurementResponse?: () => Promise<void>;
 }
@@ -443,7 +473,8 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
   let styleRequests = 0;
   let enriched = false;
   if (options.turnstileSiteKey) {
-    await page.addInitScript(() => {
+    await page.addInitScript(({ autoToken }: { autoToken: boolean }) => {
+      const testWindow = window as typeof window & { __issueMockTurnstile?: () => void };
       window.turnstile = {
         render: (element, renderOptions) => {
           const widget = document.createElement("div");
@@ -452,12 +483,15 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
           widget.style.height = "65px";
           widget.style.background = "#2f2f2f";
           element.appendChild(widget);
-          window.setTimeout(() => renderOptions.callback("mock-turnstile-token"), 0);
+          testWindow.__issueMockTurnstile = () => renderOptions.callback("mock-turnstile-token");
+          if (autoToken) {
+            window.setTimeout(() => testWindow.__issueMockTurnstile?.(), 0);
+          }
           return "mock-widget-id";
         },
         reset: () => undefined,
       };
-    });
+    }, { autoToken: options.turnstileAutoToken ?? true });
     await page.route("**/turnstile/v0/api.js**", async (route) => {
       await route.fulfill({ contentType: "application/javascript", body: "" });
     });
@@ -696,31 +730,42 @@ async function expectDarkMapControls(page: Page): Promise<void> {
   expect(state.attributionButton?.backgroundColor).toBe(state.controlBg);
 }
 
-async function expectTurnstileStaysInFilterFlow(page: Page): Promise<void> {
+async function expectTurnstileDialogCentered(page: Page): Promise<void> {
   const state = await page.evaluate(() => {
-    const panel = document.querySelector(".filter-panel")?.getBoundingClientRect();
-    const box = document.querySelector(".turnstile-box")?.getBoundingClientRect();
+    const dialog = document.querySelector(".turnstile-dialog")?.getBoundingClientRect();
     const shell = document.querySelector(".turnstile-widget-shell")?.getBoundingClientRect();
     const widget = document.querySelector(".mock-turnstile-widget")?.getBoundingClientRect();
-    const attribution = document.querySelector(".filter-panel .attribution-panel")?.getBoundingClientRect();
     return {
-      panelWidth: panel?.width ?? 0,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      documentClient: document.documentElement.clientWidth,
+      dialogWidth: dialog?.width ?? 0,
+      dialogHeight: dialog?.height ?? 0,
+      dialogLeft: dialog?.left ?? 0,
+      dialogRight: dialog?.right ?? 0,
+      dialogTop: dialog?.top ?? 0,
+      dialogBottom: dialog?.bottom ?? 0,
+      dialogCenterX: dialog ? dialog.left + dialog.width / 2 : 0,
+      dialogCenterY: dialog ? dialog.top + dialog.height / 2 : 0,
       shellWidth: shell?.width ?? 0,
       widgetWidth: widget?.width ?? 0,
       shellLeft: shell?.left ?? 0,
       shellRight: shell?.right ?? 0,
-      panelLeft: panel?.left ?? 0,
-      panelRight: panel?.right ?? 0,
-      turnstileBottom: box?.bottom ?? 0,
-      attributionTop: attribution?.top ?? 0,
     };
   });
+  expect(state.dialogWidth).toBeGreaterThan(0);
+  expect(state.dialogHeight).toBeGreaterThan(0);
+  expect(state.dialogLeft).toBeGreaterThanOrEqual(0);
+  expect(state.dialogRight).toBeLessThanOrEqual(state.documentClient);
+  expect(state.dialogTop).toBeGreaterThanOrEqual(0);
+  expect(state.dialogBottom).toBeLessThanOrEqual(state.viewportHeight);
+  expect(Math.abs(state.dialogCenterX - state.viewportWidth / 2)).toBeLessThanOrEqual(2);
+  expect(Math.abs(state.dialogCenterY - state.viewportHeight / 2)).toBeLessThanOrEqual(2);
   expect(state.shellWidth).toBeGreaterThan(0);
   expect(state.widgetWidth).toBeLessThanOrEqual(300);
-  expect(state.shellWidth).toBeLessThanOrEqual(state.panelWidth);
-  expect(state.shellLeft).toBeGreaterThanOrEqual(state.panelLeft);
-  expect(state.shellRight).toBeLessThanOrEqual(state.panelRight);
-  expect(state.attributionTop).toBeGreaterThanOrEqual(state.turnstileBottom);
+  expect(state.shellWidth).toBeLessThanOrEqual(state.dialogWidth);
+  expect(state.shellLeft).toBeGreaterThanOrEqual(state.dialogLeft);
+  expect(state.shellRight).toBeLessThanOrEqual(state.dialogRight);
 }
 
 async function expectMapCanvasPainted(page: Page): Promise<void> {
