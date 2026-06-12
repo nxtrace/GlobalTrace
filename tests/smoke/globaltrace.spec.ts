@@ -350,14 +350,14 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
   await expect(page.getByLabel("trace result map")).toBeVisible();
   await expectMapCanvasPainted(page);
   await expectResultRouteData(page, { labels: ["1-2", "5"], lineLength: 2, maxLineLngSpan: 140 });
-  await clickResultMapRouteNode(page, "route-node-1-2");
+  await clickResultMapRouteNode(page, "route-0-node-1-2");
   await expect(page.locator('.hop-table tr[data-ttl="1"]')).toHaveClass(/selected/);
   await expect(page.locator('.hop-table tr[data-ttl="2"]')).toHaveClass(/selected/);
-  await expectResultSelectedRouteNode(page, "route-node-1-2");
+  await expectResultSelectedRouteNode(page, "route-0-node-1-2");
   await clickVisibleHop(page, 5);
   await expect(page.locator('.hop-table tr[data-ttl="1"]')).not.toHaveClass(/selected/);
   await expect(page.locator('.hop-table tr[data-ttl="5"]')).toHaveClass(/selected/);
-  await expectResultSelectedRouteNode(page, "route-node-5");
+  await expectResultSelectedRouteNode(page, "route-0-node-5");
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -872,15 +872,15 @@ async function expectResultMapGlobeLineStyle(page: Page): Promise<void> {
     return { glow: glow?.paint, line: line?.paint };
   });
   expect(style.glow).toMatchObject({
-    "line-color": "#7ffff5",
-    "line-width": 9,
-    "line-opacity": 0.34,
+    "line-color": ["coalesce", ["get", "color"], "#587f78"],
+    "line-width": ["case", ["boolean", ["get", "active"], false], 9, 4.5],
+    "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.34, 0.1],
     "line-blur": 3.2,
   });
   expect(style.line).toMatchObject({
-    "line-color": "#72fff3",
-    "line-width": 4.8,
-    "line-opacity": 1,
+    "line-color": ["coalesce", ["get", "color"], "#587f78"],
+    "line-width": ["case", ["boolean", ["get", "active"], false], 4.8, 2.5],
+    "line-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.28],
   });
 }
 
@@ -1260,6 +1260,8 @@ async function expectResultMapStyleLoaded(page: Page): Promise<void> {
     .poll(async () => {
       return page.locator(".result-map").evaluate((node) => {
         const map = (node as HTMLElement & { __globalTraceResultMap?: DebugMap }).__globalTraceResultMap;
+        const ready = (node as HTMLElement & { __globalTraceResultMapReady?: boolean }).__globalTraceResultMapReady;
+        if (ready) return true;
         return Boolean(map && (typeof map.loaded !== "function" || map.loaded()));
       });
     })
@@ -1291,13 +1293,18 @@ async function resultRouteState(page: Page): Promise<{ labels: string[]; lineLen
         __globalTraceResultData?: {
           featureCollection?: { features?: Array<{ geometry?: { coordinates?: number[][] }; properties?: Record<string, unknown> }> };
           fitCoordinates?: number[][];
+          activeRouteId?: string | null;
         };
       }
     ).__globalTraceResultData;
     const features = data?.featureCollection?.features || [];
-    const line = features.find((feature) => feature.properties?.kind === "path")?.geometry?.coordinates || [];
+    const activeRouteId = data?.activeRouteId || null;
+    const activeRouteFeature = (feature: { properties?: Record<string, unknown> }) => {
+      return !activeRouteId || feature.properties?.routeId === activeRouteId;
+    };
+    const line = features.find((feature) => feature.properties?.kind === "path" && activeRouteFeature(feature))?.geometry?.coordinates || [];
     const labels = features
-      .filter((feature) => feature.properties?.kind === "hop")
+      .filter((feature) => feature.properties?.kind === "hop" && activeRouteFeature(feature))
       .map((feature) => String(feature.properties?.label));
     const span = (coordinates: number[][]) => {
       const lngs = coordinates.map((coordinate) => coordinate[0]);
@@ -1390,7 +1397,10 @@ async function resultMapRouteNodeCanvasPoint(page: Page, nodeId: string): Promis
       for (const [xOffset, yOffset] of offsets) {
         const point = { x: projected.x + xOffset, y: projected.y + yOffset };
         if (point.x < 0 || point.x > rect.width || point.y < 0 || point.y > rect.height) continue;
-        const features = map.queryRenderedFeatures?.([point.x, point.y], { layers: ["result-points", "result-hop-labels"] }) || [];
+        const features =
+          map.queryRenderedFeatures?.([point.x, point.y], {
+            layers: ["result-points", "result-endpoint-halo", "result-endpoint-core", "result-hop-labels"],
+          }) || [];
         if (features.some((feature) => feature.properties?.nodeId === nextNodeId)) {
           return point;
         }

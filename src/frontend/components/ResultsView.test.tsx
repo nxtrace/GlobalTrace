@@ -254,6 +254,10 @@ describe("ResultsView", () => {
   it("switches between probe result tabs", () => {
     render(<ResultsView result={multiProbeResult} mapStyleUrl="about:blank" renderMap={false} />);
 
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs[0]?.querySelector(".probe-tab-route-dot")).not.toBeNull();
+    expect((tabs[0] as HTMLElement).style.getPropertyValue("--route-color")).toBe("#14b8a6");
+    expect((tabs[1] as HTMLElement).style.getPropertyValue("--route-color")).toBe("#f97316");
     expect(screen.getByText("Los Angeles")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Tokyo/ }));
 
@@ -388,7 +392,12 @@ describe("ResultsView", () => {
     act(() => map.triggerLoad());
 
     expect(map.layers.map((layer) => layer.id)).toContain("result-hop-labels");
-    expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({ "circle-radius": 14 });
+    expect(map.layers.map((layer) => layer.id)).toEqual(expect.arrayContaining(["result-packets", "result-endpoint-shadow", "result-endpoint-halo", "result-endpoint-core"]));
+    expect(map.sources.get("result-packets")?.data).toMatchObject({ type: "FeatureCollection" });
+    expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({
+      "circle-radius": ["case", ["boolean", ["get", "active"], false], 14, 10],
+      "circle-color": ["coalesce", ["get", "color"], "#587f78"],
+    });
     expect(map.layers.find((layer) => layer.id === "result-selected-hop")?.paint).toMatchObject({ "circle-radius": 19 });
     expect(screen.getByLabelText("trace result map")).toHaveAttribute("data-map-projection", "mercator");
     expect(screen.getByLabelText("trace result map")).not.toHaveClass("result-map-globe");
@@ -426,20 +435,20 @@ describe("ResultsView", () => {
       }),
     ]);
     expect(map.layers.find((layer) => layer.id === "result-line-glow")?.paint).toMatchObject({
-      "line-color": "#7ffff5",
-      "line-width": 9,
-      "line-opacity": 0.34,
+      "line-color": ["coalesce", ["get", "color"], "#587f78"],
+      "line-width": ["case", ["boolean", ["get", "active"], false], 9, 4.5],
+      "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.34, 0.1],
       "line-blur": 3.2,
     });
     expect(map.layers.find((layer) => layer.id === "result-line")?.paint).toMatchObject({
-      "line-color": "#72fff3",
-      "line-width": 4.8,
-      "line-opacity": 1,
+      "line-color": ["coalesce", ["get", "color"], "#587f78"],
+      "line-width": ["case", ["boolean", ["get", "active"], false], 4.8, 2.5],
+      "line-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.28],
       "line-blur": 0.4,
     });
-    expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({
-      "circle-color": "#fff36a",
-      "circle-stroke-color": "#2ffaff",
+    expect(map.layers.find((layer) => layer.id === "result-endpoint-core")?.paint).toMatchObject({
+      "circle-color": ["coalesce", ["get", "color"], "#587f78"],
+      "circle-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.58],
     });
   });
 
@@ -469,7 +478,7 @@ describe("ResultsView", () => {
     const map = await latestMap();
     act(() => map.triggerLoad());
 
-    act(() => map.triggerLayerClick("result-points", { kind: "hop", nodeId: "route-node-1-2" }));
+    act(() => map.triggerLayerClick("result-points", { kind: "hop", nodeId: "route-0-node-1-2", routeIndex: 0 }));
 
     const row1 = rowForText("203.0.113.1");
     const row2 = rowForText("203.0.113.2");
@@ -478,15 +487,15 @@ describe("ResultsView", () => {
     expect(row2).toHaveClass("selected");
     expect(row5).not.toHaveClass("selected");
     expect(scrollIntoView).toHaveBeenCalled();
-    expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-node-1-2"]]]);
+    expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-0-node-1-2"]]]);
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1-2");
 
-    act(() => map.triggerLayerClick("result-hop-labels", { kind: "hop", nodeId: "route-node-5" }));
+    act(() => map.triggerLayerClick("result-hop-labels", { kind: "hop", nodeId: "route-0-node-5", routeIndex: 0 }));
 
     await waitFor(() => expect(row5).toHaveClass("selected"));
     expect(row1).not.toHaveClass("selected");
     expect(row2).not.toHaveClass("selected");
-    expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-node-5"]]]);
+    expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-0-node-5"]]]);
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 5");
   });
 
@@ -541,6 +550,43 @@ describe("ResultsView", () => {
     });
   });
 
+  it("builds all probe routes with stable colors, endpoints, and packets", () => {
+    const data = buildResultMapData(multiRouteResult.results[0], multiRouteResult.results);
+    const paths = pathFeatures(data.featureCollection);
+    const hops = data.featureCollection.features.filter((feature) => feature.properties?.kind === "hop");
+
+    expect(data.routes).toHaveLength(2);
+    expect(paths).toHaveLength(2);
+    expect(paths[0]?.properties).toMatchObject({ routeId: "route-0", color: "#14b8a6", active: true });
+    expect(paths[1]?.properties).toMatchObject({ routeId: "route-1", color: "#f97316", active: false });
+    expect(hops.map((feature) => feature.properties?.nodeId)).toEqual([
+      "route-0-node-1-2",
+      "route-0-node-5",
+      "route-1-node-1",
+      "route-1-node-2",
+    ]);
+    expect(hops.filter((feature) => feature.properties?.endpoint).map((feature) => feature.properties?.endpointRole)).toEqual(["start", "end", "start", "end"]);
+    expect(data.packetFeatureCollection.features).toHaveLength(4);
+    expect(data.packetFeatureCollection.features[0]?.properties).toMatchObject({ kind: "packet", routeId: "route-0", color: "#14b8a6", active: true });
+    expect(data.routeNodeById.get("route-1-node-2")).toMatchObject({ resultIndex: 1, color: "#f97316" });
+  });
+
+  it("switches to an inactive route when its map point is clicked", async () => {
+    const scrollIntoView = mockScrollIntoView();
+    render(<ResultsView result={multiRouteResult} mapStyleUrl="about:blank" mapProjection="globe" />);
+    const map = await latestMap();
+    act(() => map.triggerLoad());
+
+    act(() => map.triggerLayerClick("result-points", { kind: "hop", nodeId: "route-1-node-1", routeIndex: 1 }));
+
+    await waitFor(() => expect(screen.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "true"));
+    const row = rowForText("198.51.100.10");
+    expect(row).toHaveClass("selected");
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-1-node-1"]]]);
+    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1");
+  });
+
   it("builds route map data with filtered, merged, and numbered hop points", () => {
     const active = routeQualityResult.results[0];
     const data = buildResultMapData(active, routeQualityResult.results);
@@ -548,8 +594,8 @@ describe("ResultsView", () => {
     const labels = hopLabels(data.featureCollection);
 
     expect(labels).toEqual(["1-2", "5"]);
-    expect(data.routeNodes[0]).toMatchObject({ nodeId: "route-node-1-2", ttlList: [1, 2], label: "1-2" });
-    expect(data.routeNodeIdByTtl.get(2)).toBe("route-node-1-2");
+    expect(data.routeNodes[0]).toMatchObject({ nodeId: "route-0-node-1-2", ttlList: [1, 2], label: "1-2" });
+    expect(data.routeNodeIdByTtl.get(2)).toBe("route-0-node-1-2");
     expect(line).toEqual([
       [-122.08, 37.39],
       [-0.12, 51.5],
@@ -611,6 +657,10 @@ function hopLabels(collection: ReturnType<typeof buildResultMapData>["featureCol
 function lineCoordinates(collection: ReturnType<typeof buildResultMapData>["featureCollection"]): number[][] {
   const feature = collection.features.find((item) => item.properties?.kind === "path");
   return (feature?.geometry as { coordinates?: number[][] } | undefined)?.coordinates || [];
+}
+
+function pathFeatures(collection: ReturnType<typeof buildResultMapData>["featureCollection"]) {
+  return collection.features.filter((item) => item.properties?.kind === "path");
 }
 
 function lngSpan(coordinates: number[][]): number {
@@ -955,6 +1005,39 @@ const multiProbeResult: TraceResultResponse = {
           timingsMs: [8],
           stats: { min: 7, avg: 8, max: 9, total: 8, rcv: 7, drop: 1, loss: 12.5 },
         },
+      ],
+    },
+  ],
+};
+
+const multiRouteResult: TraceResultResponse = {
+  ...routeQualityResult,
+  measurementId: "m-multi-route",
+  probesCount: 2,
+  results: [
+    routeQualityResult.results[0],
+    {
+      id: "probe-2",
+      probe: {
+        continent: "AS",
+        region: "Eastern Asia",
+        country: "JP",
+        state: null,
+        city: "Tokyo",
+        asn: 64500,
+        latitude: 35.68,
+        longitude: 139.76,
+        network: "ExampleNet",
+        tags: ["datacenter-network"],
+        resolvers: [],
+      },
+      status: "finished",
+      resolvedAddress: "198.51.100.11",
+      resolvedHostname: "edge.example",
+      rawOutput: "tokyo raw",
+      hops: [
+        hopWithGeo(1, "198.51.100.10", 35.68, 139.76, { country_en: "Japan", city_en: "Tokyo" }),
+        hopWithGeo(2, "198.51.100.11", 22.31, 114.17, { country_en: "Hong Kong", city_en: "Hong Kong" }),
       ],
     },
   ],

@@ -1,7 +1,7 @@
 import "./maplibre.css";
-import maplibregl, { type GeoJSONSource } from "maplibre-gl";
+import maplibregl, { type ExpressionSpecification, type GeoJSONSource } from "maplibre-gl";
 import { AlertTriangle, Clock3, Copy, Globe2, Map as MapIcon, Route, Server, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import type { Feature, FeatureCollection } from "geojson";
 import type { TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
 import {
@@ -24,18 +24,44 @@ const RESULT_MAP_DEFAULT_CENTER: [number, number] = [8, 25];
 const RESULT_MAP_DEFAULT_ZOOM = 1.4;
 const RESULT_MAP_SINGLE_POINT_ZOOM = 5;
 const RESULT_MAP_MAX_ZOOM = 5.8;
+const RESULT_ROUTE_COLORS = ["#14b8a6", "#f97316", "#8b5cf6", "#22c55e", "#0ea5e9", "#e11d48", "#facc15", "#06b6d4", "#a855f7", "#84cc16"];
+const RESULT_PACKETS_PER_ROUTE = 2;
+const RESULT_PACKET_LOOP_MS = 2600;
 
 type ResultMapCoordinate = ResultRouteCoordinate;
+type RouteEndpointRole = "start" | "end" | "single" | "middle";
 
 interface ResultMapData {
   featureCollection: FeatureCollection;
+  packetFeatureCollection: FeatureCollection;
   fitCoordinates: ResultMapCoordinate[];
+  routes: ResultMapRoute[];
   routeNodes: ResultRouteNode[];
   routeNodeById: Map<string, ResultRouteNode>;
+  routeNodeIdByTtl: Map<number, string>;
+  activeRouteIndex: number;
+  activeRouteId: string | null;
+}
+
+interface ResultMapRoute {
+  routeId: string;
+  resultId: string;
+  resultIndex: number;
+  color: string;
+  active: boolean;
+  pathCoordinates: ResultMapCoordinate[];
+  fitCoordinates: ResultMapCoordinate[];
+  routeNodes: ResultRouteNode[];
   routeNodeIdByTtl: Map<number, string>;
 }
 
 interface ResultRouteNode extends SharedResultRouteNode {
+  routeId: string;
+  resultId: string;
+  resultIndex: number;
+  color: string;
+  active: boolean;
+  endpointRole: RouteEndpointRole;
   popupTitle: string;
   popupBody: string;
 }
@@ -44,6 +70,7 @@ interface ResultMapDebugElement extends HTMLElement {
   __globalTraceResultMap?: maplibregl.Map;
   __globalTraceResultData?: ResultMapData;
   __globalTraceSelectedRouteNodeId?: string | null;
+  __globalTraceResultMapReady?: boolean;
 }
 
 interface ResultsViewProps {
@@ -66,18 +93,22 @@ export function ResultsView({
   const [selected, setSelected] = useState(0);
   const [selectedRouteNodeId, setSelectedRouteNodeId] = useState<string | null>(null);
   const [mapFocusRequest, setMapFocusRequest] = useState(0);
-  const active = result?.results[selected] || result?.results[0] || null;
+  const activeIndex = result?.results[selected] ? selected : 0;
+  const active = result?.results[activeIndex] || null;
   const mapData = useMemo(() => buildResultMapData(active, result?.results || []), [active, result?.results]);
 
   useEffect(() => {
     setSelected(0);
+    setSelectedRouteNodeId(null);
   }, [result?.measurementId]);
 
-  useEffect(() => {
+  const selectProbe = (index: number) => {
+    setSelected(index);
     setSelectedRouteNodeId(null);
-  }, [active?.id, result?.measurementId]);
+  };
 
-  const selectRouteNode = (nodeId: string | null, focusMap = false) => {
+  const selectRouteNode = (nodeId: string | null, focusMap = false, routeIndex?: number) => {
+    if (typeof routeIndex === "number" && result?.results[routeIndex]) setSelected(routeIndex);
     setSelectedRouteNodeId(nodeId);
     if (focusMap && nodeId) setMapFocusRequest((value) => value + 1);
   };
@@ -143,16 +174,19 @@ export function ResultsView({
         ))}
       </div>
 
-      <Tabs value={String(selected)} onValueChange={(value) => setSelected(Number(value))}>
+      <Tabs value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
         <TabsList className="probe-tabs" aria-label="probe results">
           {result.results.map((item, index) => (
-            <TabsTrigger key={item.id} value={String(index)} onClick={() => setSelected(index)}>
-              <strong>{item.probe.city || item.probe.country}</strong>
-              <span>AS{item.probe.asn} · {item.status}</span>
+            <TabsTrigger key={item.id} value={String(index)} style={routeTabStyle(index)} onClick={() => selectProbe(index)}>
+              <span className="probe-tab-route-dot" aria-hidden="true" />
+              <span className="probe-tab-copy">
+                <strong>{item.probe.city || item.probe.country}</strong>
+                <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
+              </span>
             </TabsTrigger>
           ))}
         </TabsList>
-        <TabsContent value={String(selected)} className="probe-tab-content">
+        <TabsContent value={String(activeIndex)} className="probe-tab-content">
           {renderMap && (
             <ResultMap
               data={mapData}
@@ -160,7 +194,7 @@ export function ResultsView({
               mapProjection={mapProjection}
               selectedRouteNodeId={selectedRouteNodeId}
               mapFocusRequest={mapFocusRequest}
-              onSelectRouteNode={(nodeId) => selectRouteNode(nodeId)}
+              onSelectRouteNode={(nodeId, routeIndex) => selectRouteNode(nodeId, false, routeIndex)}
             />
           )}
 
@@ -424,7 +458,7 @@ function ResultMap({
   mapProjection: MapProjection;
   selectedRouteNodeId: string | null;
   mapFocusRequest: number;
-  onSelectRouteNode: (nodeId: string) => void;
+  onSelectRouteNode: (nodeId: string, routeIndex?: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -446,10 +480,15 @@ function ResultMap({
       zoom: RESULT_MAP_DEFAULT_ZOOM,
       aroundCenter: mapProjection === "globe",
     });
-    let stopPulse: (() => void) | null = null;
+    let stopPackets: (() => void) | null = null;
     map.on("load", () => {
       map.setProjection({ type: mapProjection });
       map.addSource("result", { type: "geojson", data: dataRef.current.featureCollection });
+      const animatePackets = !prefersReducedMotion();
+      map.addSource("result-packets", {
+        type: "geojson",
+        data: animatePackets ? dataRef.current.packetFeatureCollection : emptyFeatureCollection(),
+      });
       if (mapProjection === "globe") {
         map.addLayer({
           id: "result-line-glow",
@@ -458,9 +497,9 @@ function ResultMap({
           filter: ["==", ["get", "kind"], "path"],
           layout: { "line-join": "round", "line-cap": "round" },
           paint: {
-            "line-color": "#7ffff5",
-            "line-width": 9,
-            "line-opacity": 0.34,
+            "line-color": routeColorExpression(),
+            "line-width": activeNumberExpression(9, 4.5),
+            "line-opacity": activeNumberExpression(0.34, 0.1),
             "line-blur": 3.2,
           },
         });
@@ -472,10 +511,24 @@ function ResultMap({
         filter: ["==", ["get", "kind"], "path"],
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": globeValue(mapProjection, "#72fff3", "#587f78"),
-          "line-width": globeValue(mapProjection, 4.8, 2.5),
-          "line-opacity": globeValue(mapProjection, 1, 0.76),
+          "line-color": routeColorExpression(),
+          "line-width": activeNumberExpression(globeValue(mapProjection, 4.8, 2.5), globeValue(mapProjection, 2.5, 1.5)),
+          "line-opacity": activeNumberExpression(globeValue(mapProjection, 1, 0.76), globeValue(mapProjection, 0.28, 0.22)),
           "line-blur": globeValue(mapProjection, 0.4, 0),
+        },
+      });
+      map.addLayer({
+        id: "result-packets",
+        type: "circle",
+        source: "result-packets",
+        filter: ["==", ["get", "kind"], "packet"],
+        paint: {
+          "circle-radius": activeNumberExpression(globeValue(mapProjection, 5.8, 4.4), globeValue(mapProjection, 4.2, 3.2)),
+          "circle-color": routeColorExpression(),
+          "circle-opacity": activeNumberExpression(0.98, 0.34),
+          "circle-blur": activeNumberExpression(0.14, 0.28),
+          "circle-stroke-color": globeValue(mapProjection, "rgba(255, 255, 255, 0.94)", "rgba(255, 255, 255, 0.78)"),
+          "circle-stroke-width": activeNumberExpression(1.4, 0.7),
         },
       });
       map.addLayer({
@@ -486,7 +539,7 @@ function ResultMap({
         paint: {
           "circle-radius": globeValue(mapProjection, 22, 19),
           "circle-color": globeValue(mapProjection, "rgba(255, 236, 92, 0.24)", "rgba(88, 127, 120, 0.18)"),
-          "circle-stroke-color": globeValue(mapProjection, "#fff36a", "#ffffff"),
+          "circle-stroke-color": routeColorExpression(),
           "circle-stroke-width": 2.5,
         },
       });
@@ -496,11 +549,38 @@ function ResultMap({
         source: "result",
         filter: ["==", ["get", "kind"], "probe"],
         paint: {
-          "circle-radius": 7,
-          "circle-color": globeValue(mapProjection, "#fff36a", "#9c8c72"),
-          "circle-stroke-color": globeValue(mapProjection, "#2ffaff", "#ffffff"),
+          "circle-radius": activeNumberExpression(7, 5.5),
+          "circle-color": routeColorExpression(),
+          "circle-stroke-color": globeValue(mapProjection, "#ffffff", "#ffffff"),
           "circle-stroke-width": 1.3,
-          "circle-opacity": globeValue(mapProjection, 0.86, 1),
+          "circle-opacity": activeNumberExpression(globeValue(mapProjection, 0.86, 1), globeValue(mapProjection, 0.36, 0.3)),
+        },
+      });
+      map.addLayer({
+        id: "result-endpoint-shadow",
+        type: "circle",
+        source: "result",
+        filter: endpointFilter(),
+        paint: {
+          "circle-radius": activeNumberExpression(globeValue(mapProjection, 19, 17), globeValue(mapProjection, 14, 12)),
+          "circle-color": "rgba(0, 0, 0, 0.42)",
+          "circle-opacity": activeNumberExpression(0.34, 0.14),
+          "circle-blur": 0.55,
+          "circle-translate": [0, 4],
+        },
+      });
+      map.addLayer({
+        id: "result-endpoint-halo",
+        type: "circle",
+        source: "result",
+        filter: endpointFilter(),
+        paint: {
+          "circle-radius": activeNumberExpression(globeValue(mapProjection, 18, 16), globeValue(mapProjection, 13, 11)),
+          "circle-color": routeColorExpression(),
+          "circle-opacity": activeNumberExpression(0.34, 0.15),
+          "circle-blur": 0.22,
+          "circle-stroke-color": "rgba(255, 255, 255, 0.72)",
+          "circle-stroke-width": activeNumberExpression(1.8, 0.8),
         },
       });
       map.addLayer({
@@ -509,11 +589,24 @@ function ResultMap({
         source: "result",
         filter: ["==", ["get", "kind"], "hop"],
         paint: {
-          "circle-radius": globeValue(mapProjection, 15, 14),
-          "circle-color": globeValue(mapProjection, "#fff36a", "#587f78"),
-          "circle-stroke-color": globeValue(mapProjection, "#2ffaff", "#ffffff"),
+          "circle-radius": activeNumberExpression(globeValue(mapProjection, 15, 14), globeValue(mapProjection, 11, 10)),
+          "circle-color": routeColorExpression(),
+          "circle-stroke-color": globeValue(mapProjection, "rgba(255, 255, 255, 0.92)", "#ffffff"),
           "circle-stroke-width": 1.3,
-          "circle-opacity": globeValue(mapProjection, 0.88, 1),
+          "circle-opacity": activeNumberExpression(globeValue(mapProjection, 0.88, 1), globeValue(mapProjection, 0.34, 0.3)),
+        },
+      });
+      map.addLayer({
+        id: "result-endpoint-core",
+        type: "circle",
+        source: "result",
+        filter: endpointFilter(),
+        paint: {
+          "circle-radius": activeNumberExpression(globeValue(mapProjection, 9.5, 8.8), globeValue(mapProjection, 7.2, 6.8)),
+          "circle-color": routeColorExpression(),
+          "circle-opacity": activeNumberExpression(1, 0.58),
+          "circle-stroke-color": "rgba(255, 255, 255, 0.96)",
+          "circle-stroke-width": activeNumberExpression(2.2, 1.3),
         },
       });
       map.addLayer({
@@ -537,32 +630,28 @@ function ResultMap({
         const feature = event.features?.find((item) => item.properties?.kind === "hop" && item.properties?.nodeId);
         const nodeId = String(feature?.properties?.nodeId || "");
         if (!nodeId) return;
-        onSelectRouteNodeRef.current(nodeId);
+        const routeIndex = Number(feature?.properties?.routeIndex);
+        onSelectRouteNodeRef.current(nodeId, Number.isFinite(routeIndex) ? routeIndex : undefined);
         const node = dataRef.current.routeNodeById.get(nodeId);
         if (node) showRouteNodePopup(map, node, popupRef);
       };
-      map.on("click", "result-points", selectFeature);
-      map.on("click", "result-hop-labels", selectFeature);
-      map.on("mouseenter", "result-points", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "result-points", () => {
-        map.getCanvas().style.cursor = "";
-      });
-      map.on("mouseenter", "result-hop-labels", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "result-hop-labels", () => {
-        map.getCanvas().style.cursor = "";
-      });
-      loadedRef.current = true;
-      applySelectedRouteNode(map, selectedRouteNodeIdRef.current, dataRef.current, popupRef);
-      if (mapProjection === "globe") {
-        stopPulse = startGlobePulse(map, [
-          { layerId: "result-probe-points", property: "circle-opacity", min: 0.52, max: 1 },
-          { layerId: "result-points", property: "circle-opacity", min: 0.58, max: 1 },
-        ]);
+      for (const layerId of ["result-points", "result-endpoint-halo", "result-endpoint-core", "result-hop-labels"]) {
+        map.on("click", layerId, selectFeature);
+        map.on("mouseenter", layerId, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", layerId, () => {
+          map.getCanvas().style.cursor = "";
+        });
       }
+      if (animatePackets) {
+        stopPackets = startPacketAnimation(map, dataRef);
+      }
+      loadedRef.current = true;
+      if (import.meta.env.DEV && containerRef.current) {
+        (containerRef.current as ResultMapDebugElement).__globalTraceResultMapReady = true;
+      }
+      applySelectedRouteNode(map, selectedRouteNodeIdRef.current, dataRef.current, popupRef);
       fitResultMap(map, dataRef.current, mapProjection);
     });
     const resizeObserver =
@@ -578,10 +667,11 @@ function ResultMap({
       element.__globalTraceResultMap = map;
       element.__globalTraceResultData = dataRef.current;
       element.__globalTraceSelectedRouteNodeId = selectedRouteNodeIdRef.current;
+      element.__globalTraceResultMapReady = false;
     }
     return () => {
       resizeObserver?.disconnect();
-      stopPulse?.();
+      stopPackets?.();
       popupRef.current?.remove();
       popupRef.current = null;
       loadedRef.current = false;
@@ -590,6 +680,7 @@ function ResultMap({
         delete element.__globalTraceResultMap;
         delete element.__globalTraceResultData;
         delete element.__globalTraceSelectedRouteNodeId;
+        delete element.__globalTraceResultMapReady;
       }
       map.remove();
       mapRef.current = null;
@@ -636,61 +727,161 @@ export function buildResultMapData(
   allResults: TraceProbeResult[],
 ): ResultMapData {
   const features: Feature[] = [];
-  for (const item of allResults) {
-    if (!validMapCoordinate(item.probe.longitude, item.probe.latitude)) continue;
-    features.push({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [item.probe.longitude, item.probe.latitude] },
-      properties: { kind: "probe", label: item.probe.city },
+  const activeRouteIndex = active ? Math.max(0, allResults.findIndex((item) => item.id === active.id)) : -1;
+  const routes: ResultMapRoute[] = [];
+
+  for (const [resultIndex, item] of allResults.entries()) {
+    const routeId = resultRouteId(resultIndex);
+    const color = resultRouteColor(resultIndex);
+    const activeRoute = resultIndex === activeRouteIndex;
+    if (validMapCoordinate(item.probe.longitude, item.probe.latitude)) {
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [item.probe.longitude, item.probe.latitude] },
+        properties: {
+          kind: "probe",
+          routeId,
+          routeIndex: resultIndex,
+          resultId: item.id,
+          label: item.probe.city,
+          color,
+          active: activeRoute,
+        },
+      });
+    }
+
+    const sharedRouteNodes = buildRouteNodesForHops(item.hops);
+    const routeNodes = sharedRouteNodes.map((node, nodeIndex) =>
+      resultRouteNodeMetadata(node, {
+        routeId,
+        resultId: item.id,
+        resultIndex,
+        color,
+        active: activeRoute,
+        nodeIndex,
+        nodeCount: sharedRouteNodes.length,
+      }),
+    );
+    const routeCoordinates = routeNodes.map((node) => node.coordinate);
+    if (routeCoordinates.length > 1) {
+      features.push({
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: routeCoordinates },
+        properties: { kind: "path", routeId, routeIndex: resultIndex, resultId: item.id, color, active: activeRoute },
+      });
+    }
+    for (const node of routeNodes) {
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: node.coordinate },
+        properties: {
+          kind: "hop",
+          routeId,
+          routeIndex: resultIndex,
+          resultId: item.id,
+          color,
+          active: activeRoute,
+          endpoint: node.endpointRole !== "middle",
+          endpointRole: node.endpointRole,
+          nodeId: node.nodeId,
+          label: node.label,
+          ttl: node.primaryHop.ttl,
+          ttlList: node.ttlList,
+          popupTitle: node.popupTitle,
+          popupBody: node.popupBody,
+        },
+      });
+    }
+    routes.push({
+      routeId,
+      resultId: item.id,
+      resultIndex,
+      color,
+      active: activeRoute,
+      pathCoordinates: routeCoordinates,
+      fitCoordinates: resultFitCoordinates(item, routeCoordinates),
+      routeNodes,
+      routeNodeIdByTtl: buildRouteNodeIdByTtl(routeNodes),
     });
   }
 
-  const routeNodes = active ? buildRouteNodesForHops(active.hops).map(resultRouteNodeMetadata) : [];
-  const routeCoordinates = routeNodes.map((node) => node.coordinate);
-  if (routeCoordinates.length > 1) {
-    features.push({
-      type: "Feature",
-      geometry: { type: "LineString", coordinates: routeCoordinates },
-      properties: { kind: "path" },
-    });
-  }
-  for (const node of routeNodes) {
-    features.push({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: node.coordinate },
-      properties: {
-        kind: "hop",
-        nodeId: node.nodeId,
-        label: node.label,
-        ttl: node.primaryHop.ttl,
-        ttlList: node.ttlList,
-        popupTitle: node.popupTitle,
-        popupBody: node.popupBody,
-      },
-    });
-  }
-  const routeNodeById = new Map(routeNodes.map((node) => [node.nodeId, node]));
-  const routeNodeIdByTtl = buildRouteNodeIdByTtl(routeNodes);
+  const activeRoute = routes.find((route) => route.resultIndex === activeRouteIndex) || null;
+  const allRouteNodes = routes.flatMap((route) => route.routeNodes);
+  const routeNodeById = new Map(allRouteNodes.map((node) => [node.nodeId, node]));
 
   return {
     featureCollection: { type: "FeatureCollection", features },
-    fitCoordinates: resultFitCoordinates(active, routeCoordinates),
-    routeNodes,
+    packetFeatureCollection: buildPacketFeatureCollection(routes, 0),
+    fitCoordinates: activeRoute?.fitCoordinates || [],
+    routes,
+    routeNodes: activeRoute?.routeNodes || [],
     routeNodeById,
-    routeNodeIdByTtl,
+    routeNodeIdByTtl: activeRoute?.routeNodeIdByTtl || new Map(),
+    activeRouteIndex,
+    activeRouteId: activeRoute?.routeId || null,
   };
 }
 
-function resultRouteNodeMetadata(node: SharedResultRouteNode): ResultRouteNode {
+function resultRouteNodeMetadata(
+  node: SharedResultRouteNode,
+  route: {
+    routeId: string;
+    resultId: string;
+    resultIndex: number;
+    color: string;
+    active: boolean;
+    nodeIndex: number;
+    nodeCount: number;
+  },
+): ResultRouteNode {
+  const endpointRole = resultEndpointRole(route.nodeIndex, route.nodeCount);
   return {
     ...node,
+    nodeId: `${route.routeId}-node-${node.ttlList.join("-") || route.nodeIndex}`,
+    routeId: route.routeId,
+    resultId: route.resultId,
+    resultIndex: route.resultIndex,
+    color: route.color,
+    active: route.active,
+    endpointRole,
     popupTitle: `TTL ${node.label}`,
     popupBody: routeNodePopupBody(node.hops),
   };
 }
 
+function resultRouteId(index: number): string {
+  return `route-${index}`;
+}
+
+function resultRouteColor(index: number): string {
+  return RESULT_ROUTE_COLORS[index % RESULT_ROUTE_COLORS.length];
+}
+
+function routeTabStyle(index: number): CSSProperties {
+  return { "--route-color": resultRouteColor(index) } as CSSProperties;
+}
+
+function resultEndpointRole(index: number, count: number): RouteEndpointRole {
+  if (count <= 1) return "single";
+  if (index === 0) return "start";
+  if (index === count - 1) return "end";
+  return "middle";
+}
+
 function selectedHopFilter(nodeId: string | null): maplibregl.FilterSpecification {
   return ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], nodeId || "__none__"]] as maplibregl.FilterSpecification;
+}
+
+function endpointFilter(): maplibregl.FilterSpecification {
+  return ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "endpoint"], true]] as maplibregl.FilterSpecification;
+}
+
+function routeColorExpression(): ExpressionSpecification {
+  return ["coalesce", ["get", "color"], "#587f78"] as ExpressionSpecification;
+}
+
+function activeNumberExpression(active: number, inactive: number): ExpressionSpecification {
+  return ["case", ["boolean", ["get", "active"], false], active, inactive] as ExpressionSpecification;
 }
 
 function applySelectedRouteNode(
@@ -778,18 +969,83 @@ function globeValue<T, U>(projection: MapProjection, globe: T, mercator: U): T |
   return projection === "globe" ? globe : mercator;
 }
 
-function startGlobePulse(
+function startPacketAnimation(
   map: maplibregl.Map,
-  targets: Array<{ layerId: string; property: string; min: number; max: number }>,
+  dataRef: MutableRefObject<ResultMapData>,
 ): () => void {
-  let bright = false;
-  const interval = window.setInterval(() => {
-    bright = !bright;
-    for (const target of targets) {
-      map.setPaintProperty(target.layerId, target.property, bright ? target.max : target.min);
+  let frame = 0;
+  const startedAt = performance.now();
+  const tick = (now: number) => {
+    const source = map.getSource("result-packets") as GeoJSONSource | undefined;
+    source?.setData(buildPacketFeatureCollection(dataRef.current.routes, now - startedAt));
+    frame = window.requestAnimationFrame(tick);
+  };
+  frame = window.requestAnimationFrame(tick);
+  return () => window.cancelAnimationFrame(frame);
+}
+
+function buildPacketFeatureCollection(routes: ResultMapRoute[], elapsedMs: number): FeatureCollection {
+  const features: Feature[] = [];
+  for (const route of routes) {
+    if (route.pathCoordinates.length < 2) continue;
+    for (let index = 0; index < RESULT_PACKETS_PER_ROUTE; index += 1) {
+      const progress = ((elapsedMs / RESULT_PACKET_LOOP_MS + index / RESULT_PACKETS_PER_ROUTE) % 1 + 1) % 1;
+      const coordinate = routeCoordinateAtProgress(route.pathCoordinates, progress);
+      if (!coordinate) continue;
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: coordinate },
+        properties: {
+          kind: "packet",
+          routeId: route.routeId,
+          routeIndex: route.resultIndex,
+          resultId: route.resultId,
+          packetIndex: index,
+          color: route.color,
+          active: route.active,
+        },
+      });
     }
-  }, 1400);
-  return () => window.clearInterval(interval);
+  }
+  return { type: "FeatureCollection", features };
+}
+
+function routeCoordinateAtProgress(coordinates: ResultMapCoordinate[], progress: number): ResultMapCoordinate | null {
+  if (coordinates.length < 2) return null;
+  const segmentLengths: number[] = [];
+  let totalLength = 0;
+  for (let index = 1; index < coordinates.length; index += 1) {
+    const previous = coordinates[index - 1];
+    const current = coordinates[index];
+    const length = Math.hypot(current[0] - previous[0], current[1] - previous[1]);
+    segmentLengths.push(length);
+    totalLength += length;
+  }
+  if (totalLength <= 0) return coordinates[0];
+  let distance = totalLength * progress;
+  for (let index = 0; index < segmentLengths.length; index += 1) {
+    const segmentLength = segmentLengths[index];
+    const previous = coordinates[index];
+    const current = coordinates[index + 1];
+    if (distance > segmentLength) {
+      distance -= segmentLength;
+      continue;
+    }
+    const ratio = segmentLength > 0 ? distance / segmentLength : 0;
+    return [
+      previous[0] + (current[0] - previous[0]) * ratio,
+      previous[1] + (current[1] - previous[1]) * ratio,
+    ];
+  }
+  return coordinates.at(-1) || null;
+}
+
+function emptyFeatureCollection(): FeatureCollection {
+  return { type: "FeatureCollection", features: [] };
+}
+
+function prefersReducedMotion(): boolean {
+  return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
 
 function resultFitCoordinates(active: TraceProbeResult | null, routeCoordinates: ResultMapCoordinate[]): ResultMapCoordinate[] {

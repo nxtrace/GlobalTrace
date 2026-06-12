@@ -1658,8 +1658,10 @@ tbody tr:hover {
   min-width: 160px;
   min-height: 52px;
   display: grid;
-  gap: 3px;
-  justify-items: start;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  justify-items: stretch;
   border-radius: 14px;
   padding: 9px 11px;
   background: transparent;
@@ -1673,7 +1675,23 @@ tbody tr:hover {
     box-shadow 160ms ease;
 }
 
-.probe-tabs button strong {
+.probe-tab-route-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--route-color, var(--accent));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--route-color, var(--accent)) 18%, transparent),
+    0 0 12px color-mix(in srgb, var(--route-color, var(--accent)) 42%, transparent);
+}
+
+.probe-tab-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.probe-tab-copy strong {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1686,7 +1704,7 @@ tbody tr:hover {
   box-shadow: 0 9px 22px rgba(0, 0, 0, 0.07);
 }
 
-.probe-tabs button span {
+.probe-tab-meta {
   max-width: 100%;
   overflow: hidden;
   color: var(--ink-muted);
@@ -1697,8 +1715,9 @@ tbody tr:hover {
 
 .probe-tabs button.active,
 .probe-tabs button[data-state="active"] {
-  border-color: rgba(88, 127, 120, 0.3);
+  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 42%, var(--line));
   background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--route-color, var(--accent));
 }
 
 .probe-tab-content {
