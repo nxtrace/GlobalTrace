@@ -350,6 +350,26 @@ test("structured filters expand probes after explicit user filtering", async ({ 
   expect(consoleErrors).toEqual([]);
 });
 
+test("saved NextTrace token sends browser batch request", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const consoleErrors = collectConsoleErrors(page);
+  await page.addInitScript(() => {
+    window.localStorage.setItem("globaltrace.nexttraceApiToken", "nt-token");
+  });
+  const mocks = await installMocks(page, { turnstileSiteKey: "site-key" });
+
+  await page.goto("/");
+
+  await expect(page.getByText("NextTrace API Token 直连已启用")).toBeVisible();
+  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await expect.poll(mocks.nexttraceBatchRequests).toBe(1);
+  await expect.poll(mocks.enrichRequests).toBe(0);
+  await expectVisibleHopText(page, "AS15169");
+  expect(consoleErrors).toEqual([]);
+});
+
 test("about page exposes provider attribution links", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
@@ -560,6 +580,7 @@ function collectConsoleErrors(page: Page): string[] {
 interface MockHandles {
   styleRequests: () => number;
   enrichRequests: () => number;
+  nexttraceBatchRequests: () => number;
   browserFallbackRequests: () => number;
   traceRequests: () => GlobalpingMeasurementRequest[];
 }
@@ -577,6 +598,7 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
   let pollCount = 0;
   let styleRequests = 0;
   let enrichRequests = 0;
+  let nexttraceBatchRequests = 0;
   let browserFallbackRequests = 0;
   let enriched = false;
   const mockProbes = options.probes || probes;
@@ -702,6 +724,46 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
       },
     });
   });
+  await page.route("https://api.nxtrace.org/v4/ipGeo/batch", async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({
+        status: 204,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "POST, OPTIONS",
+          "access-control-allow-headers": "X-NextTrace-Token, Content-Type",
+        },
+      });
+      return;
+    }
+    nexttraceBatchRequests += 1;
+    expect((await route.request().postDataJSON()).ips).toEqual(["8.8.8.8"]);
+    await route.fulfill({
+      headers: globalpingCorsHeaders,
+      json: {
+        results: [
+          {
+            ip: "8.8.8.8",
+            ok: true,
+            data: {
+              ip: "8.8.8.8",
+              asnumber: "AS15169",
+              owner: "Google LLC",
+              isp: "Google",
+              country_en: "United States",
+              prov_en: "California",
+              city_en: "Mountain View",
+              whois: "google-whois",
+              lat: 37.39,
+              lng: -122.08,
+              prefix: "8.8.8.0/24",
+              source: "mock-nexttrace",
+            },
+          },
+        ],
+      },
+    });
+  });
   await page.route("**/api/trace/m-smoke", async (route) => {
     if (options.traceResponse || enriched) {
       await route.fulfill({ json: options.traceResponse || traceResult("finished") });
@@ -717,6 +779,7 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
   return {
     styleRequests: () => styleRequests,
     enrichRequests: () => enrichRequests,
+    nexttraceBatchRequests: () => nexttraceBatchRequests,
     browserFallbackRequests: () => browserFallbackRequests,
     traceRequests: () => traceRequests,
   };

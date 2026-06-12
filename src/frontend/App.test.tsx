@@ -200,6 +200,28 @@ describe("App", () => {
     expect(JSON.stringify(nexttraceBatchCalls(fetchMock)[0]?.[1]?.headers)).not.toContain("User-Agent");
   });
 
+  it("reruns the current finished result through a newly saved NextTrace token", async () => {
+    const fetchMock = mockApi({ enrichmentStatus: "partial", measurement: globalpingMeasurementWithHop });
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
+    expect(nexttraceBatchBodies(fetchMock)).toHaveLength(0);
+
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: " nt-token " } });
+    fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
+
+    await waitFor(() => {
+      expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
+    });
+    expect(fetchMock.mock.calls.filter(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toHaveLength(3);
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
+  });
+
   it("opens shared results through a saved NextTrace token without Turnstile", async () => {
     window.localStorage.setItem("globaltrace.nexttraceApiToken", "nt-token");
     window.history.replaceState(null, "", "/?measurement=m123");

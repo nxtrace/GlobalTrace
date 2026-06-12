@@ -480,7 +480,10 @@ export function App() {
     setNexttraceToken(trimmed);
     setNexttraceTokenDraft(trimmed);
     writeStoredNexttraceToken(trimmed);
-  }, [nexttraceTokenDraft]);
+    if (trimmed && result?.status === "finished" && result.measurementId) {
+      void loadTrace(result.measurementId, false, globalpingToken, trimmed, "created", "nexttraceToken");
+    }
+  }, [globalpingToken, loadTrace, nexttraceTokenDraft, result]);
 
   const clearNexttraceToken = useCallback(() => {
     setNexttraceToken("");

@@ -53,7 +53,7 @@ export async function enrichTraceWithNexttraceToken(
     return markEnrichmentError(traceWithPrivateFlags, publicIps, "NextTrace API Token is not configured");
   }
 
-  const fetcher = options.fetcher || fetch;
+  const fetcher = options.fetcher || defaultBrowserFetch();
   const geoByIp = new Map<string, NxtraceGeo>();
   const errorByIp = new Map<string, string>();
   const missed: string[] = [];
@@ -226,6 +226,10 @@ function getLocalStorage(): Storage | null {
   } catch {
     return null;
   }
+}
+
+function defaultBrowserFetch(): typeof fetch {
+  return globalThis.fetch.bind(globalThis);
 }
 
 function cacheKey(ip: string): string {
