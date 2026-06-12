@@ -105,6 +105,9 @@ for (const viewport of viewports) {
     await expectVisibleHopText(page, "AS15169");
     await expectVisibleHopText(page, "Google LLC / Google");
     await expectHopTableColumns(page);
+    if (viewport.name === "1440x1000") {
+      await expectPeerAsHopLink(page);
+    }
     await expect(page.getByLabel("trace result map")).toBeVisible();
     await expectMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
@@ -1292,6 +1295,13 @@ async function expectHopTableScrollsWithinPanel(page: Page): Promise<void> {
 async function expectHopTableColumns(page: Page): Promise<void> {
   const headers = await page.locator(".hop-table th").allInnerTexts();
   expect(headers).toEqual(["TTL", "IP / hostname", "loss", "avg", "min", "max", "ASN", "region", "owner / ISP"]);
+}
+
+async function expectPeerAsHopLink(page: Page): Promise<void> {
+  const link = page.getByRole("link", { name: "在 peer.as 查看 8.8.8.8" });
+  await expect(link).toHaveAttribute("href", "https://peer.as/?q=8.8.8.8");
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
 }
 
 async function expectVisibleHopText(page: Page, text: string): Promise<void> {

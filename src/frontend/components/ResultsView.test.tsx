@@ -200,6 +200,21 @@ describe("ResultsView", () => {
     expect(within(summary).queryByText("avg loss")).not.toBeInTheDocument();
   });
 
+  it("renders peer.as links for table IPs without selecting the hop", () => {
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    const link = screen.getByRole("link", { name: "在 peer.as 查看 8.8.8.8" });
+    expect(link).toHaveAttribute("href", "https://peer.as/?q=8.8.8.8");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+
+    const row = rowForText("8.8.8.8");
+    fireEvent.click(link);
+    fireEvent.keyDown(link, { key: "Enter" });
+
+    expect(row).not.toHaveClass("selected");
+  });
+
   it("falls back to English GeoIP fields when Chinese fields are absent", () => {
     render(<ResultsView result={englishOnlyRegionResult} mapStyleUrl="about:blank" renderMap={false} />);
 

@@ -2083,6 +2083,13 @@ tbody tr:hover {
   gap: 2px;
 }
 
+.endpoint-address-row {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
 .endpoint-hostname {
   color: var(--ink-muted);
   font-size: 12px;
@@ -2090,6 +2097,33 @@ tbody tr:hover {
 
 .mono-cell {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.peer-link {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--ink-muted);
+  vertical-align: middle;
+}
+
+.peer-link:hover,
+.peer-link:focus-visible {
+  background: var(--control-bg);
+  color: var(--accent);
+}
+
+.peer-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.peer-link svg {
+  width: 14px;
+  height: 14px;
 }
 
 .raw-output {

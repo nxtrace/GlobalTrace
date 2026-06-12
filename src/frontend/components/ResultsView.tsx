@@ -1,6 +1,6 @@
 import "./maplibre.css";
 import maplibregl, { type ExpressionSpecification, type GeoJSONSource } from "maplibre-gl";
-import { AlertTriangle, Clock3, Copy, Globe2, Map as MapIcon, Route, Server, X } from "lucide-react";
+import { AlertTriangle, Clock3, Copy, ExternalLink, Globe2, Map as MapIcon, Route, Server, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import type { Feature, FeatureCollection } from "geojson";
 import type { TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
@@ -376,7 +376,7 @@ function HopTable({
                   }}
                 >
                   <TableCell>{hop.ttl}</TableCell>
-                  <TableCell className="endpoint-cell">{renderEndpoint(hop)}</TableCell>
+                  <TableCell className="endpoint-cell">{renderEndpoint(hop, { showPeerLink: true })}</TableCell>
                   <TableCell>{formatPercent(hop.stats?.loss)}</TableCell>
                   <TableCell>{formatMs(hop.stats?.avg)}</TableCell>
                   <TableCell>{formatMs(hop.stats?.min)}</TableCell>
@@ -1184,15 +1184,35 @@ function formatMs(value: number | null | undefined): string {
   return typeof value === "number" ? `${value.toFixed(1)} ms` : "-";
 }
 
-function renderEndpoint(hop: TraceHop) {
+function renderEndpoint(hop: TraceHop, options: { showPeerLink?: boolean } = {}) {
   const ip = hop.ip || "*";
   const hostname = displayHostname(hop.hostname, ip);
   return (
     <div className="endpoint-stack">
-      <span className="mono-cell">{ip}</span>
+      <span className="endpoint-address-row">
+        <span className="mono-cell">{ip}</span>
+        {options.showPeerLink && hop.ip && (
+          <a
+            aria-label={`在 peer.as 查看 ${hop.ip}`}
+            className="peer-link"
+            href={peerAsUrl(hop.ip)}
+            rel="noopener noreferrer"
+            target="_blank"
+            title={`在 peer.as 查看 ${hop.ip}`}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            <ExternalLink aria-hidden="true" />
+          </a>
+        )}
+      </span>
       {hostname && <span className="endpoint-hostname">{hostname}</span>}
     </div>
   );
+}
+
+function peerAsUrl(ip: string): string {
+  return `https://peer.as/?q=${encodeURIComponent(ip)}`;
 }
 
 function displayHostname(hostname: string | null, ip: string): string | null {
