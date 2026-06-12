@@ -19,6 +19,7 @@ import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
 import type { MapProjection } from "./components/mapProjection";
 import { deferUntilIdle } from "./lib/defer";
+import { enrichTraceWithBrowserFallback } from "./fallbackGeo";
 import { filterChips, filterProbes, magicFromSelectedProbes, probeFilterSuggestions, probeToMagic } from "../shared/filters";
 import { measurementToTraceResponse } from "../shared/transform";
 import {
@@ -42,6 +43,7 @@ const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
 type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
 type TraceLoadSource = "created" | "shared";
+type TraceEnrichmentMode = "verified" | "browserFallback";
 type TurnstileGate = { kind: "create" } | { kind: "shared"; measurementId: string };
 
 const AboutPage = lazy(() => import("./components/AboutPage").then((module) => ({ default: module.AboutPage })));
@@ -66,7 +68,6 @@ export function App() {
   const [limit, setLimit] = useState(DEFAULT_PROBE_LIMIT);
   const [filters, setFilters] = useState<TraceFilters>({ magic: "world" });
   const [turnstileGate, setTurnstileGate] = useState<TurnstileGate | null>(null);
-  const [dismissedSharedTurnstileId, setDismissedSharedTurnstileId] = useState("");
   const [configReady, setConfigReady] = useState(false);
   const [probes, setProbes] = useState<GlobalpingProbe[]>([]);
   const [probesStatus, setProbesStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -90,12 +91,6 @@ export function App() {
   const finalResult = result?.status === "in-progress" ? null : result;
   const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
   const canSubmit = configReady && !turnstileGate;
-  const sharedTurnstileDismissed = Boolean(
-    sharedLoadingMeasurementId &&
-      config.turnstileSiteKey &&
-      dismissedSharedTurnstileId === sharedLoadingMeasurementId &&
-      !turnstileGate,
-  );
   const filteredProbes = useMemo(() => filterProbes(probes, filters), [filters, probes]);
   const filterSuggestions = useMemo(() => probeFilterSuggestions(probes, filters), [filters, probes]);
   const chips = useMemo(() => filterChips(filters), [filters]);
@@ -142,6 +137,7 @@ export function App() {
     nextGlobalpingToken: string,
     nextTurnstileToken: string,
     source: TraceLoadSource,
+    enrichmentMode: TraceEnrichmentMode = "verified",
   ) => {
     pollAbortRef.current?.abort();
     const controller = new AbortController();
@@ -183,7 +179,10 @@ export function App() {
         return;
       }
 
-      const enriched = await enrichTrace(measurement, nextTurnstileToken);
+      const enriched =
+        enrichmentMode === "verified"
+          ? await enrichTrace(measurement, nextTurnstileToken)
+          : await enrichTraceWithBrowserFallback(current, { signal: controller.signal });
       setResult(enriched);
       setMessage("");
       if (enriched.status !== "in-progress") {
@@ -215,7 +214,6 @@ export function App() {
         setWorkspaceMode("result");
         setMessage("");
       }
-      if (dismissedSharedTurnstileId === id) return;
       if (turnstileGate?.kind === "shared" && turnstileGate.measurementId === id) return;
       setTurnstileGate({ kind: "shared", measurementId: id });
       return;
@@ -225,7 +223,6 @@ export function App() {
   }, [
     config.turnstileSiteKey,
     configReady,
-    dismissedSharedTurnstileId,
     globalpingToken,
     loadTrace,
     result,
@@ -268,7 +265,10 @@ export function App() {
     }
   };
 
-  const createAndLoadTrace = useCallback(async (activeTurnstileToken: string) => {
+  const createAndLoadTrace = useCallback(async (
+    activeTurnstileToken: string,
+    enrichmentMode: TraceEnrichmentMode = "verified",
+  ) => {
     setLoading(true);
     setMessage("");
     setWorkspaceMode("select");
@@ -290,7 +290,7 @@ export function App() {
       const url = new URL(window.location.href);
       url.searchParams.set("measurement", created.measurementId);
       window.history.replaceState(null, "", url);
-      await loadTrace(created.measurementId, true, globalpingToken, activeTurnstileToken, "created");
+      await loadTrace(created.measurementId, true, globalpingToken, activeTurnstileToken, "created", enrichmentMode);
     } catch (error) {
       setMessage(userFacingErrorMessage(error, "创建 trace 失败"));
     } finally {
@@ -312,7 +312,6 @@ export function App() {
     if (!token || !turnstileGate) return;
     const gate = turnstileGate;
     setTurnstileGate(null);
-    setDismissedSharedTurnstileId("");
     setMessage("");
     if (gate.kind === "shared") {
       sharedTraceStartedRef.current = gate.measurementId;
@@ -323,21 +322,17 @@ export function App() {
   }, [createAndLoadTrace, globalpingToken, loadTrace, turnstileGate]);
 
   const cancelTurnstileGate = useCallback(() => {
-    if (turnstileGate?.kind === "shared") {
-      setDismissedSharedTurnstileId(turnstileGate.measurementId);
-      setSharedLoadingMeasurementId(turnstileGate.measurementId);
-      setWorkspaceMode("result");
-    }
+    if (!turnstileGate) return;
+    const gate = turnstileGate;
     setTurnstileGate(null);
-  }, [turnstileGate]);
-
-  const retrySharedTurnstile = useCallback((measurementId: string) => {
-    setDismissedSharedTurnstileId("");
     setMessage("");
-    setSharedLoadingMeasurementId(measurementId);
-    setWorkspaceMode("result");
-    setTurnstileGate({ kind: "shared", measurementId });
-  }, []);
+    if (gate.kind === "shared") {
+      sharedTraceStartedRef.current = gate.measurementId;
+      void loadTrace(gate.measurementId, true, globalpingToken, "", "shared", "browserFallback");
+      return;
+    }
+    void createAndLoadTrace("", "browserFallback");
+  }, [createAndLoadTrace, globalpingToken, loadTrace, turnstileGate]);
 
   const resetMapSelectionLimitTracking = useCallback(() => {
     mapSelectionLimitBeforeRef.current = null;
@@ -448,7 +443,6 @@ export function App() {
     setWorkspaceMode("select");
     setSharedLoadingMeasurementId("");
     setTurnstileGate(null);
-    setDismissedSharedTurnstileId("");
     sharedTraceStartedRef.current = "";
     setMessage("");
     setLoading(false);
@@ -544,8 +538,6 @@ export function App() {
             {sharedLoadingMeasurementId ? (
               <SharedResultLoading
                 measurementId={sharedLoadingMeasurementId}
-                requiresTurnstile={sharedTurnstileDismissed}
-                onVerify={retrySharedTurnstile}
               />
             ) : workspaceMode === "select" || !finalResult ? (
               <div className="map-and-table">
@@ -675,28 +667,15 @@ function TurnstileDialog({
   );
 }
 
-function SharedResultLoading({
-  measurementId,
-  requiresTurnstile,
-  onVerify,
-}: {
-  measurementId: string;
-  requiresTurnstile?: boolean;
-  onVerify?: (measurementId: string) => void;
-}) {
+function SharedResultLoading({ measurementId }: { measurementId: string }) {
   return (
     <Surface asChild className="shared-result-loading">
       <section role="status" aria-live="polite" aria-label="正在打开分享结果">
-        {!requiresTurnstile && <Loader2 size={24} className="spin" />}
+        <Loader2 size={24} className="spin" />
         <div>
-          <h2>{requiresTurnstile ? "需要完成人机验证" : "正在打开分享结果"}</h2>
-          <p>{requiresTurnstile ? "完成 Turnstile 后会自动打开分享结果。" : "正在读取 Globalping measurement，完成后会自动展示结果。"}</p>
+          <h2>正在打开分享结果</h2>
+          <p>正在读取 Globalping measurement，完成后会自动展示结果。</p>
           <span>{measurementId}</span>
-          {requiresTurnstile && (
-            <Button variant="glass" size="sm" type="button" onClick={() => onVerify?.(measurementId)}>
-              继续验证
-            </Button>
-          )}
         </div>
       </section>
     </Surface>

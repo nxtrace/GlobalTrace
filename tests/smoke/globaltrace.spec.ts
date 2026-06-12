@@ -434,6 +434,25 @@ test("shared result opens Turnstile in a centered dialog before loading", async 
   expect(consoleErrors).toEqual([]);
 });
 
+test("cancelled shared Turnstile opens result with browser GeoIP fallback", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const consoleErrors = collectConsoleErrors(page);
+  const mocks = await installMocks(page, { turnstileSiteKey: "site-key", turnstileAutoToken: false });
+
+  await page.goto("/?measurement=m-smoke");
+
+  await expect(page.getByRole("dialog", { name: "验证后打开分享结果" })).toBeVisible();
+  await page.getByRole("button", { name: "取消" }).click();
+
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await expectVisibleHopText(page, "AS15169");
+  await expectVisibleHopText(page, "GOOGLE - Google LLC");
+  await expect.poll(mocks.enrichRequests).toBe(0);
+  await expect.poll(mocks.browserFallbackRequests).toBe(2);
+  await expectNoPageOverflow(page);
+  expect(consoleErrors).toEqual([]);
+});
+
 test("forced Liquid Glass fallback remains usable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
@@ -470,6 +489,8 @@ function collectConsoleErrors(page: Page): string[] {
 
 interface MockHandles {
   styleRequests: () => number;
+  enrichRequests: () => number;
+  browserFallbackRequests: () => number;
 }
 
 interface MockOptions {
@@ -483,6 +504,8 @@ interface MockOptions {
 async function installMocks(page: Page, options: MockOptions = {}): Promise<MockHandles> {
   let pollCount = 0;
   let styleRequests = 0;
+  let enrichRequests = 0;
+  let browserFallbackRequests = 0;
   let enriched = false;
   if (options.turnstileSiteKey) {
     await page.addInitScript(({ autoToken }: { autoToken: boolean }) => {
@@ -577,6 +600,33 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
     const status = pollCount === 1 ? "in-progress" : "finished";
     await route.fulfill({ headers: globalpingCorsHeaders, json: globalpingMeasurement(status) });
   });
+  await page.route("https://ipinfo.io/8.8.8.8", async (route) => {
+    browserFallbackRequests += 1;
+    await route.fulfill({
+      headers: globalpingCorsHeaders,
+      json: {
+        ip: "8.8.8.8",
+        city: "Mountain View",
+        region: "California",
+        country: "US",
+        loc: "37.4056,-122.0775",
+      },
+    });
+  });
+  await page.route("https://stat.ripe.net/data/prefix-overview/data.json**", async (route) => {
+    browserFallbackRequests += 1;
+    expect(new URL(route.request().url()).searchParams.get("resource")).toBe("8.8.8.8");
+    await route.fulfill({
+      headers: globalpingCorsHeaders,
+      json: {
+        status: "ok",
+        data: {
+          resource: "8.8.8.0/24",
+          asns: [{ asn: 15169, holder: "GOOGLE - Google LLC" }],
+        },
+      },
+    });
+  });
   await page.route("**/api/trace/m-smoke", async (route) => {
     if (options.traceResponse || enriched) {
       await route.fulfill({ json: options.traceResponse || traceResult("finished") });
@@ -585,11 +635,14 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
     await route.fulfill({ status: 204 });
   });
   await page.route("**/api/trace/enrich", async (route) => {
+    enrichRequests += 1;
     enriched = true;
     await route.fulfill({ json: options.traceResponse || traceResult("finished") });
   });
   return {
     styleRequests: () => styleRequests,
+    enrichRequests: () => enrichRequests,
+    browserFallbackRequests: () => browserFallbackRequests,
   };
 }
 
@@ -1598,7 +1651,40 @@ function globalpingMeasurement(status: "in-progress" | "finished") {
     target: "globalping.io",
     status,
     probesCount: 1,
-    results: [],
+    results:
+      status === "in-progress"
+        ? []
+        : [
+            {
+              probe: {
+                continent: "NA",
+                region: "Northern America",
+                country: "US",
+                state: "CA",
+                city: "Los Angeles",
+                asn: 7922,
+                latitude: 34.05,
+                longitude: -118.24,
+                network: "Comcast",
+                tags: ["eyeball-network"],
+                resolvers: [],
+              },
+              result: {
+                status: "finished",
+                resolvedAddress: "8.8.8.8",
+                resolvedHostname: "dns.google",
+                rawOutput: "Host Loss% Avg",
+                hops: [
+                  {
+                    resolvedAddress: "8.8.8.8",
+                    resolvedHostname: "dns.google",
+                    timings: [{ rtt: 1.2 }],
+                    stats: { min: 1, avg: 1.2, max: 2, total: 1, rcv: 1, drop: 0, loss: 0 },
+                  },
+                ],
+              },
+            },
+          ],
   };
 }
 

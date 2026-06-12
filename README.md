@@ -8,7 +8,7 @@ GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping
 - UI：Radix UI、lucide-react、liquid-glass-react。
 - Worker：Hono on Cloudflare Workers Static Assets。
 - 测量来源：Globalping `type: "mtr"` measurement。
-- 增强数据：nxtrace API v4 batch GeoIP/ASN/whois。
+- 增强数据：nxtrace API v4 batch GeoIP/ASN/whois；Turnstile 取消后由浏览器匿名请求 IPinfo + RIPEstat 做有限 fallback。
 
 ## 本地运行
 
@@ -48,6 +48,15 @@ Worker 调用 nxtrace batch 接口：
 - 批量大小：最多 64 个唯一 IP。
 - 响应：按请求顺序返回 `results`。
 - 失败处理：batch chunk 失败会写入 enrichment error；当前实现不回退到单 IP `GET /v4/ipGeo`。
+
+## 浏览器端 fallback
+
+用户取消 Turnstile 后不调用 `POST /api/trace/enrich`，也不触发 Worker 端 nxtrace API。前端会直接读取 Globalping measurement，并对公网 hop IP 匿名请求：
+
+- `https://ipinfo.io/{ip}`：补充城市、地区、国家、经纬度和可能存在的 `org` ASN。
+- `https://stat.ripe.net/data/prefix-overview/data.json?resource={ip}`：当 IPinfo 缺少 ASN 时补充 ASN、holder 和 prefix。
+
+fallback 不使用服务端代理、token 或 GeoLite2 license key。
 
 ## 缓存和存储边界
 

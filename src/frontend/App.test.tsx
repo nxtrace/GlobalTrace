@@ -316,6 +316,7 @@ describe("App", () => {
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
     expect(traceEnrichBodies(fetchMock)[0].turnstileToken).toBe("turnstile-token-1");
+    expect(fallbackIpinfoCalls(fetchMock)).toHaveLength(0);
     expect(window.turnstile?.reset).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
@@ -423,8 +424,8 @@ describe("App", () => {
     expect(traceCreateBodies(fetchMock)).toHaveLength(0);
   });
 
-  it("cancels homepage Turnstile without creating a trace", async () => {
-    const fetchMock = mockApi({ turnstileSiteKey: "site-key" });
+  it("cancels homepage Turnstile and uses browser GeoIP fallback without server enrichment", async () => {
+    const fetchMock = mockApi({ turnstileSiteKey: "site-key", measurement: globalpingMeasurementWithHop });
     window.turnstile = {
       render: vi.fn((element) => {
         const widget = document.createElement("div");
@@ -444,17 +445,21 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "取消" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "验证后开始诊断" })).not.toBeInTheDocument());
-    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
-    expect(traceCreateBodies(fetchMock)).toHaveLength(0);
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(traceCreateBodies(fetchMock)).toHaveLength(1);
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+    expect(fallbackIpinfoCalls(fetchMock)).toHaveLength(1);
+    expect(fallbackRipestatCalls(fetchMock)).toHaveLength(1);
   });
 
-  it("cancels and retries shared Turnstile", async () => {
-    const fetchMock = mockApi({ traceStatus: () => "finished", turnstileSiteKey: "site-key" });
-    let callback: ((token: string) => void) | undefined;
+  it("cancels shared Turnstile and uses browser GeoIP fallback without server enrichment", async () => {
+    const fetchMock = mockApi({
+      traceStatus: () => "finished",
+      turnstileSiteKey: "site-key",
+      measurement: globalpingMeasurementWithHop,
+    });
     window.turnstile = {
-      render: vi.fn((element, options) => {
-        callback = options.callback;
+      render: vi.fn((element) => {
         const widget = document.createElement("div");
         widget.className = "mock-turnstile-widget";
         element.appendChild(widget);
@@ -470,20 +475,10 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "取消" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "验证后打开分享结果" })).not.toBeInTheDocument());
-    expect(screen.getByText("需要完成人机验证")).toBeInTheDocument();
-    expect(screen.getByText("完成 Turnstile 后会自动打开分享结果。")).toBeInTheDocument();
-    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
-
-    fireEvent.click(screen.getByRole("button", { name: "继续验证" }));
-    expect(await screen.findByRole("dialog", { name: "验证后打开分享结果" })).toBeInTheDocument();
-    await waitFor(() => expect(document.querySelector(".mock-turnstile-widget")).toBeInTheDocument());
-    act(() => {
-      callback?.("turnstile-token-1");
-    });
-
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
-    expect(traceEnrichBodies(fetchMock)[0].turnstileToken).toBe("turnstile-token-1");
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+    expect(fallbackIpinfoCalls(fetchMock)).toHaveLength(1);
+    expect(fallbackRipestatCalls(fetchMock)).toHaveLength(1);
   });
 
   it("returns to the home view from the brand link", async () => {
@@ -660,6 +655,7 @@ function mockApi(
     traceStatus?: (polls: number) => TraceResultResponse["status"];
     turnstileSiteKey?: string;
     enrichmentStatus?: TraceResultResponse["enrichment"]["status"];
+    measurement?: (status: TraceResultResponse["status"]) => GlobalpingMeasurement;
   } = {},
 ) {
   let tracePolls = 0;
@@ -685,10 +681,29 @@ function mockApi(
     if (path === "https://api.globalping.io/v1/measurements/m123") {
       tracePolls += 1;
       const status = options.traceStatus?.(tracePolls) ?? (tracePolls === 1 ? "in-progress" : "finished");
-      return json(globalpingMeasurement(status));
+      return json((options.measurement || globalpingMeasurement)(status));
     }
     if (path === "/api/trace/enrich" && init?.method === "POST") {
       return json(traceResult("finished", options.enrichmentStatus));
+    }
+    if (path === `https://ipinfo.io/${FALLBACK_HOP_IP}`) {
+      return json({
+        ip: FALLBACK_HOP_IP,
+        city: "Englewood",
+        region: "Colorado",
+        country: "US",
+        loc: "39.6123,-104.8799",
+      });
+    }
+    if (path.startsWith("https://stat.ripe.net/data/prefix-overview/data.json")) {
+      expect(new URL(path).searchParams.get("resource")).toBe(FALLBACK_HOP_IP);
+      return json({
+        status: "ok",
+        data: {
+          resource: "206.83.141.0/24",
+          asns: [{ asn: 64500, holder: "EXAMPLE - Example Network" }],
+        },
+      });
     }
     throw new Error(`unexpected fetch: ${path}`);
   });
@@ -709,6 +724,14 @@ function traceEnrichBodies(fetchMock: ReturnType<typeof mockApi>): Array<{ turns
   return fetchMock.mock.calls
     .filter(([path, init]) => path === "/api/trace/enrich" && init?.method === "POST")
     .map(([, init]) => JSON.parse(String(init?.body)));
+}
+
+function fallbackIpinfoCalls(fetchMock: ReturnType<typeof mockApi>) {
+  return fetchMock.mock.calls.filter(([path]) => String(path).startsWith("https://ipinfo.io/"));
+}
+
+function fallbackRipestatCalls(fetchMock: ReturnType<typeof mockApi>) {
+  return fetchMock.mock.calls.filter(([path]) => String(path).startsWith("https://stat.ripe.net/data/prefix-overview/"));
 }
 
 function json(body: unknown, status = 200): Response {
@@ -776,6 +799,39 @@ function traceResult(
     enrichment: { status: enrichmentStatus, cached: 0, fetched: 0, errors: [] },
   };
 }
+
+function globalpingMeasurementWithHop(status: TraceResultResponse["status"]): GlobalpingMeasurement {
+  const measurement = globalpingMeasurement(status);
+  if (status !== "finished") return measurement;
+  return {
+    ...measurement,
+    results: [
+      {
+        probe: {
+          ...probes[0].location,
+          tags: probes[0].tags,
+          resolvers: probes[0].resolvers || [],
+        },
+        result: {
+          status: "finished",
+          resolvedAddress: FALLBACK_HOP_IP,
+          resolvedHostname: null,
+          rawOutput: "Host Loss% Avg",
+          hops: [
+            {
+              resolvedAddress: FALLBACK_HOP_IP,
+              resolvedHostname: null,
+              timings: [{ rtt: 1.2 }],
+              stats: { min: 1, avg: 1.2, max: 2, total: 1, rcv: 1, drop: 0, loss: 0 },
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+
+const FALLBACK_HOP_IP = "206.83.141.0";
 
 const probes: GlobalpingProbe[] = [
   {
