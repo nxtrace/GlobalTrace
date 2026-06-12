@@ -181,12 +181,18 @@ export function FilterPanel(props: FilterPanelProps) {
                 <span>当前筛选</span>
               </div>
               <div className="chip-row" data-testid="filter-chips">
-                {props.chips.map((chip) => (
-                  <Badge className="filter-chip" key={chip.key}>
-                    {chip.key !== "magic" && <strong>{chip.label}</strong>}
-                    <span className="filter-chip-value">{chip.value}</span>
-                  </Badge>
-                ))}
+                {props.chips.map((chip) =>
+                  chip.key === "magic" ? (
+                    <span className="filter-magic-summary" key={chip.key}>
+                      <span className="filter-chip-value">{chip.value}</span>
+                    </span>
+                  ) : (
+                    <Badge className="filter-chip" key={chip.key}>
+                      <strong>{chip.label}</strong>
+                      <span className="filter-chip-value">{chip.value}</span>
+                    </Badge>
+                  ),
+                )}
               </div>
               <div className="probe-match-row">
                 <span>{probeStatusText(props.probesStatus, props.visibleProbes, props.totalProbes)}</span>

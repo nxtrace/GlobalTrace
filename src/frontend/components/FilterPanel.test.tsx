@@ -131,6 +131,9 @@ describe("FilterPanel", () => {
     const chips = screen.getByTestId("filter-chips");
     expect(chips).toHaveTextContent("Novosibirsk-0+RU+AS21000+datacenter-network");
     expect(within(chips).queryByText("magic")).not.toBeInTheDocument();
+    const magicSummary = within(chips).getByText(magic);
+    expect(magicSummary.closest(".filter-chip")).toBeNull();
+    expect(magicSummary.closest(".filter-magic-summary")).not.toBeNull();
     expect(screen.getByText("当前筛选")).toBeInTheDocument();
     const footer = screen.getByTestId("filter-panel-footer");
     expect(within(footer).getByRole("button", { name: "开始网络路径诊断" })).toBeInTheDocument();
