@@ -663,7 +663,7 @@ function TurnstileDialog({
           </div>
           <TurnstileBox siteKey={siteKey} onToken={onToken} />
           <div className="turnstile-dialog-actions">
-            <Button variant="ghost" size="sm" type="button" onClick={onCancel}>
+            <Button variant="secondary" size="sm" className="turnstile-cancel-button" type="button" onClick={onCancel}>
               取消
             </Button>
           </div>

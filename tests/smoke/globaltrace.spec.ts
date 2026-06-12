@@ -250,6 +250,7 @@ for (const viewport of mobileResultViewports) {
 
 test("desktop filter summary constrains long magic content and keeps run controls visible", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
+  await page.emulateMedia({ colorScheme: "light" });
   const consoleErrors = collectConsoleErrors(page);
   await installMocks(page, { turnstileSiteKey: "site-key", turnstileAutoToken: false });
 
@@ -268,6 +269,7 @@ test("desktop filter summary constrains long magic content and keeps run control
   await expect(page.getByRole("dialog", { name: "验证后开始诊断" })).toBeVisible();
   await expect(page.locator(".mock-turnstile-widget")).toBeVisible();
   await expectTurnstileDialogCentered(page);
+  await expectLightTurnstileDialogReadable(page);
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -766,6 +768,49 @@ async function expectTurnstileDialogCentered(page: Page): Promise<void> {
   expect(state.shellWidth).toBeLessThanOrEqual(state.dialogWidth);
   expect(state.shellLeft).toBeGreaterThanOrEqual(state.dialogLeft);
   expect(state.shellRight).toBeLessThanOrEqual(state.dialogRight);
+}
+
+async function expectLightTurnstileDialogReadable(page: Page): Promise<void> {
+  const state = await page.evaluate(() => {
+    const readAlpha = (value: string) => {
+      const values = value.match(/rgba?\(([^)]+)\)/)?.[1]?.split(",").map((part) => part.trim()) || [];
+      return values.length === 4 ? Number(values[3]) : 1;
+    };
+    const dialog = document.querySelector(".turnstile-dialog") as HTMLElement | null;
+    const overlay = document.querySelector(".turnstile-overlay") as HTMLElement | null;
+    const title = document.querySelector("#turnstile-dialog-title") as HTMLElement | null;
+    const description = document.querySelector(".turnstile-dialog-copy p") as HTMLElement | null;
+    const cancel = document.querySelector(".turnstile-cancel-button") as HTMLElement | null;
+    const cancelRect = cancel?.getBoundingClientRect();
+    const overlayStyle = overlay ? getComputedStyle(overlay) : null;
+    const dialogStyle = dialog ? getComputedStyle(dialog) : null;
+    const titleStyle = title ? getComputedStyle(title) : null;
+    const descriptionStyle = description ? getComputedStyle(description) : null;
+    const cancelStyle = cancel ? getComputedStyle(cancel) : null;
+    return {
+      overlayAlpha: readAlpha(overlayStyle?.backgroundColor || ""),
+      dialogAlpha: readAlpha(dialogStyle?.backgroundColor || ""),
+      dialogBorderAlpha: readAlpha(dialogStyle?.borderColor || ""),
+      titleColor: titleStyle?.color || "",
+      descriptionColor: descriptionStyle?.color || "",
+      cancelHeight: cancelRect?.height ?? 0,
+      cancelWidth: cancelRect?.width ?? 0,
+      cancelBackgroundAlpha: readAlpha(cancelStyle?.backgroundColor || ""),
+      cancelBorderAlpha: readAlpha(cancelStyle?.borderColor || ""),
+      cancelColor: cancelStyle?.color || "",
+    };
+  });
+  expect(state.overlayAlpha).toBeLessThanOrEqual(0.25);
+  expect(state.dialogAlpha).toBeGreaterThanOrEqual(0.94);
+  expect(state.dialogBorderAlpha).toBeGreaterThanOrEqual(0.2);
+  expect(state.titleColor).toBe("rgb(29, 29, 31)");
+  expect(state.descriptionColor).toBe("rgb(81, 81, 84)");
+  expect(state.cancelHeight).toBeGreaterThanOrEqual(34);
+  expect(state.cancelHeight).toBeLessThanOrEqual(36);
+  expect(state.cancelWidth).toBeGreaterThanOrEqual(78);
+  expect(state.cancelBackgroundAlpha).toBeGreaterThanOrEqual(0.85);
+  expect(state.cancelBorderAlpha).toBeGreaterThanOrEqual(0.3);
+  expect(state.cancelColor).toBe("rgb(38, 54, 51)");
 }
 
 async function expectMapCanvasPainted(page: Page): Promise<void> {

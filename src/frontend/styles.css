@@ -85,6 +85,14 @@
   --status-glass-shadow:
     0 1px 0 rgba(255, 255, 255, 0.72) inset,
     0 12px 30px rgba(0, 0, 0, 0.06);
+  --turnstile-overlay-bg: rgba(30, 39, 40, 0.2);
+  --turnstile-dialog-bg: rgba(255, 255, 255, 0.96);
+  --turnstile-dialog-border: rgba(38, 54, 50, 0.24);
+  --turnstile-dialog-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 24px 70px rgba(35, 48, 45, 0.2);
+  --turnstile-cancel-bg: rgba(255, 255, 255, 0.88);
+  --turnstile-cancel-bg-hover: rgba(245, 249, 247, 0.98);
+  --turnstile-cancel-border: rgba(49, 94, 88, 0.34);
+  --turnstile-cancel-color: #263633;
   color: var(--ink);
   background: var(--page);
   font-family:
@@ -178,6 +186,14 @@
   --status-glass-shadow:
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
     0 14px 32px rgba(0, 0, 0, 0.3);
+  --turnstile-overlay-bg: rgba(4, 8, 9, 0.58);
+  --turnstile-dialog-bg: rgba(9, 18, 18, 0.92);
+  --turnstile-dialog-border: rgba(255, 255, 255, 0.16);
+  --turnstile-dialog-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 24px 78px rgba(0, 0, 0, 0.44);
+  --turnstile-cancel-bg: rgba(24, 34, 35, 0.88);
+  --turnstile-cancel-bg-hover: rgba(34, 47, 48, 0.98);
+  --turnstile-cancel-border: rgba(196, 207, 202, 0.24);
+  --turnstile-cancel-color: var(--ink);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -265,6 +281,14 @@
     --status-glass-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
       0 14px 32px rgba(0, 0, 0, 0.3);
+    --turnstile-overlay-bg: rgba(4, 8, 9, 0.58);
+    --turnstile-dialog-bg: rgba(9, 18, 18, 0.92);
+    --turnstile-dialog-border: rgba(255, 255, 255, 0.16);
+    --turnstile-dialog-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 24px 78px rgba(0, 0, 0, 0.44);
+    --turnstile-cancel-bg: rgba(24, 34, 35, 0.88);
+    --turnstile-cancel-bg-hover: rgba(34, 47, 48, 0.98);
+    --turnstile-cancel-border: rgba(196, 207, 202, 0.24);
+    --turnstile-cancel-color: var(--ink);
   }
 }
 
@@ -1221,7 +1245,7 @@ summary:focus-visible {
   display: grid;
   place-items: center;
   padding: 18px;
-  background: rgba(7, 11, 12, 0.42);
+  background: var(--turnstile-overlay-bg);
   backdrop-filter: blur(10px);
 }
 
@@ -1232,9 +1256,10 @@ summary:focus-visible {
   gap: 16px;
   overflow: auto;
   padding: 18px;
+  border: 1px solid var(--turnstile-dialog-border);
   border-radius: 18px;
-  background: var(--panel-bg);
-  box-shadow: var(--shadow-panel);
+  background: var(--turnstile-dialog-bg);
+  box-shadow: var(--turnstile-dialog-shadow);
 }
 
 .turnstile-dialog-copy {
@@ -1271,6 +1296,24 @@ summary:focus-visible {
 .turnstile-dialog-actions {
   display: flex;
   justify-content: center;
+}
+
+.turnstile-cancel-button {
+  height: 34px;
+  min-height: 34px;
+  min-width: 78px;
+  border-color: var(--turnstile-cancel-border);
+  background: var(--turnstile-cancel-bg);
+  color: var(--turnstile-cancel-color);
+  font-size: 13px;
+  font-weight: 760;
+  box-shadow: var(--shadow-control);
+}
+
+.turnstile-cancel-button:hover {
+  border-color: var(--accent-border);
+  background: var(--turnstile-cancel-bg-hover);
+  color: var(--ink);
 }
 
 .status-bar {
