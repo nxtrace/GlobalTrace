@@ -13,8 +13,9 @@ const buttonVariants = cva(
         secondary:
           "border border-[color:var(--glass-border)] bg-[color:var(--control-bg)] text-[color:var(--foreground)] shadow-[var(--shadow-control)] hover:bg-[color:var(--control-bg-hover)] active:translate-y-px",
         glass:
-          "border border-[color:var(--glass-border)] bg-[color:var(--glass-control)] text-[color:var(--foreground)] shadow-[var(--shadow-control)] backdrop-blur-xl hover:bg-[color:var(--glass-control-hover)] active:translate-y-px",
-        ghost: "text-[color:var(--muted-foreground)] hover:bg-[color:var(--control-bg)] hover:text-[color:var(--foreground)]",
+          "border border-[color:var(--glass-border)] bg-[color:var(--glass-control)] text-[color:var(--foreground)] shadow-[var(--shadow-control)] backdrop-blur-xl hover:border-[color:var(--accent-border)] hover:bg-[color:var(--glass-control-hover)] active:translate-y-px",
+        ghost:
+          "text-[color:var(--muted-foreground)] hover:bg-[color:var(--control-bg)] hover:text-[color:var(--foreground)] hover:shadow-[var(--shadow-inset)]",
         danger:
           "border border-[color:var(--danger-border)] bg-[color:var(--danger-bg)] text-[color:var(--danger)] hover:bg-[color:var(--danger-bg-hover)]",
       },

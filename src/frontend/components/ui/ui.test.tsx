@@ -35,6 +35,7 @@ describe("local ui components", () => {
     fireEvent.change(screen.getByLabelText("协议"), { target: { value: "TCP" } });
 
     expect(screen.getByLabelText("目标")).toHaveValue("example.com");
+    expect(screen.getByLabelText("目标")).toHaveClass("backdrop-blur-xl");
     expect(screen.getByLabelText("协议")).toHaveValue("TCP");
   });
 
@@ -95,7 +96,9 @@ describe("local ui components", () => {
     );
 
     expect(screen.getByRole("tab", { name: "route" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tablist", { name: "结果视图" })).toHaveClass("backdrop-blur-2xl");
     expect(screen.getByText("ready")).toBeInTheDocument();
+    expect(screen.getByText("ready")).toHaveClass("backdrop-blur-xl");
     expect(screen.getByRole("button", { name: "说明" })).toBeInTheDocument();
     expect(within(screen.getByRole("table")).getByText("8.8.8.8")).toBeInTheDocument();
   });

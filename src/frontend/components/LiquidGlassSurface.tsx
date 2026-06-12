@@ -7,7 +7,7 @@ const LIQUID_GLASS_IDLE_TIMEOUT_MS = 4000;
 interface LiquidGlassSurfaceProps {
   children: ReactNode;
   className?: string;
-  variant?: "button" | "toolbar" | "chip";
+  variant?: "button" | "toolbar" | "chip" | "panel";
   fullWidth?: boolean;
 }
 
@@ -128,6 +128,19 @@ function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["var
       aberrationIntensity: 1.2,
       elasticity: 0.08,
       cornerRadius: 18,
+      overLight: false,
+      mode: "standard" as const,
+    };
+  }
+
+  if (variant === "panel") {
+    return {
+      displacementScale: 22,
+      blurAmount: 0.028,
+      saturation: 150,
+      aberrationIntensity: 0.9,
+      elasticity: 0.06,
+      cornerRadius: 22,
       overLight: false,
       mode: "standard" as const,
     };

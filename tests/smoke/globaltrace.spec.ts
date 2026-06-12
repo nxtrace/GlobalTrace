@@ -51,6 +51,12 @@ for (const viewport of viewports) {
     await expect(page.getByRole("button", { name: "切换到 3D 视图" })).toHaveCount(0);
     await expect(page.locator(".maplibregl-canvas")).toBeVisible();
     await expectDarkMapControls(page);
+    if (viewport.name === "1440x1000" || viewport.name === "390x844") {
+      await page.screenshot({
+        path: `/tmp/${screenshotPrefix}-dark-home-${viewport.name}.png`,
+        fullPage: true,
+      });
+    }
     await expect(page.locator("[data-liquid-glass]").first()).toBeVisible();
     await expect(page.locator("[data-liquid-glass]").first()).toHaveAttribute("data-liquid-glass-mode", /^(liquid|fallback)$/);
     await expect.poll(mocks.styleRequests).toBe(1);
@@ -312,6 +318,10 @@ test("about page exposes provider attribution links", async ({ page }) => {
   await expect(page.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
   await expectNoMapJavaScriptLoaded(page);
   await expectNoPageOverflow(page);
+  await page.screenshot({
+    path: `/tmp/${screenshotPrefix}-about-390x844.png`,
+    fullPage: true,
+  });
   expect(consoleErrors).toEqual([]);
 });
 
@@ -666,9 +676,9 @@ async function expectLightModePanelBoundaries(page: Page): Promise<void> {
       panelBorderWidth: panelStyles.borderTopWidth,
     };
   });
-  expect(state.glassBorder).toBe("rgba(38, 54, 50, 0.2)");
-  expect(state.mutedBorder).toBe("rgba(52, 65, 62, 0.16)");
-  expect(state.tableBorder).toBe("rgba(41, 56, 52, 0.16)");
+  expect(state.glassBorder).toBe("rgba(45, 72, 82, 0.22)");
+  expect(state.mutedBorder).toBe("rgba(45, 72, 82, 0.18)");
+  expect(state.tableBorder).toBe("rgba(45, 72, 82, 0.16)");
   expect(state.panelBorderColor).not.toBe("rgba(255, 255, 255, 0.62)");
   expect(state.panelBorderWidth).toBe("1px");
 }
@@ -694,7 +704,7 @@ async function expectDarkMapControls(page: Page): Promise<void> {
   await expect(page.locator(".maplibregl-ctrl-group button").first()).toBeVisible();
   await expect
     .poll(async () => page.locator(".tool-button").first().evaluate((node) => window.getComputedStyle(node).backgroundColor))
-    .toBe("rgba(18, 26, 27, 0.88)");
+    .toBe("rgba(9, 18, 28, 0.84)");
   const state = await page.evaluate(() => {
     const read = (selector: string) => {
       const element = document.querySelector(selector);
@@ -719,9 +729,9 @@ async function expectDarkMapControls(page: Page): Promise<void> {
       attributionButton: read(".maplibregl-ctrl-attrib-button"),
     };
   });
-  expect(state.controlBg).toBe("rgba(18, 26, 27, 0.88)");
-  expect(state.controlFg).toBe("rgba(243, 247, 245, 0.9)");
-  expect(state.controlBorder).toBe("rgba(255, 255, 255, 0.2)");
+  expect(state.controlBg).toBe("rgba(9, 18, 28, 0.84)");
+  expect(state.controlFg).toBe("rgba(245, 251, 255, 0.92)");
+  expect(state.controlBorder).toBe("rgba(114, 220, 255, 0.24)");
   expect(state.toolbar?.backgroundColor).toBe(state.controlBg);
   expect(state.toolbar?.color).toBe(state.controlFg);
   expect(state.zoomGroup?.backgroundColor).toBe(state.controlBg);

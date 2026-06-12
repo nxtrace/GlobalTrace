@@ -16,12 +16,12 @@ function Surface({ className, variant = "glass", asChild = false, ...props }: Su
 
 function surfaceClassName(variant: SurfaceVariant) {
   if (variant === "solid") {
-    return "rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--panel-solid)] shadow-[var(--shadow-panel)]";
+    return "rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--panel-solid)] shadow-[var(--shadow-panel)] backdrop-blur-2xl";
   }
   if (variant === "flat") {
-    return "rounded-2xl border border-[color:var(--muted-border)] bg-[color:var(--panel-flat)]";
+    return "rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--panel-flat)] shadow-[var(--shadow-inset)] backdrop-blur-xl";
   }
-  return "rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] shadow-[var(--shadow-panel)] backdrop-blur-2xl";
+  return "rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] shadow-[var(--shadow-panel)] backdrop-blur-2xl supports-[backdrop-filter]:bg-[color:var(--glass-bg)]";
 }
 
 export { Surface };

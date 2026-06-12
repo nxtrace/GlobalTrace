@@ -73,10 +73,10 @@ export function ProbeMap({
         filter: ["has", "point_count"],
         paint: {
           "circle-radius": ["step", ["get", "point_count"], 17, 20, 22, 100, 28, 1000, 34],
-          "circle-color": ["step", ["get", "point_count"], "#8aa6a0", 20, "#71948d", 100, "#587f78"],
+          "circle-color": ["step", ["get", "point_count"], "#34d399", 20, "#22d3ee", 100, "#8b5cf6"],
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 1.6,
-          "circle-opacity": 0.86,
+          "circle-opacity": 0.82,
         },
       });
       map.addLayer({
@@ -86,9 +86,9 @@ export function ProbeMap({
         filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "selected"], true]],
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 12, 6, 18],
-          "circle-color": "rgba(79, 129, 121, 0.18)",
-          "circle-stroke-color": "rgba(79, 129, 121, 0.34)",
-          "circle-stroke-width": 1,
+          "circle-color": "rgba(35, 184, 255, 0.18)",
+          "circle-stroke-color": "rgba(139, 92, 246, 0.46)",
+          "circle-stroke-width": 1.4,
         },
       });
       map.addLayer({
@@ -106,8 +106,8 @@ export function ProbeMap({
             6,
             ["case", ["==", ["get", "selected"], true], 11, 7],
           ],
-          "circle-color": ["case", ["in", "eyeball-network", ["get", "tags"]], "#4f8179", "#a48e65"],
-          "circle-stroke-color": ["case", ["==", ["get", "selected"], true], "#1f3f3a", "#ffffff"],
+          "circle-color": ["case", ["in", "eyeball-network", ["get", "tags"]], "#14b8a6", "#f97316"],
+          "circle-stroke-color": ["case", ["==", ["get", "selected"], true], "#23b8ff", "#ffffff"],
           "circle-stroke-width": ["case", ["==", ["get", "selected"], true], 2.5, 1.2],
           "circle-opacity": 0.9,
         },

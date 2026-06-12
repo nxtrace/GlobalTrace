@@ -167,8 +167,8 @@ export function FilterPanel(props: FilterPanelProps) {
             </section>
           </Surface>
 
-          <Surface asChild variant="flat" className="filter-summary" aria-label="当前筛选">
-            <section>
+          <LiquidGlassSurface variant="panel" fullWidth className="filter-summary-surface">
+            <section className="filter-summary" aria-label="当前筛选">
               <div className="summary-title">
                 <Filter size={16} />
                 <span>当前筛选</span>
@@ -186,7 +186,7 @@ export function FilterPanel(props: FilterPanelProps) {
                 {props.selectionNotice && <span className="notice-text">{props.selectionNotice}</span>}
               </div>
             </section>
-          </Surface>
+          </LiquidGlassSurface>
 
           <Surface asChild variant="flat">
             <details className="advanced-panel">
@@ -314,30 +314,34 @@ export function FilterPanel(props: FilterPanelProps) {
         </div>
 
         <div className="filter-panel-footer" data-testid="filter-panel-footer">
-          <Surface variant="flat" className="run-state" aria-live="polite">
-            <ShieldCheck size={16} />
-            <div>
-              <strong>{props.turnstileSiteKey ? "Turnstile 已配置" : "本地模式，无 Turnstile site key"}</strong>
-              <span>{props.quotaLabel}</span>
+          <LiquidGlassSurface variant="panel" fullWidth className="run-state-surface">
+            <div className="run-state" aria-live="polite">
+              <ShieldCheck size={16} />
+              <div>
+                <strong>{props.turnstileSiteKey ? "Turnstile 已配置" : "本地模式，无 Turnstile site key"}</strong>
+                <span>{props.quotaLabel}</span>
+              </div>
             </div>
-          </Surface>
+          </LiquidGlassSurface>
 
-          <Surface variant="flat" className="attribution-panel">
-            <span>
-              Powered by{" "}
-              <a href="https://globalping.io/" target="_blank" rel="noreferrer">
-                Globalping
-              </a>{" "}
-              <span className="attribution-separator">×</span>{" "}
-              <a href="https://www.nxtrace.org/" target="_blank" rel="noreferrer">
-                NextTrace
-              </a>
-            </span>
-            <Button variant="ghost" size="sm" type="button" onClick={props.onNavigateAbout} aria-label="关于 GlobalTrace">
-              <Info size={15} />
-              关于
-            </Button>
-          </Surface>
+          <LiquidGlassSurface variant="panel" fullWidth className="attribution-glass-surface">
+            <div className="attribution-panel">
+              <span>
+                Powered by{" "}
+                <a href="https://globalping.io/" target="_blank" rel="noreferrer">
+                  Globalping
+                </a>{" "}
+                <span className="attribution-separator">×</span>{" "}
+                <a href="https://www.nxtrace.org/" target="_blank" rel="noreferrer">
+                  NextTrace
+                </a>
+              </span>
+              <Button variant="ghost" size="sm" type="button" onClick={props.onNavigateAbout} aria-label="关于 GlobalTrace">
+                <Info size={15} />
+                关于
+              </Button>
+            </div>
+          </LiquidGlassSurface>
 
           <LiquidGlassSurface variant="button" fullWidth className="run-action-surface">
             <Button

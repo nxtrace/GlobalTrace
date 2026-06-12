@@ -2685,6 +2685,477 @@ pre {
   }
 }
 
+/* Liquid glass visual refresh. */
+:root {
+  --cyber-cyan: #23b8ff;
+  --cyber-violet: #8b5cf6;
+  --cyber-orange: #f97316;
+  --accent: #4f8f86;
+  --accent-hover: #3f7e76;
+  --accent-strong: #276d64;
+  --accent-soft: rgba(35, 184, 255, 0.12);
+  --accent-border: rgba(35, 184, 255, 0.36);
+  --glass-bg: rgba(255, 255, 255, 0.58);
+  --glass-control: rgba(255, 255, 255, 0.62);
+  --glass-control-hover: rgba(255, 255, 255, 0.86);
+  --glass-border: rgba(45, 72, 82, 0.22);
+  --panel-solid: rgba(255, 255, 255, 0.9);
+  --panel-flat: rgba(255, 255, 255, 0.48);
+  --panel-border: rgba(45, 72, 82, 0.22);
+  --control-bg: rgba(255, 255, 255, 0.56);
+  --control-bg-hover: rgba(255, 255, 255, 0.82);
+  --control-border: rgba(45, 72, 82, 0.2);
+  --input-bg: rgba(255, 255, 255, 0.72);
+  --input-bg-hover: rgba(255, 255, 255, 0.9);
+  --input-border: rgba(45, 72, 82, 0.18);
+  --input-border-hover: rgba(35, 184, 255, 0.34);
+  --muted-bg: rgba(67, 82, 91, 0.07);
+  --muted-border: rgba(45, 72, 82, 0.18);
+  --table-border: rgba(45, 72, 82, 0.16);
+  --table-bg: rgba(255, 255, 255, 0.5);
+  --table-header-bg: rgba(248, 253, 255, 0.86);
+  --table-row-hover: rgba(35, 184, 255, 0.08);
+  --tooltip-bg: rgba(255, 255, 255, 0.88);
+  --shadow-soft: 0 1px 2px rgba(19, 35, 41, 0.05), 0 20px 46px rgba(51, 67, 83, 0.1);
+  --shadow-panel:
+    0 1px 1px rgba(255, 255, 255, 0.78) inset,
+    0 22px 58px rgba(33, 50, 58, 0.13),
+    0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+  --shadow-control:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 10px 24px rgba(32, 52, 64, 0.1);
+  --shadow-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(35, 184, 255, 0.06);
+  --shadow-popover: 0 20px 58px rgba(28, 48, 60, 0.22);
+  --body-bg:
+    linear-gradient(135deg, rgba(230, 247, 255, 0.96), rgba(249, 247, 241, 0.94) 42%, rgba(240, 232, 255, 0.9)),
+    var(--page);
+  --body-texture:
+    repeating-linear-gradient(90deg, rgba(35, 184, 255, 0.08) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(0deg, rgba(139, 92, 246, 0.06) 0 1px, transparent 1px 120px),
+    linear-gradient(135deg, transparent 0 42%, rgba(35, 184, 255, 0.08) 42% 43%, transparent 43% 100%),
+    linear-gradient(35deg, transparent 0 62%, rgba(249, 115, 22, 0.06) 62% 63%, transparent 63% 100%);
+  --filter-panel-bg:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.82), rgba(239, 252, 255, 0.58) 50%, rgba(246, 240, 255, 0.54)),
+    var(--glass-bg);
+  --section-bg:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.68), rgba(236, 251, 255, 0.42) 52%, rgba(250, 244, 255, 0.38)),
+    var(--panel-flat);
+  --map-control-bg: rgba(255, 255, 255, 0.64);
+  --map-control-bg-hover: rgba(255, 255, 255, 0.86);
+  --map-control-border: rgba(27, 112, 143, 0.24);
+  --map-control-fg: rgba(27, 41, 48, 0.9);
+  --map-control-muted: rgba(27, 41, 48, 0.7);
+  --map-control-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.76) inset,
+    0 14px 32px rgba(22, 43, 53, 0.16);
+  --map-popup-bg: rgba(255, 255, 255, 0.86);
+  --liquid-fallback-bg: rgba(255, 255, 255, 0.58);
+  --status-glass-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.38), rgba(35, 184, 255, 0.1) 42%, rgba(139, 92, 246, 0.13)),
+    rgba(255, 255, 255, 0.16);
+  --status-glass-border: rgba(255, 255, 255, 0.72);
+  --turnstile-dialog-bg: rgba(255, 255, 255, 0.7);
+}
+
+:root[data-theme="dark"] {
+  --page: #070b10;
+  --ink: #f5fbff;
+  --ink-soft: #c4d5df;
+  --ink-muted: #8ea6b4;
+  --accent: #35d2ff;
+  --accent-hover: #62ddff;
+  --accent-strong: #9eeaff;
+  --accent-soft: rgba(53, 210, 255, 0.16);
+  --accent-border: rgba(53, 210, 255, 0.42);
+  --glass-bg: rgba(10, 18, 27, 0.64);
+  --glass-control: rgba(12, 24, 34, 0.68);
+  --glass-control-hover: rgba(20, 38, 54, 0.9);
+  --glass-border: rgba(114, 220, 255, 0.18);
+  --panel-solid: rgba(11, 20, 30, 0.92);
+  --panel-flat: rgba(12, 24, 34, 0.54);
+  --panel-border: rgba(114, 220, 255, 0.16);
+  --control-bg: rgba(10, 20, 30, 0.72);
+  --control-bg-hover: rgba(18, 36, 52, 0.92);
+  --control-border: rgba(114, 220, 255, 0.15);
+  --input-bg: rgba(9, 18, 28, 0.82);
+  --input-bg-hover: rgba(17, 32, 47, 0.94);
+  --input-border: rgba(114, 220, 255, 0.16);
+  --input-border-hover: rgba(53, 210, 255, 0.42);
+  --muted-bg: rgba(114, 220, 255, 0.08);
+  --muted-border: rgba(114, 220, 255, 0.14);
+  --table-border: rgba(114, 220, 255, 0.13);
+  --table-bg: rgba(10, 20, 30, 0.58);
+  --table-header-bg: rgba(8, 17, 27, 0.9);
+  --table-row-hover: rgba(53, 210, 255, 0.1);
+  --tooltip-bg: rgba(11, 20, 30, 0.92);
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.34), 0 18px 42px rgba(0, 0, 0, 0.36);
+  --shadow-panel:
+    0 1px 0 rgba(114, 220, 255, 0.1) inset,
+    0 24px 70px rgba(0, 0, 0, 0.46),
+    0 0 44px rgba(53, 210, 255, 0.08);
+  --shadow-control:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 12px 30px rgba(0, 0, 0, 0.36),
+    0 0 22px rgba(53, 210, 255, 0.08);
+  --shadow-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(53, 210, 255, 0.08);
+  --shadow-popover: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 36px rgba(139, 92, 246, 0.12);
+  --body-bg:
+    linear-gradient(135deg, rgba(6, 15, 23, 0.98), rgba(10, 13, 23, 0.98) 48%, rgba(16, 10, 31, 0.96)),
+    var(--page);
+  --body-texture:
+    repeating-linear-gradient(90deg, rgba(53, 210, 255, 0.08) 0 1px, transparent 1px 110px),
+    repeating-linear-gradient(0deg, rgba(139, 92, 246, 0.08) 0 1px, transparent 1px 110px),
+    linear-gradient(135deg, transparent 0 38%, rgba(53, 210, 255, 0.1) 38% 39%, transparent 39% 100%),
+    linear-gradient(35deg, transparent 0 66%, rgba(249, 115, 22, 0.08) 66% 67%, transparent 67% 100%);
+  --filter-panel-bg:
+    linear-gradient(150deg, rgba(16, 31, 44, 0.78), rgba(10, 21, 32, 0.66) 52%, rgba(24, 16, 45, 0.58)),
+    var(--glass-bg);
+  --section-bg:
+    linear-gradient(150deg, rgba(18, 36, 52, 0.54), rgba(10, 21, 32, 0.42) 52%, rgba(24, 16, 45, 0.34)),
+    var(--panel-flat);
+  --map-control-bg: rgba(9, 18, 28, 0.84);
+  --map-control-bg-hover: rgba(17, 34, 50, 0.94);
+  --map-control-border: rgba(114, 220, 255, 0.24);
+  --map-control-fg: rgba(245, 251, 255, 0.92);
+  --map-control-muted: rgba(196, 213, 223, 0.76);
+  --map-control-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 14px 34px rgba(0, 0, 0, 0.42),
+    0 0 28px rgba(53, 210, 255, 0.12);
+  --map-popup-bg: rgba(9, 18, 28, 0.9);
+  --liquid-fallback-bg: rgba(10, 20, 30, 0.72);
+  --status-glass-bg:
+    linear-gradient(135deg, rgba(245, 251, 255, 0.11), rgba(53, 210, 255, 0.08) 42%, rgba(139, 92, 246, 0.14)),
+    rgba(9, 18, 28, 0.82);
+  --status-glass-border: rgba(114, 220, 255, 0.18);
+  --turnstile-dialog-bg: rgba(8, 17, 27, 0.8);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    --page: #070b10;
+    --ink: #f5fbff;
+    --ink-soft: #c4d5df;
+    --ink-muted: #8ea6b4;
+    --accent: #35d2ff;
+    --accent-hover: #62ddff;
+    --accent-strong: #9eeaff;
+    --accent-soft: rgba(53, 210, 255, 0.16);
+    --accent-border: rgba(53, 210, 255, 0.42);
+    --glass-bg: rgba(10, 18, 27, 0.64);
+    --glass-control: rgba(12, 24, 34, 0.68);
+    --glass-control-hover: rgba(20, 38, 54, 0.9);
+    --glass-border: rgba(114, 220, 255, 0.18);
+    --panel-solid: rgba(11, 20, 30, 0.92);
+    --panel-flat: rgba(12, 24, 34, 0.54);
+    --panel-border: rgba(114, 220, 255, 0.16);
+    --control-bg: rgba(10, 20, 30, 0.72);
+    --control-bg-hover: rgba(18, 36, 52, 0.92);
+    --control-border: rgba(114, 220, 255, 0.15);
+    --input-bg: rgba(9, 18, 28, 0.82);
+    --input-bg-hover: rgba(17, 32, 47, 0.94);
+    --input-border: rgba(114, 220, 255, 0.16);
+    --input-border-hover: rgba(53, 210, 255, 0.42);
+    --muted-bg: rgba(114, 220, 255, 0.08);
+    --muted-border: rgba(114, 220, 255, 0.14);
+    --table-border: rgba(114, 220, 255, 0.13);
+    --table-bg: rgba(10, 20, 30, 0.58);
+    --table-header-bg: rgba(8, 17, 27, 0.9);
+    --table-row-hover: rgba(53, 210, 255, 0.1);
+    --tooltip-bg: rgba(11, 20, 30, 0.92);
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.34), 0 18px 42px rgba(0, 0, 0, 0.36);
+    --shadow-panel:
+      0 1px 0 rgba(114, 220, 255, 0.1) inset,
+      0 24px 70px rgba(0, 0, 0, 0.46),
+      0 0 44px rgba(53, 210, 255, 0.08);
+    --shadow-control:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 12px 30px rgba(0, 0, 0, 0.36),
+      0 0 22px rgba(53, 210, 255, 0.08);
+    --shadow-inset:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -1px 0 rgba(53, 210, 255, 0.08);
+    --shadow-popover: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 36px rgba(139, 92, 246, 0.12);
+    --body-bg:
+      linear-gradient(135deg, rgba(6, 15, 23, 0.98), rgba(10, 13, 23, 0.98) 48%, rgba(16, 10, 31, 0.96)),
+      var(--page);
+    --body-texture:
+      repeating-linear-gradient(90deg, rgba(53, 210, 255, 0.08) 0 1px, transparent 1px 110px),
+      repeating-linear-gradient(0deg, rgba(139, 92, 246, 0.08) 0 1px, transparent 1px 110px),
+      linear-gradient(135deg, transparent 0 38%, rgba(53, 210, 255, 0.1) 38% 39%, transparent 39% 100%),
+      linear-gradient(35deg, transparent 0 66%, rgba(249, 115, 22, 0.08) 66% 67%, transparent 67% 100%);
+    --filter-panel-bg:
+      linear-gradient(150deg, rgba(16, 31, 44, 0.78), rgba(10, 21, 32, 0.66) 52%, rgba(24, 16, 45, 0.58)),
+      var(--glass-bg);
+    --section-bg:
+      linear-gradient(150deg, rgba(18, 36, 52, 0.54), rgba(10, 21, 32, 0.42) 52%, rgba(24, 16, 45, 0.34)),
+      var(--panel-flat);
+    --map-control-bg: rgba(9, 18, 28, 0.84);
+    --map-control-bg-hover: rgba(17, 34, 50, 0.94);
+    --map-control-border: rgba(114, 220, 255, 0.24);
+    --map-control-fg: rgba(245, 251, 255, 0.92);
+    --map-control-muted: rgba(196, 213, 223, 0.76);
+    --map-control-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 14px 34px rgba(0, 0, 0, 0.42),
+      0 0 28px rgba(53, 210, 255, 0.12);
+    --map-popup-bg: rgba(9, 18, 28, 0.9);
+    --liquid-fallback-bg: rgba(10, 20, 30, 0.72);
+    --status-glass-bg:
+      linear-gradient(135deg, rgba(245, 251, 255, 0.11), rgba(53, 210, 255, 0.08) 42%, rgba(139, 92, 246, 0.14)),
+      rgba(9, 18, 28, 0.82);
+    --status-glass-border: rgba(114, 220, 255, 0.18);
+    --turnstile-dialog-bg: rgba(8, 17, 27, 0.8);
+  }
+}
+
+body {
+  position: relative;
+  isolation: isolate;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--body-texture);
+  opacity: 0.72;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.18) 76%, transparent);
+}
+
+.app-shell,
+.about-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.filter-panel,
+.about-panel {
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(30px) saturate(1.28);
+  -webkit-backdrop-filter: blur(30px) saturate(1.28);
+}
+
+.control-section,
+.filter-summary,
+.advanced-panel,
+.run-state,
+.attribution-panel,
+.map-section,
+.probe-table-section,
+.results-section,
+.shared-result-loading,
+.result-empty,
+.raw-output,
+.about-card,
+.about-links {
+  border-color: var(--glass-border);
+  background: var(--section-bg);
+  box-shadow: var(--shadow-inset);
+}
+
+input,
+select,
+textarea {
+  border-color: var(--input-border);
+  background: var(--input-bg);
+  box-shadow: var(--shadow-inset);
+  backdrop-filter: blur(18px) saturate(1.14);
+  -webkit-backdrop-filter: blur(18px) saturate(1.14);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--input-border-hover);
+  background: var(--input-bg-hover);
+}
+
+.filter-summary-surface,
+.run-state-surface,
+.attribution-glass-surface,
+.about-panel-surface {
+  width: 100%;
+}
+
+.about-panel-surface {
+  width: min(980px, 100%);
+}
+
+.filter-summary-surface .liquid-glass-content,
+.run-state-surface .liquid-glass-content,
+.attribution-glass-surface .liquid-glass-content,
+.about-panel-surface .liquid-glass-content {
+  display: block;
+}
+
+.liquid-glass-panel,
+.liquid-glass-panel .liquid-glass-content,
+.liquid-glass-panel .liquid-glass-fallback-content {
+  border-radius: 18px;
+}
+
+.liquid-glass-panel .glass {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(35, 184, 255, 0.08) 42%, rgba(139, 92, 246, 0.12)),
+    var(--panel-flat);
+}
+
+.liquid-glass-panel .liquid-glass-fallback-content {
+  border-color: var(--glass-border);
+  background: var(--section-bg);
+  box-shadow: var(--shadow-panel);
+}
+
+.status-surface .glass,
+.map-toolbar-surface .glass,
+.result-map-toolbar-surface .glass,
+.run-action-surface .glass {
+  background: var(--status-glass-bg);
+}
+
+.run-action-surface .liquid-glass-fallback-content {
+  border-color: rgba(255, 255, 255, 0.46);
+  background:
+    linear-gradient(135deg, rgba(35, 184, 255, 0.16), rgba(139, 92, 246, 0.14)),
+    var(--liquid-fallback-bg);
+}
+
+.primary-action {
+  background: linear-gradient(135deg, #2dd4bf, var(--accent) 48%, #7c5cff);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28) inset,
+    0 14px 32px rgba(35, 184, 255, 0.22),
+    0 12px 28px rgba(139, 92, 246, 0.16);
+}
+
+.primary-action:hover {
+  background: linear-gradient(135deg, #37e8d1, var(--accent-hover) 48%, #8b5cf6);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.34) inset,
+    0 16px 36px rgba(35, 184, 255, 0.26),
+    0 14px 32px rgba(139, 92, 246, 0.18);
+}
+
+.map-status {
+  border-top-color: var(--table-border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.48), rgba(35, 184, 255, 0.08) 54%, rgba(249, 115, 22, 0.08)),
+    var(--subtle-panel-bg);
+  backdrop-filter: blur(20px) saturate(1.18);
+  -webkit-backdrop-filter: blur(20px) saturate(1.18);
+}
+
+.map-empty,
+.table-empty,
+.table-note,
+.enrichment-strip,
+.polling-state,
+.loading-strip,
+.error-banner {
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-inset);
+  backdrop-filter: blur(18px) saturate(1.14);
+  -webkit-backdrop-filter: blur(18px) saturate(1.14);
+}
+
+.result-metrics {
+  gap: 10px;
+}
+
+.metric {
+  border-color: var(--glass-border);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(35, 184, 255, 0.08) 58%, rgba(139, 92, 246, 0.08)),
+    var(--table-bg);
+  box-shadow: var(--shadow-inset);
+  backdrop-filter: blur(18px) saturate(1.14);
+  -webkit-backdrop-filter: blur(18px) saturate(1.14);
+}
+
+.metric:nth-child(3n + 2) {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(139, 92, 246, 0.1) 58%, rgba(249, 115, 22, 0.08)),
+    var(--table-bg);
+}
+
+.metric:nth-child(3n) {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(249, 115, 22, 0.1) 58%, rgba(35, 184, 255, 0.08)),
+    var(--table-bg);
+}
+
+.table-scroll {
+  border-color: var(--table-border);
+  background: var(--table-bg);
+  box-shadow: var(--shadow-inset);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.probe-tabs {
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 7px;
+  background: var(--glass-bg);
+  box-shadow: var(--shadow-inset);
+  backdrop-filter: blur(20px) saturate(1.16);
+  -webkit-backdrop-filter: blur(20px) saturate(1.16);
+}
+
+.probe-tabs button {
+  border: 1px solid transparent;
+}
+
+.probe-tabs button.active,
+.probe-tabs button[data-state="active"] {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 18%, transparent), var(--accent-soft)),
+    var(--control-bg);
+}
+
+.hop-card,
+.about-links a,
+.segmented label {
+  box-shadow: var(--shadow-inset);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+}
+
+.about-card-icon {
+  background:
+    linear-gradient(135deg, rgba(35, 184, 255, 0.16), rgba(139, 92, 246, 0.12)),
+    var(--control-bg);
+  box-shadow: var(--shadow-control);
+}
+
+:root[data-theme="dark"] .metric,
+:root[data-theme="dark"] .metric:nth-child(3n + 2),
+:root[data-theme="dark"] .metric:nth-child(3n),
+:root[data-theme="dark"] .map-status {
+  background:
+    linear-gradient(145deg, rgba(53, 210, 255, 0.1), rgba(139, 92, 246, 0.09) 56%, rgba(249, 115, 22, 0.07)),
+    var(--table-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .metric,
+  :root[data-theme="system"] .metric:nth-child(3n + 2),
+  :root[data-theme="system"] .metric:nth-child(3n),
+  :root[data-theme="system"] .map-status {
+    background:
+      linear-gradient(145deg, rgba(53, 210, 255, 0.1), rgba(139, 92, 246, 0.09) 56%, rgba(249, 115, 22, 0.07)),
+      var(--table-bg);
+  }
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .liquid-glass-surface .glass__warp,
   .liquid-glass-surface > span[style],

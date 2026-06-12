@@ -60,4 +60,14 @@ describe("LiquidGlassSurface", () => {
     expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
     expect(screen.queryByTestId("liquid-glass-mock")).not.toBeInTheDocument();
   });
+
+  it("exposes the panel variant class for larger glass surfaces", () => {
+    render(
+      <LiquidGlassSurface variant="panel">
+        <span>Panel content</span>
+      </LiquidGlassSurface>,
+    );
+
+    expect(screen.getByText("Panel content").closest("[data-liquid-glass]")).toHaveClass("liquid-glass-panel");
+  });
 });

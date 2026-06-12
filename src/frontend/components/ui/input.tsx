@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/frontend/lib/utils";
 
 const inputClassName =
-  "flex h-10 w-full rounded-xl border border-[color:var(--control-border)] bg-[color:var(--control-bg)] px-3 py-2 text-sm text-[color:var(--foreground)] shadow-[var(--shadow-inset)] outline-none transition-[background,border-color,box-shadow] placeholder:font-normal placeholder:italic placeholder:text-[color:var(--ink-muted)] hover:bg-[color:var(--control-bg-hover)] focus-visible:border-[color:var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-soft)] disabled:cursor-not-allowed disabled:opacity-55";
+  "flex h-10 w-full rounded-xl border border-[color:var(--input-border)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--foreground)] shadow-[var(--shadow-inset)] outline-none backdrop-blur-xl transition-[background,border-color,box-shadow] placeholder:font-normal placeholder:italic placeholder:text-[color:var(--ink-muted)] hover:border-[color:var(--input-border-hover)] hover:bg-[color:var(--input-bg-hover)] focus-visible:border-[color:var(--focus-ring)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-soft)] disabled:cursor-not-allowed disabled:opacity-55";
 
 const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className, ...props }, ref) => <input ref={ref} className={cn(inputClassName, className)} {...props} />,
