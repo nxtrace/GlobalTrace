@@ -1016,7 +1016,7 @@ summary:focus-visible {
 .result-map-toolbar-surface .liquid-glass-content,
 .result-map-toolbar-surface .liquid-glass-fallback-content {
   box-sizing: border-box;
-  border-color: var(--control-border);
+  border: 1px solid var(--control-border);
   background: var(--control-bg);
   box-shadow: var(--shadow-control);
   overflow: hidden;

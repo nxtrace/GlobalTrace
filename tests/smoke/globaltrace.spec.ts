@@ -853,6 +853,7 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
     const switchButton = node.querySelector(".result-map-view-switch button") as HTMLElement | null;
     const copyButton = node.querySelector('[title="复制分享 URL"]') as HTMLElement | null;
     const closeButton = node.querySelector('[aria-label="关闭结果"]') as HTMLElement | null;
+    const switchBaseStyle = switchBase ? window.getComputedStyle(switchBase) : null;
     const children = Array.from(node.children).map((child) => {
       const childRect = child.getBoundingClientRect();
       return {
@@ -868,6 +869,10 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
       children,
       toolbarHeight: toolbar?.getBoundingClientRect().height ?? 0,
       switchBaseHeight: switchBase?.getBoundingClientRect().height ?? 0,
+      switchBaseBackgroundColor: switchBaseStyle?.backgroundColor ?? "",
+      switchBaseBorderColor: switchBaseStyle?.borderTopColor ?? "",
+      switchBaseBorderStyle: switchBaseStyle?.borderTopStyle ?? "",
+      switchBaseBorderWidth: Number.parseFloat(switchBaseStyle?.borderTopWidth ?? "0") || 0,
       closeHeight: closeButton?.getBoundingClientRect().height ?? 0,
       switchButtonHeight: switchButton?.getBoundingClientRect().height ?? 0,
       copyButtonHeight: copyButton?.getBoundingClientRect().height ?? 0,
@@ -878,6 +883,10 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
   expect(state.children[0]?.className).toContain("result-map-toolbar");
   expect(state.children[1]?.className).toContain("result-command-button");
   expect(state.children[2]?.className).toContain("result-command-button");
+  expect(state.switchBaseBorderStyle).toBe("solid");
+  expect(state.switchBaseBorderWidth).toBeGreaterThanOrEqual(1);
+  expect(["transparent", "rgba(0, 0, 0, 0)"]).not.toContain(state.switchBaseBorderColor);
+  expect(["transparent", "rgba(0, 0, 0, 0)"]).not.toContain(state.switchBaseBackgroundColor);
   if (state.documentClient > 820 && !(state.documentClient <= 900 && state.viewportHeight <= 560)) {
     const heights = [state.toolbarHeight, state.copyButtonHeight, state.closeHeight];
     expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(2);
