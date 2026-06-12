@@ -114,7 +114,7 @@ for (const viewport of viewports) {
     await page.getByRole("button", { name: "开始网络路径诊断" }).click();
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
     await expect(page.getByRole("link", { name: "打开" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "复制" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "分享" })).toBeVisible();
     await expect(page.getByLabel("probe map")).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "在线 probes" })).toHaveCount(0);
     await expectVisibleHopText(page, "AS15169");
@@ -245,7 +245,7 @@ for (const viewport of mobileResultViewports) {
     await expect(page.getByRole("group", { name: "结果地图视图" })).toBeVisible();
     await expectResultHeaderActions(page);
     await expect(page.getByRole("button", { name: "切换结果地图到 2D" })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: "复制" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "分享" })).toBeVisible();
     await expect(page.getByRole("button", { name: "关闭结果" })).toBeVisible();
     await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByLabel("trace result map")).toBeVisible();
@@ -463,7 +463,7 @@ test("shared measurement link shows loading while Globalping responds", async ({
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect(page.getByRole("link", { name: "打开" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "复制" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "分享" })).toBeVisible();
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -1007,14 +1007,14 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
   await expect(actions.getByRole("group", { name: "结果地图视图" })).toBeVisible();
   await expect(actions.getByRole("button", { name: "切换结果地图到 2D" })).toBeVisible();
   await expect(actions.getByRole("button", { name: "切换结果地图到 3D" })).toBeVisible();
-  await expect(actions.getByRole("button", { name: "复制" })).toBeVisible();
+  await expect(actions.getByRole("button", { name: "分享" })).toBeVisible();
   await expect(actions.getByRole("button", { name: "关闭结果" })).toBeVisible();
   const state = await actions.evaluate((node) => {
     const rect = (node as HTMLElement).getBoundingClientRect();
     const toolbar = node.querySelector(".result-map-toolbar") as HTMLElement | null;
     const switchBase = node.querySelector(".result-map-toolbar-surface .liquid-glass-content") as HTMLElement | null;
     const switchButton = node.querySelector(".result-map-view-switch button") as HTMLElement | null;
-    const copyButton = node.querySelector('[title="复制分享 URL"]') as HTMLElement | null;
+    const copyButton = node.querySelector('[title="分享诊断链接"]') as HTMLElement | null;
     const closeButton = node.querySelector('[aria-label="关闭结果"]') as HTMLElement | null;
     const switchBaseStyle = switchBase ? window.getComputedStyle(switchBase) : null;
     const children = Array.from(node.children).map((child) => {
@@ -1090,7 +1090,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const switchButton = document.querySelector(".result-map-view-switch button") as HTMLElement | null;
     const twoDimensionalButton = document.querySelector('[aria-label="切换结果地图到 2D"]') as HTMLElement | null;
     const threeDimensionalButton = document.querySelector('[aria-label="切换结果地图到 3D"]') as HTMLElement | null;
-    const copyButton = document.querySelector('[title="复制分享 URL"]') as HTMLElement | null;
+    const copyButton = document.querySelector('[title="分享诊断链接"]') as HTMLElement | null;
     const closeButton = document.querySelector('.result-header-actions [aria-label="关闭结果"]') as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const map = document.querySelector(".result-map") as HTMLElement | null;

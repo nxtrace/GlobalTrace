@@ -258,7 +258,7 @@ describe("ResultsView", () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
 
     expect(screen.queryByRole("link", { name: "打开" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "复制" }));
+    fireEvent.click(screen.getByRole("button", { name: "分享" }));
 
     await waitFor(() => {
       expect(clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining("measurement=m123"));
@@ -382,7 +382,7 @@ describe("ResultsView", () => {
     const headerActions = toolbar.closest(".result-header-actions") as HTMLElement;
     expect(headerActions).not.toBeNull();
     expect(headerActions.firstElementChild).toBe(toolbar);
-    const copyButton = within(headerActions).getByRole("button", { name: "复制" });
+    const copyButton = within(headerActions).getByRole("button", { name: "分享" });
     const closeButton = within(headerActions).getByRole("button", { name: "关闭结果" });
     const twoDimensionalButton = screen.getByRole("button", { name: "切换结果地图到 2D" });
     const threeDimensionalButton = screen.getByRole("button", { name: "切换结果地图到 3D" });

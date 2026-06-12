@@ -359,7 +359,7 @@ describe("worker API", () => {
     const postCachedBody = (await third.json()) as { measurementId: string; enrichment: { fetched: number } };
 
     expect(first.status).toBe(200);
-    expect(first.headers.get("Cache-Control")).toBe("public, max-age=120");
+    expect(first.headers.get("Cache-Control")).toBe("public, max-age=604800");
     expect(cachedBody.measurementId).toBe("m-cache");
     expect(cachedBody.enrichment.fetched).toBe(1);
     expect(postCachedBody.measurementId).toBe("m-cache");

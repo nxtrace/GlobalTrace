@@ -56,9 +56,8 @@ Worker 调用 nxtrace batch 接口：
 
 ## 缓存和存储边界
 
-- GeoIP enrichment 结果使用 Worker Cache API 缓存 24 小时。
+- 完成态 enriched trace 使用 Worker Cache API 缓存 7 天；Cloudflare 仍可能提前驱逐缓存。
 - 个人 NextTrace API Token 只保存在浏览器本地，不进入 Worker Cache、日志或服务端配置。
-- 完成态 trace response 使用 Worker Cache API 短缓存。
 - 项目不使用 KV、D1、R2、Durable Object 或服务端报告存储。
 - 分享链接依赖 measurement ID 和缓存结果；不会把报告持久写入数据库。
 

@@ -1,6 +1,6 @@
 import "./maplibre.css";
 import maplibregl, { type ExpressionSpecification, type GeoJSONSource } from "maplibre-gl";
-import { AlertTriangle, Clock3, Copy, ExternalLink, Globe2, Map as MapIcon, Route, Server, X } from "lucide-react";
+import { AlertTriangle, Clock3, ExternalLink, Globe2, Map as MapIcon, Route, Server, Share2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import type { Feature, FeatureCollection } from "geojson";
 import type { TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
@@ -300,10 +300,10 @@ function ShareButton({ measurementId }: { measurementId: string }) {
       className="result-command-button"
       type="button"
       onClick={copy}
-      title="复制分享 URL"
+      title="分享诊断链接"
     >
-      <Copy size={16} />
-      {copied ? "已复制" : "复制"}
+      <Share2 size={16} />
+      {copied ? "已复制" : "分享"}
     </Button>
   );
 }
