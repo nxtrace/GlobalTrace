@@ -86,7 +86,7 @@
     0 1px 0 rgba(255, 255, 255, 0.72) inset,
     0 12px 30px rgba(0, 0, 0, 0.06);
   --turnstile-overlay-bg: rgba(30, 39, 40, 0.2);
-  --turnstile-dialog-bg: rgba(255, 255, 255, 0.96);
+  --turnstile-dialog-bg: rgba(255, 255, 255, 0.72);
   --turnstile-dialog-border: rgba(38, 54, 50, 0.24);
   --turnstile-dialog-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 24px 70px rgba(35, 48, 45, 0.2);
   --turnstile-cancel-bg: rgba(255, 255, 255, 0.88);
@@ -187,7 +187,7 @@
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
     0 14px 32px rgba(0, 0, 0, 0.3);
   --turnstile-overlay-bg: rgba(4, 8, 9, 0.58);
-  --turnstile-dialog-bg: rgba(9, 18, 18, 0.92);
+  --turnstile-dialog-bg: rgba(9, 18, 18, 0.78);
   --turnstile-dialog-border: rgba(255, 255, 255, 0.16);
   --turnstile-dialog-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 24px 78px rgba(0, 0, 0, 0.44);
   --turnstile-cancel-bg: rgba(24, 34, 35, 0.88);
@@ -282,7 +282,7 @@
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
       0 14px 32px rgba(0, 0, 0, 0.3);
     --turnstile-overlay-bg: rgba(4, 8, 9, 0.58);
-    --turnstile-dialog-bg: rgba(9, 18, 18, 0.92);
+    --turnstile-dialog-bg: rgba(9, 18, 18, 0.78);
     --turnstile-dialog-border: rgba(255, 255, 255, 0.16);
     --turnstile-dialog-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 24px 78px rgba(0, 0, 0, 0.44);
     --turnstile-cancel-bg: rgba(24, 34, 35, 0.88);
@@ -1249,17 +1249,54 @@ summary:focus-visible {
   backdrop-filter: blur(10px);
 }
 
-.turnstile-dialog {
+.turnstile-dialog-surface {
   width: min(100%, 390px);
   max-height: calc(100svh - 36px);
+  color: var(--ink);
+}
+
+.turnstile-dialog-surface,
+.turnstile-dialog-surface .liquid-glass-content,
+.turnstile-dialog-surface .liquid-glass-fallback-content {
+  border-radius: 18px;
+  max-width: 100%;
+}
+
+.turnstile-dialog-surface > .liquid-glass-package {
+  overflow: hidden;
+  border-radius: 18px;
+  max-height: inherit;
+}
+
+.turnstile-dialog-surface .glass {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08) 44%, rgba(88, 127, 120, 0.16)),
+    var(--turnstile-dialog-bg);
+}
+
+.turnstile-dialog-surface .liquid-glass-content,
+.turnstile-dialog-surface .liquid-glass-fallback-content {
+  max-height: inherit;
+  overflow: auto;
+  border: 1px solid var(--turnstile-dialog-border);
+  box-shadow: var(--turnstile-dialog-shadow);
+  backdrop-filter: blur(18px) saturate(1.14);
+  -webkit-backdrop-filter: blur(18px) saturate(1.14);
+}
+
+.turnstile-dialog-surface .liquid-glass-fallback-content {
+  background: var(--turnstile-dialog-bg);
+}
+
+.turnstile-dialog-surface section {
+  width: 100%;
+}
+
+.turnstile-dialog {
+  width: 100%;
   display: grid;
   gap: 16px;
-  overflow: auto;
   padding: 18px;
-  border: 1px solid var(--turnstile-dialog-border);
-  border-radius: 18px;
-  background: var(--turnstile-dialog-bg);
-  box-shadow: var(--turnstile-dialog-shadow);
 }
 
 .turnstile-dialog-copy {

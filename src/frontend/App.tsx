@@ -655,20 +655,22 @@ function TurnstileDialog({
 
   return (
     <div className="turnstile-overlay">
-      <Surface asChild className="turnstile-dialog">
+      <LiquidGlassSurface variant="toolbar" fullWidth className="turnstile-dialog-surface">
         <section role="dialog" aria-modal="true" aria-labelledby="turnstile-dialog-title">
-          <div className="turnstile-dialog-copy">
-            <h2 id="turnstile-dialog-title">{title}</h2>
-            <p>{description}</p>
-          </div>
-          <TurnstileBox siteKey={siteKey} onToken={onToken} />
-          <div className="turnstile-dialog-actions">
-            <Button variant="secondary" size="sm" className="turnstile-cancel-button" type="button" onClick={onCancel}>
-              取消
-            </Button>
+          <div className="turnstile-dialog">
+            <div className="turnstile-dialog-copy">
+              <h2 id="turnstile-dialog-title">{title}</h2>
+              <p>{description}</p>
+            </div>
+            <TurnstileBox siteKey={siteKey} onToken={onToken} />
+            <div className="turnstile-dialog-actions">
+              <Button variant="secondary" size="sm" className="turnstile-cancel-button" type="button" onClick={onCancel}>
+                取消
+              </Button>
+            </div>
           </div>
         </section>
-      </Surface>
+      </LiquidGlassSurface>
     </div>
   );
 }

@@ -734,10 +734,12 @@ async function expectDarkMapControls(page: Page): Promise<void> {
 
 async function expectTurnstileDialogCentered(page: Page): Promise<void> {
   const state = await page.evaluate(() => {
-    const dialog = document.querySelector(".turnstile-dialog")?.getBoundingClientRect();
+    const surface = document.querySelector(".turnstile-dialog-surface");
+    const dialog = surface?.getBoundingClientRect();
     const shell = document.querySelector(".turnstile-widget-shell")?.getBoundingClientRect();
     const widget = document.querySelector(".mock-turnstile-widget")?.getBoundingClientRect();
     return {
+      glassMode: surface?.hasAttribute("data-liquid-glass") ? surface.getAttribute("data-liquid-glass-mode") || "" : "",
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
       documentClient: document.documentElement.clientWidth,
@@ -755,6 +757,7 @@ async function expectTurnstileDialogCentered(page: Page): Promise<void> {
       shellRight: shell?.right ?? 0,
     };
   });
+  expect(state.glassMode).toMatch(/^(liquid|fallback)$/);
   expect(state.dialogWidth).toBeGreaterThan(0);
   expect(state.dialogHeight).toBeGreaterThan(0);
   expect(state.dialogLeft).toBeGreaterThanOrEqual(0);
@@ -777,20 +780,27 @@ async function expectLightTurnstileDialogReadable(page: Page): Promise<void> {
       return values.length === 4 ? Number(values[3]) : 1;
     };
     const dialog = document.querySelector(".turnstile-dialog") as HTMLElement | null;
+    const surface = document.querySelector(".turnstile-dialog-surface") as HTMLElement | null;
+    const glass = document.querySelector(".turnstile-dialog-surface .glass") as HTMLElement | null;
+    const fallback = document.querySelector(".turnstile-dialog-surface .liquid-glass-fallback-content") as HTMLElement | null;
+    const frame = document.querySelector(".turnstile-dialog-surface .liquid-glass-content") as HTMLElement | null;
     const overlay = document.querySelector(".turnstile-overlay") as HTMLElement | null;
     const title = document.querySelector("#turnstile-dialog-title") as HTMLElement | null;
     const description = document.querySelector(".turnstile-dialog-copy p") as HTMLElement | null;
     const cancel = document.querySelector(".turnstile-cancel-button") as HTMLElement | null;
     const cancelRect = cancel?.getBoundingClientRect();
+    const backgroundStyle = glass ? getComputedStyle(glass) : fallback ? getComputedStyle(fallback) : null;
+    const frameStyle = frame ? getComputedStyle(frame) : null;
     const overlayStyle = overlay ? getComputedStyle(overlay) : null;
-    const dialogStyle = dialog ? getComputedStyle(dialog) : null;
     const titleStyle = title ? getComputedStyle(title) : null;
     const descriptionStyle = description ? getComputedStyle(description) : null;
     const cancelStyle = cancel ? getComputedStyle(cancel) : null;
     return {
+      glassMode: surface?.getAttribute("data-liquid-glass-mode") || "",
+      hasDialogContent: Boolean(dialog),
       overlayAlpha: readAlpha(overlayStyle?.backgroundColor || ""),
-      dialogAlpha: readAlpha(dialogStyle?.backgroundColor || ""),
-      dialogBorderAlpha: readAlpha(dialogStyle?.borderColor || ""),
+      dialogAlpha: readAlpha(backgroundStyle?.backgroundColor || ""),
+      dialogBorderAlpha: readAlpha(frameStyle?.borderColor || ""),
       titleColor: titleStyle?.color || "",
       descriptionColor: descriptionStyle?.color || "",
       cancelHeight: cancelRect?.height ?? 0,
@@ -800,8 +810,11 @@ async function expectLightTurnstileDialogReadable(page: Page): Promise<void> {
       cancelColor: cancelStyle?.color || "",
     };
   });
+  expect(state.glassMode).toMatch(/^(liquid|fallback)$/);
+  expect(state.hasDialogContent).toBe(true);
   expect(state.overlayAlpha).toBeLessThanOrEqual(0.25);
-  expect(state.dialogAlpha).toBeGreaterThanOrEqual(0.94);
+  expect(state.dialogAlpha).toBeGreaterThanOrEqual(0.62);
+  expect(state.dialogAlpha).toBeLessThanOrEqual(0.8);
   expect(state.dialogBorderAlpha).toBeGreaterThanOrEqual(0.2);
   expect(state.titleColor).toBe("rgb(29, 29, 31)");
   expect(state.descriptionColor).toBe("rgb(81, 81, 84)");
