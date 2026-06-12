@@ -3,7 +3,6 @@ import { cors } from "hono/cors";
 import {
   DEFAULT_MAP_STYLE_URL,
   MAX_TRACE_PROBES,
-  type TraceEnrichRequest,
   type TraceResultResponse,
 } from "../shared/types";
 import type { GlobalpingMeasurement } from "../shared/globalping";
