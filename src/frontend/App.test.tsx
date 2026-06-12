@@ -141,7 +141,7 @@ describe("App", () => {
     await screen.findByText("2 / 2 probes 匹配");
     fireEvent.click(screen.getByText("高级参数与精确筛选"));
     fireEvent.change(screen.getByLabelText("Globalping Token"), { target: { value: "  gp-token  " } });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
 
     await waitFor(() => {
       expect(window.localStorage.getItem("globaltrace.globalpingToken")).toBe("gp-token");
@@ -152,7 +152,7 @@ describe("App", () => {
         }),
       );
     });
-    expect(screen.getByText("已保存到本机浏览器")).toBeInTheDocument();
+    expect(screen.getByText("Globalping Token 已保存到本机浏览器")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     await waitFor(() => {
@@ -165,6 +165,85 @@ describe("App", () => {
     const enrichCall = fetchMock.mock.calls.find(([path, init]) => path === "/api/trace/enrich" && init?.method === "POST");
     expect(traceCall?.[1]?.headers).toEqual(expect.objectContaining({ Authorization: "Bearer gp-token" }));
     expect(enrichCall?.[1]?.headers).not.toEqual(expect.objectContaining({ Authorization: expect.any(String) }));
+  });
+
+  it("saves a NextTrace token locally and uses it without Turnstile or server enrichment", async () => {
+    const fetchMock = mockApi({ turnstileSiteKey: "site-key", measurement: globalpingMeasurementWithHop });
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: "  nt-token  " } });
+    fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBe("nt-token");
+    });
+    expect(screen.getByText("NextTrace Token 已保存到本机浏览器")).toBeInTheDocument();
+    expect(screen.getByText("NextTrace API Token 直连已启用")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "验证后开始诊断" })).not.toBeInTheDocument();
+    expect(traceCreateBodies(fetchMock)).toHaveLength(1);
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+    expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
+    expect(nexttraceBatchCalls(fetchMock)[0]?.[1]?.headers).toEqual(
+      expect.objectContaining({
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-NextTrace-Token": "nt-token",
+      }),
+    );
+    expect(JSON.stringify(nexttraceBatchCalls(fetchMock)[0]?.[1]?.headers)).not.toContain("User-Agent");
+  });
+
+  it("opens shared results through a saved NextTrace token without Turnstile", async () => {
+    window.localStorage.setItem("globaltrace.nexttraceApiToken", "nt-token");
+    window.history.replaceState(null, "", "/?measurement=m123");
+    const fetchMock = mockApi({
+      traceStatus: () => "finished",
+      turnstileSiteKey: "site-key",
+      measurement: globalpingMeasurementWithHop,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "验证后打开分享结果" })).not.toBeInTheDocument();
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+    expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
+  });
+
+  it("continues a pending Turnstile flow after saving a NextTrace token in the dialog", async () => {
+    const fetchMock = mockApi({ turnstileSiteKey: "site-key", measurement: globalpingMeasurementWithHop });
+    window.turnstile = {
+      render: vi.fn((element) => {
+        const widget = document.createElement("div");
+        widget.className = "mock-turnstile-widget";
+        element.appendChild(widget);
+        return "widget-id";
+      }),
+      reset: vi.fn(),
+    };
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "使用 NextTrace API Token" }));
+    fireEvent.change(screen.getByLabelText("弹窗 NextTrace API Token"), { target: { value: " dialog-token " } });
+    fireEvent.click(screen.getByRole("button", { name: "保存并继续" }));
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBe("dialog-token");
+    expect(screen.queryByRole("dialog", { name: "使用 NextTrace API Token" })).not.toBeInTheDocument();
+    expect(traceCreateBodies(fetchMock)).toHaveLength(1);
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+    expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
   });
 
   it("renders the about route with attribution links", async () => {
@@ -727,6 +806,16 @@ function mockApi(
         },
       });
     }
+    if (path === "https://api.nxtrace.org/v4/ipGeo/batch" && init?.method === "POST") {
+      const ips = JSON.parse(String(init.body)).ips as string[];
+      return json({
+        results: ips.map((ip) => ({
+          ip,
+          ok: true,
+          data: { ip, asnumber: "AS64500", source: "mock-nexttrace" },
+        })),
+      });
+    }
     throw new Error(`unexpected fetch: ${path}`);
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -754,6 +843,14 @@ function fallbackIpinfoCalls(fetchMock: ReturnType<typeof mockApi>) {
 
 function fallbackRipestatCalls(fetchMock: ReturnType<typeof mockApi>) {
   return fetchMock.mock.calls.filter(([path]) => String(path).startsWith("https://stat.ripe.net/data/prefix-overview/"));
+}
+
+function nexttraceBatchCalls(fetchMock: ReturnType<typeof mockApi>) {
+  return fetchMock.mock.calls.filter(([path, init]) => path === "https://api.nxtrace.org/v4/ipGeo/batch" && init?.method === "POST");
+}
+
+function nexttraceBatchBodies(fetchMock: ReturnType<typeof mockApi>): Array<{ ips: string[] }> {
+  return nexttraceBatchCalls(fetchMock).map(([, init]) => JSON.parse(String(init?.body)));
 }
 
 function json(body: unknown, status = 200): Response {

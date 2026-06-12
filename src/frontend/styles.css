@@ -1332,7 +1332,13 @@ summary:focus-visible {
 
 .turnstile-dialog-actions {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: center;
+}
+
+.turnstile-token-form {
+  width: min(360px, 100%);
 }
 
 .turnstile-cancel-button {

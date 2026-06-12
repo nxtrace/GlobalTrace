@@ -8,7 +8,7 @@ GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping
 - UI：Radix UI、lucide-react、liquid-glass-react。
 - Worker：Hono on Cloudflare Workers Static Assets。
 - 测量来源：Globalping `type: "mtr"` measurement。
-- 增强数据：nxtrace API v4 batch GeoIP/ASN/whois；Turnstile 取消后由浏览器匿名请求 IPinfo + RIPEstat 做有限 fallback。
+- 增强数据：nxtrace API v4 batch GeoIP/ASN/whois；用户保存个人 NextTrace API Token 后由浏览器直连 batch API；Turnstile 取消后由浏览器匿名请求 IPinfo + RIPEstat 做有限 fallback。
 
 ## 本地运行
 
@@ -49,6 +49,12 @@ Worker 调用 nxtrace batch 接口：
 - 响应：按请求顺序返回 `results`。
 - 失败处理：batch chunk 失败会写入 enrichment error；当前实现不回退到单 IP `GET /v4/ipGeo`。
 
+## 个人 NextTrace API Token
+
+高级参数里可以保存个人 `NextTrace API Token`。该 Token 仅保存在当前浏览器 `localStorage`，不会发送给 Globalping 或 GlobalTrace Worker。
+
+保存后，新建诊断和打开分享结果会跳过 Turnstile，浏览器直接请求 `https://api.nxtrace.org/v4/ipGeo/batch`，并通过 `X-NextTrace-Token` 传递该 Token。
+
 ## 浏览器端 fallback
 
 用户取消 Turnstile 后不调用 `POST /api/trace/enrich`，也不触发 Worker 端 nxtrace API。前端会直接读取 Globalping measurement，并对公网 hop IP 匿名请求：
@@ -61,6 +67,7 @@ fallback 不使用服务端代理、token 或 GeoLite2 license key。
 ## 缓存和存储边界
 
 - GeoIP enrichment 结果使用 Worker Cache API 缓存 24 小时。
+- 个人 NextTrace API Token 只保存在浏览器本地，不进入 Worker Cache、日志或服务端配置。
 - 完成态 trace response 使用 Worker Cache API 短缓存。
 - 项目不使用 KV、D1、R2、Durable Object 或服务端报告存储。
 - 分享链接依赖 measurement ID 和缓存结果；不会把报告持久写入数据库。

@@ -32,6 +32,8 @@ interface FilterPanelProps {
   canSubmit: boolean;
   globalpingTokenDraft: string;
   globalpingTokenSaved: boolean;
+  nexttraceTokenDraft: string;
+  nexttraceTokenSaved: boolean;
   themeMode: ThemeMode;
   onTargetChange: (value: string) => void;
   onProtocolChange: (value: TraceProtocol) => void;
@@ -43,6 +45,9 @@ interface FilterPanelProps {
   onGlobalpingTokenDraftChange: (token: string) => void;
   onSaveGlobalpingToken: () => void;
   onClearGlobalpingToken: () => void;
+  onNexttraceTokenDraftChange: (token: string) => void;
+  onSaveNexttraceToken: () => void;
+  onClearNexttraceToken: () => void;
   onCycleThemeMode: () => void;
   onNavigateHome: () => void;
   onNavigateAbout: () => void;
@@ -297,12 +302,65 @@ export function FilterPanel(props: FilterPanelProps) {
                     />
                   </label>
                   <div className="token-actions">
-                    <span>{props.globalpingTokenSaved ? "已保存到本机浏览器" : "未使用个人 Token"}</span>
+                    <span>{props.globalpingTokenSaved ? "Globalping Token 已保存到本机浏览器" : "未使用 Globalping Token"}</span>
                     <div>
-                      <Button variant="glass" size="sm" type="button" onClick={props.onSaveGlobalpingToken}>
+                      <Button
+                        variant="glass"
+                        size="sm"
+                        type="button"
+                        onClick={props.onSaveGlobalpingToken}
+                        aria-label="保存 Globalping"
+                      >
                         保存
                       </Button>
-                      <Button variant="ghost" size="sm" type="button" onClick={props.onClearGlobalpingToken}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        onClick={props.onClearGlobalpingToken}
+                        aria-label="清除 Globalping"
+                      >
+                        清除
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="token-section">
+                  <div className="summary-title">
+                    <KeyRound size={16} />
+                    <span>NextTrace API Token</span>
+                  </div>
+                  <label className="field-label">
+                    <span>Token</span>
+                    <Input
+                      type="password"
+                      value={props.nexttraceTokenDraft}
+                      onChange={(event) => props.onNexttraceTokenDraftChange(event.target.value)}
+                      placeholder="可选：直连 NextTrace enrichment"
+                      autoComplete="off"
+                      aria-label="NextTrace API Token"
+                    />
+                  </label>
+                  <div className="token-actions">
+                    <span>{props.nexttraceTokenSaved ? "NextTrace Token 已保存到本机浏览器" : "未使用 NextTrace Token"}</span>
+                    <div>
+                      <Button
+                        variant="glass"
+                        size="sm"
+                        type="button"
+                        onClick={props.onSaveNexttraceToken}
+                        aria-label="保存 NextTrace"
+                      >
+                        保存
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        onClick={props.onClearNexttraceToken}
+                        aria-label="清除 NextTrace"
+                      >
                         清除
                       </Button>
                     </div>
@@ -318,7 +376,13 @@ export function FilterPanel(props: FilterPanelProps) {
             <div className="run-state" aria-live="polite">
               <ShieldCheck size={16} />
               <div>
-                <strong>{props.turnstileSiteKey ? "Turnstile 已配置" : "本地模式，无 Turnstile site key"}</strong>
+                <strong>
+                  {props.nexttraceTokenSaved
+                    ? "NextTrace API Token 直连已启用"
+                    : props.turnstileSiteKey
+                      ? "Turnstile 已配置"
+                      : "本地模式，无 Turnstile site key"}
+                </strong>
                 <span>{props.quotaLabel}</span>
               </div>
             </div>

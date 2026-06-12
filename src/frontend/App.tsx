@@ -16,10 +16,12 @@ import { ProbeTable } from "./components/ProbeTable";
 import { TurnstileBox } from "./components/TurnstileBox";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
 import { Surface } from "./components/ui/surface";
 import type { MapProjection } from "./components/mapProjection";
 import { deferUntilIdle } from "./lib/defer";
 import { enrichTraceWithBrowserFallback } from "./fallbackGeo";
+import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
 import { filterChips, filterProbes, magicFromSelectedProbes, probeFilterSuggestions, probeToMagic } from "../shared/filters";
 import { measurementToTraceResponse } from "../shared/transform";
 import {
@@ -37,13 +39,14 @@ import "./styles.css";
 export const POLL_DELAY_MS = 650;
 export const TRACE_MAX_POLL_ATTEMPTS = 120;
 const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
+const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
 const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
 
 type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
 type TraceLoadSource = "created" | "shared";
-type TraceEnrichmentMode = "verified" | "browserFallback";
+type TraceEnrichmentMode = "verified" | "browserFallback" | "nexttraceToken";
 type TurnstileGate = { kind: "create" } | { kind: "shared"; measurementId: string };
 
 const AboutPage = lazy(() => import("./components/AboutPage").then((module) => ({ default: module.AboutPage })));
@@ -56,6 +59,8 @@ export function App() {
   const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
   const [globalpingToken, setGlobalpingToken] = useState(readStoredGlobalpingToken);
   const [globalpingTokenDraft, setGlobalpingTokenDraft] = useState(globalpingToken);
+  const [nexttraceToken, setNexttraceToken] = useState(readStoredNexttraceToken);
+  const [nexttraceTokenDraft, setNexttraceTokenDraft] = useState(nexttraceToken);
   const [config, setConfig] = useState<AppConfig>({
     turnstileSiteKey: import.meta.env.VITE_TURNSTILE_SITE_KEY || "",
     mapStyleUrl: import.meta.env.VITE_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL,
@@ -135,7 +140,7 @@ export function App() {
     measurementId: string,
     poll: boolean,
     nextGlobalpingToken: string,
-    nextTurnstileToken: string,
+    nextEnrichmentToken: string,
     source: TraceLoadSource,
     enrichmentMode: TraceEnrichmentMode = "verified",
   ) => {
@@ -181,8 +186,10 @@ export function App() {
 
       const enriched =
         enrichmentMode === "verified"
-          ? await enrichTrace(measurement, nextTurnstileToken)
-          : await enrichTraceWithBrowserFallback(current, { signal: controller.signal });
+          ? await enrichTrace(measurement, nextEnrichmentToken)
+          : enrichmentMode === "nexttraceToken"
+            ? await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, { signal: controller.signal })
+            : await enrichTraceWithBrowserFallback(current, { signal: controller.signal });
       setResult(enriched);
       setMessage("");
       if (enriched.status !== "in-progress") {
@@ -208,6 +215,11 @@ export function App() {
     if (!id || id === createdMeasurementIdRef.current) return;
     if (sharedTraceStartedRef.current === id) return;
     if (hasReusableSharedResult(result, id)) return;
+    if (nexttraceToken) {
+      sharedTraceStartedRef.current = id;
+      void loadTrace(id, true, globalpingToken, nexttraceToken, "shared", "nexttraceToken");
+      return;
+    }
     if (config.turnstileSiteKey) {
       if (result?.measurementId !== id) {
         setSharedLoadingMeasurementId(id);
@@ -225,6 +237,7 @@ export function App() {
     configReady,
     globalpingToken,
     loadTrace,
+    nexttraceToken,
     result,
     route,
     turnstileGate,
@@ -268,6 +281,7 @@ export function App() {
   const createAndLoadTrace = useCallback(async (
     activeTurnstileToken: string,
     enrichmentMode: TraceEnrichmentMode = "verified",
+    activeNexttraceToken = "",
   ) => {
     setLoading(true);
     setMessage("");
@@ -290,7 +304,14 @@ export function App() {
       const url = new URL(window.location.href);
       url.searchParams.set("measurement", created.measurementId);
       window.history.replaceState(null, "", url);
-      await loadTrace(created.measurementId, true, globalpingToken, activeTurnstileToken, "created", enrichmentMode);
+      await loadTrace(
+        created.measurementId,
+        true,
+        globalpingToken,
+        enrichmentMode === "nexttraceToken" ? activeNexttraceToken : activeTurnstileToken,
+        "created",
+        enrichmentMode,
+      );
     } catch (error) {
       setMessage(userFacingErrorMessage(error, "创建 trace 失败"));
     } finally {
@@ -300,13 +321,17 @@ export function App() {
 
   const submit = useCallback(() => {
     if (!configReady) return;
+    if (nexttraceToken) {
+      void createAndLoadTrace("", "nexttraceToken", nexttraceToken);
+      return;
+    }
     if (config.turnstileSiteKey) {
       setMessage("");
       setTurnstileGate({ kind: "create" });
       return;
     }
     void createAndLoadTrace("");
-  }, [config.turnstileSiteKey, configReady, createAndLoadTrace]);
+  }, [config.turnstileSiteKey, configReady, createAndLoadTrace, nexttraceToken]);
 
   const handleTurnstileToken = useCallback((token: string) => {
     if (!token || !turnstileGate) return;
@@ -427,6 +452,38 @@ export function App() {
     writeStoredGlobalpingToken("");
   }, []);
 
+  const saveNexttraceToken = useCallback(() => {
+    const trimmed = nexttraceTokenDraft.trim();
+    setNexttraceToken(trimmed);
+    setNexttraceTokenDraft(trimmed);
+    writeStoredNexttraceToken(trimmed);
+  }, [nexttraceTokenDraft]);
+
+  const clearNexttraceToken = useCallback(() => {
+    setNexttraceToken("");
+    setNexttraceTokenDraft("");
+    writeStoredNexttraceToken("");
+  }, []);
+
+  const saveNexttraceTokenAndContinue = useCallback((token: string) => {
+    const trimmed = token.trim();
+    if (!trimmed || !turnstileGate) return;
+
+    const gate = turnstileGate;
+    setNexttraceToken(trimmed);
+    setNexttraceTokenDraft(trimmed);
+    writeStoredNexttraceToken(trimmed);
+    setTurnstileGate(null);
+    setMessage("");
+
+    if (gate.kind === "shared") {
+      sharedTraceStartedRef.current = gate.measurementId;
+      void loadTrace(gate.measurementId, true, globalpingToken, trimmed, "shared", "nexttraceToken");
+      return;
+    }
+    void createAndLoadTrace("", "nexttraceToken", trimmed);
+  }, [createAndLoadTrace, globalpingToken, loadTrace, turnstileGate]);
+
   const cycleThemeMode = useCallback(() => {
     setThemeMode((current) => nextThemeMode(current));
   }, []);
@@ -479,6 +536,8 @@ export function App() {
           canSubmit={canSubmit}
           globalpingTokenDraft={globalpingTokenDraft}
           globalpingTokenSaved={Boolean(globalpingToken)}
+          nexttraceTokenDraft={nexttraceTokenDraft}
+          nexttraceTokenSaved={Boolean(nexttraceToken)}
           themeMode={themeMode}
           onTargetChange={setTarget}
           onProtocolChange={setProtocol}
@@ -490,6 +549,9 @@ export function App() {
           onGlobalpingTokenDraftChange={setGlobalpingTokenDraft}
           onSaveGlobalpingToken={saveGlobalpingToken}
           onClearGlobalpingToken={clearGlobalpingToken}
+          onNexttraceTokenDraftChange={setNexttraceTokenDraft}
+          onSaveNexttraceToken={saveNexttraceToken}
+          onClearNexttraceToken={clearNexttraceToken}
           onCycleThemeMode={cycleThemeMode}
           onNavigateHome={navigateHome}
           onNavigateAbout={navigateAbout}
@@ -577,7 +639,9 @@ export function App() {
           <TurnstileDialog
             gate={turnstileGate}
             siteKey={config.turnstileSiteKey}
+            nexttraceTokenDraft={nexttraceTokenDraft}
             onToken={handleTurnstileToken}
+            onSaveNexttraceToken={saveNexttraceTokenAndContinue}
             onCancel={cancelTurnstileGate}
           />
         )}
@@ -634,16 +698,27 @@ function ResultsViewFallback() {
 function TurnstileDialog({
   gate,
   siteKey,
+  nexttraceTokenDraft,
   onToken,
+  onSaveNexttraceToken,
   onCancel,
 }: {
   gate: TurnstileGate;
   siteKey: string;
+  nexttraceTokenDraft: string;
   onToken: (token: string) => void;
+  onSaveNexttraceToken: (token: string) => void;
   onCancel: () => void;
 }) {
+  const [mode, setMode] = useState<"turnstile" | "nexttraceToken">("turnstile");
+  const [draft, setDraft] = useState(nexttraceTokenDraft);
   const title = gate.kind === "shared" ? "验证后打开分享结果" : "验证后开始诊断";
   const description = gate.kind === "shared" ? "完成 Turnstile 后会自动读取 measurement 并展示结果。" : "完成 Turnstile 后会自动创建并运行诊断。";
+  const tokenDescription =
+    gate.kind === "shared"
+      ? "保存后会用该 Token 直连 NextTrace 并打开分享结果。"
+      : "保存后会用该 Token 直连 NextTrace 并开始诊断。";
+  const trimmedDraft = draft.trim();
 
   return (
     <div className="turnstile-overlay">
@@ -651,14 +726,68 @@ function TurnstileDialog({
         <section role="dialog" aria-modal="true" aria-labelledby="turnstile-dialog-title">
           <div className="turnstile-dialog">
             <div className="turnstile-dialog-copy">
-              <h2 id="turnstile-dialog-title">{title}</h2>
-              <p>{description}</p>
+              <h2 id="turnstile-dialog-title">{mode === "nexttraceToken" ? "使用 NextTrace API Token" : title}</h2>
+              <p>{mode === "nexttraceToken" ? tokenDescription : description}</p>
             </div>
-            <TurnstileBox siteKey={siteKey} onToken={onToken} />
+            {mode === "nexttraceToken" ? (
+              <div className="turnstile-token-form">
+                <label className="field-label">
+                  <span>NextTrace API Token</span>
+                  <Input
+                    type="password"
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    placeholder="输入你的 NextTrace API Token"
+                    autoComplete="off"
+                    aria-label="弹窗 NextTrace API Token"
+                  />
+                </label>
+              </div>
+            ) : (
+              <TurnstileBox siteKey={siteKey} onToken={onToken} />
+            )}
             <div className="turnstile-dialog-actions">
-              <Button variant="secondary" size="sm" className="turnstile-cancel-button" type="button" onClick={onCancel}>
-                取消
-              </Button>
+              {mode === "nexttraceToken" ? (
+                <>
+                  <Button
+                    variant="glass"
+                    size="sm"
+                    className="turnstile-cancel-button"
+                    type="button"
+                    onClick={() => onSaveNexttraceToken(trimmedDraft)}
+                    disabled={!trimmedDraft}
+                  >
+                    保存并继续
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="turnstile-cancel-button"
+                    type="button"
+                    onClick={() => setMode("turnstile")}
+                  >
+                    返回验证
+                  </Button>
+                  <Button variant="secondary" size="sm" className="turnstile-cancel-button" type="button" onClick={onCancel}>
+                    取消
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="glass"
+                    size="sm"
+                    className="turnstile-cancel-button"
+                    type="button"
+                    onClick={() => setMode("nexttraceToken")}
+                  >
+                    使用 NextTrace API Token
+                  </Button>
+                  <Button variant="secondary" size="sm" className="turnstile-cancel-button" type="button" onClick={onCancel}>
+                    取消
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -704,6 +833,26 @@ function writeStoredGlobalpingToken(token: string): void {
       window.localStorage.setItem(GLOBALPING_TOKEN_STORAGE_KEY, token);
     } else {
       window.localStorage.removeItem(GLOBALPING_TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage failures; the token still works for the current tab.
+  }
+}
+
+function readStoredNexttraceToken(): string {
+  try {
+    return window.localStorage.getItem(NEXTTRACE_TOKEN_STORAGE_KEY)?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeStoredNexttraceToken(token: string): void {
+  try {
+    if (token) {
+      window.localStorage.setItem(NEXTTRACE_TOKEN_STORAGE_KEY, token);
+    } else {
+      window.localStorage.removeItem(NEXTTRACE_TOKEN_STORAGE_KEY);
     }
   } catch {
     // Ignore storage failures; the token still works for the current tab.
