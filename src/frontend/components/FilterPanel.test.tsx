@@ -9,6 +9,12 @@ const MAGIC_SUGGESTIONS = [
   "Los Angeles+US+AS7922+eyeball-network",
   "Falkenstein+DE+AS24940+datacenter-network",
 ];
+const CHINA_MAGIC_SUGGESTIONS = [
+  "CN+Shanghai",
+  "CN+AS4134",
+  "CN+AS4134+eyeball-network",
+  "Shanghai+CN+AS4134+eyeball-network",
+];
 
 describe("FilterPanel", () => {
   it("shows active filters, advanced controls, and reset action", () => {
@@ -169,6 +175,7 @@ describe("FilterPanel", () => {
         cities: [],
         asns: [],
         networks: [],
+        tags: [],
         magicStrings: MAGIC_SUGGESTIONS,
       },
       onFiltersChange,
@@ -194,6 +201,7 @@ describe("FilterPanel", () => {
         cities: [],
         asns: [],
         networks: [],
+        tags: [],
         magicStrings: MAGIC_SUGGESTIONS,
       },
       onFiltersChange,
@@ -208,6 +216,52 @@ describe("FilterPanel", () => {
     fireEvent.mouseDown(screen.getByRole("option", { name: "Falkenstein+DE+AS24940+datacenter-network" }));
 
     expect(onFiltersChange).toHaveBeenCalledWith({ magic: "US, Falkenstein+DE+AS24940+datacenter-network" });
+  });
+
+  it("shows generic magic suggestions before matching full probe suggestions", () => {
+    renderPanel({
+      filters: { magic: "CN+Sha" },
+      chips: filterChips({ magic: "CN+Sha" }),
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: [],
+        tags: ["eyeball-network"],
+        magicStrings: CHINA_MAGIC_SUGGESTIONS,
+      },
+    });
+
+    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
+    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    fireEvent.focus(magicInput);
+
+    expectSuggestionOptions(["CN+Shanghai", "Shanghai+CN+AS4134+eyeball-network"]);
+  });
+
+  it("matches generic magic suggestions regardless of token order", () => {
+    renderPanel({
+      filters: { magic: "AS4134+CN" },
+      chips: filterChips({ magic: "AS4134+CN" }),
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: [],
+        tags: ["eyeball-network"],
+        magicStrings: CHINA_MAGIC_SUGGESTIONS,
+      },
+    });
+
+    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
+    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    fireEvent.focus(magicInput);
+
+    expectSuggestionOptions([
+      "CN+AS4134",
+      "CN+AS4134+eyeball-network",
+      "Shanghai+CN+AS4134+eyeball-network",
+    ]);
   });
 
   it("clears magic when structured filters are edited", () => {
@@ -234,6 +288,7 @@ describe("FilterPanel", () => {
         cities: ["Falkenstein", "Los Angeles"],
         asns: ["AS7922", "AS24940"],
         networks: ["Comcast", "Hetzner Online"],
+        tags: ["datacenter-network", "eyeball-network"],
         magicStrings: MAGIC_SUGGESTIONS,
       },
       onFiltersChange,
@@ -270,6 +325,7 @@ describe("FilterPanel", () => {
         cities: ["Falkenstein", "Los Angeles"],
         asns: ["AS7922", "AS24940"],
         networks: ["Comcast", "Hetzner Online"],
+        tags: ["datacenter-network", "eyeball-network"],
         magicStrings: MAGIC_SUGGESTIONS,
       },
       onFiltersChange,
@@ -283,6 +339,35 @@ describe("FilterPanel", () => {
 
     fireEvent.change(networkInput, { target: { value: "custom network" } });
     expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, network: "custom network" });
+  });
+
+  it("filters and selects tag suggestions without blocking free text", () => {
+    const onFiltersChange = vi.fn();
+    renderPanel({
+      filters: { tag: "eye" },
+      chips: filterChips({ tag: "eye" }),
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: [],
+        tags: ["datacenter-network", "eyeball-network"],
+        magicStrings: MAGIC_SUGGESTIONS,
+      },
+      onFiltersChange,
+    });
+
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    const tagInput = screen.getByLabelText("tag");
+    fireEvent.focus(tagInput);
+
+    expectSuggestionOptions(["eyeball-network"]);
+
+    fireEvent.mouseDown(screen.getByRole("option", { name: "eyeball-network" }));
+    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, tag: "eyeball-network" });
+
+    fireEvent.change(tagInput, { target: { value: "custom-tag" } });
+    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, tag: "custom-tag" });
   });
 
   it("preserves spaces while editing network filters", () => {

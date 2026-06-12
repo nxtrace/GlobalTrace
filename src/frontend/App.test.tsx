@@ -378,8 +378,10 @@ describe("App", () => {
 
     fireEvent.focus(magicInput);
     const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
-    expect(within(magicListbox).getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" })).toBeInTheDocument();
-    expect(within(magicListbox).getByRole("option", { name: "Falkenstein+DE+AS24940+datacenter-network" })).toBeInTheDocument();
+    expect(within(magicListbox).getByRole("option", { name: "US+Los Angeles" })).toBeInTheDocument();
+    expect(within(magicListbox).getByRole("option", { name: "DE+Falkenstein" })).toBeInTheDocument();
+
+    fireEvent.change(magicInput, { target: { value: "AS7922+Los" } });
 
     fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" }));
 
@@ -401,8 +403,64 @@ describe("App", () => {
       expect(screen.getByText("4 / 4 probes 匹配")).toBeInTheDocument();
     });
     const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
+    expect(within(magicListbox).getByRole("option", { name: "CN+AS4134" })).toBeInTheDocument();
     expect(within(magicListbox).getByRole("option", { name: "Shenzhen+CN+AS4134+eyeball-network" })).toBeInTheDocument();
     expect(within(magicListbox).getByRole("option", { name: "Nanning+CN+AS4134+eyeball-network" })).toBeInTheDocument();
+  });
+
+  it("shows generic magic suggestions for partial city tokens", async () => {
+    mockApi({ probes: makeShanghaiProbes() });
+    render(<App />);
+
+    await screen.findByText("4 / 4 probes 匹配");
+    const magicInput = screen.getByLabelText("magic string");
+    fireEvent.change(magicInput, { target: { value: "CN+Sha" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 4 probes 匹配")).toBeInTheDocument();
+    });
+    const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
+    expect(within(magicListbox).getByRole("option", { name: "CN+Shanghai" })).toBeInTheDocument();
+    expect(within(magicListbox).getByRole("option", { name: "Shanghai+CN+AS4134+eyeball-network" })).toBeInTheDocument();
+  });
+
+  it("auto-expands probe limit when selecting a generic magic suggestion", async () => {
+    mockApi({ probes: makeChinaProbes(4) });
+    render(<App />);
+
+    await screen.findByText("4 / 4 probes 匹配");
+    const magicInput = screen.getByLabelText("magic string");
+    fireEvent.change(magicInput, { target: { value: "AS4134+CN" } });
+
+    const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
+    fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "CN+AS4134" }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("probes")).toHaveValue(4);
+    });
+    expect(magicInput).toHaveValue("CN+AS4134");
+  });
+
+  it("connects online tag suggestions to the advanced tag input", async () => {
+    mockApi();
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    const tagInput = screen.getByLabelText("tag");
+    fireEvent.change(tagInput, { target: { value: "eye" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
+    });
+    const tagListbox = screen.getByRole("listbox", { name: "候选列表" });
+    expect(within(tagListbox).getByRole("option", { name: "eyeball-network" })).toBeInTheDocument();
+
+    fireEvent.mouseDown(within(tagListbox).getByRole("option", { name: "eyeball-network" }));
+
+    await waitFor(() => {
+      expect(tagInput).toHaveValue("eyeball-network");
+    });
   });
 
   it("auto-expands probe limit for explicit filters without shrinking it", async () => {
@@ -1042,6 +1100,16 @@ function makeChinaProbes(count: number): GlobalpingProbe[] {
     },
     tags: [index === 3 ? "datacenter-network" : "eyeball-network"],
     resolvers: [],
+  }));
+}
+
+function makeShanghaiProbes(): GlobalpingProbe[] {
+  return makeChinaProbes(4).map((probe, index) => ({
+    ...probe,
+    location: {
+      ...probe.location,
+      city: ["Shanghai", "Beijing", "Guangzhou", "Shenzhen"][index] || probe.location.city,
+    },
   }));
 }
 

@@ -112,10 +112,12 @@ export interface ProbeFilterSuggestions {
   cities: string[];
   asns: string[];
   networks: string[];
+  tags: string[];
   magicStrings: string[];
 }
 
 export function probeFilterSuggestions(probes: GlobalpingProbe[], filters: TraceFilters = {}): ProbeFilterSuggestions {
+  const magicCandidateProbes = filterProbes(probes, { ...filters, magic: undefined });
   return {
     countries: uniqueSorted(suggestionProbes(probes, filters, "country").map((probe) => probe.location.country)),
     cities: uniqueSorted(suggestionProbes(probes, filters, "city").map((probe) => probe.location.city)),
@@ -124,7 +126,8 @@ export function probeFilterSuggestions(probes: GlobalpingProbe[], filters: Trace
       compareAsn,
     ),
     networks: uniqueSorted(suggestionProbes(probes, filters, "network").map((probe) => probe.location.network)),
-    magicStrings: Array.from(new Set(filterProbes(probes, { ...filters, magic: undefined }).map(probeToMagic))),
+    tags: uniqueSorted(suggestionProbes(probes, filters, "tag").flatMap((probe) => probe.tags)),
+    magicStrings: magicSuggestionsForProbes(magicCandidateProbes),
   };
 }
 
@@ -277,6 +280,34 @@ function addUnique(out: string[], value: string): void {
   if (!out.includes(value)) out.push(value);
 }
 
+function magicSuggestionsForProbes(probes: GlobalpingProbe[]): string[] {
+  const generic: string[] = [];
+  const full: string[] = [];
+  for (const probe of probes) {
+    const location = probe.location;
+    const country = compactText(location.country);
+    const city = compactText(location.city);
+    const asn = normalizeAsn(location.asn);
+    const tags = probe.tags.map(compactText).filter(Boolean);
+
+    addMagicCandidate(generic, [country, city]);
+    addMagicCandidate(generic, [country, asn]);
+    for (const tag of tags) {
+      addMagicCandidate(generic, [country, tag]);
+      addMagicCandidate(generic, [country, asn, tag]);
+    }
+    addUnique(full, probeToMagic(probe));
+  }
+  return [...generic, ...full].reduce<string[]>((out, value) => {
+    addUnique(out, value);
+    return out;
+  }, []);
+}
+
+function addMagicCandidate(out: string[], parts: string[]): void {
+  if (parts.every(Boolean)) addUnique(out, parts.join("+"));
+}
+
 function uniqueSorted(values: Iterable<unknown>, compareFn?: (left: string, right: string) => number): string[] {
   return Array.from(new Set(Array.from(values, compactText).filter(Boolean))).sort(compareFn);
 }
@@ -290,7 +321,7 @@ function compareAsn(left: string, right: string): number {
 function suggestionProbes(
   probes: GlobalpingProbe[],
   filters: TraceFilters,
-  excludedField: "country" | "city" | "asn" | "network",
+  excludedField: "country" | "city" | "asn" | "network" | "tag",
 ): GlobalpingProbe[] {
   return filterProbes(probes, { ...filters, magic: undefined, [excludedField]: undefined });
 }

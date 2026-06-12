@@ -52,8 +52,11 @@ for (const viewport of viewports) {
     await expect(magicInput).toHaveValue("");
     await magicInput.click();
     const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
+    await expect(magicSuggestions.getByRole("option", { name: "US+Los Angeles" })).toBeVisible();
+    await expect(magicSuggestions.getByRole("option", { name: "DE+Falkenstein" })).toBeVisible();
+    await magicInput.fill("AS7922+Los");
     await expect(magicSuggestions.getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" })).toBeVisible();
-    await expect(magicSuggestions.getByRole("option", { name: "Falkenstein+DE+AS24940+datacenter-network" })).toBeVisible();
+    await magicInput.fill("");
     await expectSuggestionPopoverOnTop(magicSuggestions);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "切换到 3D 视图" })).toHaveCount(0);
@@ -347,6 +350,32 @@ test("structured filters expand probes after explicit user filtering", async ({ 
   await page.getByLabel("国家/地区").fill("CN");
   await expect(page.getByText("4 / 5 probes 匹配")).toBeVisible();
   await expect(page.getByLabel("probes")).toHaveValue("4");
+  expect(consoleErrors).toEqual([]);
+});
+
+test("generic magic and tag suggestions come from visible mock probes", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page, { probes: makeShanghaiSmokeProbes() });
+
+  await page.goto("/");
+
+  await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
+  const magicInput = page.getByLabel("magic string");
+  await magicInput.fill("CN+Sha");
+  await expect(page.getByText("1 / 4 probes 匹配")).toBeVisible();
+  const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
+  await expect(magicSuggestions.getByRole("option", { name: "CN+Shanghai" })).toBeVisible();
+  await expect(magicSuggestions.getByRole("option", { name: "Shanghai+CN+AS4134+eyeball-network" })).toBeVisible();
+
+  await page.getByRole("button", { name: "重置筛选" }).click();
+  await expect(magicInput).toHaveValue("");
+  await page.getByText("高级参数与精确筛选").click();
+  const tagInput = page.getByLabel("tag");
+  await tagInput.fill("eye");
+  await expect(page.getByText("3 / 4 probes 匹配")).toBeVisible();
+  const tagSuggestions = page.getByRole("listbox", { name: "候选列表" });
+  await expect(tagSuggestions.getByRole("option", { name: "eyeball-network" })).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });
 
@@ -1842,6 +1871,16 @@ function makeChinaSmokeProbes(count: number): GlobalpingProbe[] {
     },
     tags: [index === 3 ? "datacenter-network" : "eyeball-network"],
     resolvers: [],
+  }));
+}
+
+function makeShanghaiSmokeProbes(): GlobalpingProbe[] {
+  return makeChinaSmokeProbes(4).map((probe, index) => ({
+    ...probe,
+    location: {
+      ...probe.location,
+      city: ["Shanghai", "Beijing", "Guangzhou", "Shenzhen"][index] || probe.location.city,
+    },
   }));
 }
 

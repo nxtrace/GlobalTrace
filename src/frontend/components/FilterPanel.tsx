@@ -62,6 +62,7 @@ const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
   cities: [],
   asns: [],
   networks: [],
+  tags: [],
   magicStrings: [],
 };
 const MAX_VISIBLE_SUGGESTIONS = 8;
@@ -290,7 +291,12 @@ export function FilterPanel(props: FilterPanelProps) {
 
                 <label className="field-label">
                   <span>tag</span>
-                  <Input value={props.filters.tag || ""} onChange={(event) => setFilter("tag", event.target.value)} />
+                  <SuggestionInput
+                    label="tag"
+                    value={props.filters.tag || ""}
+                    options={filterSuggestions.tags}
+                    onChange={(value) => setFilter("tag", value)}
+                  />
                 </label>
 
                 <div className="token-section">
