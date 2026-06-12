@@ -235,6 +235,11 @@ describe("App", () => {
     expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "使用 NextTrace API Token" }));
+    const tokenDialog = await screen.findByRole("dialog", { name: "使用 NextTrace API Token" });
+    expect(within(tokenDialog).getByRole("link", { name: "获取 NextTrace API Token" })).toHaveAttribute(
+      "href",
+      "https://api.nxtrace.org/v4/api-tokens",
+    );
     fireEvent.change(screen.getByLabelText("弹窗 NextTrace API Token"), { target: { value: " dialog-token " } });
     fireEvent.click(screen.getByRole("button", { name: "保存并继续" }));
 

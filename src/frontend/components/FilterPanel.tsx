@@ -10,6 +10,8 @@ import { Input, NativeSelect, Textarea } from "./ui/input";
 import { Surface } from "./ui/surface";
 import { Switch } from "./ui/switch";
 
+const NEXTTRACE_API_TOKEN_URL = "https://api.nxtrace.org/v4/api-tokens";
+
 export type IpVersionSelection = "" | 4 | 6;
 
 interface FilterPanelProps {
@@ -330,6 +332,15 @@ export function FilterPanel(props: FilterPanelProps) {
                   <div className="summary-title">
                     <KeyRound size={16} />
                     <span>NextTrace API Token</span>
+                    <a
+                      className="token-help-link"
+                      href={NEXTTRACE_API_TOKEN_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="获取 NextTrace API Token"
+                    >
+                      获取 Token
+                    </a>
                   </div>
                   <label className="field-label">
                     <span>Token</span>

@@ -40,6 +40,7 @@ export const POLL_DELAY_MS = 650;
 export const TRACE_MAX_POLL_ATTEMPTS = 120;
 const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
+const NEXTTRACE_API_TOKEN_URL = "https://api.nxtrace.org/v4/api-tokens";
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
 const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
 
@@ -742,6 +743,9 @@ function TurnstileDialog({
                     aria-label="弹窗 NextTrace API Token"
                   />
                 </label>
+                <a className="token-help-link" href={NEXTTRACE_API_TOKEN_URL} target="_blank" rel="noreferrer">
+                  获取 NextTrace API Token
+                </a>
               </div>
             ) : (
               <TurnstileBox siteKey={siteKey} onToken={onToken} />

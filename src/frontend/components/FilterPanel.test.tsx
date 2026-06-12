@@ -97,6 +97,10 @@ describe("FilterPanel", () => {
     expect(screen.getByText("未使用 Globalping Token")).toBeVisible();
     expect(screen.getByLabelText("NextTrace API Token")).toBeVisible();
     expect(screen.getByText("未使用 NextTrace Token")).toBeVisible();
+    expect(screen.getByRole("link", { name: "获取 NextTrace API Token" })).toHaveAttribute(
+      "href",
+      "https://api.nxtrace.org/v4/api-tokens",
+    );
     fireEvent.change(screen.getByLabelText("magic string"), { target: { value: "DE+Hetzner" } });
     expect(onFiltersChange).toHaveBeenCalledWith({ magic: "DE+Hetzner" });
   });

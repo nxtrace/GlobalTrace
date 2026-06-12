@@ -810,6 +810,26 @@ summary:focus-visible {
   gap: 11px;
 }
 
+.token-help-link {
+  display: inline-flex;
+  width: fit-content;
+  margin-left: auto;
+  border-radius: 8px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 760;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.token-help-link:hover {
+  text-decoration: underline;
+}
+
+.turnstile-token-form .token-help-link {
+  margin-left: 0;
+}
+
 .token-actions,
 .attribution-panel {
   display: flex;
