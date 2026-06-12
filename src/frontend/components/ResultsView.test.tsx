@@ -394,6 +394,10 @@ describe("ResultsView", () => {
     expect(map.layers.map((layer) => layer.id)).toContain("result-hop-labels");
     expect(map.layers.map((layer) => layer.id)).toEqual(expect.arrayContaining(["result-packets", "result-endpoint-shadow", "result-endpoint-halo", "result-endpoint-core"]));
     expect(map.sources.get("result-packets")?.data).toMatchObject({ type: "FeatureCollection" });
+    expect(map.layers.find((layer) => layer.id === "result-packets")?.paint).toMatchObject({
+      "circle-radius": ["case", ["boolean", ["get", "active"], false], 3, 2],
+      "circle-stroke-width": ["case", ["boolean", ["get", "active"], false], 0.8, 0.4],
+    });
     expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({
       "circle-radius": ["case", ["boolean", ["get", "active"], false], 14, 10],
       "circle-color": ["coalesce", ["get", "color"], "#587f78"],
@@ -570,7 +574,10 @@ describe("ResultsView", () => {
     expect(hops.filter((feature) => feature.properties?.endpoint).map((feature) => feature.properties?.endpointRole)).toEqual(["start", "end", "start", "end"]);
     expect(route0Packets.length).toBeGreaterThan(route1Packets.length);
     expect(route1Packets).toHaveLength(1);
-    expect(packetDistances(route0Packets)).toEqual([0, 1800, 3600, 5400]);
+    expect(packetDistances(route0Packets).slice(0, 4)).toEqual([0, 1800, 3600, 5400]);
+    packetDistances(route0Packets).forEach((distance, index, distances) => {
+      if (index > 0) expect(distance - distances[index - 1]).toBeCloseTo(1800, 6);
+    });
     expect(data.packetFeatureCollection.features[0]?.properties).toMatchObject({ kind: "packet", routeId: "route-0", color: "#14b8a6", active: true });
     expect(data.routeNodeById.get("route-1-node-2")).toMatchObject({ resultIndex: 1, color: "#f97316" });
   });
@@ -587,6 +594,17 @@ describe("ResultsView", () => {
     expect(coordinate[0]).toBeGreaterThan(1);
     expect(coordinate[0]).toBeLessThan(21);
     expect(coordinate[1]).toBe(0);
+  });
+
+  it("uses the shared display path for the visible line and packet coordinates", () => {
+    const data = buildResultMapData(projectedCurveRouteResult.results[0], projectedCurveRouteResult.results);
+    const line = lineCoordinates(data.featureCollection);
+    const movedPacket = packetFeatures(buildPacketFeatureCollection(data.routes, 1000), "route-0")[0];
+    const coordinate = (movedPacket?.geometry as { coordinates?: number[] } | undefined)?.coordinates || [];
+
+    expect(line.length).toBeGreaterThan(2);
+    expect(coordinateOnProjectedPolyline(coordinate, line)).toBe(true);
+    expect(Math.abs(coordinate[1] - (coordinate[0] - 1))).toBeGreaterThan(0.05);
   });
 
   it("switches to an inactive route when its map point is clicked", async () => {
@@ -614,10 +632,9 @@ describe("ResultsView", () => {
     expect(labels).toEqual(["1-2", "5"]);
     expect(data.routeNodes[0]).toMatchObject({ nodeId: "route-0-node-1-2", ttlList: [1, 2], label: "1-2" });
     expect(data.routeNodeIdByTtl.get(2)).toBe("route-0-node-1-2");
-    expect(line).toEqual([
-      [-122.08, 37.39],
-      [-0.12, 51.5],
-    ]);
+    expect(line.length).toBeGreaterThan(2);
+    expect(line[0]).toEqual([-122.08, 37.39]);
+    expect(line.at(-1)).toEqual([-0.12, 51.5]);
     expect(data.fitCoordinates).toContainEqual([-118.24, 34.05]);
   });
 
@@ -627,11 +644,9 @@ describe("ResultsView", () => {
     const line = lineCoordinates(data.featureCollection);
 
     expect(hopLabels(data.featureCollection)).toEqual(["1", "2", "4-5"]);
-    expect(line).toEqual([
-      [179.4, 10],
-      [180.7, 11],
-      [181.1, 12],
-    ]);
+    expect(line.length).toBeGreaterThanOrEqual(3);
+    expect(line[0]).toEqual([179.4, 10]);
+    expect(line.at(-1)).toEqual([181.1, 12]);
     expect(lngSpan(line)).toBeLessThan(3);
     expect(lngSpan(data.fitCoordinates)).toBeLessThan(3);
   });
@@ -692,6 +707,34 @@ function packetDistances(features: ReturnType<typeof packetFeatures>): number[] 
 function lngSpan(coordinates: number[][]): number {
   const lngs = coordinates.map((coordinate) => coordinate[0]);
   return Math.max(...lngs) - Math.min(...lngs);
+}
+
+function coordinateOnProjectedPolyline(coordinate: number[], line: number[][]): boolean {
+  const point = testProjectWebMercator(coordinate);
+  return line.some((start, index) => {
+    const end = line[index + 1];
+    if (!end) return false;
+    const startPoint = testProjectWebMercator(start);
+    const endPoint = testProjectWebMercator(end);
+    return distanceToProjectedSegment(point, startPoint, endPoint) < 1e-6;
+  });
+}
+
+function testProjectWebMercator(coordinate: number[]): { x: number; y: number } {
+  const lat = (coordinate[1] * Math.PI) / 180;
+  return {
+    x: (coordinate[0] * Math.PI) / 180,
+    y: Math.log(Math.tan(Math.PI / 4 + lat / 2)),
+  };
+}
+
+function distanceToProjectedSegment(point: { x: number; y: number }, start: { x: number; y: number }, end: { x: number; y: number }): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= 0) return Math.hypot(point.x - start.x, point.y - start.y);
+  const ratio = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + dx * ratio), point.y - (start.y + dy * ratio));
 }
 
 function hopWithGeo(
@@ -1078,6 +1121,20 @@ const eastboundRouteResult: TraceResultResponse = {
       hops: [
         hopWithGeo(1, "198.51.100.20", 0, 1, { country_en: "Test", city_en: "Start" }),
         hopWithGeo(2, "198.51.100.21", 0, 21, { country_en: "Test", city_en: "End" }),
+      ],
+    },
+  ],
+};
+
+const projectedCurveRouteResult: TraceResultResponse = {
+  ...sampleResult,
+  measurementId: "m-projected-curve",
+  results: [
+    {
+      ...sampleResult.results[0],
+      hops: [
+        hopWithGeo(1, "198.51.100.30", 0, 1, { country_en: "Test", city_en: "Start" }),
+        hopWithGeo(2, "198.51.100.31", 60, 61, { country_en: "Test", city_en: "End" }),
       ],
     },
   ],

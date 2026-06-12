@@ -27,7 +27,9 @@ const RESULT_MAP_MAX_ZOOM = 5.8;
 const RESULT_ROUTE_COLORS = ["#14b8a6", "#f97316", "#8b5cf6", "#22c55e", "#0ea5e9", "#e11d48", "#facc15", "#06b6d4", "#a855f7", "#84cc16"];
 const RESULT_PACKET_SPACING_KM = 1800;
 const RESULT_PACKET_SPEED_KM_PER_SECOND = 900;
+const RESULT_ROUTE_DISPLAY_SEGMENT_KM = 350;
 const EARTH_RADIUS_KM = 6371.0088;
+const WEB_MERCATOR_MAX_LATITUDE = 85.05112878;
 
 type ResultMapCoordinate = ResultRouteCoordinate;
 type RouteEndpointRole = "start" | "end" | "single" | "middle";
@@ -533,12 +535,12 @@ function ResultMap({
         source: "result-packets",
         filter: ["==", ["get", "kind"], "packet"],
         paint: {
-          "circle-radius": activeNumberExpression(globeValue(mapProjection, 5.8, 4.4), globeValue(mapProjection, 4.2, 3.2)),
+          "circle-radius": activeNumberExpression(3, 2),
           "circle-color": routeColorExpression(),
           "circle-opacity": activeNumberExpression(0.98, 0.34),
           "circle-blur": activeNumberExpression(0.14, 0.28),
           "circle-stroke-color": globeValue(mapProjection, "rgba(255, 255, 255, 0.94)", "rgba(255, 255, 255, 0.78)"),
-          "circle-stroke-width": activeNumberExpression(1.4, 0.7),
+          "circle-stroke-width": activeNumberExpression(0.8, 0.4),
         },
       });
       map.addLayer({
@@ -773,12 +775,13 @@ export function buildResultMapData(
       }),
     );
     const routeCoordinates = routeNodes.map((node) => node.coordinate);
-    const pathSegments = resultRouteSegments(routeCoordinates);
+    const displayCoordinates = resultDisplayRouteCoordinates(routeCoordinates);
+    const pathSegments = resultRouteSegments(displayCoordinates);
     const pathLengthKm = pathSegments.at(-1)?.endKm || 0;
-    if (routeCoordinates.length > 1) {
+    if (displayCoordinates.length > 1) {
       features.push({
         type: "Feature",
-        geometry: { type: "LineString", coordinates: routeCoordinates },
+        geometry: { type: "LineString", coordinates: displayCoordinates },
         properties: { kind: "path", routeId, routeIndex: resultIndex, resultId: item.id, color, active: activeRoute },
       });
     }
@@ -810,7 +813,7 @@ export function buildResultMapData(
       resultIndex,
       color,
       active: activeRoute,
-      pathCoordinates: routeCoordinates,
+      pathCoordinates: displayCoordinates,
       pathSegments,
       pathLengthKm,
       fitCoordinates: resultFitCoordinates(item, routeCoordinates),
@@ -1028,6 +1031,30 @@ export function buildPacketFeatureCollection(routes: ResultMapRoute[], elapsedMs
   return { type: "FeatureCollection", features };
 }
 
+function resultDisplayRouteCoordinates(coordinates: ResultMapCoordinate[]): ResultMapCoordinate[] {
+  if (coordinates.length < 2) return coordinates;
+  const displayCoordinates: ResultMapCoordinate[] = [coordinates[0]];
+  for (let index = 1; index < coordinates.length; index += 1) {
+    const previous = coordinates[index - 1];
+    const current = coordinates[index];
+    const previousProjected = projectWebMercator(previous);
+    const currentProjected = projectWebMercator(current);
+    const projectedDistanceKm = Math.hypot(currentProjected.x - previousProjected.x, currentProjected.y - previousProjected.y);
+    const steps = Math.max(1, Math.ceil(projectedDistanceKm / RESULT_ROUTE_DISPLAY_SEGMENT_KM));
+    for (let step = 1; step < steps; step += 1) {
+      const ratio = step / steps;
+      displayCoordinates.push(
+        unprojectWebMercator({
+          x: previousProjected.x + (currentProjected.x - previousProjected.x) * ratio,
+          y: previousProjected.y + (currentProjected.y - previousProjected.y) * ratio,
+        }),
+      );
+    }
+    displayCoordinates.push(current);
+  }
+  return displayCoordinates;
+}
+
 function resultRouteSegments(coordinates: ResultMapCoordinate[]): ResultRouteSegment[] {
   if (coordinates.length < 2) return [];
   const segments: ResultRouteSegment[] = [];
@@ -1049,12 +1076,33 @@ function routeCoordinateAtDistance(segments: ResultRouteSegment[], distanceKm: n
     if (distanceKm > segment.endKm) continue;
     const segmentLengthKm = segment.endKm - segment.startKm;
     const ratio = segmentLengthKm > 0 ? (distanceKm - segment.startKm) / segmentLengthKm : 0;
-    return [
-      segment.start[0] + (segment.end[0] - segment.start[0]) * ratio,
-      segment.start[1] + (segment.end[1] - segment.start[1]) * ratio,
-    ];
+    return webMercatorInterpolate(segment.start, segment.end, ratio);
   }
   return segments.at(-1)?.end || null;
+}
+
+function webMercatorInterpolate(start: ResultMapCoordinate, end: ResultMapCoordinate, ratio: number): ResultMapCoordinate {
+  const projectedStart = projectWebMercator(start);
+  const projectedEnd = projectWebMercator(end);
+  return unprojectWebMercator({
+    x: projectedStart.x + (projectedEnd.x - projectedStart.x) * ratio,
+    y: projectedStart.y + (projectedEnd.y - projectedStart.y) * ratio,
+  });
+}
+
+function projectWebMercator(coordinate: ResultMapCoordinate): { x: number; y: number } {
+  const lat = Math.max(-WEB_MERCATOR_MAX_LATITUDE, Math.min(WEB_MERCATOR_MAX_LATITUDE, coordinate[1]));
+  return {
+    x: EARTH_RADIUS_KM * degreesToRadians(coordinate[0]),
+    y: EARTH_RADIUS_KM * Math.log(Math.tan(Math.PI / 4 + degreesToRadians(lat) / 2)),
+  };
+}
+
+function unprojectWebMercator(point: { x: number; y: number }): ResultMapCoordinate {
+  return [
+    radiansToDegrees(point.x / EARTH_RADIUS_KM),
+    radiansToDegrees(2 * Math.atan(Math.exp(point.y / EARTH_RADIUS_KM)) - Math.PI / 2),
+  ];
 }
 
 function coordinateDistanceKm(left: ResultMapCoordinate, right: ResultMapCoordinate): number {
@@ -1075,6 +1123,10 @@ function shortLongitudeDelta(delta: number): number {
 
 function degreesToRadians(value: number): number {
   return (value * Math.PI) / 180;
+}
+
+function radiansToDegrees(value: number): number {
+  return (value * 180) / Math.PI;
 }
 
 function positiveModulo(value: number, modulus: number): number {

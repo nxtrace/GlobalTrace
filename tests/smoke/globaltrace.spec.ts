@@ -349,7 +349,7 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect(page.getByLabel("trace result map")).toBeVisible();
   await expectMapCanvasPainted(page);
-  await expectResultRouteData(page, { labels: ["1-2", "5"], lineLength: 2, maxLineLngSpan: 140 });
+  await expectResultRouteData(page, { labels: ["1-2", "5"], minLineLength: 3, maxLineLngSpan: 140 });
   await clickResultMapRouteNode(page, "route-0-node-1-2");
   await expect(page.locator('.hop-table tr[data-ttl="1"]')).toHaveClass(/selected/);
   await expect(page.locator('.hop-table tr[data-ttl="2"]')).toHaveClass(/selected/);
@@ -372,7 +372,7 @@ test("result route map normalizes antimeridian paths", async ({ page }) => {
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect(page.getByLabel("trace result map")).toBeVisible();
   await expectMapCanvasPainted(page);
-  await expectResultRouteData(page, { labels: ["1", "2", "4-5"], lineLength: 3, maxLineLngSpan: 3, maxFitLngSpan: 3 });
+  await expectResultRouteData(page, { labels: ["1", "2", "4-5"], minLineLength: 3, maxLineLngSpan: 3, maxFitLngSpan: 3 });
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -1283,16 +1283,16 @@ async function expectResultMapStyleLoaded(page: Page): Promise<void> {
 
 async function expectResultRouteData(
   page: Page,
-  expected: { labels: string[]; lineLength: number; maxLineLngSpan: number; maxFitLngSpan?: number },
+  expected: { labels: string[]; minLineLength: number; maxLineLngSpan: number; maxFitLngSpan?: number },
 ): Promise<void> {
   await expect
     .poll(async () => resultRouteState(page))
     .toMatchObject({
       labels: expected.labels,
-      lineLength: expected.lineLength,
     });
 
   const state = await resultRouteState(page);
+  expect(state.lineLength).toBeGreaterThanOrEqual(expected.minLineLength);
   expect(state.lineLngSpan).toBeLessThan(expected.maxLineLngSpan);
   if (expected.maxFitLngSpan !== undefined) {
     expect(state.fitLngSpan).toBeLessThan(expected.maxFitLngSpan);
