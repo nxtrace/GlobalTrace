@@ -1721,12 +1721,39 @@ tbody tr:hover {
   font-size: 13px;
 }
 
+.probe-tabs-root {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
 .probe-tabs {
+  --probe-tabs-bottom-padding: 14px;
+  --probe-tabs-scrollbar-color: color-mix(in srgb, var(--ink-muted) 58%, transparent);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   align-items: stretch;
   gap: 8px;
   overflow-x: auto;
   scrollbar-width: thin;
+  scrollbar-color: var(--probe-tabs-scrollbar-color) transparent;
+  scrollbar-gutter: stable;
+}
+
+.probe-tabs::-webkit-scrollbar {
+  height: 8px;
+}
+
+.probe-tabs::-webkit-scrollbar-track {
+  background: transparent;
+  margin-inline: 8px;
+}
+
+.probe-tabs::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--probe-tabs-scrollbar-color);
 }
 
 .probe-tabs button {
@@ -2564,9 +2591,9 @@ pre {
   }
 
   .probe-tabs {
+    --probe-tabs-bottom-padding: 2px;
     flex-wrap: wrap;
     overflow-x: visible;
-    padding-bottom: 2px;
   }
 
   .probe-tabs button {
@@ -3176,7 +3203,7 @@ textarea:hover {
 .probe-tabs {
   border: 1px solid var(--glass-border);
   border-radius: 18px;
-  padding: 7px;
+  padding: 7px 7px var(--probe-tabs-bottom-padding);
   background: var(--glass-bg);
   box-shadow: var(--shadow-inset);
   backdrop-filter: blur(20px) saturate(1.16);

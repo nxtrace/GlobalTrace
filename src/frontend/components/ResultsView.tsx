@@ -186,7 +186,7 @@ export function ResultsView({
         ))}
       </div>
 
-      <Tabs value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
+      <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
         <TabsList className="probe-tabs" aria-label="probe results">
           {result.results.map((item, index) => (
             <TabsTrigger key={item.id} value={String(index)} style={routeTabStyle(index)} onClick={() => selectProbe(index)}>

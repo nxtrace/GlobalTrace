@@ -292,6 +292,18 @@ test("desktop filter summary constrains long magic content and keeps run control
   expect(consoleErrors).toEqual([]);
 });
 
+test("probe result tabs keep horizontal scrollbar clear of route choices", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page, { traceResponse: multiProbeTraceResult(10) });
+
+  await page.goto("/?measurement=m-smoke");
+
+  await expect(page.getByText("finished · 10 probes · m-smoke")).toBeVisible();
+  await expectProbeTabsScrollbarLayout(page);
+  expect(consoleErrors).toEqual([]);
+});
+
 test("reversed magic expands probes and normalizes measurement locations", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const consoleErrors = collectConsoleErrors(page);
@@ -780,6 +792,33 @@ async function expectFilterSummaryConstrainsLongChips(page: Page): Promise<void>
   expect(state.chipsScrollHeight).toBeGreaterThan(state.chipsClientHeight);
   expect(state.footerBottom).toBeLessThanOrEqual(Math.min(state.panelBottom, state.viewportHeight));
   expect(state.runButtonBottom).toBeLessThanOrEqual(state.viewportHeight);
+}
+
+async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
+  const state = await page.locator(".probe-tabs").evaluate((node) => {
+    const tabs = node as HTMLElement;
+    const buttons = Array.from(tabs.querySelectorAll("button")) as HTMLElement[];
+    const tabsRect = tabs.getBoundingClientRect();
+    const buttonBottom = Math.max(...buttons.map((button) => button.getBoundingClientRect().bottom));
+    const styles = window.getComputedStyle(tabs);
+    return {
+      bottomGap: tabsRect.bottom - buttonBottom,
+      clientWidth: tabs.clientWidth,
+      flexWrap: styles.flexWrap,
+      overflowX: styles.overflowX,
+      paddingBottom: Number.parseFloat(styles.paddingBottom),
+      scrollbarColor: styles.scrollbarColor,
+      scrollbarWidth: styles.scrollbarWidth,
+      scrollWidth: tabs.scrollWidth,
+    };
+  });
+  expect(state.flexWrap).toBe("nowrap");
+  expect(["auto", "scroll"]).toContain(state.overflowX);
+  expect(state.scrollWidth).toBeGreaterThan(state.clientWidth);
+  expect(state.paddingBottom).toBeGreaterThanOrEqual(14);
+  expect(state.bottomGap).toBeGreaterThanOrEqual(13);
+  expect(state.scrollbarWidth).toBe("thin");
+  expect(state.scrollbarColor).not.toBe("auto");
 }
 
 async function expectLightModePanelBoundaries(page: Page): Promise<void> {
@@ -1856,6 +1895,26 @@ function traceResult(status: TraceResultResponse["status"]): TraceResultResponse
           ],
     enrichment: { status: status === "finished" ? "complete" : "skipped", cached: 0, fetched: status === "finished" ? 1 : 0, errors: [] },
   };
+}
+
+function multiProbeTraceResult(count: number): TraceResultResponse {
+  const result = traceResult("finished");
+  const base = result.results[0];
+  if (!base) return result;
+  const cities = ["Falkenstein", "Helsinki", "Roubaix", "Nuremberg", "Buffalo", "Frankfurt", "Raleigh", "Arhus", "Tokyo", "Singapore"];
+  result.probesCount = count;
+  result.results = Array.from({ length: count }, (_, index) => ({
+    ...base,
+    id: `probe-${index + 1}`,
+    probe: {
+      ...base.probe,
+      city: cities[index] || `Probe ${index + 1}`,
+      asn: [24940, 24940, 16276, 197540, 36352, 31898, 174, 39642, 2516, 13335][index] || 64500 + index,
+      latitude: base.probe.latitude + index * 0.1,
+      longitude: base.probe.longitude + index * 0.1,
+    },
+  }));
+  return result;
 }
 
 function routeQualityTraceResult(): TraceResultResponse {
