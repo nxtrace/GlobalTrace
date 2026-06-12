@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
-import { magicStringMatchesQuery, type FilterChip, type ProbeFilterSuggestions } from "../../shared/filters";
+import { compactText, normalizeAsn, type FilterChip, type ProbeFilterSuggestions } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
@@ -66,6 +66,18 @@ const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
   magicStrings: [],
 };
 const MAX_VISIBLE_SUGGESTIONS = 8;
+const MAGIC_PLACEHOLDER = "Los Angeles+US+AS7922+eyeball-network, Shanghai+CN+AS4134";
+
+interface IndexedMagicToken {
+  lower: string;
+  normalizedAsn: string;
+}
+
+interface IndexedMagicOption {
+  value: string;
+  tokens: IndexedMagicToken[];
+  includesWorld: boolean;
+}
 
 export function FilterPanel(props: FilterPanelProps) {
   const filterSuggestions = props.filterSuggestions ?? EMPTY_FILTER_SUGGESTIONS;
@@ -464,11 +476,20 @@ function MagicSuggestionTextarea({
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [cursorPosition, setCursorPosition] = useState(value.length);
+  const indexedOptions = useMemo(() => indexMagicOptions(options), [options]);
+  const query = useMemo(() => magicSegmentAt(value, cursorPosition).query, [cursorPosition, value]);
   const visibleOptions = useMemo(() => {
-    const query = magicSegmentAt(value, cursorPosition).query;
-    const matches = query ? options.filter((option) => magicStringMatchesQuery(option, query)) : options;
-    return matches.slice(0, MAX_VISIBLE_SUGGESTIONS);
-  }, [cursorPosition, options, value]);
+    const queryTokens = magicOptionTokens(query);
+    if (!queryTokens.length) return [];
+    const matches: string[] = [];
+    for (const option of indexedOptions) {
+      if (magicIndexedOptionMatchesQuery(option, queryTokens)) {
+        matches.push(option.value);
+        if (matches.length >= MAX_VISIBLE_SUGGESTIONS) break;
+      }
+    }
+    return matches;
+  }, [indexedOptions, query]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -544,7 +565,7 @@ function MagicSuggestionTextarea({
         onSelect={(event) => updateCursorPosition(event.currentTarget)}
         onKeyDown={handleKeyDown}
         rows={3}
-        placeholder="US+Comcast+eyeball-network, DE+Hetzner"
+        placeholder={MAGIC_PLACEHOLDER}
         role="combobox"
         aria-label="magic string"
         aria-autocomplete="list"
@@ -576,6 +597,41 @@ function ThemeIcon({ mode }: { mode: ThemeMode }) {
   if (mode === "light") return <Sun size={18} />;
   if (mode === "dark") return <Moon size={18} />;
   return <Monitor size={18} />;
+}
+
+function indexMagicOptions(options: string[]): IndexedMagicOption[] {
+  return options.map((value) => {
+    const tokens = magicOptionTokens(value);
+    return {
+      value,
+      tokens,
+      includesWorld: tokens.some((token) => token.lower === "world"),
+    };
+  });
+}
+
+function magicOptionTokens(value: string): IndexedMagicToken[] {
+  return value
+    .split("+")
+    .map(compactText)
+    .filter(Boolean)
+    .map((token) => ({
+      lower: token.toLowerCase(),
+      normalizedAsn: normalizeAsn(token),
+    }));
+}
+
+function magicIndexedOptionMatchesQuery(option: IndexedMagicOption, queryTokens: IndexedMagicToken[]): boolean {
+  if (!option.tokens.length || option.includesWorld) return true;
+  return queryTokens.every((queryToken) => option.tokens.some((optionToken) => magicIndexedTokenMatches(optionToken, queryToken)));
+}
+
+function magicIndexedTokenMatches(optionToken: IndexedMagicToken, queryToken: IndexedMagicToken): boolean {
+  if (!queryToken.lower || queryToken.lower === "world") return true;
+  if (/^(AS)?\d+$/i.test(queryToken.lower)) {
+    return optionToken.normalizedAsn === queryToken.normalizedAsn || optionToken.lower.includes(queryToken.lower);
+  }
+  return optionToken.lower.includes(queryToken.lower);
 }
 
 function SuggestionInput({

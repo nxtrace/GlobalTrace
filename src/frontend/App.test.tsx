@@ -377,12 +377,11 @@ describe("App", () => {
     expect(magicInput).toHaveValue("");
 
     fireEvent.focus(magicInput);
+    expect(screen.queryByRole("listbox", { name: "候选列表" })).not.toBeInTheDocument();
+
+    fireEvent.change(magicInput, { target: { value: "US+Los" } });
     const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
     expect(within(magicListbox).getByRole("option", { name: "US+Los Angeles" })).toBeInTheDocument();
-    expect(within(magicListbox).getByRole("option", { name: "DE+Falkenstein" })).toBeInTheDocument();
-
-    fireEvent.change(magicInput, { target: { value: "AS7922+Los" } });
-
     fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" }));
 
     await waitFor(() => {

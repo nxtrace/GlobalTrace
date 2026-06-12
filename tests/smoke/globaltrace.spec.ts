@@ -51,13 +51,13 @@ for (const viewport of viewports) {
     const magicInput = page.getByLabel("magic string");
     await expect(magicInput).toHaveValue("");
     await magicInput.click();
+    await expect(page.getByRole("listbox", { name: "候选列表" })).toHaveCount(0);
+    await magicInput.fill("US+Los");
     const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
     await expect(magicSuggestions.getByRole("option", { name: "US+Los Angeles" })).toBeVisible();
-    await expect(magicSuggestions.getByRole("option", { name: "DE+Falkenstein" })).toBeVisible();
-    await magicInput.fill("AS7922+Los");
     await expect(magicSuggestions.getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" })).toBeVisible();
-    await magicInput.fill("");
     await expectSuggestionPopoverOnTop(magicSuggestions);
+    await magicInput.fill("");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "切换到 3D 视图" })).toHaveCount(0);
     await expect(page.locator(".maplibregl-canvas")).toBeVisible();

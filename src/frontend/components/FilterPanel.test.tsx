@@ -163,13 +163,17 @@ describe("FilterPanel", () => {
 
     const magicInput = screen.getByLabelText("magic string");
     expect(magicInput).toHaveValue("");
-    expect(magicInput).toHaveAttribute("placeholder", "US+Comcast+eyeball-network, DE+Hetzner");
+    expect(magicInput).toHaveAttribute("placeholder", "Los Angeles+US+AS7922+eyeball-network, Shanghai+CN+AS4134");
+    fireEvent.focus(magicInput);
+    expect(screen.queryByRole("listbox", { name: "候选列表" })).not.toBeInTheDocument();
     expect(screen.getByTestId("filter-chips")).toHaveTextContent("world");
   });
 
   it("shows magic string suggestions and selects them with the keyboard", () => {
     const onFiltersChange = vi.fn();
     renderPanel({
+      filters: { magic: "AS" },
+      chips: filterChips({ magic: "AS" }),
       filterSuggestions: {
         countries: [],
         cities: [],
@@ -189,6 +193,27 @@ describe("FilterPanel", () => {
     fireEvent.keyDown(magicInput, { key: "Enter" });
 
     expect(onFiltersChange).toHaveBeenCalledWith({ magic: "Falkenstein+DE+AS24940+datacenter-network" });
+  });
+
+  it("hides magic suggestions while the current comma-separated segment is empty", () => {
+    renderPanel({
+      filters: { magic: "US, " },
+      chips: filterChips({ magic: "US, " }),
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: [],
+        tags: [],
+        magicStrings: MAGIC_SUGGESTIONS,
+      },
+    });
+
+    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
+    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    fireEvent.focus(magicInput);
+
+    expect(screen.queryByRole("listbox", { name: "候选列表" })).not.toBeInTheDocument();
   });
 
   it("filters magic suggestions by the current comma-separated segment", () => {
