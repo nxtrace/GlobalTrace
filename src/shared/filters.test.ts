@@ -141,14 +141,11 @@ describe("shared filters", () => {
       magicStrings: [
         "US+Los Angeles",
         "US+AS7922",
-        "US+eyeball-network",
-        "US+AS7922+eyeball-network",
         "DE+Falkenstein",
         "DE+AS24940",
-        "DE+datacenter-network",
-        "DE+AS24940+datacenter-network",
         "Los Angeles+US+AS7922+eyeball-network",
         "Falkenstein+DE+AS24940+datacenter-network",
+        "US+AS7922+eyeball-network",
       ],
     });
 
@@ -160,8 +157,6 @@ describe("shared filters", () => {
     ]).magicStrings).toEqual([
       "CN+Shanghai",
       "CN+AS4134",
-      "CN+eyeball-network",
-      "CN+AS4134+eyeball-network",
       "Shanghai+CN+AS4134+eyeball-network",
     ]);
   });
@@ -180,8 +175,6 @@ describe("shared filters", () => {
     expect(probeFilterSuggestions(probes, { country: "US", magic: "DE+Hetzner" }).magicStrings).toEqual([
       "US+Los Angeles",
       "US+AS7922",
-      "US+eyeball-network",
-      "US+AS7922+eyeball-network",
       "Los Angeles+US+AS7922+eyeball-network",
     ]);
   });

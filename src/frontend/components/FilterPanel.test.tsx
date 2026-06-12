@@ -12,7 +12,6 @@ const MAGIC_SUGGESTIONS = [
 const CHINA_MAGIC_SUGGESTIONS = [
   "CN+Shanghai",
   "CN+AS4134",
-  "CN+AS4134+eyeball-network",
   "Shanghai+CN+AS4134+eyeball-network",
 ];
 
@@ -284,7 +283,6 @@ describe("FilterPanel", () => {
 
     expectSuggestionOptions([
       "CN+AS4134",
-      "CN+AS4134+eyeball-network",
       "Shanghai+CN+AS4134+eyeball-network",
     ]);
   });

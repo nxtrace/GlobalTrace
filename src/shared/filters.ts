@@ -288,14 +288,9 @@ function magicSuggestionsForProbes(probes: GlobalpingProbe[]): string[] {
     const country = compactText(location.country);
     const city = compactText(location.city);
     const asn = normalizeAsn(location.asn);
-    const tags = probe.tags.map(compactText).filter(Boolean);
 
     addMagicCandidate(generic, [country, city]);
     addMagicCandidate(generic, [country, asn]);
-    for (const tag of tags) {
-      addMagicCandidate(generic, [country, tag]);
-      addMagicCandidate(generic, [country, asn, tag]);
-    }
     addUnique(full, probeToMagic(probe));
   }
   return [...generic, ...full].reduce<string[]>((out, value) => {
