@@ -4,7 +4,9 @@ import {
   filterChips,
   filterProbes,
   filterSummaryText,
+  magicStringMatchesQuery,
   magicFromSelectedProbes,
+  normalizeMagicFiltersForProbes,
   probeFilterSuggestions,
   probeToMagic,
 } from "./filters";
@@ -43,6 +45,22 @@ const probes: GlobalpingProbe[] = [
   },
 ];
 
+const chinaAs4134Probes: GlobalpingProbe[] = ["Shenzhen", "Nanning", "Guangzhou", "Shenzhou"].map((city, index) => ({
+  version: "0.48.0",
+  location: {
+    continent: "AS",
+    region: "Eastern Asia",
+    country: "CN",
+    state: null,
+    city,
+    asn: 4134,
+    latitude: 22.54 + index,
+    longitude: 114.05 + index,
+    network: "China Telecom",
+  },
+  tags: [index === 3 ? "datacenter-network" : "eyeball-network"],
+}));
+
 describe("shared filters", () => {
   it("builds Globalping magic strings from structured filters", () => {
     expect(
@@ -69,6 +87,33 @@ describe("shared filters", () => {
     );
     expect(filterProbes(probes, { magic: "Los Angeles+US+AS7922+eyeball-network" })).toHaveLength(1);
     expect(filterProbes(probes, { magic: "DE+Hetzner" })[0]?.location.city).toBe("Falkenstein");
+    expect(filterProbes(chinaAs4134Probes, { magic: "AS4134+CN" })).toHaveLength(4);
+    expect(filterProbes(chinaAs4134Probes, { magic: "CN+AS4134" })).toHaveLength(4);
+  });
+
+  it("matches magic suggestion tokens without requiring fixed order", () => {
+    expect(magicStringMatchesQuery("Shenzhen+CN+AS4134+eyeball-network", "AS4134+CN")).toBe(true);
+    expect(magicStringMatchesQuery("Shenzhen+CN+AS4134+eyeball-network", "CN+4134")).toBe(true);
+    expect(magicStringMatchesQuery("Shenzhen+CN+AS4134+eyeball-network", "AS4134+DE")).toBe(false);
+  });
+
+  it("normalizes small multi-token magic filters against current probes", () => {
+    expect(normalizeMagicFiltersForProbes({ magic: "AS4134+CN" }, chinaAs4134Probes, 10)).toEqual({
+      magic: [
+        "Shenzhen+CN+AS4134+eyeball-network",
+        "Nanning+CN+AS4134+eyeball-network",
+        "Guangzhou+CN+AS4134+eyeball-network",
+        "Shenzhou+CN+AS4134+datacenter-network",
+      ].join(", "),
+    });
+    expect(normalizeMagicFiltersForProbes({ magic: "CN" }, chinaAs4134Probes, 10)).toEqual({ magic: "CN" });
+    expect(normalizeMagicFiltersForProbes({ magic: "AS64500+CN" }, chinaAs4134Probes, 10)).toEqual({ magic: "AS64500+CN" });
+
+    const manyProbes = Array.from({ length: 11 }, (_, index) => ({
+      ...chinaAs4134Probes[0],
+      location: { ...chinaAs4134Probes[0].location, city: `China ${index}` },
+    }));
+    expect(normalizeMagicFiltersForProbes({ magic: "AS4134+CN" }, manyProbes, 10)).toEqual({ magic: "AS4134+CN" });
   });
 
   it("builds input suggestions from online probes", () => {

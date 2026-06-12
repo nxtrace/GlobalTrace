@@ -88,6 +88,7 @@ describe("App", () => {
     expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
     expect(screen.getByText("249/250")).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toHaveValue("");
+    expect(screen.getByLabelText("probes")).toHaveValue(3);
     expect(document.documentElement.dataset.theme).toBe("system");
   });
 
@@ -338,6 +339,80 @@ describe("App", () => {
       expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
     });
     expect(magicInput).toHaveValue("Los Angeles+US+AS7922+eyeball-network");
+  });
+
+  it("filters magic suggestions regardless of token order", async () => {
+    mockApi({ probes: makeChinaProbes(4) });
+    render(<App />);
+
+    await screen.findByText("4 / 4 probes 匹配");
+    const magicInput = screen.getByLabelText("magic string");
+    fireEvent.change(magicInput, { target: { value: "AS4134+CN" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("4 / 4 probes 匹配")).toBeInTheDocument();
+    });
+    const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
+    expect(within(magicListbox).getByRole("option", { name: "Shenzhen+CN+AS4134+eyeball-network" })).toBeInTheDocument();
+    expect(within(magicListbox).getByRole("option", { name: "Nanning+CN+AS4134+eyeball-network" })).toBeInTheDocument();
+  });
+
+  it("auto-expands probe limit for explicit filters without shrinking it", async () => {
+    mockApi({ probes: [...makeChinaProbes(4), probes[0]] });
+    render(<App />);
+
+    await screen.findByText("5 / 5 probes 匹配");
+    expect(screen.getByLabelText("probes")).toHaveValue(3);
+
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("probes")).toHaveValue(4);
+    });
+
+    fireEvent.change(screen.getByLabelText("城市"), { target: { value: "Shenzhen" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 5 probes 匹配")).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText("probes")).toHaveValue(4);
+  });
+
+  it("caps explicit filter probe expansion at ten", async () => {
+    mockApi({ probes: makeChinaProbes(12) });
+    render(<App />);
+
+    await screen.findByText("12 / 12 probes 匹配");
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("probes")).toHaveValue(10);
+    });
+  });
+
+  it("normalizes reversed magic filters before creating a trace", async () => {
+    const fetchMock = mockApi({ probes: makeChinaProbes(4) });
+    render(<App />);
+
+    await screen.findByText("4 / 4 probes 匹配");
+    fireEvent.change(screen.getByLabelText("magic string"), { target: { value: "AS4134+CN" } });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("probes")).toHaveValue(4);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    const body = traceCreateBodies(fetchMock)[0];
+    expect(body.limit).toBe(4);
+    expect(body.locations).toEqual([
+      { magic: "Shenzhen+CN+AS4134+eyeball-network" },
+      { magic: "Nanning+CN+AS4134+eyeball-network" },
+      { magic: "Guangzhou+CN+AS4134+eyeball-network" },
+      { magic: "Shenzhou+CN+AS4134+datacenter-network" },
+    ]);
   });
 
   it("caps box selection at ten probes and updates the probe limit", async () => {
@@ -762,16 +837,18 @@ function mockApi(
     turnstileSiteKey?: string;
     enrichmentStatus?: TraceResultResponse["enrichment"]["status"];
     measurement?: (status: TraceResultResponse["status"]) => GlobalpingMeasurement;
+    probes?: GlobalpingProbe[];
   } = {},
 ) {
   let tracePolls = 0;
+  const mockProbes = options.probes || probes;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input);
     if (path === "/api/config") {
       return json({ turnstileSiteKey: options.turnstileSiteKey || "", mapStyleUrl: "about:blank" });
     }
     if (path === "/api/probes") {
-      return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
+      return json({ probes: mockProbes, fetchedAt: "2026-06-09T00:00:00.000Z" });
     }
     if (path === "https://api.globalping.io/v1/limits") {
       return json({
@@ -829,6 +906,7 @@ function mockApi(
 
 function traceCreateBodies(fetchMock: ReturnType<typeof mockApi>): Array<{
   locations: Array<{ magic: string }>;
+  limit: number;
   measurementOptions: { ipVersion?: 4 | 6 };
 }> {
   return fetchMock.mock.calls
@@ -895,6 +973,25 @@ function repeatProbes(probe: GlobalpingProbe, count: number): GlobalpingProbe[] 
       city: `Los Angeles ${index}`,
       asn: 7900 + index,
     },
+  }));
+}
+
+function makeChinaProbes(count: number): GlobalpingProbe[] {
+  const cities = ["Shenzhen", "Nanning", "Guangzhou", "Shenzhou"];
+  return Array.from({ length: count }, (_, index) => ({
+    location: {
+      continent: "AS",
+      region: "Eastern Asia",
+      country: "CN",
+      state: null,
+      city: cities[index] || `China ${index}`,
+      asn: 4134,
+      latitude: 22.54 + index,
+      longitude: 114.05 + index,
+      network: "China Telecom",
+    },
+    tags: [index === 3 ? "datacenter-network" : "eyeball-network"],
+    resolvers: [],
   }));
 }
 

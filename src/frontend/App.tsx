@@ -22,11 +22,19 @@ import type { MapProjection } from "./components/mapProjection";
 import { deferUntilIdle } from "./lib/defer";
 import { enrichTraceWithBrowserFallback } from "./fallbackGeo";
 import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
-import { filterChips, filterProbes, magicFromSelectedProbes, probeFilterSuggestions, probeToMagic } from "../shared/filters";
+import {
+  filterChips,
+  filterProbes,
+  magicFromSelectedProbes,
+  normalizeMagicFiltersForProbes,
+  probeFilterSuggestions,
+  probeToMagic,
+} from "../shared/filters";
 import { measurementToTraceResponse } from "../shared/transform";
 import {
   DEFAULT_MAP_STYLE_URL,
   DEFAULT_PROBE_LIMIT,
+  MAX_TRACE_PROBES,
   type GlobalpingLimitResponse,
   type GlobalpingProbe,
   type TraceFilters,
@@ -288,6 +296,7 @@ export function App() {
     setMessage("");
     setWorkspaceMode("select");
     try {
+      const traceFilters = normalizeMagicFiltersForProbes(filters, probes, MAX_TRACE_PROBES);
       const created = await createTrace(
         {
           target,
@@ -296,7 +305,7 @@ export function App() {
           port: port.trim() ? Number(port) : undefined,
           packets,
           limit,
-          filters,
+          filters: traceFilters,
           turnstileToken: activeTurnstileToken,
         },
         globalpingToken,
@@ -318,7 +327,7 @@ export function App() {
     } finally {
       setLoading(false);
     }
-  }, [filters, globalpingToken, ipVersion, limit, loadTrace, packets, port, protocol, target]);
+  }, [filters, globalpingToken, ipVersion, limit, loadTrace, packets, port, probes, protocol, target]);
 
   const submit = useCallback(() => {
     if (!configReady) return;
@@ -365,12 +374,22 @@ export function App() {
     mapSelectionLimitManuallyChangedRef.current = false;
   }, []);
 
+  const expandLimitForExplicitFilters = useCallback((nextFilters: TraceFilters) => {
+    if (!hasExplicitFilter(nextFilters)) return;
+    const nextLimit = Math.min(filterProbes(probes, nextFilters).length, MAX_TRACE_PROBES);
+    if (nextLimit > limit) {
+      setLimit(nextLimit);
+    }
+  }, [limit, probes]);
+
   const pickProbe = useCallback((probe: GlobalpingProbe) => {
     if (!mapSelectionActive) resetMapSelectionLimitTracking();
-    setFilters({ magic: probeToMagic(probe) });
+    const nextFilters = { magic: probeToMagic(probe) };
+    setFilters(nextFilters);
+    expandLimitForExplicitFilters(nextFilters);
     setMapSelectionActive(true);
     setSelectionNotice(`已选择 ${probe.location.city || probe.location.country} · AS${probe.location.asn}`);
-  }, [mapSelectionActive, resetMapSelectionLimitTracking]);
+  }, [expandLimitForExplicitFilters, mapSelectionActive, resetMapSelectionLimitTracking]);
 
   const boxSelect = useCallback((selected: GlobalpingProbe[]) => {
     if (!selected.length) {
@@ -419,10 +438,11 @@ export function App() {
 
   const handleFiltersChange = useCallback((nextFilters: TraceFilters) => {
     setFilters(nextFilters);
+    expandLimitForExplicitFilters(nextFilters);
     setSelectionNotice("");
     setMapSelectionActive(false);
     resetMapSelectionLimitTracking();
-  }, [resetMapSelectionLimitTracking]);
+  }, [expandLimitForExplicitFilters, resetMapSelectionLimitTracking]);
 
   const handleLimitChange = useCallback((nextLimit: number) => {
     if (mapSelectionActive) {
@@ -821,6 +841,19 @@ function currentRoute(): AppRoute {
 
 function hasReusableSharedResult(result: TraceResultResponse | null, measurementId: string): boolean {
   return result?.measurementId === measurementId && result.status !== "in-progress";
+}
+
+function hasExplicitFilter(filters: TraceFilters): boolean {
+  return Boolean(
+    filters.country?.trim() ||
+      filters.city?.trim() ||
+      filters.asn?.trim() ||
+      filters.network?.trim() ||
+      filters.tag?.trim() ||
+      filters.eyeball ||
+      filters.datacenter ||
+      (filters.magic?.trim() && filters.magic.trim().toLowerCase() !== "world"),
+  );
 }
 
 function readStoredGlobalpingToken(): string {

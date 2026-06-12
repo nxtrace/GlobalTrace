@@ -184,8 +184,8 @@ describe("FilterPanel", () => {
   it("filters magic suggestions by the current comma-separated segment", () => {
     const onFiltersChange = vi.fn();
     renderPanel({
-      filters: { magic: "US, Falk" },
-      chips: filterChips({ magic: "US, Falk" }),
+      filters: { magic: "US, AS24940+Falk" },
+      chips: filterChips({ magic: "US, AS24940+Falk" }),
       filterSuggestions: {
         countries: [],
         cities: [],

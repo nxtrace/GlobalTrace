@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
-import type { FilterChip, ProbeFilterSuggestions } from "../../shared/filters";
+import { magicStringMatchesQuery, type FilterChip, type ProbeFilterSuggestions } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
@@ -453,8 +453,8 @@ function MagicSuggestionTextarea({
   const [activeIndex, setActiveIndex] = useState(0);
   const [cursorPosition, setCursorPosition] = useState(value.length);
   const visibleOptions = useMemo(() => {
-    const query = magicSegmentAt(value, cursorPosition).query.toLowerCase();
-    const matches = query ? options.filter((option) => option.toLowerCase().includes(query)) : options;
+    const query = magicSegmentAt(value, cursorPosition).query;
+    const matches = query ? options.filter((option) => magicStringMatchesQuery(option, query)) : options;
     return matches.slice(0, MAX_VISIBLE_SUGGESTIONS);
   }, [cursorPosition, options, value]);
 

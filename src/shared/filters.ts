@@ -51,6 +51,14 @@ export function splitMagicList(value: string): string[] {
   return locations.length ? locations : ["world"];
 }
 
+export function magicStringMatchesQuery(value: string, query: string): boolean {
+  const queryTokens = magicTokens(query);
+  if (!queryTokens.length) return true;
+  const valueTokens = magicTokens(value);
+  if (!valueTokens.length || valueTokens.some((token) => token.toLowerCase() === WORLD_MAGIC)) return true;
+  return queryTokens.every((queryToken) => valueTokens.some((valueToken) => magicTextTokenMatches(valueToken, queryToken)));
+}
+
 export function probeToMagic(probe: GlobalpingProbe): string {
   const location = probe.location;
   const parts = [
@@ -65,6 +73,38 @@ export function probeToMagic(probe: GlobalpingProbe): string {
 
 export function filterProbes(probes: GlobalpingProbe[], filters: TraceFilters): GlobalpingProbe[] {
   return probes.filter((probe) => probeMatchesFilters(probe, filters));
+}
+
+export function normalizeMagicFiltersForProbes(
+  filters: TraceFilters,
+  probes: GlobalpingProbe[],
+  maxProbes: number,
+): TraceFilters {
+  const magic = activeMagic(filters);
+  if (!magic) return filters;
+
+  let changed = false;
+  const normalized: string[] = [];
+  for (const location of splitMagicList(magic)) {
+    if (!location.includes("+")) {
+      addUnique(normalized, location);
+      continue;
+    }
+
+    const selected = Array.from(new Set(filterProbes(probes, { magic: location }).map(probeToMagic)));
+    if (selected.length < 1 || selected.length > maxProbes) {
+      addUnique(normalized, location);
+      continue;
+    }
+
+    changed = true;
+    for (const selectedMagic of selected) {
+      addUnique(normalized, selectedMagic);
+      if (normalized.length > maxProbes) return filters;
+    }
+  }
+
+  return changed ? { ...filters, magic: normalized.join(", ") } : filters;
 }
 
 export interface ProbeFilterSuggestions {
@@ -112,10 +152,7 @@ function activeMagic(filters: TraceFilters | undefined): string {
 }
 
 function probeMatchesMagic(probe: GlobalpingProbe, magic: string): boolean {
-  const tokens = magic
-    .split("+")
-    .map((token) => token.trim())
-    .filter(Boolean);
+  const tokens = magicTokens(magic);
   if (!tokens.length || tokens.some((token) => token.toLowerCase() === WORLD_MAGIC)) return true;
   return tokens.every((token) => probeMatchesMagicToken(probe, token));
 }
@@ -137,6 +174,23 @@ function probeMatchesMagicToken(probe: GlobalpingProbe, token: string): boolean 
     includesText(probe.location.network, token) ||
     matchesTag(probe.tags, token)
   );
+}
+
+function magicTextTokenMatches(valueToken: string, queryToken: string): boolean {
+  const query = compactText(queryToken);
+  if (!query || query.toLowerCase() === WORLD_MAGIC) return true;
+  const value = compactText(valueToken);
+  if (/^(AS)?\d+$/i.test(query)) {
+    return normalizeAsn(value) === normalizeAsn(query) || value.toLowerCase().includes(query.toLowerCase());
+  }
+  return value.toLowerCase().includes(query.toLowerCase());
+}
+
+function magicTokens(value: string): string[] {
+  return value
+    .split("+")
+    .map((token) => token.trim())
+    .filter(Boolean);
 }
 
 function includesText(value: string | null | undefined, query: string | undefined): boolean {
@@ -217,6 +271,10 @@ export function probeNetworkKind(probe: GlobalpingProbe): "eyeball" | "datacente
 function addChip(out: FilterChip[], key: string, label: string, value: unknown): void {
   const compacted = compactText(value);
   if (compacted) out.push({ key, label, value: compacted });
+}
+
+function addUnique(out: string[], value: string): void {
+  if (!out.includes(value)) out.push(value);
 }
 
 function uniqueSorted(values: Iterable<unknown>, compareFn?: (left: string, right: string) => number): string[] {

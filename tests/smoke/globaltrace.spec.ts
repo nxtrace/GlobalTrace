@@ -292,6 +292,52 @@ test("desktop filter summary constrains long magic content and keeps run control
   expect(consoleErrors).toEqual([]);
 });
 
+test("reversed magic expands probes and normalizes measurement locations", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const consoleErrors = collectConsoleErrors(page);
+  const mocks = await installMocks(page, { probes: makeChinaSmokeProbes(4) });
+
+  await page.goto("/");
+
+  await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
+  await expect(page.getByLabel("probes")).toHaveValue("3");
+  await page.getByLabel("magic string").fill("AS4134+CN");
+  await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
+  await expect(page.getByLabel("probes")).toHaveValue("4");
+  const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
+  await expect(magicSuggestions.getByRole("option", { name: "Shenzhen+CN+AS4134+eyeball-network" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  expect(mocks.traceRequests()[0]).toMatchObject({
+    limit: 4,
+    locations: [
+      { magic: "Shenzhen+CN+AS4134+eyeball-network" },
+      { magic: "Nanning+CN+AS4134+eyeball-network" },
+      { magic: "Guangzhou+CN+AS4134+eyeball-network" },
+      { magic: "Shenzhou+CN+AS4134+datacenter-network" },
+    ],
+  });
+  expect(consoleErrors).toEqual([]);
+});
+
+test("structured filters expand probes after explicit user filtering", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page, { probes: [...makeChinaSmokeProbes(4), probes[0]] });
+
+  await page.goto("/");
+
+  await expect(page.getByText("5 / 5 probes 匹配")).toBeVisible();
+  await expect(page.getByLabel("probes")).toHaveValue("3");
+  await page.getByText("高级参数与精确筛选").click();
+  await page.getByLabel("国家/地区").fill("CN");
+  await expect(page.getByText("4 / 5 probes 匹配")).toBeVisible();
+  await expect(page.getByLabel("probes")).toHaveValue("4");
+  expect(consoleErrors).toEqual([]);
+});
+
 test("about page exposes provider attribution links", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
@@ -503,6 +549,7 @@ interface MockHandles {
   styleRequests: () => number;
   enrichRequests: () => number;
   browserFallbackRequests: () => number;
+  traceRequests: () => GlobalpingMeasurementRequest[];
 }
 
 interface MockOptions {
@@ -511,6 +558,7 @@ interface MockOptions {
   turnstileAutoToken?: boolean;
   traceResponse?: TraceResultResponse;
   beforeMeasurementResponse?: () => Promise<void>;
+  probes?: GlobalpingProbe[];
 }
 
 async function installMocks(page: Page, options: MockOptions = {}): Promise<MockHandles> {
@@ -519,6 +567,8 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
   let enrichRequests = 0;
   let browserFallbackRequests = 0;
   let enriched = false;
+  const mockProbes = options.probes || probes;
+  const traceRequests: GlobalpingMeasurementRequest[] = [];
   if (options.turnstileSiteKey) {
     await page.addInitScript(({ autoToken }: { autoToken: boolean }) => {
       const testWindow = window as typeof window & { __issueMockTurnstile?: () => void };
@@ -584,7 +634,7 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
     await route.fulfill({ json: { turnstileSiteKey: options.turnstileSiteKey || "", mapStyleUrl: "/mock-style.json" } });
   });
   await page.route("**/api/probes", async (route) => {
-    await route.fulfill({ json: { probes, fetchedAt: "2026-06-09T00:00:00.000Z" } });
+    await route.fulfill({ json: { probes: mockProbes, fetchedAt: "2026-06-09T00:00:00.000Z" } });
   });
   await page.route("https://api.globalping.io/v1/limits", async (route) => {
     if (route.request().method() === "OPTIONS") {
@@ -599,6 +649,7 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
       return;
     }
     const body = (await route.request().postDataJSON()) as GlobalpingMeasurementRequest;
+    traceRequests.push(body);
     validateTraceRequest(body, options.expectedIpVersion);
     await route.fulfill({ status: 202, headers: globalpingCorsHeaders, json: { id: "m-smoke", probesCount: 1 } });
   });
@@ -655,11 +706,13 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
     styleRequests: () => styleRequests,
     enrichRequests: () => enrichRequests,
     browserFallbackRequests: () => browserFallbackRequests,
+    traceRequests: () => traceRequests,
   };
 }
 
 interface GlobalpingMeasurementRequest {
   locations?: Array<{ magic?: string }>;
+  limit?: number;
   measurementOptions?: { ipVersion?: 4 | 6 };
 }
 
@@ -1670,6 +1723,25 @@ const probes: GlobalpingProbe[] = [
     resolvers: [],
   },
 ];
+
+function makeChinaSmokeProbes(count: number): GlobalpingProbe[] {
+  const cities = ["Shenzhen", "Nanning", "Guangzhou", "Shenzhou"];
+  return Array.from({ length: count }, (_, index) => ({
+    location: {
+      continent: "AS",
+      region: "Eastern Asia",
+      country: "CN",
+      state: null,
+      city: cities[index] || `China ${index}`,
+      asn: 4134,
+      latitude: 22.54 + index,
+      longitude: 114.05 + index,
+      network: "China Telecom",
+    },
+    tags: [index === 3 ? "datacenter-network" : "eyeball-network"],
+    resolvers: [],
+  }));
+}
 
 const limits: GlobalpingLimitResponse = {
   measurements: { create: { type: "ip", limit: 250, remaining: 249, reset: 60 } },
