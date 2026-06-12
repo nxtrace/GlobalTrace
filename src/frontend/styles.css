@@ -354,6 +354,8 @@ button {
 }
 
 .filter-panel-scroll {
+  position: relative;
+  z-index: 2;
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
@@ -371,6 +373,8 @@ button {
 }
 
 .filter-panel-footer {
+  position: relative;
+  z-index: 1;
   flex: none;
 }
 
@@ -557,6 +561,8 @@ summary:focus-visible {
 }
 
 .primary-controls {
+  position: relative;
+  z-index: 4;
   display: grid;
   gap: 12px;
 }
@@ -707,6 +713,8 @@ summary:focus-visible {
 }
 
 .advanced-panel[open] {
+  position: relative;
+  z-index: 4;
   overflow: visible;
 }
 
@@ -728,7 +736,7 @@ summary:focus-visible {
 
 .suggestion-popover {
   position: absolute;
-  z-index: 30;
+  z-index: 200;
   top: calc(100% + 6px);
   left: 0;
   right: 0;
@@ -742,6 +750,11 @@ summary:focus-visible {
   box-shadow: var(--shadow-popover);
   backdrop-filter: blur(18px) saturate(1.08);
   -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.advanced-panel .suggestion-popover {
+  top: auto;
+  bottom: calc(100% + 6px);
 }
 
 .suggestion-option {

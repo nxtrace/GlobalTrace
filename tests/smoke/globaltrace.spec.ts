@@ -54,6 +54,7 @@ for (const viewport of viewports) {
     const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
     await expect(magicSuggestions.getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" })).toBeVisible();
     await expect(magicSuggestions.getByRole("option", { name: "Falkenstein+DE+AS24940+datacenter-network" })).toBeVisible();
+    await expectSuggestionPopoverOnTop(magicSuggestions);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "切换到 3D 视图" })).toHaveCount(0);
     await expect(page.locator(".maplibregl-canvas")).toBeVisible();
@@ -80,6 +81,7 @@ for (const viewport of viewports) {
     await expect(networkSuggestions.getByRole("option", { name: "Comcast" })).toBeVisible();
     await expect(networkSuggestions.getByRole("option", { name: "Hetzner Online" })).toHaveCount(0);
     await expect(networkSuggestions.getByRole("option", { name: "ExampleNet" })).toHaveCount(0);
+    await expectSuggestionPopoverOnTop(networkSuggestions);
     await expectSuggestionPopoverReadable(networkSuggestions);
     await page.keyboard.press("Escape");
     await expect.poll(mocks.styleRequests).toBe(1);
@@ -760,6 +762,25 @@ async function expectSuggestionPopoverReadable(popover: Locator): Promise<void> 
   expect(state.popoverBackground).not.toBe("rgba(0, 0, 0, 0)");
   expect(state.popoverColor).not.toBe(state.popoverBackground);
   expect(state.optionColor).not.toBe(state.popoverBackground);
+}
+
+async function expectSuggestionPopoverOnTop(popover: Locator): Promise<void> {
+  const state = await popover.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = Math.min(rect.bottom - 8, rect.top + Math.max(8, rect.height / 2));
+    const topElement = document.elementFromPoint(x, y);
+    return {
+      popoverWidth: rect.width,
+      popoverHeight: rect.height,
+      topElementClass: topElement instanceof HTMLElement ? topElement.className : "",
+      topElementText: topElement?.textContent?.trim() || "",
+      topElementInsidePopover: Boolean(topElement && node.contains(topElement)),
+    };
+  });
+  expect(state.popoverWidth).toBeGreaterThan(0);
+  expect(state.popoverHeight).toBeGreaterThan(0);
+  expect(state.topElementInsidePopover, `${state.topElementClass} ${state.topElementText}`).toBe(true);
 }
 
 async function expectDarkMapControls(page: Page): Promise<void> {
