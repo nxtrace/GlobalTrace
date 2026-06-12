@@ -994,18 +994,28 @@ summary:focus-visible {
   flex: 0 1 auto;
 }
 
+.result-map-toolbar-surface {
+  --result-view-switch-inset: 4px;
+}
+
 .result-map-toolbar-surface,
 .result-map-toolbar-surface .liquid-glass-content,
 .result-map-toolbar-surface .liquid-glass-fallback-content {
   max-width: 100%;
 }
 
+.result-map-toolbar-surface > .liquid-glass-package {
+  overflow: hidden;
+  border-radius: 999px;
+}
+
 .result-map-toolbar-surface .liquid-glass-content {
-  padding: 0;
+  padding: var(--result-view-switch-inset);
 }
 
 .result-map-toolbar-surface .liquid-glass-content,
 .result-map-toolbar-surface .liquid-glass-fallback-content {
+  box-sizing: border-box;
   border-color: var(--control-border);
   background: var(--control-bg);
   box-shadow: var(--shadow-control);
@@ -1021,10 +1031,11 @@ summary:focus-visible {
 
 .result-map-view-switch {
   min-width: 0;
-  height: 40px;
+  height: 32px;
   display: grid;
   grid-template-columns: repeat(2, minmax(72px, 1fr));
   gap: 2px;
+  box-sizing: border-box;
 }
 
 .result-view-button,
@@ -1037,8 +1048,8 @@ summary:focus-visible {
 }
 
 .result-view-button {
-  height: 40px;
-  min-height: 40px;
+  height: 32px;
+  min-height: 32px;
   padding-inline: 16px;
   border: 1px solid transparent;
   border-radius: 999px;
@@ -2291,9 +2302,14 @@ pre {
 
   .result-map-view-switch {
     width: 100%;
+    height: 36px;
   }
 
-  .result-view-button,
+  .result-view-button {
+    height: 36px;
+    min-height: 36px;
+  }
+
   .result-command-button {
     height: 44px;
     min-height: 44px;
@@ -2477,9 +2493,14 @@ pre {
 
   .results-section .result-map-view-switch {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    height: 36px;
   }
 
-  .results-section .result-view-button,
+  .results-section .result-view-button {
+    min-height: 36px;
+    height: 36px;
+  }
+
   .results-section .result-command-button {
     min-height: 44px;
     height: 44px;

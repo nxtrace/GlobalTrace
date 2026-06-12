@@ -804,6 +804,7 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
   const state = await actions.evaluate((node) => {
     const rect = (node as HTMLElement).getBoundingClientRect();
     const toolbar = node.querySelector(".result-map-toolbar") as HTMLElement | null;
+    const switchBase = node.querySelector(".result-map-toolbar-surface .liquid-glass-content") as HTMLElement | null;
     const switchButton = node.querySelector(".result-map-view-switch button") as HTMLElement | null;
     const copyButton = node.querySelector('[title="复制分享 URL"]') as HTMLElement | null;
     const closeButton = node.querySelector('[aria-label="关闭结果"]') as HTMLElement | null;
@@ -821,6 +822,7 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
       viewportHeight: window.innerHeight,
       children,
       toolbarHeight: toolbar?.getBoundingClientRect().height ?? 0,
+      switchBaseHeight: switchBase?.getBoundingClientRect().height ?? 0,
       closeHeight: closeButton?.getBoundingClientRect().height ?? 0,
       switchButtonHeight: switchButton?.getBoundingClientRect().height ?? 0,
       copyButtonHeight: copyButton?.getBoundingClientRect().height ?? 0,
@@ -835,7 +837,9 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
     const heights = [state.toolbarHeight, state.copyButtonHeight, state.closeHeight];
     expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(2);
   } else {
-    expect(state.switchButtonHeight).toBeGreaterThanOrEqual(44);
+    expect(state.switchBaseHeight).toBeGreaterThanOrEqual(44);
+    expect(state.switchButtonHeight).toBeGreaterThanOrEqual(36);
+    expect(state.switchButtonHeight).toBeLessThan(state.switchBaseHeight);
     expect(state.copyButtonHeight).toBeGreaterThanOrEqual(44);
     expect(state.closeButtonHeight).toBeGreaterThanOrEqual(44);
   }
@@ -864,6 +868,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const sectionHeader = document.querySelector(".results-section .section-header") as HTMLElement | null;
     const headerActions = document.querySelector(".result-header-actions") as HTMLElement | null;
     const toolbar = document.querySelector(".result-map-toolbar") as HTMLElement | null;
+    const viewSwitchBase = document.querySelector(".result-map-toolbar-surface .liquid-glass-content") as HTMLElement | null;
     const viewSwitch = document.querySelector(".result-map-view-switch") as HTMLElement | null;
     const switchButton = document.querySelector(".result-map-view-switch button") as HTMLElement | null;
     const twoDimensionalButton = document.querySelector('[aria-label="切换结果地图到 2D"]') as HTMLElement | null;
@@ -953,6 +958,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       toolbarWidth: toolbarRect?.width ?? 0,
       toolbarRight: toolbarRect?.right ?? 0,
       toolbarBottom: toolbarRect?.bottom ?? 0,
+      viewSwitchBaseRect: rectFor(viewSwitchBase),
       viewSwitchWidth: viewSwitchRect?.width ?? 0,
       buttonHeight: buttonRect?.height ?? 0,
       copyButtonHeight: copyButtonRect?.height ?? 0,
@@ -977,6 +983,10 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
         copy: buttonStyleFor(copyButton),
         close: buttonStyleFor(closeButton),
       },
+      viewButtonRects: [twoDimensionalButton, threeDimensionalButton].map((button) => ({
+        label: button?.getAttribute("aria-label") || "",
+        ...rectFor(button),
+      })),
       buttonRects,
       overlaps,
     };
@@ -1004,9 +1014,19 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     expect(rect.left).toBeGreaterThanOrEqual(state.resultLeft);
     expect(rect.right).toBeLessThanOrEqual(state.resultRight);
     expect(rect.right).toBeLessThanOrEqual(state.documentClient);
-    expect(rect.height).toBeGreaterThanOrEqual(44);
   }
-  expect(state.buttonHeight).toBeGreaterThanOrEqual(44);
+  expect(state.viewSwitchBaseRect.width).toBeGreaterThan(0);
+  expect(state.viewSwitchBaseRect.height).toBeGreaterThanOrEqual(44);
+  expect(state.viewSwitchBaseRect.right).toBeLessThanOrEqual(state.resultRight);
+  for (const rect of state.viewButtonRects) {
+    expect(rect.left).toBeGreaterThanOrEqual(state.viewSwitchBaseRect.left + 2);
+    expect(rect.right).toBeLessThanOrEqual(state.viewSwitchBaseRect.right - 2);
+    expect(rect.top).toBeGreaterThanOrEqual(state.viewSwitchBaseRect.top + 2);
+    expect(rect.bottom).toBeLessThanOrEqual(state.viewSwitchBaseRect.bottom - 2);
+    expect(rect.height).toBeLessThan(state.viewSwitchBaseRect.height);
+  }
+  expect(state.buttonHeight).toBeGreaterThanOrEqual(36);
+  expect(state.buttonHeight).toBeLessThan(state.viewSwitchBaseRect.height);
   expect(state.copyButtonHeight).toBeGreaterThanOrEqual(44);
   expect(state.closeButtonHeight).toBeGreaterThanOrEqual(44);
   expect(state.actionButtonStyles.copy.className).toContain("result-command-button");
