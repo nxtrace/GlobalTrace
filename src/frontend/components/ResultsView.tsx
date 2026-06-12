@@ -25,8 +25,9 @@ const RESULT_MAP_DEFAULT_ZOOM = 1.4;
 const RESULT_MAP_SINGLE_POINT_ZOOM = 5;
 const RESULT_MAP_MAX_ZOOM = 5.8;
 const RESULT_ROUTE_COLORS = ["#14b8a6", "#f97316", "#8b5cf6", "#22c55e", "#0ea5e9", "#e11d48", "#facc15", "#06b6d4", "#a855f7", "#84cc16"];
-const RESULT_PACKETS_PER_ROUTE = 2;
-const RESULT_PACKET_LOOP_MS = 2600;
+const RESULT_PACKET_SPACING_KM = 1800;
+const RESULT_PACKET_SPEED_KM_PER_SECOND = 900;
+const EARTH_RADIUS_KM = 6371.0088;
 
 type ResultMapCoordinate = ResultRouteCoordinate;
 type RouteEndpointRole = "start" | "end" | "single" | "middle";
@@ -50,9 +51,18 @@ interface ResultMapRoute {
   color: string;
   active: boolean;
   pathCoordinates: ResultMapCoordinate[];
+  pathSegments: ResultRouteSegment[];
+  pathLengthKm: number;
   fitCoordinates: ResultMapCoordinate[];
   routeNodes: ResultRouteNode[];
   routeNodeIdByTtl: Map<number, string>;
+}
+
+interface ResultRouteSegment {
+  start: ResultMapCoordinate;
+  end: ResultMapCoordinate;
+  startKm: number;
+  endKm: number;
 }
 
 interface ResultRouteNode extends SharedResultRouteNode {
@@ -763,6 +773,8 @@ export function buildResultMapData(
       }),
     );
     const routeCoordinates = routeNodes.map((node) => node.coordinate);
+    const pathSegments = resultRouteSegments(routeCoordinates);
+    const pathLengthKm = pathSegments.at(-1)?.endKm || 0;
     if (routeCoordinates.length > 1) {
       features.push({
         type: "Feature",
@@ -799,6 +811,8 @@ export function buildResultMapData(
       color,
       active: activeRoute,
       pathCoordinates: routeCoordinates,
+      pathSegments,
+      pathLengthKm,
       fitCoordinates: resultFitCoordinates(item, routeCoordinates),
       routeNodes,
       routeNodeIdByTtl: buildRouteNodeIdByTtl(routeNodes),
@@ -984,13 +998,15 @@ function startPacketAnimation(
   return () => window.cancelAnimationFrame(frame);
 }
 
-function buildPacketFeatureCollection(routes: ResultMapRoute[], elapsedMs: number): FeatureCollection {
+export function buildPacketFeatureCollection(routes: ResultMapRoute[], elapsedMs: number): FeatureCollection {
   const features: Feature[] = [];
+  const elapsedKm = (elapsedMs / 1000) * RESULT_PACKET_SPEED_KM_PER_SECOND;
   for (const route of routes) {
-    if (route.pathCoordinates.length < 2) continue;
-    for (let index = 0; index < RESULT_PACKETS_PER_ROUTE; index += 1) {
-      const progress = ((elapsedMs / RESULT_PACKET_LOOP_MS + index / RESULT_PACKETS_PER_ROUTE) % 1 + 1) % 1;
-      const coordinate = routeCoordinateAtProgress(route.pathCoordinates, progress);
+    if (route.pathSegments.length === 0 || route.pathLengthKm <= 0) continue;
+    const packetCount = Math.max(1, Math.floor(route.pathLengthKm / RESULT_PACKET_SPACING_KM));
+    for (let index = 0; index < packetCount; index += 1) {
+      const distanceKm = positiveModulo(elapsedKm + index * RESULT_PACKET_SPACING_KM, route.pathLengthKm);
+      const coordinate = routeCoordinateAtDistance(route.pathSegments, distanceKm);
       if (!coordinate) continue;
       features.push({
         type: "Feature",
@@ -1001,6 +1017,8 @@ function buildPacketFeatureCollection(routes: ResultMapRoute[], elapsedMs: numbe
           routeIndex: route.resultIndex,
           resultId: route.resultId,
           packetIndex: index,
+          distanceKm,
+          pathLengthKm: route.pathLengthKm,
           color: route.color,
           active: route.active,
         },
@@ -1010,34 +1028,57 @@ function buildPacketFeatureCollection(routes: ResultMapRoute[], elapsedMs: numbe
   return { type: "FeatureCollection", features };
 }
 
-function routeCoordinateAtProgress(coordinates: ResultMapCoordinate[], progress: number): ResultMapCoordinate | null {
-  if (coordinates.length < 2) return null;
-  const segmentLengths: number[] = [];
-  let totalLength = 0;
+function resultRouteSegments(coordinates: ResultMapCoordinate[]): ResultRouteSegment[] {
+  if (coordinates.length < 2) return [];
+  const segments: ResultRouteSegment[] = [];
+  let previousEndKm = 0;
   for (let index = 1; index < coordinates.length; index += 1) {
     const previous = coordinates[index - 1];
     const current = coordinates[index];
-    const length = Math.hypot(current[0] - previous[0], current[1] - previous[1]);
-    segmentLengths.push(length);
-    totalLength += length;
+    const lengthKm = coordinateDistanceKm(previous, current);
+    if (lengthKm <= 0) continue;
+    const endKm = previousEndKm + lengthKm;
+    segments.push({ start: previous, end: current, startKm: previousEndKm, endKm });
+    previousEndKm = endKm;
   }
-  if (totalLength <= 0) return coordinates[0];
-  let distance = totalLength * progress;
-  for (let index = 0; index < segmentLengths.length; index += 1) {
-    const segmentLength = segmentLengths[index];
-    const previous = coordinates[index];
-    const current = coordinates[index + 1];
-    if (distance > segmentLength) {
-      distance -= segmentLength;
-      continue;
-    }
-    const ratio = segmentLength > 0 ? distance / segmentLength : 0;
+  return segments;
+}
+
+function routeCoordinateAtDistance(segments: ResultRouteSegment[], distanceKm: number): ResultMapCoordinate | null {
+  for (const segment of segments) {
+    if (distanceKm > segment.endKm) continue;
+    const segmentLengthKm = segment.endKm - segment.startKm;
+    const ratio = segmentLengthKm > 0 ? (distanceKm - segment.startKm) / segmentLengthKm : 0;
     return [
-      previous[0] + (current[0] - previous[0]) * ratio,
-      previous[1] + (current[1] - previous[1]) * ratio,
+      segment.start[0] + (segment.end[0] - segment.start[0]) * ratio,
+      segment.start[1] + (segment.end[1] - segment.start[1]) * ratio,
     ];
   }
-  return coordinates.at(-1) || null;
+  return segments.at(-1)?.end || null;
+}
+
+function coordinateDistanceKm(left: ResultMapCoordinate, right: ResultMapCoordinate): number {
+  const leftLat = degreesToRadians(left[1]);
+  const rightLat = degreesToRadians(right[1]);
+  const deltaLat = degreesToRadians(right[1] - left[1]);
+  const deltaLng = degreesToRadians(shortLongitudeDelta(right[0] - left[0]));
+  const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(leftLat) * Math.cos(rightLat) * Math.sin(deltaLng / 2) ** 2;
+  return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function shortLongitudeDelta(delta: number): number {
+  let value = delta;
+  while (value > 180) value -= 360;
+  while (value <= -180) value += 360;
+  return value;
+}
+
+function degreesToRadians(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function positiveModulo(value: number, modulus: number): number {
+  return ((value % modulus) + modulus) % modulus;
 }
 
 function emptyFeatureCollection(): FeatureCollection {

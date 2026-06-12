@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildResultMapData, ResultsView } from "./ResultsView";
+import { buildPacketFeatureCollection, buildResultMapData, ResultsView } from "./ResultsView";
 import type { TraceHop, TraceResultResponse } from "../../shared/types";
 
 const maplibreMock = vi.hoisted(() => {
@@ -550,10 +550,12 @@ describe("ResultsView", () => {
     });
   });
 
-  it("builds all probe routes with stable colors, endpoints, and packets", () => {
+  it("builds all probe routes with stable colors, endpoints, and distance-based packets", () => {
     const data = buildResultMapData(multiRouteResult.results[0], multiRouteResult.results);
     const paths = pathFeatures(data.featureCollection);
     const hops = data.featureCollection.features.filter((feature) => feature.properties?.kind === "hop");
+    const route0Packets = packetFeatures(data.packetFeatureCollection, "route-0");
+    const route1Packets = packetFeatures(data.packetFeatureCollection, "route-1");
 
     expect(data.routes).toHaveLength(2);
     expect(paths).toHaveLength(2);
@@ -566,9 +568,25 @@ describe("ResultsView", () => {
       "route-1-node-2",
     ]);
     expect(hops.filter((feature) => feature.properties?.endpoint).map((feature) => feature.properties?.endpointRole)).toEqual(["start", "end", "start", "end"]);
-    expect(data.packetFeatureCollection.features).toHaveLength(4);
+    expect(route0Packets.length).toBeGreaterThan(route1Packets.length);
+    expect(route1Packets).toHaveLength(1);
+    expect(packetDistances(route0Packets)).toEqual([0, 1800, 3600, 5400]);
     expect(data.packetFeatureCollection.features[0]?.properties).toMatchObject({ kind: "packet", routeId: "route-0", color: "#14b8a6", active: true });
     expect(data.routeNodeById.get("route-1-node-2")).toMatchObject({ resultIndex: 1, color: "#f97316" });
+  });
+
+  it("moves packets forward at a fixed km speed without reversing the route", () => {
+    const data = buildResultMapData(eastboundRouteResult.results[0], eastboundRouteResult.results);
+    const initialPacket = packetFeatures(data.packetFeatureCollection, "route-0")[0];
+    const movedPackets = packetFeatures(buildPacketFeatureCollection(data.routes, 1000), "route-0");
+    const movedPacket = movedPackets[0];
+
+    expect(initialPacket?.geometry).toMatchObject({ coordinates: [1, 0] });
+    expect(Number(movedPacket?.properties?.distanceKm)).toBeCloseTo(900, 4);
+    const coordinate = (movedPacket?.geometry as { coordinates?: number[] } | undefined)?.coordinates || [];
+    expect(coordinate[0]).toBeGreaterThan(1);
+    expect(coordinate[0]).toBeLessThan(21);
+    expect(coordinate[1]).toBe(0);
   });
 
   it("switches to an inactive route when its map point is clicked", async () => {
@@ -661,6 +679,14 @@ function lineCoordinates(collection: ReturnType<typeof buildResultMapData>["feat
 
 function pathFeatures(collection: ReturnType<typeof buildResultMapData>["featureCollection"]) {
   return collection.features.filter((item) => item.properties?.kind === "path");
+}
+
+function packetFeatures(collection: ReturnType<typeof buildResultMapData>["packetFeatureCollection"], routeId: string) {
+  return collection.features.filter((item) => item.properties?.kind === "packet" && item.properties?.routeId === routeId);
+}
+
+function packetDistances(features: ReturnType<typeof packetFeatures>): number[] {
+  return features.map((feature) => Number(feature.properties?.distanceKm));
 }
 
 function lngSpan(coordinates: number[][]): number {
@@ -1038,6 +1064,20 @@ const multiRouteResult: TraceResultResponse = {
       hops: [
         hopWithGeo(1, "198.51.100.10", 35.68, 139.76, { country_en: "Japan", city_en: "Tokyo" }),
         hopWithGeo(2, "198.51.100.11", 22.31, 114.17, { country_en: "Hong Kong", city_en: "Hong Kong" }),
+      ],
+    },
+  ],
+};
+
+const eastboundRouteResult: TraceResultResponse = {
+  ...sampleResult,
+  measurementId: "m-eastbound",
+  results: [
+    {
+      ...sampleResult.results[0],
+      hops: [
+        hopWithGeo(1, "198.51.100.20", 0, 1, { country_en: "Test", city_en: "Start" }),
+        hopWithGeo(2, "198.51.100.21", 0, 21, { country_en: "Test", city_en: "End" }),
       ],
     },
   ],
