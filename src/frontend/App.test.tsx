@@ -217,6 +217,32 @@ describe("App", () => {
     expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
   });
 
+  it("bypasses cached worker traces when opening shared results through a saved NextTrace token", async () => {
+    window.localStorage.setItem("globaltrace.nexttraceApiToken", "nt-token");
+    window.history.replaceState(null, "", "/?measurement=m123");
+    const fetchMock = mockApi({
+      cachedTrace: {
+        ...traceResult("finished", "partial"),
+        enrichment: {
+          status: "partial",
+          cached: 0,
+          fetched: 0,
+          errors: [{ ips: [FALLBACK_HOP_IP], message: "stale nxtrace batch failed" }],
+        },
+      },
+      traceStatus: () => "finished",
+      turnstileSiteKey: "site-key",
+      measurement: globalpingMeasurementWithHop,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toBe(true);
+    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
+    expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
+  });
+
   it("continues a pending Turnstile flow after saving a NextTrace token in the dialog", async () => {
     const fetchMock = mockApi({ turnstileSiteKey: "site-key", measurement: globalpingMeasurementWithHop });
     window.turnstile = {
@@ -837,6 +863,7 @@ function mockApi(
     turnstileSiteKey?: string;
     enrichmentStatus?: TraceResultResponse["enrichment"]["status"];
     measurement?: (status: TraceResultResponse["status"]) => GlobalpingMeasurement;
+    cachedTrace?: TraceResultResponse;
     probes?: GlobalpingProbe[];
   } = {},
 ) {
@@ -859,6 +886,7 @@ function mockApi(
       return json({ id: "m123", probesCount: 1 }, 202);
     }
     if (path === "/api/trace/m123") {
+      if (options.cachedTrace) return json(options.cachedTrace);
       return new Response(null, { status: 204 });
     }
     if (path === "https://api.globalping.io/v1/measurements/m123") {

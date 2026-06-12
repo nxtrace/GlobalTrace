@@ -166,14 +166,16 @@ export function App() {
       setSharedLoadingMeasurementId("");
     }
     try {
-      const cached = await fetchCachedTrace(measurementId, controller.signal);
-      if (cached) {
-        setResult(cached);
-        setMessage("");
-        if (cached.status !== "in-progress") {
-          setWorkspaceMode("result");
+      if (enrichmentMode === "verified") {
+        const cached = await fetchCachedTrace(measurementId, controller.signal);
+        if (cached) {
+          setResult(cached);
+          setMessage("");
+          if (cached.status !== "in-progress") {
+            setWorkspaceMode("result");
+          }
+          return;
         }
-        return;
       }
 
       let measurement = await fetchGlobalpingMeasurement(measurementId, nextGlobalpingToken, controller.signal);

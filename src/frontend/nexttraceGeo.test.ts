@@ -1,6 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
 import type { TraceHop, TraceResultResponse } from "../shared/types";
+
+const NEXTTRACE_GEO_CACHE_PREFIX = "globaltrace.nexttraceGeo.v1:";
+
+beforeEach(() => {
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: createMemoryStorage(),
+  });
+});
 
 describe("browser NextTrace enrichment", () => {
   it("chunks public hop IPs at 64 and sends only browser-safe headers", async () => {
@@ -24,6 +33,55 @@ describe("browser NextTrace enrichment", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(enriched.enrichment).toEqual({ status: "complete", cached: 0, fetched: 65, errors: [] });
     expect(enriched.results[0]?.hops[0]?.geo?.source).toBe("nexttrace");
+  });
+
+  it("caches successful batch results in localStorage", async () => {
+    const fetcher = vi.fn(async () =>
+      json({
+        results: [{ ip: "8.8.8.8", ok: true, data: { ip: "8.8.8.8", asnumber: "AS15169", source: "nexttrace" } }],
+      }),
+    ) as unknown as typeof fetch;
+
+    const first = await enrichTraceWithNexttraceToken(sampleTrace([hop("8.8.8.8")]), "nt-token", { fetcher });
+    const second = await enrichTraceWithNexttraceToken(sampleTrace([hop("8.8.8.8")]), "nt-token", { fetcher });
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(first.enrichment).toEqual({ status: "complete", cached: 0, fetched: 1, errors: [] });
+    expect(second.enrichment).toEqual({ status: "complete", cached: 1, fetched: 0, errors: [] });
+    expect(second.results[0]?.hops[0]?.geo?.source).toBe("nexttrace");
+  });
+
+  it("ignores expired and malformed local cache entries", async () => {
+    window.localStorage.setItem(
+      cacheKey("8.8.8.8"),
+      JSON.stringify({ expiresAt: Date.now() - 1, geo: { ip: "8.8.8.8", source: "stale-nexttrace" } }),
+    );
+    window.localStorage.setItem(cacheKey("1.1.1.1"), "not-json");
+    window.localStorage.setItem(
+      cacheKey("9.9.9.9"),
+      JSON.stringify({ expiresAt: Date.now() + 60_000, geo: { ip: "8.8.4.4", source: "wrong-ip" } }),
+    );
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const ips = JSON.parse(String(init?.body)).ips as string[];
+      return json({
+        results: ips.map((ip) => ({ ip, ok: true, data: { ip, asnumber: "AS15169", source: "fresh-nexttrace" } })),
+      });
+    }) as unknown as typeof fetch;
+
+    const enriched = await enrichTraceWithNexttraceToken(
+      sampleTrace([hop("8.8.8.8"), hop("1.1.1.1"), hop("9.9.9.9")]),
+      "nt-token",
+      { fetcher },
+    );
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body)).ips).toEqual(["8.8.8.8", "1.1.1.1", "9.9.9.9"]);
+    expect(enriched.enrichment).toEqual({ status: "complete", cached: 0, fetched: 3, errors: [] });
+    expect(enriched.results[0]?.hops.map((hop) => hop.geo?.source)).toEqual([
+      "fresh-nexttrace",
+      "fresh-nexttrace",
+      "fresh-nexttrace",
+    ]);
   });
 
   it("skips private and invalid hop addresses without external requests", async () => {
@@ -100,4 +158,22 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function cacheKey(ip: string): string {
+  return `${NEXTTRACE_GEO_CACHE_PREFIX}${ip}`;
+}
+
+function createMemoryStorage(): Storage {
+  const store = new Map<string, string>();
+  return {
+    get length() {
+      return store.size;
+    },
+    clear: () => store.clear(),
+    getItem: (key) => store.get(key) ?? null,
+    key: (index) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key) => store.delete(key),
+    setItem: (key, value) => store.set(key, String(value)),
+  };
 }

@@ -1,12 +1,14 @@
 import { isPublicIp } from "../shared/ip";
 import {
   NXTRACE_BATCH_SIZE,
+  NXTRACE_CACHE_TTL_SECONDS,
   type EnrichmentSummary,
   type NxtraceGeo,
   type TraceResultResponse,
 } from "../shared/types";
 
 const NEXTTRACE_API_BASE = "https://api.nxtrace.org";
+const NEXTTRACE_GEO_CACHE_PREFIX = "globaltrace.nexttraceGeo.v1:";
 
 interface NexttraceTokenOptions {
   signal?: AbortSignal;
@@ -22,6 +24,11 @@ interface BatchResult {
 
 interface BatchResponse {
   results: BatchResult[];
+}
+
+interface CachedNexttraceGeo {
+  expiresAt: number;
+  geo: NxtraceGeo;
 }
 
 export async function enrichTraceWithNexttraceToken(
@@ -49,14 +56,29 @@ export async function enrichTraceWithNexttraceToken(
   const fetcher = options.fetcher || fetch;
   const geoByIp = new Map<string, NxtraceGeo>();
   const errorByIp = new Map<string, string>();
+  const missed: string[] = [];
   const errors: EnrichmentSummary["errors"] = [];
+  let cached = 0;
+  let fetched = 0;
 
-  for (const chunk of chunks(publicIps, NXTRACE_BATCH_SIZE)) {
+  for (const ip of publicIps) {
+    const cachedGeo = readCachedGeo(ip);
+    if (cachedGeo) {
+      geoByIp.set(ip, cachedGeo);
+      cached += 1;
+    } else {
+      missed.push(ip);
+    }
+  }
+
+  for (const chunk of chunks(missed, NXTRACE_BATCH_SIZE)) {
     try {
       const batch = await fetchBatch(chunk, nextToken, { ...options, fetcher });
       for (const result of batch.results) {
         if (result.ok && result.data) {
           geoByIp.set(result.ip, result.data);
+          fetched += 1;
+          writeCachedGeo(result.ip, result.data);
           continue;
         }
         const message = result.error || "nexttrace lookup failed";
@@ -76,8 +98,8 @@ export async function enrichTraceWithNexttraceToken(
     ...applyEnrichment(traceWithPrivateFlags, geoByIp, errorByIp),
     enrichment: {
       status: errors.length || errorByIp.size ? "partial" : "complete",
-      cached: 0,
-      fetched: geoByIp.size,
+      cached,
+      fetched,
       errors,
     },
   };
@@ -159,6 +181,70 @@ function markEnrichmentError(trace: TraceResultResponse, ips: string[], message:
       errors: [{ ips, message }],
     },
   };
+}
+
+function readCachedGeo(ip: string): NxtraceGeo | null {
+  const storage = getLocalStorage();
+  if (!storage) return null;
+  const key = cacheKey(ip);
+  try {
+    const raw = storage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isCachedNexttraceGeo(parsed, ip) || parsed.expiresAt <= Date.now()) {
+      storage.removeItem(key);
+      return null;
+    }
+    return parsed.geo;
+  } catch {
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Ignore storage failures; the next request can still fetch fresh data.
+    }
+    return null;
+  }
+}
+
+function writeCachedGeo(ip: string, geo: NxtraceGeo): void {
+  const storage = getLocalStorage();
+  if (!storage) return;
+  try {
+    const value: CachedNexttraceGeo = {
+      expiresAt: Date.now() + NXTRACE_CACHE_TTL_SECONDS * 1000,
+      geo,
+    };
+    storage.setItem(cacheKey(ip), JSON.stringify(value));
+  } catch {
+    // Cache writes are best-effort and must not affect trace rendering.
+  }
+}
+
+function getLocalStorage(): Storage | null {
+  try {
+    return typeof globalThis.localStorage === "undefined" ? null : globalThis.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function cacheKey(ip: string): string {
+  return `${NEXTTRACE_GEO_CACHE_PREFIX}${ip}`;
+}
+
+function isCachedNexttraceGeo(value: unknown, ip: string): value is CachedNexttraceGeo {
+  if (!isRecord(value) || typeof value.expiresAt !== "number" || !Number.isFinite(value.expiresAt)) {
+    return false;
+  }
+  return isNxtraceGeo(value.geo, ip);
+}
+
+function isNxtraceGeo(value: unknown, ip: string): value is NxtraceGeo {
+  return isRecord(value) && value.ip === ip;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function chunks<T>(items: T[], size: number): T[][] {
