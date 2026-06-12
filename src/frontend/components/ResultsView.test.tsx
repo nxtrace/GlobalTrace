@@ -409,6 +409,14 @@ describe("ResultsView", () => {
     expect(map.layers.map((layer) => layer.id)).toContain("result-hop-labels");
     expect(map.layers.map((layer) => layer.id)).toEqual(expect.arrayContaining(["result-packets", "result-endpoint-shadow", "result-endpoint-halo", "result-endpoint-core"]));
     expect(map.sources.get("result-packets")?.data).toMatchObject({ type: "FeatureCollection" });
+    expect(map.layers.find((layer) => layer.id === "result-line")?.layout).toMatchObject({
+      "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
+    });
+    expect(map.layers.find((layer) => layer.id === "result-line")?.paint).toMatchObject({
+      "line-width": ["case", ["boolean", ["get", "active"], false], 2.9, 1.25],
+      "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.86, 0.18],
+      "line-blur": 0,
+    });
     expect(map.layers.find((layer) => layer.id === "result-packets")?.paint).toMatchObject({
       "circle-radius": ["case", ["boolean", ["get", "active"], false], 3, 2],
       "circle-stroke-width": ["case", ["boolean", ["get", "active"], false], 0.8, 0.4],
@@ -453,16 +461,22 @@ describe("ResultsView", () => {
         maxZoom: 4.4,
       }),
     ]);
+    expect(map.layers.find((layer) => layer.id === "result-line-glow")?.layout).toMatchObject({
+      "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
+    });
     expect(map.layers.find((layer) => layer.id === "result-line-glow")?.paint).toMatchObject({
       "line-color": ["coalesce", ["get", "color"], "#587f78"],
-      "line-width": ["case", ["boolean", ["get", "active"], false], 9, 4.5],
-      "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.34, 0.1],
+      "line-width": ["case", ["boolean", ["get", "active"], false], 10, 3.8],
+      "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.4, 0.07],
       "line-blur": 3.2,
+    });
+    expect(map.layers.find((layer) => layer.id === "result-line")?.layout).toMatchObject({
+      "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
     });
     expect(map.layers.find((layer) => layer.id === "result-line")?.paint).toMatchObject({
       "line-color": ["coalesce", ["get", "color"], "#587f78"],
-      "line-width": ["case", ["boolean", ["get", "active"], false], 4.8, 2.5],
-      "line-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.28],
+      "line-width": ["case", ["boolean", ["get", "active"], false], 5.4, 2.1],
+      "line-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.2],
       "line-blur": 0.4,
     });
     expect(map.layers.find((layer) => layer.id === "result-endpoint-core")?.paint).toMatchObject({

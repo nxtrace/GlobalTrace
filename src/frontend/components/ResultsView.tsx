@@ -507,11 +507,11 @@ function ResultMap({
           type: "line",
           source: "result",
           filter: ["==", ["get", "kind"], "path"],
-          layout: { "line-join": "round", "line-cap": "round" },
+          layout: { "line-join": "round", "line-cap": "round", "line-sort-key": activeNumberExpression(1, 0) },
           paint: {
             "line-color": routeColorExpression(),
-            "line-width": activeNumberExpression(9, 4.5),
-            "line-opacity": activeNumberExpression(0.34, 0.1),
+            "line-width": activeNumberExpression(10, 3.8),
+            "line-opacity": activeNumberExpression(0.4, 0.07),
             "line-blur": 3.2,
           },
         });
@@ -521,11 +521,11 @@ function ResultMap({
         type: "line",
         source: "result",
         filter: ["==", ["get", "kind"], "path"],
-        layout: { "line-join": "round", "line-cap": "round" },
+        layout: { "line-join": "round", "line-cap": "round", "line-sort-key": activeNumberExpression(1, 0) },
         paint: {
           "line-color": routeColorExpression(),
-          "line-width": activeNumberExpression(globeValue(mapProjection, 4.8, 2.5), globeValue(mapProjection, 2.5, 1.5)),
-          "line-opacity": activeNumberExpression(globeValue(mapProjection, 1, 0.76), globeValue(mapProjection, 0.28, 0.22)),
+          "line-width": activeNumberExpression(globeValue(mapProjection, 5.4, 2.9), globeValue(mapProjection, 2.1, 1.25)),
+          "line-opacity": activeNumberExpression(globeValue(mapProjection, 1, 0.86), globeValue(mapProjection, 0.2, 0.18)),
           "line-blur": globeValue(mapProjection, 0.4, 0),
         },
       });

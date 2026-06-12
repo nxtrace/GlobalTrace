@@ -1158,20 +1158,26 @@ async function expectResultMapGlobeLineStyle(page: Page): Promise<void> {
   const style = await page.locator(".result-map").evaluate((node) => {
     const map = (node as HTMLElement & { __globalTraceResultMap?: DebugMap }).__globalTraceResultMap;
     const layers = map?.getStyle?.().layers || [];
-    const glow = layers.find((layer) => layer.id === "result-line-glow") as { paint?: Record<string, unknown> } | undefined;
-    const line = layers.find((layer) => layer.id === "result-line") as { paint?: Record<string, unknown> } | undefined;
-    return { glow: glow?.paint, line: line?.paint };
+    const glow = layers.find((layer) => layer.id === "result-line-glow") as { layout?: Record<string, unknown>; paint?: Record<string, unknown> } | undefined;
+    const line = layers.find((layer) => layer.id === "result-line") as { layout?: Record<string, unknown>; paint?: Record<string, unknown> } | undefined;
+    return { glowLayout: glow?.layout, glowPaint: glow?.paint, lineLayout: line?.layout, linePaint: line?.paint };
   });
-  expect(style.glow).toMatchObject({
+  expect(style.glowLayout).toMatchObject({
+    "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
+  });
+  expect(style.glowPaint).toMatchObject({
     "line-color": ["coalesce", ["get", "color"], "#587f78"],
-    "line-width": ["case", ["boolean", ["get", "active"], false], 9, 4.5],
-    "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.34, 0.1],
+    "line-width": ["case", ["boolean", ["get", "active"], false], 10, 3.8],
+    "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.4, 0.07],
     "line-blur": 3.2,
   });
-  expect(style.line).toMatchObject({
+  expect(style.lineLayout).toMatchObject({
+    "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
+  });
+  expect(style.linePaint).toMatchObject({
     "line-color": ["coalesce", ["get", "color"], "#587f78"],
-    "line-width": ["case", ["boolean", ["get", "active"], false], 4.8, 2.5],
-    "line-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.28],
+    "line-width": ["case", ["boolean", ["get", "active"], false], 5.4, 2.1],
+    "line-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.2],
   });
 }
 
