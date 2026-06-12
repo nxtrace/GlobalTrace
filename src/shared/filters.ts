@@ -281,26 +281,26 @@ function addUnique(out: string[], value: string): void {
 }
 
 function magicSuggestionsForProbes(probes: GlobalpingProbe[]): string[] {
-  const generic: string[] = [];
-  const full: string[] = [];
+  const generic = new Set<string>();
+  const full = new Set<string>();
   for (const probe of probes) {
     const location = probe.location;
     const country = compactText(location.country);
     const city = compactText(location.city);
     const asn = normalizeAsn(location.asn);
+    const network = compactText(location.network);
 
     addMagicCandidate(generic, [country, city]);
     addMagicCandidate(generic, [country, asn]);
-    addUnique(full, probeToMagic(probe));
+    addMagicCandidate(generic, [country, network]);
+    addMagicCandidate(generic, [country, asn, network]);
+    full.add(probeToMagic(probe));
   }
-  return [...generic, ...full].reduce<string[]>((out, value) => {
-    addUnique(out, value);
-    return out;
-  }, []);
+  return Array.from(new Set([...generic, ...full]));
 }
 
-function addMagicCandidate(out: string[], parts: string[]): void {
-  if (parts.every(Boolean)) addUnique(out, parts.join("+"));
+function addMagicCandidate(out: Set<string>, parts: string[]): void {
+  if (parts.every(Boolean)) out.add(parts.join("+"));
 }
 
 function uniqueSorted(values: Iterable<unknown>, compareFn?: (left: string, right: string) => number): string[] {

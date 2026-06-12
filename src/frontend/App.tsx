@@ -106,7 +106,27 @@ export function App() {
   const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
   const canSubmit = configReady && !turnstileGate;
   const filteredProbes = useMemo(() => filterProbes(probes, filters), [filters, probes]);
-  const filterSuggestions = useMemo(() => probeFilterSuggestions(probes, filters), [filters, probes]);
+  const filterSuggestionFilters = useMemo<TraceFilters>(() => ({
+    country: filters.country,
+    city: filters.city,
+    asn: filters.asn,
+    network: filters.network,
+    tag: filters.tag,
+    eyeball: filters.eyeball,
+    datacenter: filters.datacenter,
+  }), [
+    filters.asn,
+    filters.city,
+    filters.country,
+    filters.datacenter,
+    filters.eyeball,
+    filters.network,
+    filters.tag,
+  ]);
+  const filterSuggestions = useMemo(
+    () => probeFilterSuggestions(probes, filterSuggestionFilters),
+    [filterSuggestionFilters, probes],
+  );
   const chips = useMemo(() => filterChips(filters), [filters]);
   const quotaLabel = useMemo(() => {
     if (limitsStatus === "loading") return "诊断额度读取中";

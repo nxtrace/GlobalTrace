@@ -87,6 +87,9 @@ describe("shared filters", () => {
     );
     expect(filterProbes(probes, { magic: "Los Angeles+US+AS7922+eyeball-network" })).toHaveLength(1);
     expect(filterProbes(probes, { magic: "DE+Hetzner" })[0]?.location.city).toBe("Falkenstein");
+    expect(filterProbes(probes, { magic: "US+Comcast" })[0]?.location.city).toBe("Los Angeles");
+    expect(filterProbes(probes, { magic: "Comcast+US" })[0]?.location.city).toBe("Los Angeles");
+    expect(filterProbes(probes, { magic: "US+AS7922+Com" })[0]?.location.city).toBe("Los Angeles");
     expect(filterProbes(chinaAs4134Probes, { magic: "AS4134+CN" })).toHaveLength(4);
     expect(filterProbes(chinaAs4134Probes, { magic: "CN+AS4134" })).toHaveLength(4);
   });
@@ -96,6 +99,8 @@ describe("shared filters", () => {
     expect(magicStringMatchesQuery("Shenzhen+CN+AS4134+eyeball-network", "CN+4134")).toBe(true);
     expect(magicStringMatchesQuery("CN+Shanghai", "CN+Sha")).toBe(true);
     expect(magicStringMatchesQuery("CN+AS4134+eyeball-network", "CN+eye")).toBe(true);
+    expect(magicStringMatchesQuery("US+Comcast", "Comcast+US")).toBe(true);
+    expect(magicStringMatchesQuery("US+AS7922+Comcast", "US+7922+Com")).toBe(true);
     expect(magicStringMatchesQuery("Shenzhen+CN+AS4134+eyeball-network", "AS4134+DE")).toBe(false);
   });
 
@@ -141,8 +146,12 @@ describe("shared filters", () => {
       magicStrings: [
         "US+Los Angeles",
         "US+AS7922",
+        "US+Comcast",
+        "US+AS7922+Comcast",
         "DE+Falkenstein",
         "DE+AS24940",
+        "DE+Hetzner Online",
+        "DE+AS24940+Hetzner Online",
         "Los Angeles+US+AS7922+eyeball-network",
         "Falkenstein+DE+AS24940+datacenter-network",
         "US+AS7922+eyeball-network",
@@ -157,8 +166,16 @@ describe("shared filters", () => {
     ]).magicStrings).toEqual([
       "CN+Shanghai",
       "CN+AS4134",
+      "CN+China Telecom",
+      "CN+AS4134+China Telecom",
       "Shanghai+CN+AS4134+eyeball-network",
     ]);
+    expect(probeFilterSuggestions([
+      {
+        ...chinaAs4134Probes[0],
+        location: { ...chinaAs4134Probes[0].location, city: "Shanghai" },
+      },
+    ]).magicStrings).not.toContain("CN+AS4134+eyeball-network");
   });
 
   it("narrows input suggestions with other structured filters", () => {
@@ -175,6 +192,8 @@ describe("shared filters", () => {
     expect(probeFilterSuggestions(probes, { country: "US", magic: "DE+Hetzner" }).magicStrings).toEqual([
       "US+Los Angeles",
       "US+AS7922",
+      "US+Comcast",
+      "US+AS7922+Comcast",
       "Los Angeles+US+AS7922+eyeball-network",
     ]);
   });

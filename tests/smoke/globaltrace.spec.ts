@@ -52,11 +52,14 @@ for (const viewport of viewports) {
     await expect(magicInput).toHaveValue("");
     await magicInput.click();
     await expect(page.getByRole("listbox", { name: "候选列表" })).toHaveCount(0);
-    await magicInput.fill("US+Los");
+    await magicInput.fill("US+Com");
     const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
-    await expect(magicSuggestions.getByRole("option", { name: "US+Los Angeles" })).toBeVisible();
-    await expect(magicSuggestions.getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" })).toBeVisible();
+    await expect(magicSuggestions.getByRole("option", { name: "US+Comcast" })).toBeVisible();
+    await expect(magicSuggestions.getByRole("option", { name: "US+AS7922+Comcast" })).toBeVisible();
     await expectSuggestionPopoverOnTop(magicSuggestions);
+    await magicSuggestions.getByRole("option", { name: "US+Comcast" }).click();
+    await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
+    await expect(magicInput).toHaveValue("US+Comcast");
     await magicInput.fill("");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "切换到 3D 视图" })).toHaveCount(0);

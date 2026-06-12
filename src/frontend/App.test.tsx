@@ -369,7 +369,7 @@ describe("App", () => {
   });
 
   it("connects online probe suggestions to the magic string input", async () => {
-    mockApi();
+    const fetchMock = mockApi();
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
@@ -379,15 +379,23 @@ describe("App", () => {
     fireEvent.focus(magicInput);
     expect(screen.queryByRole("listbox", { name: "候选列表" })).not.toBeInTheDocument();
 
-    fireEvent.change(magicInput, { target: { value: "US+Los" } });
+    fireEvent.change(magicInput, { target: { value: "US+Com" } });
     const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
-    expect(within(magicListbox).getByRole("option", { name: "US+Los Angeles" })).toBeInTheDocument();
-    fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "Los Angeles+US+AS7922+eyeball-network" }));
+    expect(within(magicListbox).getByRole("option", { name: "US+Comcast" })).toBeInTheDocument();
+    expect(within(magicListbox).getByRole("option", { name: "US+AS7922+Comcast" })).toBeInTheDocument();
+    fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "US+Comcast" }));
 
     await waitFor(() => {
       expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
     });
-    expect(magicInput).toHaveValue("Los Angeles+US+AS7922+eyeball-network");
+    expect(magicInput).toHaveValue("US+Comcast");
+
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(traceCreateBodies(fetchMock)[0].locations).toEqual([
+      { magic: "Los Angeles+US+AS7922+eyeball-network" },
+    ]);
   });
 
   it("filters magic suggestions regardless of token order", async () => {

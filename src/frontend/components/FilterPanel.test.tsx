@@ -14,6 +14,13 @@ const CHINA_MAGIC_SUGGESTIONS = [
   "CN+AS4134",
   "Shanghai+CN+AS4134+eyeball-network",
 ];
+const NETWORK_MAGIC_SUGGESTIONS = [
+  "US+Los Angeles",
+  "US+AS7922",
+  "US+Comcast",
+  "US+AS7922+Comcast",
+  "Los Angeles+US+AS7922+eyeball-network",
+];
 
 describe("FilterPanel", () => {
   it("shows active filters, advanced controls, and reset action", () => {
@@ -285,6 +292,46 @@ describe("FilterPanel", () => {
       "CN+AS4134",
       "Shanghai+CN+AS4134+eyeball-network",
     ]);
+  });
+
+  it("matches network magic suggestions regardless of token order", () => {
+    const first = renderPanel({
+      filters: { magic: "US+Com" },
+      chips: filterChips({ magic: "US+Com" }),
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: ["Comcast"],
+        tags: ["eyeball-network"],
+        magicStrings: NETWORK_MAGIC_SUGGESTIONS,
+      },
+    });
+
+    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
+    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    fireEvent.focus(magicInput);
+
+    expectSuggestionOptions(["US+Comcast", "US+AS7922+Comcast"]);
+
+    first.unmount();
+    renderPanel({
+      filters: { magic: "AS7922+US+Com" },
+      chips: filterChips({ magic: "AS7922+US+Com" }),
+      filterSuggestions: {
+        countries: [],
+        cities: [],
+        asns: [],
+        networks: ["Comcast"],
+        tags: ["eyeball-network"],
+        magicStrings: NETWORK_MAGIC_SUGGESTIONS,
+      },
+    });
+
+    const updatedMagicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
+    updatedMagicInput.setSelectionRange(updatedMagicInput.value.length, updatedMagicInput.value.length);
+    fireEvent.focus(updatedMagicInput);
+    expectSuggestionOptions(["US+AS7922+Comcast"]);
   });
 
   it("clears magic when structured filters are edited", () => {
