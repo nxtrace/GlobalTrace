@@ -50,7 +50,8 @@ function collectConsoleErrors(page: Page): string[] {
 }
 
 async function installStaticAssetMocks(page: Page): Promise<void> {
-  await page.route("**/mock-style.json", async (route) => {
+  const context = page.context();
+  await context.route("**/mock-style.json", async (route) => {
     await route.fulfill({
       json: {
         version: 8,
@@ -59,13 +60,13 @@ async function installStaticAssetMocks(page: Page): Promise<void> {
       },
     });
   });
-  await page.route("**/api/config", async (route) => {
+  await context.route("**/api/config", async (route) => {
     await route.fulfill({ json: { turnstileSiteKey: "", mapStyleUrl: "/mock-style.json" } });
   });
-  await page.route("**/api/probes", async (route) => {
+  await context.route("**/api/probes", async (route) => {
     await route.fulfill({ json: { probes, fetchedAt: "2026-06-10T00:00:00.000Z" } });
   });
-  await page.route("https://api.globalping.io/v1/limits", async (route) => {
+  await context.route("https://api.globalping.io/v1/limits", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ status: 200, headers: globalpingCorsHeaders });
       return;
