@@ -23,12 +23,10 @@ describe("worker API", () => {
     const configured = await app.fetch(new Request("https://globaltrace.test/api/config"), {
       ...env,
       MAP_STYLE_URL: "https://tiles.example.com/style.json",
-      TURNSTILE_SITE_KEY: "site-key",
     });
 
-    await expect(defaults.json()).resolves.toEqual({ turnstileSiteKey: "", mapStyleUrl: DEFAULT_MAP_STYLE_URL });
+    await expect(defaults.json()).resolves.toEqual({ mapStyleUrl: DEFAULT_MAP_STYLE_URL });
     await expect(configured.json()).resolves.toEqual({
-      turnstileSiteKey: "site-key",
       mapStyleUrl: "https://tiles.example.com/style.json",
     });
   });
@@ -69,74 +67,113 @@ describe("worker API", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid uploaded measurements before enrichment", async () => {
+  it("rejects missing measurement IDs before fetching Globalping", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
       new Request("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
-        body: JSON.stringify({ measurement: { id: "m123", type: "ping", status: "finished", target: "example.com", probesCount: 1 } }),
-      }),
-      env,
-    );
-
-    expect(response.status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects uploaded measurements with invalid IDs", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    const measurement = finishedMeasurement();
-    measurement.id = "bad/id";
-
-    const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
-        method: "POST",
-        body: JSON.stringify({ measurement }),
+        body: JSON.stringify({}),
       }),
       env,
     );
     const body = (await response.json()) as { error: { message: string } };
 
     expect(response.status).toBe(400);
-    expect(body.error.message).toBe("measurement.id is invalid");
+    expect(body.error.message).toBe("measurementId is invalid");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects uploaded measurements above the app probe cap", async () => {
+  it("rejects non-object enrich bodies before fetching Globalping", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
       new Request("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
-        body: JSON.stringify({
-          measurement: {
-            id: "m123",
-            type: "mtr",
-            status: "finished",
-            target: "example.com",
-            probesCount: 11,
-            results: [],
-          },
+        body: "null",
+      }),
+      env,
+    );
+    const body = (await response.json()) as { error: { message: string } };
+
+    expect(response.status).toBe(400);
+    expect(body.error.message).toBe("request body is invalid");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid measurement IDs before fetching Globalping", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        body: JSON.stringify({ measurementId: "bad/id" }),
+      }),
+      env,
+    );
+    const body = (await response.json()) as { error: { message: string } };
+
+    expect(response.status).toBe(400);
+    expect(body.error.message).toBe("measurementId is invalid");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-MTR measurements returned by Globalping", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "m123", type: "ping", status: "finished", target: "example.com", probesCount: 1 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        body: JSON.stringify({ measurementId: "m123" }),
+      }),
+      env,
+    );
+    const body = (await response.json()) as { error: { message: string } };
+
+    expect(response.status).toBe(400);
+    expect(body.error.message).toBe("measurement.type must be mtr");
+    expect(fetchMock).toHaveBeenCalledWith("https://globalping.test/v1/measurements/m123", expect.any(Object));
+  });
+
+  it("rejects Globalping measurements above the app probe cap", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "m123",
+          type: "mtr",
+          status: "finished",
+          target: "example.com",
+          probesCount: 11,
+          results: [],
         }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        body: JSON.stringify({ measurementId: "m123" }),
       }),
       env,
     );
 
     expect(response.status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      error: { message: "measurement.probesCount must be within range 0-10" },
+    });
   });
 
-  it("rejects uploaded measurements with oversized raw output or hop arrays", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    const app = createApp();
-    const rawOutputMeasurement = finishedMeasurement();
+  it("rejects Globalping measurements with oversized raw output or hop arrays", async () => {
+    const rawOutputMeasurement = finishedMeasurement("m-raw");
     rawOutputMeasurement.results[0].result.rawOutput = "x".repeat(20_001);
-    const hopsMeasurement = finishedMeasurement();
+    const hopsMeasurement = finishedMeasurement("m-hops");
     hopsMeasurement.results[0].result.hops = Array.from({ length: 65 }, () => ({
       resolvedAddress: "8.8.8.8",
       resolvedHostname: "dns.google",
@@ -144,18 +181,24 @@ describe("worker API", () => {
       timings: [{ rtt: 1 }],
       stats: { min: 1, avg: 1, max: 1, total: 1, rcv: 1, drop: 0, loss: 0 },
     }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(rawOutputMeasurement)))
+      .mockResolvedValueOnce(new Response(JSON.stringify(hopsMeasurement)));
+    vi.stubGlobal("fetch", fetchMock);
+    const app = createApp();
 
     const rawOutputResponse = await app.fetch(
       new Request("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
-        body: JSON.stringify({ measurement: rawOutputMeasurement }),
+        body: JSON.stringify({ measurementId: "m-raw" }),
       }),
       env,
     );
     const hopsResponse = await app.fetch(
       new Request("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
-        body: JSON.stringify({ measurement: hopsMeasurement }),
+        body: JSON.stringify({ measurementId: "m-hops" }),
       }),
       env,
     );
@@ -168,7 +211,7 @@ describe("worker API", () => {
     });
     expect(rawOutputResponse.status).toBe(400);
     expect(hopsResponse.status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("disables server-side Globalping create and limits proxy routes", async () => {
@@ -191,14 +234,14 @@ describe("worker API", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("returns in-progress uploaded measurements without nxtrace enrichment", async () => {
-    const fetchMock = vi.fn();
+  it("returns in-progress Globalping measurements without nxtrace enrichment", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(inProgressMeasurement())));
     vi.stubGlobal("fetch", fetchMock);
     const response = await createApp().fetch(
       new Request("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ measurement: inProgressMeasurement() }),
+        body: JSON.stringify({ measurementId: "m123" }),
       }),
       env,
     );
@@ -210,7 +253,7 @@ describe("worker API", () => {
     expect(response.status).toBe(200);
     expect(body.status).toBe("in-progress");
     expect(body.enrichment.status).toBe("skipped");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("caches public probe lists with a short TTL", async () => {
@@ -236,24 +279,26 @@ describe("worker API", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("maps non-finished uploaded measurement statuses to error responses", async () => {
-    const fetchMock = vi.fn();
+  it("maps non-finished Globalping measurement statuses to error responses", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "m-error",
+          type: "mtr",
+          status: "failed",
+          target: "example.com",
+          probesCount: 1,
+          results: [],
+        }),
+      ),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
       new Request("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          measurement: {
-            id: "m-error",
-            type: "mtr",
-            status: "failed",
-            target: "example.com",
-            probesCount: 1,
-            results: [],
-          },
-        }),
+        body: JSON.stringify({ measurementId: "m-error" }),
       }),
       env,
     );
@@ -262,7 +307,7 @@ describe("worker API", () => {
     expect(response.status).toBe(200);
     expect(body.status).toBe("error");
     expect(body.enrichment.status).toBe("skipped");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns empty cache misses without fetching Globalping server-side", async () => {
@@ -278,14 +323,17 @@ describe("worker API", () => {
   it("caches finished enriched trace responses by measurement ID", async () => {
     const cache = new MemoryCache();
     vi.stubGlobal("caches", { default: cache });
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          results: [{ ip: "8.8.8.8", ok: true, data: { ip: "8.8.8.8", source: "mock" } }],
-        }),
-        { status: 200 },
-      ),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(finishedMeasurement())))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: [{ ip: "8.8.8.8", ok: true, data: { ip: "8.8.8.8", source: "mock" } }],
+          }),
+          { status: 200 },
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
     const app = createApp();
     const envWithToken = { ...env, NXTRACE_API_V4_TOKEN: "secret" };
@@ -294,62 +342,73 @@ describe("worker API", () => {
       new Request("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ measurement: finishedMeasurement() }),
+        body: JSON.stringify({ measurementId: "m-cache" }),
       }),
       envWithToken,
     );
     const second = await app.fetch(new Request("https://globaltrace.test/api/trace/m-cache"), envWithToken);
+    const third = await app.fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ measurementId: "m-cache" }),
+      }),
+      envWithToken,
+    );
     const cachedBody = (await second.json()) as { measurementId: string; enrichment: { fetched: number } };
+    const postCachedBody = (await third.json()) as { measurementId: string; enrichment: { fetched: number } };
 
     expect(first.status).toBe(200);
     expect(first.headers.get("Cache-Control")).toBe("public, max-age=120");
     expect(cachedBody.measurementId).toBe("m-cache");
     expect(cachedBody.enrichment.fetched).toBe(1);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(postCachedBody.measurementId).toBe("m-cache");
+    expect(postCachedBody.enrichment.fetched).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("verifies Turnstile when a production secret is configured", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ success: false, "error-codes": ["invalid-input-response"] }), {
-        status: 200,
-      }),
-    );
+  it.each([404, 429, 503])("surfaces Globalping measurement fetch HTTP %s failures", async (status) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "upstream error" }), { status }));
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/turnstile/verify", {
+      new Request("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
-        body: JSON.stringify({ token: "bad-token" }),
+        body: JSON.stringify({ measurementId: "missing" }),
       }),
-      { ...env, APP_ENV: "production", TURNSTILE_SECRET_KEY: "secret" },
+      env,
     );
-    const body = (await response.json()) as {
-      success: boolean;
-      errorCodes: string[];
-    };
+    const body = (await response.json()) as { error: { message: string } };
 
-    expect(response.status).toBe(400);
-    expect(body.success).toBe(false);
-    expect(body.errorCodes).toEqual(["invalid-input-response"]);
+    expect(response.status).toBe(502);
+    expect(body.error.message).toBe(`Globalping measurement fetch failed with HTTP ${status}`);
+    expect(fetchMock).toHaveBeenCalledWith("https://globalping.test/v1/measurements/missing", expect.any(Object));
   });
 
-  it("accepts a successful Turnstile verification result", async () => {
+  it("uses the Globalping result instead of any forged client measurement body", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify({ success: true }), { status: 200 })),
+      vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify(finishedMeasurement("m-trusted"))))
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ results: [{ ip: "8.8.8.8", ok: true, data: { ip: "8.8.8.8", source: "mock" } }] })),
+        ),
     );
+    const forged = finishedMeasurement("m-forged");
+    forged.target = "evil.example";
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/turnstile/verify", {
+      new Request("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
-        body: JSON.stringify({ token: "ok-token" }),
+        body: JSON.stringify({ measurementId: "m-trusted", measurement: forged }),
       }),
-      { ...env, APP_ENV: "production", TURNSTILE_SECRET_KEY: "secret" },
+      { ...env, NXTRACE_API_V4_TOKEN: "secret" },
     );
-    const body = (await response.json()) as { success: boolean };
+    const body = (await response.json()) as { measurementId: string; target: string };
 
     expect(response.status).toBe(200);
-    expect(body.success).toBe(true);
+    expect(body.measurementId).toBe("m-trusted");
+    expect(body.target).toBe("example.com");
   });
 
   it("serves static assets outside API routes", async () => {
@@ -380,9 +439,9 @@ class MemoryCache {
   }
 }
 
-function inProgressMeasurement() {
+function inProgressMeasurement(id = "m123") {
   return {
-    id: "m123",
+    id,
     type: "mtr",
     status: "in-progress",
     target: "example.com",
@@ -391,9 +450,9 @@ function inProgressMeasurement() {
   };
 }
 
-function finishedMeasurement() {
+function finishedMeasurement(id = "m-cache") {
   return {
-    id: "m-cache",
+    id,
     type: "mtr",
     status: "finished",
     target: "example.com",

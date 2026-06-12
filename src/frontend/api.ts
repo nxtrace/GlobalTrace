@@ -5,8 +5,6 @@ import type {
   TraceCreateResponse,
   TraceEnrichRequest,
   TraceResultResponse,
-  TurnstileVerifyRequest,
-  TurnstileVerifyResponse,
 } from "../shared/types";
 import {
   type GlobalpingMeasurement,
@@ -17,7 +15,6 @@ import {
 const GLOBALPING_API_BASE = "https://api.globalping.io";
 
 export interface AppConfig {
-  turnstileSiteKey: string;
   mapStyleUrl: string;
 }
 
@@ -96,17 +93,9 @@ export async function fetchCachedTrace(measurementId: string, signal?: AbortSign
   return body as TraceResultResponse;
 }
 
-export async function enrichTrace(measurement: GlobalpingMeasurement, turnstileToken = ""): Promise<TraceResultResponse> {
-  const request: TraceEnrichRequest = { measurement, turnstileToken };
+export async function enrichTrace(measurementId: string): Promise<TraceResultResponse> {
+  const request: TraceEnrichRequest = { measurementId };
   return apiJson<TraceResultResponse>("/api/trace/enrich", {
-    method: "POST",
-    body: JSON.stringify(request),
-  });
-}
-
-export async function verifyTurnstile(token: string): Promise<TurnstileVerifyResponse> {
-  const request: TurnstileVerifyRequest = { token };
-  return apiJson<TurnstileVerifyResponse>("/api/turnstile/verify", {
     method: "POST",
     body: JSON.stringify(request),
   });

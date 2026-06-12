@@ -6,7 +6,6 @@ import {
   fetchConfig,
   fetchGlobalpingMeasurement,
   fetchLimits,
-  verifyTurnstile,
 } from "./api";
 
 afterEach(() => {
@@ -18,11 +17,11 @@ describe("frontend api helpers", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ turnstileSiteKey: "", mapStyleUrl: "about:blank" })),
+        new Response(JSON.stringify({ mapStyleUrl: "about:blank" })),
       ),
     );
 
-    await expect(fetchConfig()).resolves.toEqual({ turnstileSiteKey: "", mapStyleUrl: "about:blank" });
+    await expect(fetchConfig()).resolves.toEqual({ mapStyleUrl: "about:blank" });
     expect(fetch).toHaveBeenCalledWith("/api/config", expect.objectContaining({ headers: expect.any(Object) }));
   });
 
@@ -70,15 +69,12 @@ describe("frontend api helpers", () => {
       ),
     );
 
-    await expect(
-      enrichTrace({ id: "m123", type: "mtr", target: "example.com", status: "finished", probesCount: 0 }, "turnstile"),
-    ).resolves.toMatchObject({ measurementId: "m123" });
+    await expect(enrichTrace("m123")).resolves.toMatchObject({ measurementId: "m123" });
     const [, init] = vi.mocked(fetch).mock.calls[0];
     expect(init?.method).toBe("POST");
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/trace/enrich");
     expect(JSON.parse(String(init?.body))).toMatchObject({
-      measurement: { id: "m123" },
-      turnstileToken: "turnstile",
+      measurementId: "m123",
     });
   });
 
@@ -133,11 +129,11 @@ describe("frontend api helpers", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ error: { message: "turnstile verification failed" } }), { status: 403 }),
+        new Response(JSON.stringify({ error: { message: "Globalping measurement fetch failed with HTTP 404" } }), { status: 502 }),
       ),
     );
 
-    await expect(verifyTurnstile("bad")).rejects.toThrow("turnstile verification failed");
+    await expect(enrichTrace("missing")).rejects.toThrow("Globalping measurement fetch failed with HTTP 404");
   });
 
   it("falls back to HTTP status when error bodies are not JSON", async () => {

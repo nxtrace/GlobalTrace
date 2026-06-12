@@ -61,7 +61,7 @@ async function installStaticAssetMocks(page: Page): Promise<void> {
     });
   });
   await context.route("**/api/config", async (route) => {
-    await route.fulfill({ json: { turnstileSiteKey: "", mapStyleUrl: "/mock-style.json" } });
+    await route.fulfill({ json: { mapStyleUrl: "/mock-style.json" } });
   });
   await context.route("**/api/probes", async (route) => {
     await route.fulfill({ json: { probes, fetchedAt: "2026-06-10T00:00:00.000Z" } });

@@ -70,7 +70,6 @@ export interface ValidatedTraceCreate {
   ipVersion?: 4 | 6;
   limit: number;
   locations: string[];
-  turnstileToken?: string;
 }
 
 export function validateTraceCreate(input: TraceCreateRequest): ValidatedTraceCreate {
@@ -111,7 +110,6 @@ export function validateTraceCreate(input: TraceCreateRequest): ValidatedTraceCr
     ipVersion,
     limit,
     locations: buildMagicFromFilters(input.filters),
-    turnstileToken: input.turnstileToken,
   };
 }
 

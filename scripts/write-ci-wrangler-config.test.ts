@@ -22,11 +22,10 @@ describe("write-ci-wrangler-config", () => {
     const outputPath = tempOutputPath();
     const result = runScript(outputPath, {
       CLOUDFLARE_ACCOUNT_ID: "account-id",
-      GLOBALTRACE_HOSTNAME: "globaltrace.example.com",
     });
 
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain("TURNSTILE_SITE_KEY is required");
+    expect(result.stderr).toContain("GLOBALTRACE_HOSTNAME is required");
     expect(existsSync(outputPath)).toBe(false);
   });
 
@@ -35,7 +34,6 @@ describe("write-ci-wrangler-config", () => {
     const result = runScript(outputPath, {
       CLOUDFLARE_ACCOUNT_ID: "account-id",
       GLOBALTRACE_HOSTNAME: "https://globaltrace.example.com/app",
-      TURNSTILE_SITE_KEY: "site-key",
     });
 
     expect(result.status).not.toBe(0);
@@ -48,7 +46,6 @@ describe("write-ci-wrangler-config", () => {
     const result = runScript(outputPath, {
       CLOUDFLARE_ACCOUNT_ID: "account-id",
       GLOBALTRACE_HOSTNAME: "globaltrace.example.com",
-      TURNSTILE_SITE_KEY: "public-site-key",
     });
 
     expect(result.status).toBe(0);
@@ -64,12 +61,10 @@ describe("write-ci-wrangler-config", () => {
     expect(config.routes).toEqual([{ pattern: "globaltrace.example.com", custom_domain: true }]);
     expect(config.vars).toMatchObject({
       APP_ENV: "production",
-      TURNSTILE_SITE_KEY: "public-site-key",
       GLOBALPING_API_BASE: "https://api.globalping.io",
       NXTRACE_API_BASE: "https://api.nxtrace.org",
     });
     expect(JSON.stringify(config.vars)).not.toContain("NXTRACE_API_V4_TOKEN");
-    expect(JSON.stringify(config.vars)).not.toContain("TURNSTILE_SECRET_KEY");
   });
 });
 

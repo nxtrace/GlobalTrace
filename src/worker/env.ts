@@ -4,8 +4,6 @@ export interface WorkerEnv {
   GLOBALPING_API_BASE?: string;
   NXTRACE_API_BASE?: string;
   NXTRACE_API_V4_TOKEN?: string;
-  TURNSTILE_SECRET_KEY?: string;
-  TURNSTILE_SITE_KEY?: string;
   MAP_STYLE_URL?: string;
 }
 

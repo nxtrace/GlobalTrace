@@ -6,7 +6,6 @@ const outputPath = process.env.CI_WRANGLER_CONFIG_OUT || ".wrangler-ci.jsonc";
 const requiredEnv = {
   CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
   GLOBALTRACE_HOSTNAME: process.env.GLOBALTRACE_HOSTNAME,
-  TURNSTILE_SITE_KEY: process.env.TURNSTILE_SITE_KEY,
 };
 
 for (const [name, value] of Object.entries(requiredEnv)) {
@@ -32,7 +31,6 @@ config.routes = [
 config.vars = {
   ...(config.vars || {}),
   APP_ENV: "production",
-  TURNSTILE_SITE_KEY: requiredEnv.TURNSTILE_SITE_KEY.trim(),
 };
 
 await writeFile(outputPath, `${JSON.stringify(config, null, 2)}\n`);

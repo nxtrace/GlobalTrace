@@ -8,7 +8,7 @@ GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping
 - UI：Radix UI、lucide-react、liquid-glass-react。
 - Worker：Hono on Cloudflare Workers Static Assets。
 - 测量来源：Globalping `type: "mtr"` measurement。
-- 增强数据：nxtrace API v4 batch GeoIP/ASN/whois；用户保存个人 NextTrace API Token 后由浏览器直连 batch API；Turnstile 取消后由浏览器匿名请求 IPinfo + RIPEstat 做有限 fallback。
+- 增强数据：Worker 按 Globalping measurement ID 拉取可信结果后调用 nxtrace API v4 batch GeoIP/ASN/whois；用户保存个人 NextTrace API Token 后由浏览器直连 batch API。
 
 ## 本地运行
 
@@ -27,10 +27,9 @@ npm run dev:frontend
 
 ## 核心 API
 
-- `GET /api/config`：返回 Turnstile site key 和 map style URL。
+- `GET /api/config`：返回 map style URL。
 - `GET /api/probes`：返回当前在线 Globalping probes。
-- `POST /api/turnstile/verify`：独立 Turnstile token 校验。
-- `POST /api/trace/enrich`：校验 Turnstile，接收已完成或进行中的 Globalping MTR measurement，并返回 trace 结果与 enrichment。
+- `POST /api/trace/enrich`：接收 Globalping measurement ID，Worker 拉取对应 MTR measurement 后返回 trace 结果与 enrichment。
 - `GET /api/trace/:measurementId`：只读缓存查询；命中已完成结果时返回 JSON，否则返回 `204`。
 
 ## nxtrace enrichment 合约
@@ -53,16 +52,7 @@ Worker 调用 nxtrace batch 接口：
 
 高级参数里可以保存个人 `NextTrace API Token`。该 Token 仅保存在当前浏览器 `localStorage`，不会发送给 Globalping 或 GlobalTrace Worker。
 
-保存后，新建诊断和打开分享结果会跳过 Turnstile，浏览器直接请求 `https://api.nxtrace.org/v4/ipGeo/batch`，并通过 `X-NextTrace-Token` 传递该 Token。
-
-## 浏览器端 fallback
-
-用户取消 Turnstile 后不调用 `POST /api/trace/enrich`，也不触发 Worker 端 nxtrace API。前端会直接读取 Globalping measurement，并对公网 hop IP 匿名请求：
-
-- `https://ipinfo.io/{ip}`：补充城市、地区、国家、经纬度和可能存在的 `org` ASN。
-- `https://stat.ripe.net/data/prefix-overview/data.json?resource={ip}`：当 IPinfo 缺少 ASN 时补充 ASN、holder 和 prefix。
-
-fallback 不使用服务端代理、token 或 GeoLite2 license key。
+保存后，新建诊断和打开分享结果会由浏览器直接请求 `https://api.nxtrace.org/v4/ipGeo/batch`，并通过 `X-NextTrace-Token` 传递该 Token。
 
 ## 缓存和存储边界
 
@@ -83,7 +73,7 @@ fallback 不使用服务端代理、token 或 GeoLite2 license key。
 - `assets.not_found_handling`: `single-page-application`
 - `assets.run_worker_first`: `/api/*`
 
-公开配置不包含 Cloudflare account、生产 hostname/routes 或 Turnstile site key。生产部署复制示例文件后填写私有值：
+公开配置不包含 Cloudflare account 或生产 hostname/routes。生产部署复制示例文件后填写私有值：
 
 ```bash
 cp wrangler.private.example.jsonc wrangler.private.jsonc
@@ -97,18 +87,17 @@ Cloudflare Build 配置：
 
 - Build command: `npm run build`
 - Deploy command: `node scripts/write-ci-wrangler-config.mjs && npx wrangler deploy --config .wrangler-ci.jsonc`
-- Build variables: `NODE_VERSION=24`、`CLOUDFLARE_ACCOUNT_ID`、`GLOBALTRACE_HOSTNAME`、`TURNSTILE_SITE_KEY`
+- Build variables: `NODE_VERSION=24`、`CLOUDFLARE_ACCOUNT_ID`、`GLOBALTRACE_HOSTNAME`
 
-生产必需 secrets 仍只写入 Cloudflare Worker secrets：
+生产必需 secret 仍只写入 Cloudflare Worker secrets：
 
 ```bash
 npx wrangler secret put --config wrangler.private.jsonc NXTRACE_API_V4_TOKEN
-npx wrangler secret put --config wrangler.private.jsonc TURNSTILE_SECRET_KEY
 ```
 
-不要把真实 secret 写入 Git、Terraform、测试 fixture、文档示例或 frontend `VITE_*` 值。`TURNSTILE_SITE_KEY` 是公开值，但本仓库把生产 site key 也放在 ignored 私有配置中，避免公开仓库暴露部署标识。
+不要把真实 secret 写入 Git、测试 fixture、文档示例或 frontend `VITE_*` 值。
 
-迁移到 Cloudflare Builds 后，GitHub repository secrets 中可删除：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`GLOBALTRACE_HOSTNAME`、`TURNSTILE_SITE_KEY`、`NXTRACE_API_V4_TOKEN`、`TURNSTILE_SECRET_KEY`。
+迁移到 Cloudflare Builds 后，GitHub repository secrets 中可删除：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`GLOBALTRACE_HOSTNAME`、`NXTRACE_API_V4_TOKEN`。
 
 手动生产部署保留为 fallback：
 

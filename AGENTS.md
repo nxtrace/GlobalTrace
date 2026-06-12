@@ -21,9 +21,8 @@
 
 ## 关键约束
 
-- `NXTRACE_API_V4_TOKEN` 和 `TURNSTILE_SECRET_KEY` 只能作为 Wrangler Worker secrets。
-- 不要把真实 secret 写入 Git、Terraform、测试 fixture、文档示例或 frontend `VITE_*` 值。
-- `TURNSTILE_SITE_KEY` 是公开值，但生产 site key 放在 ignored 私有配置中，避免公开仓库暴露部署标识。
+- `NXTRACE_API_V4_TOKEN` 只能作为 Wrangler Worker secret。
+- 不要把真实 secret 写入 Git、测试 fixture、文档示例或 frontend `VITE_*` 值。
 - nxtrace enrichment 使用 `POST /v4/ipGeo/batch`；不要实现旧的单 IP `GET /v4/ipGeo` fallback，除非用户明确要求。
 - 当前实现不使用 KV、D1、R2、Durable Object 或服务端报告存储。
 

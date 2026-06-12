@@ -276,11 +276,10 @@ test("desktop filter summary constrains long magic content and keeps run control
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.emulateMedia({ colorScheme: "light" });
   const consoleErrors = collectConsoleErrors(page);
-  await installMocks(page, { turnstileSiteKey: "site-key", turnstileAutoToken: false });
+  await installMocks(page);
 
   await page.goto("/");
   await expect(page.getByRole("button", { name: "开始网络路径诊断" })).toBeVisible();
-  await expect(page.locator(".mock-turnstile-widget")).toHaveCount(0);
   const longMagic = Array.from({ length: 20 }, (_, index) => `Novosibirsk-${index}+RU+AS${21000 + index}+datacenter-network`).join(
     ", ",
   );
@@ -289,11 +288,6 @@ test("desktop filter summary constrains long magic content and keeps run control
   await expect(page.getByTestId("filter-chips")).toContainText("Novosibirsk-0+RU+AS21000+datacenter-network");
   await expect(page.getByRole("button", { name: "开始网络路径诊断" })).toBeVisible();
   await expectFilterSummaryConstrainsLongChips(page);
-  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
-  await expect(page.getByRole("dialog", { name: "验证后开始诊断" })).toBeVisible();
-  await expect(page.locator(".mock-turnstile-widget")).toBeVisible();
-  await expectTurnstileDialogCentered(page);
-  await expectLightTurnstileDialogReadable(page);
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -391,7 +385,7 @@ test("saved NextTrace token sends browser batch request", async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("globaltrace.nexttraceApiToken", "nt-token");
   });
-  const mocks = await installMocks(page, { turnstileSiteKey: "site-key" });
+  const mocks = await installMocks(page);
 
   await page.goto("/");
 
@@ -512,72 +506,42 @@ test("result route map normalizes antimeridian paths", async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
-test("mobile advanced panel opens Turnstile in a centered dialog", async ({ page }) => {
+test("mobile advanced panel starts trace without an auth dialog", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
-  await installMocks(page, { turnstileSiteKey: "site-key", turnstileAutoToken: false });
+  const mocks = await installMocks(page);
 
   await page.goto("/");
 
-  await expect(page.getByText("Turnstile 已配置")).toBeVisible();
-  await expect(page.locator(".mock-turnstile-widget")).toHaveCount(0);
+  await expect(page.getByText("Globalping credits 控制诊断创建")).toBeVisible();
   await page.getByText("高级参数与精确筛选").click();
   await page.getByLabel("ASN").fill("7922");
-  await page.getByLabel("network").fill("Comcast");
   await expect(page.getByLabel("ASN")).toHaveValue("7922");
-  await expect(page.getByLabel("network")).toHaveValue("Comcast");
+  await expect(page.getByLabel("network")).toBeVisible();
   await expect(page.getByLabel("tag")).toBeVisible();
   await expect(page.getByLabel("Globalping Token")).toBeVisible();
 
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
-  await expect(page.getByRole("dialog", { name: "验证后开始诊断" })).toBeVisible();
-  await expect(page.locator(".mock-turnstile-widget")).toBeVisible();
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await expect.poll(mocks.enrichRequests).toBe(1);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expectNoPageOverflow(page);
-  await expectTurnstileDialogCentered(page);
   expect(consoleErrors).toEqual([]);
 });
 
-test("shared result opens Turnstile in a centered dialog before loading", async ({ page }) => {
+test("shared result opens directly from measurement ID", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
-  await installMocks(page, { turnstileSiteKey: "site-key", turnstileAutoToken: false });
+  const mocks = await installMocks(page);
 
   await page.goto("/?measurement=m-smoke");
 
-  await expect(page.getByRole("dialog", { name: "验证后打开分享结果" })).toBeVisible();
-  await expect(page.locator(".mock-turnstile-widget")).toBeVisible();
-  await expect(page.getByText("finished · 1 probes · m-smoke")).toHaveCount(0);
-  await expectTurnstileDialogCentered(page);
-
-  await page.evaluate(() => {
-    (window as unknown as { __issueMockTurnstile?: () => void }).__issueMockTurnstile?.();
-  });
-
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "验证后打开分享结果" })).toHaveCount(0);
+  await expect.poll(mocks.enrichRequests).toBe(1);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
-
-test("cancelled shared Turnstile opens result with browser GeoIP fallback", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const consoleErrors = collectConsoleErrors(page);
-  const mocks = await installMocks(page, { turnstileSiteKey: "site-key", turnstileAutoToken: false });
-
-  await page.goto("/?measurement=m-smoke");
-
-  await expect(page.getByRole("dialog", { name: "验证后打开分享结果" })).toBeVisible();
-  await page.getByRole("button", { name: "取消" }).click();
-
-  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
-  await expectVisibleHopText(page, "AS15169");
-  await expectVisibleHopText(page, "GOOGLE - Google LLC");
-  await expect.poll(mocks.enrichRequests).toBe(0);
-  await expect.poll(mocks.browserFallbackRequests).toBe(2);
-  await expectNoPageOverflow(page);
-  expect(consoleErrors).toEqual([]);
-});
-
 test("forced Liquid Glass fallback remains usable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
@@ -616,14 +580,11 @@ interface MockHandles {
   styleRequests: () => number;
   enrichRequests: () => number;
   nexttraceBatchRequests: () => number;
-  browserFallbackRequests: () => number;
   traceRequests: () => GlobalpingMeasurementRequest[];
 }
 
 interface MockOptions {
   expectedIpVersion?: 4 | 6;
-  turnstileSiteKey?: string;
-  turnstileAutoToken?: boolean;
   traceResponse?: TraceResultResponse;
   beforeMeasurementResponse?: () => Promise<void>;
   probes?: GlobalpingProbe[];
@@ -634,34 +595,9 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
   let styleRequests = 0;
   let enrichRequests = 0;
   let nexttraceBatchRequests = 0;
-  let browserFallbackRequests = 0;
   let enriched = false;
   const mockProbes = options.probes || probes;
   const traceRequests: GlobalpingMeasurementRequest[] = [];
-  if (options.turnstileSiteKey) {
-    await page.addInitScript(({ autoToken }: { autoToken: boolean }) => {
-      const testWindow = window as typeof window & { __issueMockTurnstile?: () => void };
-      window.turnstile = {
-        render: (element, renderOptions) => {
-          const widget = document.createElement("div");
-          widget.className = "mock-turnstile-widget";
-          widget.style.width = "300px";
-          widget.style.height = "65px";
-          widget.style.background = "#2f2f2f";
-          element.appendChild(widget);
-          testWindow.__issueMockTurnstile = () => renderOptions.callback("mock-turnstile-token");
-          if (autoToken) {
-            window.setTimeout(() => testWindow.__issueMockTurnstile?.(), 0);
-          }
-          return "mock-widget-id";
-        },
-        reset: () => undefined,
-      };
-    }, { autoToken: options.turnstileAutoToken ?? true });
-    await page.route("**/turnstile/v0/api.js**", async (route) => {
-      await route.fulfill({ contentType: "application/javascript", body: "" });
-    });
-  }
   await page.route("**/mock-style.json", async (route) => {
     styleRequests += 1;
     await route.fulfill({
@@ -700,7 +636,7 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
     await route.fulfill({ contentType: "application/x-protobuf", body: Buffer.alloc(0) });
   });
   await page.route("**/api/config", async (route) => {
-    await route.fulfill({ json: { turnstileSiteKey: options.turnstileSiteKey || "", mapStyleUrl: "/mock-style.json" } });
+    await route.fulfill({ json: { mapStyleUrl: "/mock-style.json" } });
   });
   await page.route("**/api/probes", async (route) => {
     await route.fulfill({ json: { probes: mockProbes, fetchedAt: "2026-06-09T00:00:00.000Z" } });
@@ -731,33 +667,6 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
     pollCount += 1;
     const status = pollCount === 1 ? "in-progress" : "finished";
     await route.fulfill({ headers: globalpingCorsHeaders, json: globalpingMeasurement(status) });
-  });
-  await page.route("https://ipinfo.io/8.8.8.8", async (route) => {
-    browserFallbackRequests += 1;
-    await route.fulfill({
-      headers: globalpingCorsHeaders,
-      json: {
-        ip: "8.8.8.8",
-        city: "Mountain View",
-        region: "California",
-        country: "US",
-        loc: "37.4056,-122.0775",
-      },
-    });
-  });
-  await page.route("https://stat.ripe.net/data/prefix-overview/data.json**", async (route) => {
-    browserFallbackRequests += 1;
-    expect(new URL(route.request().url()).searchParams.get("resource")).toBe("8.8.8.8");
-    await route.fulfill({
-      headers: globalpingCorsHeaders,
-      json: {
-        status: "ok",
-        data: {
-          resource: "8.8.8.0/24",
-          asns: [{ asn: 15169, holder: "GOOGLE - Google LLC" }],
-        },
-      },
-    });
   });
   await page.route("https://api.nxtrace.org/v4/ipGeo/batch", async (route) => {
     if (route.request().method() === "OPTIONS") {
@@ -809,13 +718,13 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
   await page.route("**/api/trace/enrich", async (route) => {
     enrichRequests += 1;
     enriched = true;
+    expect(await route.request().postDataJSON()).toEqual({ measurementId: "m-smoke" });
     await route.fulfill({ json: options.traceResponse || traceResult("finished") });
   });
   return {
     styleRequests: () => styleRequests,
     enrichRequests: () => enrichRequests,
     nexttraceBatchRequests: () => nexttraceBatchRequests,
-    browserFallbackRequests: () => browserFallbackRequests,
     traceRequests: () => traceRequests,
   };
 }
@@ -1014,100 +923,6 @@ async function expectDarkMapControls(page: Page): Promise<void> {
   expect(state.attribution?.backgroundColor).toBe(state.controlBg);
   expect(state.attribution?.borderColor).toBe(state.controlBorder);
   expect(state.attributionButton?.backgroundColor).toBe(state.controlBg);
-}
-
-async function expectTurnstileDialogCentered(page: Page): Promise<void> {
-  const state = await page.evaluate(() => {
-    const surface = document.querySelector(".turnstile-dialog-surface");
-    const dialog = surface?.getBoundingClientRect();
-    const shell = document.querySelector(".turnstile-widget-shell")?.getBoundingClientRect();
-    const widget = document.querySelector(".mock-turnstile-widget")?.getBoundingClientRect();
-    return {
-      glassMode: surface?.hasAttribute("data-liquid-glass") ? surface.getAttribute("data-liquid-glass-mode") || "" : "",
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight,
-      documentClient: document.documentElement.clientWidth,
-      dialogWidth: dialog?.width ?? 0,
-      dialogHeight: dialog?.height ?? 0,
-      dialogLeft: dialog?.left ?? 0,
-      dialogRight: dialog?.right ?? 0,
-      dialogTop: dialog?.top ?? 0,
-      dialogBottom: dialog?.bottom ?? 0,
-      dialogCenterX: dialog ? dialog.left + dialog.width / 2 : 0,
-      dialogCenterY: dialog ? dialog.top + dialog.height / 2 : 0,
-      shellWidth: shell?.width ?? 0,
-      widgetWidth: widget?.width ?? 0,
-      shellLeft: shell?.left ?? 0,
-      shellRight: shell?.right ?? 0,
-    };
-  });
-  expect(state.glassMode).toMatch(/^(liquid|fallback)$/);
-  expect(state.dialogWidth).toBeGreaterThan(0);
-  expect(state.dialogHeight).toBeGreaterThan(0);
-  expect(state.dialogLeft).toBeGreaterThanOrEqual(0);
-  expect(state.dialogRight).toBeLessThanOrEqual(state.documentClient);
-  expect(state.dialogTop).toBeGreaterThanOrEqual(0);
-  expect(state.dialogBottom).toBeLessThanOrEqual(state.viewportHeight);
-  expect(Math.abs(state.dialogCenterX - state.viewportWidth / 2)).toBeLessThanOrEqual(2);
-  expect(Math.abs(state.dialogCenterY - state.viewportHeight / 2)).toBeLessThanOrEqual(2);
-  expect(state.shellWidth).toBeGreaterThan(0);
-  expect(state.widgetWidth).toBeLessThanOrEqual(300);
-  expect(state.shellWidth).toBeLessThanOrEqual(state.dialogWidth);
-  expect(state.shellLeft).toBeGreaterThanOrEqual(state.dialogLeft);
-  expect(state.shellRight).toBeLessThanOrEqual(state.dialogRight);
-}
-
-async function expectLightTurnstileDialogReadable(page: Page): Promise<void> {
-  const state = await page.evaluate(() => {
-    const readAlpha = (value: string) => {
-      const values = value.match(/rgba?\(([^)]+)\)/)?.[1]?.split(",").map((part) => part.trim()) || [];
-      return values.length === 4 ? Number(values[3]) : 1;
-    };
-    const dialog = document.querySelector(".turnstile-dialog") as HTMLElement | null;
-    const surface = document.querySelector(".turnstile-dialog-surface") as HTMLElement | null;
-    const glass = document.querySelector(".turnstile-dialog-surface .glass") as HTMLElement | null;
-    const fallback = document.querySelector(".turnstile-dialog-surface .liquid-glass-fallback-content") as HTMLElement | null;
-    const frame = document.querySelector(".turnstile-dialog-surface .liquid-glass-content") as HTMLElement | null;
-    const overlay = document.querySelector(".turnstile-overlay") as HTMLElement | null;
-    const title = document.querySelector("#turnstile-dialog-title") as HTMLElement | null;
-    const description = document.querySelector(".turnstile-dialog-copy p") as HTMLElement | null;
-    const cancel = document.querySelector(".turnstile-cancel-button") as HTMLElement | null;
-    const cancelRect = cancel?.getBoundingClientRect();
-    const backgroundStyle = glass ? getComputedStyle(glass) : fallback ? getComputedStyle(fallback) : null;
-    const frameStyle = frame ? getComputedStyle(frame) : null;
-    const overlayStyle = overlay ? getComputedStyle(overlay) : null;
-    const titleStyle = title ? getComputedStyle(title) : null;
-    const descriptionStyle = description ? getComputedStyle(description) : null;
-    const cancelStyle = cancel ? getComputedStyle(cancel) : null;
-    return {
-      glassMode: surface?.getAttribute("data-liquid-glass-mode") || "",
-      hasDialogContent: Boolean(dialog),
-      overlayAlpha: readAlpha(overlayStyle?.backgroundColor || ""),
-      dialogAlpha: readAlpha(backgroundStyle?.backgroundColor || ""),
-      dialogBorderAlpha: readAlpha(frameStyle?.borderColor || ""),
-      titleColor: titleStyle?.color || "",
-      descriptionColor: descriptionStyle?.color || "",
-      cancelHeight: cancelRect?.height ?? 0,
-      cancelWidth: cancelRect?.width ?? 0,
-      cancelBackgroundAlpha: readAlpha(cancelStyle?.backgroundColor || ""),
-      cancelBorderAlpha: readAlpha(cancelStyle?.borderColor || ""),
-      cancelColor: cancelStyle?.color || "",
-    };
-  });
-  expect(state.glassMode).toMatch(/^(liquid|fallback)$/);
-  expect(state.hasDialogContent).toBe(true);
-  expect(state.overlayAlpha).toBeLessThanOrEqual(0.25);
-  expect(state.dialogAlpha).toBeGreaterThanOrEqual(0.62);
-  expect(state.dialogAlpha).toBeLessThanOrEqual(0.8);
-  expect(state.dialogBorderAlpha).toBeGreaterThanOrEqual(0.2);
-  expect(state.titleColor).toBe("rgb(29, 29, 31)");
-  expect(state.descriptionColor).toBe("rgb(81, 81, 84)");
-  expect(state.cancelHeight).toBeGreaterThanOrEqual(34);
-  expect(state.cancelHeight).toBeLessThanOrEqual(36);
-  expect(state.cancelWidth).toBeGreaterThanOrEqual(78);
-  expect(state.cancelBackgroundAlpha).toBeGreaterThanOrEqual(0.85);
-  expect(state.cancelBorderAlpha).toBeGreaterThanOrEqual(0.3);
-  expect(state.cancelColor).toBe("rgb(38, 54, 51)");
 }
 
 async function expectMapCanvasPainted(page: Page): Promise<void> {

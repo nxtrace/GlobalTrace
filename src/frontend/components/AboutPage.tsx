@@ -16,8 +16,6 @@ const attributionLinks = [
   { label: "Globalping GitHub", href: "https://github.com/jsdelivr/globalping" },
   { label: "NextTrace", href: "https://www.nxtrace.org/" },
   { label: "NTrace-core GitHub", href: "https://github.com/nxtrace/NTrace-core" },
-  { label: "IPinfo", href: "https://ipinfo.io/" },
-  { label: "RIPEstat", href: "https://stat.ripe.net/" },
   { label: "GlobalTrace GitHub", href: "https://github.com/nxtrace/GlobalTrace" },
   { label: "GPL-3.0-or-later", href: licenseHref },
 ];
@@ -65,7 +63,7 @@ export function AboutPage({ onBack }: AboutPageProps) {
               </span>
               <div>
                 <h2>NextTrace</h2>
-                <p>默认使用 NextTrace / NTrace 数据补充 hop；取消 Turnstile 时由浏览器匿名请求 IPinfo 与 RIPEstat 做有限 fallback。</p>
+                <p>Worker 只按 Globalping measurement ID 拉取结果，并使用 NextTrace / NTrace 数据补充 hop。</p>
               </div>
             </Surface>
             <Surface variant="flat" className="about-card">

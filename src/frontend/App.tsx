@@ -13,14 +13,11 @@ import {
 import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
 import { LiquidGlassSurface } from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
-import { TurnstileBox } from "./components/TurnstileBox";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
 import { Surface } from "./components/ui/surface";
 import type { MapProjection } from "./components/mapProjection";
 import { deferUntilIdle } from "./lib/defer";
-import { enrichTraceWithBrowserFallback } from "./fallbackGeo";
 import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
 import {
   filterChips,
@@ -48,15 +45,13 @@ export const POLL_DELAY_MS = 650;
 export const TRACE_MAX_POLL_ATTEMPTS = 120;
 const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
-const NEXTTRACE_API_TOKEN_URL = "https://api.nxtrace.org/v4/api-tokens";
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
 const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
 
 type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
 type TraceLoadSource = "created" | "shared";
-type TraceEnrichmentMode = "verified" | "browserFallback" | "nexttraceToken";
-type TurnstileGate = { kind: "create" } | { kind: "shared"; measurementId: string };
+type TraceEnrichmentMode = "worker" | "nexttraceToken";
 
 const AboutPage = lazy(() => import("./components/AboutPage").then((module) => ({ default: module.AboutPage })));
 const ProbeMap = lazy(() => import("./components/ProbeMap").then((module) => ({ default: module.ProbeMap })));
@@ -71,7 +66,6 @@ export function App() {
   const [nexttraceToken, setNexttraceToken] = useState(readStoredNexttraceToken);
   const [nexttraceTokenDraft, setNexttraceTokenDraft] = useState(nexttraceToken);
   const [config, setConfig] = useState<AppConfig>({
-    turnstileSiteKey: import.meta.env.VITE_TURNSTILE_SITE_KEY || "",
     mapStyleUrl: import.meta.env.VITE_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL,
   });
   const [target, setTarget] = useState("globalping.io");
@@ -81,7 +75,6 @@ export function App() {
   const [packets, setPackets] = useState(3);
   const [limit, setLimit] = useState(DEFAULT_PROBE_LIMIT);
   const [filters, setFilters] = useState<TraceFilters>({ magic: "world" });
-  const [turnstileGate, setTurnstileGate] = useState<TurnstileGate | null>(null);
   const [configReady, setConfigReady] = useState(false);
   const [probes, setProbes] = useState<GlobalpingProbe[]>([]);
   const [probesStatus, setProbesStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -104,7 +97,7 @@ export function App() {
 
   const finalResult = result?.status === "in-progress" ? null : result;
   const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
-  const canSubmit = configReady && !turnstileGate;
+  const canSubmit = configReady;
   const deferredFilters = useDeferredValue(filters);
   const filteredProbes = useMemo(() => filterProbes(probes, deferredFilters), [deferredFilters, probes]);
   const filterSuggestionFilters = useMemo<TraceFilters>(() => ({
@@ -172,7 +165,7 @@ export function App() {
     nextGlobalpingToken: string,
     nextEnrichmentToken: string,
     source: TraceLoadSource,
-    enrichmentMode: TraceEnrichmentMode = "verified",
+    enrichmentMode: TraceEnrichmentMode = "worker",
   ) => {
     pollAbortRef.current?.abort();
     const controller = new AbortController();
@@ -187,7 +180,7 @@ export function App() {
       setSharedLoadingMeasurementId("");
     }
     try {
-      if (enrichmentMode === "verified") {
+      if (enrichmentMode === "worker") {
         const cached = await fetchCachedTrace(measurementId, controller.signal);
         if (cached) {
           setResult(cached);
@@ -217,11 +210,9 @@ export function App() {
       }
 
       const enriched =
-        enrichmentMode === "verified"
-          ? await enrichTrace(measurement, nextEnrichmentToken)
-          : enrichmentMode === "nexttraceToken"
-            ? await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, { signal: controller.signal })
-            : await enrichTraceWithBrowserFallback(current, { signal: controller.signal });
+        enrichmentMode === "worker"
+          ? await enrichTrace(measurementId)
+          : await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, { signal: controller.signal });
       setResult(enriched);
       setMessage("");
       if (enriched.status !== "in-progress") {
@@ -252,27 +243,15 @@ export function App() {
       void loadTrace(id, true, globalpingToken, nexttraceToken, "shared", "nexttraceToken");
       return;
     }
-    if (config.turnstileSiteKey) {
-      if (result?.measurementId !== id) {
-        setSharedLoadingMeasurementId(id);
-        setWorkspaceMode("result");
-        setMessage("");
-      }
-      if (turnstileGate?.kind === "shared" && turnstileGate.measurementId === id) return;
-      setTurnstileGate({ kind: "shared", measurementId: id });
-      return;
-    }
     sharedTraceStartedRef.current = id;
     void loadTrace(id, true, globalpingToken, "", "shared");
   }, [
-    config.turnstileSiteKey,
     configReady,
     globalpingToken,
     loadTrace,
     nexttraceToken,
     result,
     route,
-    turnstileGate,
   ]);
 
   useEffect(() => () => pollAbortRef.current?.abort(), []);
@@ -281,7 +260,6 @@ export function App() {
     const nextConfig = await fetchConfig().catch(() => null);
     if (nextConfig) {
       setConfig((current) => ({
-        turnstileSiteKey: nextConfig.turnstileSiteKey || current.turnstileSiteKey,
         mapStyleUrl: nextConfig.mapStyleUrl || current.mapStyleUrl,
       }));
     }
@@ -311,8 +289,7 @@ export function App() {
   };
 
   const createAndLoadTrace = useCallback(async (
-    activeTurnstileToken: string,
-    enrichmentMode: TraceEnrichmentMode = "verified",
+    enrichmentMode: TraceEnrichmentMode = "worker",
     activeNexttraceToken = "",
   ) => {
     setLoading(true);
@@ -329,7 +306,6 @@ export function App() {
           packets,
           limit,
           filters: traceFilters,
-          turnstileToken: activeTurnstileToken,
         },
         globalpingToken,
       );
@@ -341,7 +317,7 @@ export function App() {
         created.measurementId,
         true,
         globalpingToken,
-        enrichmentMode === "nexttraceToken" ? activeNexttraceToken : activeTurnstileToken,
+        enrichmentMode === "nexttraceToken" ? activeNexttraceToken : "",
         "created",
         enrichmentMode,
       );
@@ -355,42 +331,11 @@ export function App() {
   const submit = useCallback(() => {
     if (!configReady) return;
     if (nexttraceToken) {
-      void createAndLoadTrace("", "nexttraceToken", nexttraceToken);
+      void createAndLoadTrace("nexttraceToken", nexttraceToken);
       return;
     }
-    if (config.turnstileSiteKey) {
-      setMessage("");
-      setTurnstileGate({ kind: "create" });
-      return;
-    }
-    void createAndLoadTrace("");
-  }, [config.turnstileSiteKey, configReady, createAndLoadTrace, nexttraceToken]);
-
-  const handleTurnstileToken = useCallback((token: string) => {
-    if (!token || !turnstileGate) return;
-    const gate = turnstileGate;
-    setTurnstileGate(null);
-    setMessage("");
-    if (gate.kind === "shared") {
-      sharedTraceStartedRef.current = gate.measurementId;
-      void loadTrace(gate.measurementId, true, globalpingToken, token, "shared");
-      return;
-    }
-    void createAndLoadTrace(token);
-  }, [createAndLoadTrace, globalpingToken, loadTrace, turnstileGate]);
-
-  const cancelTurnstileGate = useCallback(() => {
-    if (!turnstileGate) return;
-    const gate = turnstileGate;
-    setTurnstileGate(null);
-    setMessage("");
-    if (gate.kind === "shared") {
-      sharedTraceStartedRef.current = gate.measurementId;
-      void loadTrace(gate.measurementId, true, globalpingToken, "", "shared", "browserFallback");
-      return;
-    }
-    void createAndLoadTrace("", "browserFallback");
-  }, [createAndLoadTrace, globalpingToken, loadTrace, turnstileGate]);
+    void createAndLoadTrace();
+  }, [configReady, createAndLoadTrace, nexttraceToken]);
 
   const resetMapSelectionLimitTracking = useCallback(() => {
     mapSelectionLimitBeforeRef.current = null;
@@ -512,25 +457,6 @@ export function App() {
     writeStoredNexttraceToken("");
   }, []);
 
-  const saveNexttraceTokenAndContinue = useCallback((token: string) => {
-    const trimmed = token.trim();
-    if (!trimmed || !turnstileGate) return;
-
-    const gate = turnstileGate;
-    setNexttraceToken(trimmed);
-    setNexttraceTokenDraft(trimmed);
-    writeStoredNexttraceToken(trimmed);
-    setTurnstileGate(null);
-    setMessage("");
-
-    if (gate.kind === "shared") {
-      sharedTraceStartedRef.current = gate.measurementId;
-      void loadTrace(gate.measurementId, true, globalpingToken, trimmed, "shared", "nexttraceToken");
-      return;
-    }
-    void createAndLoadTrace("", "nexttraceToken", trimmed);
-  }, [createAndLoadTrace, globalpingToken, loadTrace, turnstileGate]);
-
   const cycleThemeMode = useCallback(() => {
     setThemeMode((current) => nextThemeMode(current));
   }, []);
@@ -546,7 +472,6 @@ export function App() {
     window.history.pushState(null, "", "/");
     setWorkspaceMode("select");
     setSharedLoadingMeasurementId("");
-    setTurnstileGate(null);
     sharedTraceStartedRef.current = "";
     setMessage("");
     setLoading(false);
@@ -579,7 +504,6 @@ export function App() {
           quotaLabel={quotaLabel}
           selectionNotice={selectionNotice}
           loading={loading}
-          turnstileSiteKey={config.turnstileSiteKey}
           canSubmit={canSubmit}
           globalpingTokenDraft={globalpingTokenDraft}
           globalpingTokenSaved={Boolean(globalpingToken)}
@@ -682,16 +606,6 @@ export function App() {
             )}
           </div>
         </div>
-        {turnstileGate && config.turnstileSiteKey && (
-          <TurnstileDialog
-            gate={turnstileGate}
-            siteKey={config.turnstileSiteKey}
-            nexttraceTokenDraft={nexttraceTokenDraft}
-            onToken={handleTurnstileToken}
-            onSaveNexttraceToken={saveNexttraceTokenAndContinue}
-            onCancel={cancelTurnstileGate}
-          />
-        )}
     </main>
   );
 }
@@ -739,110 +653,6 @@ function ResultsViewFallback() {
         </div>
       </section>
     </Surface>
-  );
-}
-
-function TurnstileDialog({
-  gate,
-  siteKey,
-  nexttraceTokenDraft,
-  onToken,
-  onSaveNexttraceToken,
-  onCancel,
-}: {
-  gate: TurnstileGate;
-  siteKey: string;
-  nexttraceTokenDraft: string;
-  onToken: (token: string) => void;
-  onSaveNexttraceToken: (token: string) => void;
-  onCancel: () => void;
-}) {
-  const [mode, setMode] = useState<"turnstile" | "nexttraceToken">("turnstile");
-  const [draft, setDraft] = useState(nexttraceTokenDraft);
-  const title = gate.kind === "shared" ? "验证后打开分享结果" : "验证后开始诊断";
-  const description = gate.kind === "shared" ? "完成 Turnstile 后会自动读取 measurement 并展示结果。" : "完成 Turnstile 后会自动创建并运行诊断。";
-  const tokenDescription =
-    gate.kind === "shared"
-      ? "保存后会用该 Token 直连 NextTrace 并打开分享结果。"
-      : "保存后会用该 Token 直连 NextTrace 并开始诊断。";
-  const trimmedDraft = draft.trim();
-
-  return (
-    <div className="turnstile-overlay">
-      <LiquidGlassSurface variant="toolbar" fullWidth className="turnstile-dialog-surface">
-        <section role="dialog" aria-modal="true" aria-labelledby="turnstile-dialog-title">
-          <div className="turnstile-dialog">
-            <div className="turnstile-dialog-copy">
-              <h2 id="turnstile-dialog-title">{mode === "nexttraceToken" ? "使用 NextTrace API Token" : title}</h2>
-              <p>{mode === "nexttraceToken" ? tokenDescription : description}</p>
-            </div>
-            {mode === "nexttraceToken" ? (
-              <div className="turnstile-token-form">
-                <label className="field-label">
-                  <span>NextTrace API Token</span>
-                  <Input
-                    type="password"
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder="输入你的 NextTrace API Token"
-                    autoComplete="off"
-                    aria-label="弹窗 NextTrace API Token"
-                  />
-                </label>
-                <a className="token-help-link" href={NEXTTRACE_API_TOKEN_URL} target="_blank" rel="noreferrer">
-                  获取 NextTrace API Token
-                </a>
-              </div>
-            ) : (
-              <TurnstileBox siteKey={siteKey} onToken={onToken} />
-            )}
-            <div className="turnstile-dialog-actions">
-              {mode === "nexttraceToken" ? (
-                <>
-                  <Button
-                    variant="glass"
-                    size="sm"
-                    className="turnstile-cancel-button"
-                    type="button"
-                    onClick={() => onSaveNexttraceToken(trimmedDraft)}
-                    disabled={!trimmedDraft}
-                  >
-                    保存并继续
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="turnstile-cancel-button"
-                    type="button"
-                    onClick={() => setMode("turnstile")}
-                  >
-                    返回验证
-                  </Button>
-                  <Button variant="secondary" size="sm" className="turnstile-cancel-button" type="button" onClick={onCancel}>
-                    取消
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="glass"
-                    size="sm"
-                    className="turnstile-cancel-button"
-                    type="button"
-                    onClick={() => setMode("nexttraceToken")}
-                  >
-                    使用 NextTrace API Token
-                  </Button>
-                  <Button variant="secondary" size="sm" className="turnstile-cancel-button" type="button" onClick={onCancel}>
-                    取消
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </section>
-      </LiquidGlassSurface>
-    </div>
   );
 }
 

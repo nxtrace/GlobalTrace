@@ -32,7 +32,6 @@
     "APP_ENV": "production",
     "GLOBALPING_API_BASE": "https://api.globalping.io",
     "NXTRACE_API_BASE": "https://api.nxtrace.org",
-    "MAP_STYLE_URL": "https://tiles.openfreemap.org/styles/liberty",
-    "TURNSTILE_SITE_KEY": "0x0000000000000000000000"
+    "MAP_STYLE_URL": "https://tiles.openfreemap.org/styles/liberty"
   }
 }

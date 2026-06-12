@@ -67,9 +67,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   window.localStorage?.clear();
-  document.querySelectorAll("script[data-turnstile]").forEach((script) => script.remove());
   document.documentElement.removeAttribute("data-theme");
-  delete window.turnstile;
   window.history.replaceState(null, "", "/");
 });
 
@@ -168,8 +166,8 @@ describe("App", () => {
     expect(enrichCall?.[1]?.headers).not.toEqual(expect.objectContaining({ Authorization: expect.any(String) }));
   });
 
-  it("saves a NextTrace token locally and uses it without Turnstile or server enrichment", async () => {
-    const fetchMock = mockApi({ turnstileSiteKey: "site-key", measurement: globalpingMeasurementWithHop });
+  it("saves a NextTrace token locally and uses it without server enrichment", async () => {
+    const fetchMock = mockApi({ measurement: globalpingMeasurementWithHop });
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
@@ -186,7 +184,6 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "验证后开始诊断" })).not.toBeInTheDocument();
     expect(traceCreateBodies(fetchMock)).toHaveLength(1);
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
     expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
@@ -222,19 +219,17 @@ describe("App", () => {
     expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
   });
 
-  it("opens shared results through a saved NextTrace token without Turnstile", async () => {
+  it("opens shared results through a saved NextTrace token without server enrichment", async () => {
     window.localStorage.setItem("globaltrace.nexttraceApiToken", "nt-token");
     window.history.replaceState(null, "", "/?measurement=m123");
     const fetchMock = mockApi({
       traceStatus: () => "finished",
-      turnstileSiteKey: "site-key",
       measurement: globalpingMeasurementWithHop,
     });
 
     render(<App />);
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "验证后打开分享结果" })).not.toBeInTheDocument();
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
     expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
   });
@@ -253,7 +248,6 @@ describe("App", () => {
         },
       },
       traceStatus: () => "finished",
-      turnstileSiteKey: "site-key",
       measurement: globalpingMeasurementWithHop,
     });
 
@@ -261,41 +255,6 @@ describe("App", () => {
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toBe(true);
-    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
-    expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
-  });
-
-  it("continues a pending Turnstile flow after saving a NextTrace token in the dialog", async () => {
-    const fetchMock = mockApi({ turnstileSiteKey: "site-key", measurement: globalpingMeasurementWithHop });
-    window.turnstile = {
-      render: vi.fn((element) => {
-        const widget = document.createElement("div");
-        widget.className = "mock-turnstile-widget";
-        element.appendChild(widget);
-        return "widget-id";
-      }),
-      reset: vi.fn(),
-    };
-
-    render(<App />);
-
-    await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
-    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "使用 NextTrace API Token" }));
-    const tokenDialog = await screen.findByRole("dialog", { name: "使用 NextTrace API Token" });
-    expect(within(tokenDialog).getByRole("link", { name: "获取 NextTrace API Token" })).toHaveAttribute(
-      "href",
-      "https://api.nxtrace.org/v4/api-tokens",
-    );
-    fireEvent.change(screen.getByLabelText("弹窗 NextTrace API Token"), { target: { value: " dialog-token " } });
-    fireEvent.click(screen.getByRole("button", { name: "保存并继续" }));
-
-    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBe("dialog-token");
-    expect(screen.queryByRole("dialog", { name: "使用 NextTrace API Token" })).not.toBeInTheDocument();
-    expect(traceCreateBodies(fetchMock)).toHaveLength(1);
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
     expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
   });
@@ -584,203 +543,28 @@ describe("App", () => {
     expect(traceCreateBodies(fetchMock)).toHaveLength(1);
   });
 
-  it("opens Turnstile after submit and uses a fresh token for each trace", async () => {
-    const fetchMock = mockApi({ traceStatus: () => "finished", turnstileSiteKey: "site-key" });
-    let callback: ((token: string) => void) | undefined;
-    let tokenCount = 0;
-    const issueToken = () => {
-      tokenCount += 1;
-      callback?.(`turnstile-token-${tokenCount}`);
-    };
-    window.turnstile = {
-      render: vi.fn((element, options) => {
-        callback = options.callback;
-        const widget = document.createElement("div");
-        widget.className = "mock-turnstile-widget";
-        element.appendChild(widget);
-        window.setTimeout(issueToken, 0);
-        return "widget-id";
-      }),
-      reset: vi.fn(),
-    };
-
+  it("starts directly when legacy config includes a Turnstile site key", async () => {
+    const fetchMock = mockApi({ traceStatus: () => "finished", legacyTurnstileSiteKey: "site-key" });
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    expect(screen.queryByText("验证后开始诊断")).not.toBeInTheDocument();
-    expect(document.querySelector(".mock-turnstile-widget")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
+    expect(screen.queryByText(/Turnstile/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
-    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
-    await waitFor(() => expect(tokenCount).toBe(1));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
-    expect(traceEnrichBodies(fetchMock)[0].turnstileToken).toBe("turnstile-token-1");
-    expect(fallbackIpinfoCalls(fetchMock)).toHaveLength(0);
-    expect(window.turnstile?.reset).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
-
-    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
-    await waitFor(() => expect(tokenCount).toBe(2));
-    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(2));
-    expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual([
-      "turnstile-token-1",
-      "turnstile-token-2",
-    ]);
+    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]));
   });
 
-  it("opens Turnstile immediately for shared results and uses a fresh token for the next trace", async () => {
-    const fetchMock = mockApi({ traceStatus: () => "finished", turnstileSiteKey: "site-key" });
-    let callback: ((token: string) => void) | undefined;
-    let tokenCount = 0;
-    const issueToken = () => {
-      tokenCount += 1;
-      callback?.(`turnstile-token-${tokenCount}`);
-    };
-    window.turnstile = {
-      render: vi.fn((element, options) => {
-        callback = options.callback;
-        const widget = document.createElement("div");
-        widget.className = "mock-turnstile-widget";
-        element.appendChild(widget);
-        window.setTimeout(issueToken, 0);
-        return "widget-id";
-      }),
-      reset: vi.fn(),
-    };
+  it("opens shared results directly when legacy config includes a Turnstile site key", async () => {
+    const fetchMock = mockApi({ traceStatus: () => "finished", legacyTurnstileSiteKey: "site-key" });
     window.history.replaceState(null, "", "/?measurement=m123");
 
     render(<App />);
 
-    expect(await screen.findByRole("dialog", { name: "验证后打开分享结果" })).toBeInTheDocument();
-    await waitFor(() => expect(tokenCount).toBe(1));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
-    expect(traceEnrichBodies(fetchMock)[0].turnstileToken).toBe("turnstile-token-1");
-    expect(window.turnstile?.reset).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
-
-    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
-    await waitFor(() => expect(tokenCount).toBe(2));
-    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(2));
-    expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual([
-      "turnstile-token-1",
-      "turnstile-token-2",
-    ]);
-  });
-
-  it("keeps an enriched shared result if Turnstile expires after the dialog closes", async () => {
-    const fetchMock = mockApi({
-      traceStatus: () => "finished",
-      turnstileSiteKey: "site-key",
-      enrichmentStatus: "complete",
-    });
-    let callback: ((token: string) => void) | undefined;
-    let expiredCallback: (() => void) | undefined;
-    window.turnstile = {
-      render: vi.fn((element, options) => {
-        callback = options.callback;
-        expiredCallback = options["expired-callback"];
-        const widget = document.createElement("div");
-        widget.className = "mock-turnstile-widget";
-        element.appendChild(widget);
-        window.setTimeout(() => callback?.("turnstile-token-1"), 0);
-        return "widget-id";
-      }),
-      reset: vi.fn(),
-    };
-    window.history.replaceState(null, "", "/?measurement=m123");
-
-    render(<App />);
-
-    expect(await screen.findByRole("dialog", { name: "验证后打开分享结果" })).toBeInTheDocument();
-    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toHaveLength(1));
-    expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual(["turnstile-token-1"]);
-
-    act(() => {
-      expiredCallback?.();
-    });
-    await new Promise((resolve) => window.setTimeout(resolve, 0));
-
-    expect(screen.getByText("result:finished:m123")).toBeInTheDocument();
-    expect(traceEnrichBodies(fetchMock).map((body) => body.turnstileToken)).toEqual(["turnstile-token-1"]);
-  });
-
-  it("does not create a trace before Turnstile produces a token", async () => {
-    const fetchMock = mockApi({ turnstileSiteKey: "site-key" });
-
-    render(<App />);
-
-    await screen.findByText("2 / 2 probes 匹配");
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
-
-    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
-
-    expect(screen.getByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
-    expect(screen.getByText("等待验证")).toBeInTheDocument();
-    expect(traceCreateBodies(fetchMock)).toHaveLength(0);
-  });
-
-  it("cancels homepage Turnstile and uses browser GeoIP fallback without server enrichment", async () => {
-    const fetchMock = mockApi({ turnstileSiteKey: "site-key", measurement: globalpingMeasurementWithHop });
-    window.turnstile = {
-      render: vi.fn((element) => {
-        const widget = document.createElement("div");
-        widget.className = "mock-turnstile-widget";
-        element.appendChild(widget);
-        return "widget-id";
-      }),
-      reset: vi.fn(),
-    };
-
-    render(<App />);
-
-    await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
-    expect(await screen.findByRole("dialog", { name: "验证后开始诊断" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "取消" }));
-
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "验证后开始诊断" })).not.toBeInTheDocument());
-    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(traceCreateBodies(fetchMock)).toHaveLength(1);
-    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
-    expect(fallbackIpinfoCalls(fetchMock)).toHaveLength(1);
-    expect(fallbackRipestatCalls(fetchMock)).toHaveLength(1);
-  });
-
-  it("cancels shared Turnstile and uses browser GeoIP fallback without server enrichment", async () => {
-    const fetchMock = mockApi({
-      traceStatus: () => "finished",
-      turnstileSiteKey: "site-key",
-      measurement: globalpingMeasurementWithHop,
-    });
-    window.turnstile = {
-      render: vi.fn((element) => {
-        const widget = document.createElement("div");
-        widget.className = "mock-turnstile-widget";
-        element.appendChild(widget);
-        return "widget-id";
-      }),
-      reset: vi.fn(),
-    };
-    window.history.replaceState(null, "", "/?measurement=m123");
-
-    render(<App />);
-
-    expect(await screen.findByRole("dialog", { name: "验证后打开分享结果" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "取消" }));
-
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "验证后打开分享结果" })).not.toBeInTheDocument());
-    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
-    expect(fallbackIpinfoCalls(fetchMock)).toHaveLength(1);
-    expect(fallbackRipestatCalls(fetchMock)).toHaveLength(1);
+    expect(screen.queryByText(/Turnstile/)).not.toBeInTheDocument();
+    expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]);
   });
 
   it("returns to the home view from the brand link", async () => {
@@ -805,7 +589,7 @@ describe("App", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input);
-        if (path === "/api/config") return json({ turnstileSiteKey: "", mapStyleUrl: "about:blank" });
+        if (path === "/api/config") return json({ mapStyleUrl: "about:blank" });
         if (path === "/api/probes") return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
         if (path === "https://api.globalping.io/v1/limits") {
           return json({
@@ -905,7 +689,7 @@ describe("App", () => {
       vi.fn(async (input: RequestInfo | URL) => {
         const path = String(input);
         if (path === "/api/config") {
-          return json({ turnstileSiteKey: "", mapStyleUrl: "about:blank" });
+          return json({ mapStyleUrl: "about:blank" });
         }
         if (path === "/api/probes") {
           return json({ error: { message: "probes down" } }, 502);
@@ -928,7 +712,7 @@ describe("App", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input);
-        if (path === "/api/config") return json({ turnstileSiteKey: "", mapStyleUrl: "about:blank" });
+        if (path === "/api/config") return json({ mapStyleUrl: "about:blank" });
         if (path === "/api/probes") return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
         if (path === "https://api.globalping.io/v1/limits") {
           return json({
@@ -955,7 +739,7 @@ describe("App", () => {
 function mockApi(
   options: {
     traceStatus?: (polls: number) => TraceResultResponse["status"];
-    turnstileSiteKey?: string;
+    legacyTurnstileSiteKey?: string;
     enrichmentStatus?: TraceResultResponse["enrichment"]["status"];
     measurement?: (status: TraceResultResponse["status"]) => GlobalpingMeasurement;
     cachedTrace?: TraceResultResponse;
@@ -967,7 +751,7 @@ function mockApi(
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input);
     if (path === "/api/config") {
-      return json({ turnstileSiteKey: options.turnstileSiteKey || "", mapStyleUrl: "about:blank" });
+      return json({ turnstileSiteKey: options.legacyTurnstileSiteKey || undefined, mapStyleUrl: "about:blank" });
     }
     if (path === "/api/probes") {
       return json({ probes: mockProbes, fetchedAt: "2026-06-09T00:00:00.000Z" });
@@ -1037,18 +821,10 @@ function traceCreateBodies(fetchMock: ReturnType<typeof mockApi>): Array<{
     .map(([, init]) => JSON.parse(String(init?.body)));
 }
 
-function traceEnrichBodies(fetchMock: ReturnType<typeof mockApi>): Array<{ turnstileToken?: string }> {
+function traceEnrichBodies(fetchMock: ReturnType<typeof mockApi>): Array<{ measurementId?: string }> {
   return fetchMock.mock.calls
     .filter(([path, init]) => path === "/api/trace/enrich" && init?.method === "POST")
     .map(([, init]) => JSON.parse(String(init?.body)));
-}
-
-function fallbackIpinfoCalls(fetchMock: ReturnType<typeof mockApi>) {
-  return fetchMock.mock.calls.filter(([path]) => String(path).startsWith("https://ipinfo.io/"));
-}
-
-function fallbackRipestatCalls(fetchMock: ReturnType<typeof mockApi>) {
-  return fetchMock.mock.calls.filter(([path]) => String(path).startsWith("https://stat.ripe.net/data/prefix-overview/"));
 }
 
 function nexttraceBatchCalls(fetchMock: ReturnType<typeof mockApi>) {

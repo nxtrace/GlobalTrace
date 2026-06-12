@@ -55,7 +55,6 @@ describe("FilterPanel", () => {
         quotaLabel="quota 9 / 10"
         selectionNotice="已从地图选择 US+Los Angeles+AS7922"
         loading={false}
-        turnstileSiteKey=""
         canSubmit={true}
         globalpingTokenDraft=""
         globalpingTokenSaved={false}
@@ -90,7 +89,7 @@ describe("FilterPanel", () => {
     expect(chips.getByText("US")).toBeInTheDocument();
     expect(screen.getByText("12 / 120 probes 匹配")).toBeInTheDocument();
     expect(screen.getByText("已从地图选择 US+Los Angeles+AS7922")).toBeInTheDocument();
-    expect(screen.getByText("本地模式，无 Turnstile site key")).toBeInTheDocument();
+    expect(screen.getByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "主题：System" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "切换到 2D 视图" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "切换到 3D 视图" })).not.toBeInTheDocument();
@@ -529,14 +528,14 @@ describe("FilterPanel", () => {
     expect(screen.getByText("诊断额度暂不可用")).toBeInTheDocument();
   });
 
-  it("keeps the run action available when Turnstile is configured", () => {
-    const first = renderPanel({ turnstileSiteKey: "site-key", canSubmit: true });
+  it("keeps the run action available when config is ready", () => {
+    const first = renderPanel({ canSubmit: true });
 
-    expect(screen.getByText("Turnstile 已配置")).toBeInTheDocument();
+    expect(screen.getByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
 
     first.unmount();
-    renderPanel({ turnstileSiteKey: "site-key", canSubmit: false });
+    renderPanel({ canSubmit: false });
 
     expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeDisabled();
   });
@@ -616,7 +615,6 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       quotaLabel="quota 9 / 10"
       selectionNotice=""
       loading={false}
-      turnstileSiteKey=""
       canSubmit={true}
       globalpingTokenDraft=""
       globalpingTokenSaved={false}

@@ -5,15 +5,13 @@ import {
   MAX_TRACE_PROBES,
   type TraceEnrichRequest,
   type TraceResultResponse,
-  type TurnstileVerifyRequest,
 } from "../shared/types";
 import type { GlobalpingMeasurement } from "../shared/globalping";
 import type { WorkerEnv } from "./env";
 import { GlobalpingClient } from "./globalping";
-import { createJsonResponse, HttpError, jsonError, readJson, ValidationError } from "./http";
+import { createJsonResponse, HttpError, jsonError, ValidationError } from "./http";
 import { enrichTraceResponse } from "./nxtrace";
 import { measurementToTraceResponse } from "./transform";
-import { verifyTurnstileToken } from "./turnstile";
 
 type HonoEnv = {
   Bindings: WorkerEnv;
@@ -39,7 +37,6 @@ export function createApp() {
 
   app.get("/api/config", (c) =>
     c.json({
-      turnstileSiteKey: c.env.TURNSTILE_SITE_KEY || "",
       mapStyleUrl: c.env.MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL,
     }),
   );
@@ -65,26 +62,17 @@ export function createApp() {
     return response;
   });
 
-  app.post("/api/turnstile/verify", async (c) => {
-    const body = await readJson<TurnstileVerifyRequest>(c.req.raw);
-    const result = await verifyTurnstileToken(c.env, c.req.raw, body.token);
-    return c.json(result, result.success ? 200 : 400);
-  });
-
   app.post("/api/trace/enrich", async (c) => {
-    const body = await readJsonWithLimit<TraceEnrichRequest>(c.req.raw, TRACE_ENRICH_BODY_LIMIT_BYTES);
-    const measurement = validateUploadedMeasurement(body.measurement);
-    const turnstile = await verifyTurnstileToken(c.env, c.req.raw, body.turnstileToken);
-    if (!turnstile.success) {
-      return c.json(jsonError("turnstile verification failed", turnstile.errorCodes), 403);
-    }
+    const body = requireRecord(await readJsonWithLimit<unknown>(c.req.raw, TRACE_ENRICH_BODY_LIMIT_BYTES), "request body");
+    const measurementId = validateMeasurementId(body.measurementId);
 
     const responseCache = typeof caches === "undefined" ? undefined : caches.default;
-    const cachedTrace = await readCachedTraceResponse(responseCache, measurement.id);
+    const cachedTrace = await readCachedTraceResponse(responseCache, measurementId);
     if (cachedTrace) {
       return c.json(cachedTrace);
     }
 
+    const measurement = validateGlobalpingMeasurement(await client(c.env).getMeasurement(measurementId), measurementId);
     const trace = measurementToTraceResponse(measurement);
     const enriched = await enrichTraceResponse(trace, {
       apiBase: c.env.NXTRACE_API_BASE,
@@ -94,7 +82,7 @@ export function createApp() {
     const response = c.json(enriched);
     if (enriched.status === "finished") {
       response.headers.set("Cache-Control", `public, max-age=${TRACE_RESPONSE_CACHE_TTL_SECONDS}`);
-      await responseCache?.put(traceResponseCacheKey(measurement.id), response.clone());
+      await responseCache?.put(traceResponseCacheKey(measurementId), response.clone());
     }
     return response;
   });
@@ -181,11 +169,22 @@ async function readJsonWithLimit<T>(request: Request, limitBytes: number): Promi
   }
 }
 
-function validateUploadedMeasurement(value: unknown): GlobalpingMeasurement {
+function validateMeasurementId(value: unknown): string {
+  const id = requireString(value, "measurementId");
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+    throw new ValidationError("measurementId is invalid");
+  }
+  return id;
+}
+
+function validateGlobalpingMeasurement(value: unknown, expectedMeasurementId: string): GlobalpingMeasurement {
   const measurement = requireRecord(value, "measurement");
   const id = requireString(measurement.id, "measurement.id");
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
     throw new ValidationError("measurement.id is invalid");
+  }
+  if (id !== expectedMeasurementId) {
+    throw new ValidationError("measurement.id does not match measurementId");
   }
 
   const type = requireString(measurement.type, "measurement.type");

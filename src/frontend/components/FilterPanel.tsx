@@ -30,7 +30,6 @@ interface FilterPanelProps {
   quotaLabel: string;
   selectionNotice: string;
   loading: boolean;
-  turnstileSiteKey: string;
   canSubmit: boolean;
   globalpingTokenDraft: string;
   globalpingTokenSaved: boolean;
@@ -411,13 +410,11 @@ export function FilterPanel(props: FilterPanelProps) {
             <div className="run-state" aria-live="polite">
               <ShieldCheck size={16} />
               <div>
-                <strong>
-                  {props.nexttraceTokenSaved
-                    ? "NextTrace API Token 直连已启用"
-                    : props.turnstileSiteKey
-                      ? "Turnstile 已配置"
-                      : "本地模式，无 Turnstile site key"}
-                </strong>
+	                <strong>
+	                  {props.nexttraceTokenSaved
+	                    ? "NextTrace API Token 直连已启用"
+	                    : "Globalping credits 控制诊断创建"}
+	                </strong>
                 <span>{props.quotaLabel}</span>
               </div>
             </div>

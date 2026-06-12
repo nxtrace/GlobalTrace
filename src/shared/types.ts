@@ -27,7 +27,6 @@ export interface TraceCreateRequest {
   ipVersion?: 4 | 6;
   limit?: number;
   filters?: TraceFilters;
-  turnstileToken?: string;
 }
 
 export interface TraceCreateResponse {
@@ -163,18 +162,7 @@ export interface TraceResultResponse {
 }
 
 export interface TraceEnrichRequest {
-  measurement: unknown;
-  turnstileToken?: string;
-}
-
-export interface TurnstileVerifyRequest {
-  token: string;
-}
-
-export interface TurnstileVerifyResponse {
-  success: boolean;
-  bypassed?: boolean;
-  errorCodes?: string[];
+  measurementId?: string;
 }
 
 export interface GlobalpingLimitResponse {

@@ -85,14 +85,6 @@
   --status-glass-shadow:
     0 1px 0 rgba(255, 255, 255, 0.72) inset,
     0 12px 30px rgba(0, 0, 0, 0.06);
-  --turnstile-overlay-bg: rgba(30, 39, 40, 0.2);
-  --turnstile-dialog-bg: rgba(255, 255, 255, 0.72);
-  --turnstile-dialog-border: rgba(38, 54, 50, 0.24);
-  --turnstile-dialog-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 24px 70px rgba(35, 48, 45, 0.2);
-  --turnstile-cancel-bg: rgba(255, 255, 255, 0.88);
-  --turnstile-cancel-bg-hover: rgba(245, 249, 247, 0.98);
-  --turnstile-cancel-border: rgba(49, 94, 88, 0.34);
-  --turnstile-cancel-color: #263633;
   color: var(--ink);
   background: var(--page);
   font-family:
@@ -186,14 +178,6 @@
   --status-glass-shadow:
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
     0 14px 32px rgba(0, 0, 0, 0.3);
-  --turnstile-overlay-bg: rgba(4, 8, 9, 0.58);
-  --turnstile-dialog-bg: rgba(9, 18, 18, 0.78);
-  --turnstile-dialog-border: rgba(255, 255, 255, 0.16);
-  --turnstile-dialog-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 24px 78px rgba(0, 0, 0, 0.44);
-  --turnstile-cancel-bg: rgba(24, 34, 35, 0.88);
-  --turnstile-cancel-bg-hover: rgba(34, 47, 48, 0.98);
-  --turnstile-cancel-border: rgba(196, 207, 202, 0.24);
-  --turnstile-cancel-color: var(--ink);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -281,14 +265,6 @@
     --status-glass-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
       0 14px 32px rgba(0, 0, 0, 0.3);
-    --turnstile-overlay-bg: rgba(4, 8, 9, 0.58);
-    --turnstile-dialog-bg: rgba(9, 18, 18, 0.78);
-    --turnstile-dialog-border: rgba(255, 255, 255, 0.16);
-    --turnstile-dialog-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 24px 78px rgba(0, 0, 0, 0.44);
-    --turnstile-cancel-bg: rgba(24, 34, 35, 0.88);
-    --turnstile-cancel-bg-hover: rgba(34, 47, 48, 0.98);
-    --turnstile-cancel-border: rgba(196, 207, 202, 0.24);
-    --turnstile-cancel-color: var(--ink);
   }
 }
 
@@ -837,10 +813,6 @@ summary:focus-visible {
   text-decoration: underline;
 }
 
-.turnstile-token-form .token-help-link {
-  margin-left: 0;
-}
-
 .token-actions,
 .attribution-panel {
   display: flex;
@@ -1250,157 +1222,6 @@ summary:focus-visible {
   background: var(--control-bg);
   color: var(--ink);
   white-space: nowrap;
-}
-
-.turnstile-box {
-  width: 100%;
-  min-width: 0;
-  min-height: 24px;
-  display: grid;
-  justify-items: start;
-  gap: 6px;
-  overflow: hidden;
-  color: var(--ink-muted);
-  font-size: 12px;
-}
-
-.turnstile-widget-shell {
-  width: min(300px, 100%);
-  max-width: 100%;
-  overflow: hidden;
-  border-radius: 8px;
-}
-
-.turnstile-widget {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.turnstile-widget iframe {
-  max-width: 100%;
-}
-
-.turnstile-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  background: var(--turnstile-overlay-bg);
-  backdrop-filter: blur(10px);
-}
-
-.turnstile-dialog-surface {
-  width: min(100%, 390px);
-  max-height: calc(100svh - 36px);
-  color: var(--ink);
-}
-
-.turnstile-dialog-surface,
-.turnstile-dialog-surface .liquid-glass-content,
-.turnstile-dialog-surface .liquid-glass-fallback-content {
-  border-radius: 18px;
-  max-width: 100%;
-}
-
-.turnstile-dialog-surface > .liquid-glass-package {
-  overflow: hidden;
-  border-radius: 18px;
-  max-height: inherit;
-}
-
-.turnstile-dialog-surface .glass {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08) 44%, rgba(88, 127, 120, 0.16)),
-    var(--turnstile-dialog-bg);
-}
-
-.turnstile-dialog-surface .liquid-glass-content,
-.turnstile-dialog-surface .liquid-glass-fallback-content {
-  max-height: inherit;
-  overflow: auto;
-  border: 1px solid var(--turnstile-dialog-border);
-  box-shadow: var(--turnstile-dialog-shadow);
-  backdrop-filter: blur(18px) saturate(1.14);
-  -webkit-backdrop-filter: blur(18px) saturate(1.14);
-}
-
-.turnstile-dialog-surface .liquid-glass-fallback-content {
-  background: var(--turnstile-dialog-bg);
-}
-
-.turnstile-dialog-surface section {
-  width: 100%;
-}
-
-.turnstile-dialog {
-  width: 100%;
-  display: grid;
-  gap: 16px;
-  padding: 18px;
-}
-
-.turnstile-dialog-copy {
-  display: grid;
-  gap: 6px;
-  text-align: center;
-}
-
-.turnstile-dialog-copy h2,
-.turnstile-dialog-copy p {
-  margin: 0;
-}
-
-.turnstile-dialog-copy h2 {
-  color: var(--ink);
-  font-size: 20px;
-}
-
-.turnstile-dialog-copy p {
-  color: var(--ink-soft);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.turnstile-dialog .turnstile-box {
-  justify-items: center;
-  text-align: center;
-}
-
-.turnstile-dialog .turnstile-widget-shell {
-  width: min(300px, 100%);
-}
-
-.turnstile-dialog-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-}
-
-.turnstile-token-form {
-  width: min(360px, 100%);
-}
-
-.turnstile-cancel-button {
-  height: 34px;
-  min-height: 34px;
-  min-width: 78px;
-  border-color: var(--turnstile-cancel-border);
-  background: var(--turnstile-cancel-bg);
-  color: var(--turnstile-cancel-color);
-  font-size: 13px;
-  font-weight: 760;
-  box-shadow: var(--shadow-control);
-}
-
-.turnstile-cancel-button:hover {
-  border-color: var(--accent-border);
-  background: var(--turnstile-cancel-bg-hover);
-  color: var(--ink);
 }
 
 .status-bar {
@@ -2867,7 +2688,6 @@ pre {
     linear-gradient(135deg, rgba(255, 255, 255, 0.38), rgba(35, 184, 255, 0.1) 42%, rgba(139, 92, 246, 0.13)),
     rgba(255, 255, 255, 0.16);
   --status-glass-border: rgba(255, 255, 255, 0.72);
-  --turnstile-dialog-bg: rgba(255, 255, 255, 0.7);
 }
 
 :root[data-theme="dark"] {
@@ -2943,7 +2763,6 @@ pre {
     linear-gradient(135deg, rgba(245, 251, 255, 0.11), rgba(53, 210, 255, 0.08) 42%, rgba(139, 92, 246, 0.14)),
     rgba(9, 18, 28, 0.82);
   --status-glass-border: rgba(114, 220, 255, 0.18);
-  --turnstile-dialog-bg: rgba(8, 17, 27, 0.8);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -3020,7 +2839,6 @@ pre {
       linear-gradient(135deg, rgba(245, 251, 255, 0.11), rgba(53, 210, 255, 0.08) 42%, rgba(139, 92, 246, 0.14)),
       rgba(9, 18, 28, 0.82);
     --status-glass-border: rgba(114, 220, 255, 0.18);
-    --turnstile-dialog-bg: rgba(8, 17, 27, 0.8);
   }
 }
 
