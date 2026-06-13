@@ -10,6 +10,17 @@ import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
+const PROBE_MAP_MAX_ZOOM = 5.2;
+const PROBE_MAP_FIT_PADDING = { top: 68, right: 42, bottom: 42, left: 42 };
+const PROBE_MAP_DESKTOP_FIT_PADDING = { top: 48, right: 24, bottom: 28, left: 24 };
+const PROBE_MAP_DESKTOP_MIN_ZOOM = 1.15;
+const PROBE_MAP_DESKTOP_MIN_WIDTH = 1181;
+const PROBE_MAP_DESKTOP_MIN_HEIGHT = 900;
+const PROBE_MAP_DESKTOP_MAX_HEIGHT = 1080;
+const PROBE_MAP_DESKTOP_MIN_CANVAS_HEIGHT = 300;
+const PROBE_MAP_DESKTOP_MAX_CANVAS_HEIGHT = 380;
+const PROBE_MAP_FIT_DURATION_MS = 420;
+
 interface ProbeMapProps {
   probes: GlobalpingProbe[];
   totalProbes: number;
@@ -413,20 +424,46 @@ function fitVisibleProbes(map: maplibregl.Map, probes: GlobalpingProbe[]): void 
     const probe = valid[0];
     map.easeTo({
       center: [probe.location.longitude, probe.location.latitude],
-      zoom: 5.2,
-      duration: 420,
+      zoom: PROBE_MAP_MAX_ZOOM,
+      duration: PROBE_MAP_FIT_DURATION_MS,
       essential: true,
     });
     return;
   }
   const bounds = probeBounds(valid);
   if (!bounds) return;
+  if (shouldUseDesktopOverviewZoom(map)) {
+    const camera = map.cameraForBounds(bounds, {
+      padding: PROBE_MAP_DESKTOP_FIT_PADDING,
+      maxZoom: PROBE_MAP_MAX_ZOOM,
+    });
+    if (typeof camera?.zoom === "number") {
+      map.easeTo({
+        ...camera,
+        zoom: Math.max(camera.zoom, PROBE_MAP_DESKTOP_MIN_ZOOM),
+        duration: PROBE_MAP_FIT_DURATION_MS,
+        essential: true,
+      });
+      return;
+    }
+  }
   map.fitBounds(bounds, {
-    padding: { top: 68, right: 42, bottom: 42, left: 42 },
-    maxZoom: 5.2,
-    duration: 420,
+    padding: PROBE_MAP_FIT_PADDING,
+    maxZoom: PROBE_MAP_MAX_ZOOM,
+    duration: PROBE_MAP_FIT_DURATION_MS,
     essential: true,
   });
+}
+
+function shouldUseDesktopOverviewZoom(map: maplibregl.Map): boolean {
+  const canvasHeight = map.getCanvas().getBoundingClientRect().height;
+  return (
+    window.innerWidth >= PROBE_MAP_DESKTOP_MIN_WIDTH &&
+    window.innerHeight >= PROBE_MAP_DESKTOP_MIN_HEIGHT &&
+    window.innerHeight <= PROBE_MAP_DESKTOP_MAX_HEIGHT &&
+    canvasHeight >= PROBE_MAP_DESKTOP_MIN_CANVAS_HEIGHT &&
+    canvasHeight <= PROBE_MAP_DESKTOP_MAX_CANVAS_HEIGHT
+  );
 }
 
 function probeBounds(probes: GlobalpingProbe[]): [[number, number], [number, number]] | null {

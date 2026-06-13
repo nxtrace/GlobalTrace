@@ -178,6 +178,9 @@ for (const viewport of [
     await expectMapCanvasPainted(page);
     await expectProbeMapProjection(page, "mercator");
     const homeMapHeight = await expectCompactHomeProbeMapLayout(page);
+    if (viewport.name === "1440x1000") {
+      await expectProbeMapOverviewZoom(page, 1.15);
+    }
     await expectNoPageOverflow(page);
 
     await page.getByRole("button", { name: "开始网络路径诊断" }).click();
@@ -985,6 +988,17 @@ async function expectProbeMapProjection(page: Page, projection: "mercator" | "gl
       });
     })
     .toBe(projection);
+}
+
+async function expectProbeMapOverviewZoom(page: Page, minZoom: number): Promise<void> {
+  await expect
+    .poll(async () => {
+      return page.locator(".map-container").evaluate((node) => {
+        const map = (node as HTMLElement & { __globalTraceMap?: DebugMap }).__globalTraceMap;
+        return map?.getZoom() ?? 0;
+      });
+    })
+    .toBeGreaterThanOrEqual(minZoom);
 }
 
 async function expectCompactHomeProbeMapLayout(page: Page): Promise<number> {

@@ -51,6 +51,12 @@ const maplibreMock = vi.hoisted(() => {
 
   class FakeMap {
     static instances: FakeMap[] = [];
+    static canvasRect = { width: 1000, height: 500 };
+    static cameraForBoundsResult: { center: [number, number]; zoom: number; bearing: number } | undefined = {
+      center: [12, 30],
+      zoom: 0.92,
+      bearing: 0,
+    };
 
     readonly canvas = document.createElement("div");
     readonly sources = new Map<string, FakeSource>();
@@ -59,6 +65,7 @@ const maplibreMock = vi.hoisted(() => {
     readonly eventHandlers = new Map<string, () => void>();
     readonly options: Record<string, unknown>;
     readonly fitBoundsCalls: unknown[] = [];
+    readonly cameraForBoundsCalls: unknown[] = [];
     readonly easeToCalls: unknown[] = [];
     readonly removeCalls: unknown[] = [];
     readonly setPaintPropertyCalls: unknown[] = [];
@@ -74,17 +81,20 @@ const maplibreMock = vi.hoisted(() => {
       this.options = options;
       this.canvas.className = "maplibregl-canvas";
       Object.defineProperty(this.canvas, "getBoundingClientRect", {
-        value: () => ({
-          x: 0,
-          y: 0,
-          left: 0,
-          top: 0,
-          right: 1000,
-          bottom: 500,
-          width: 1000,
-          height: 500,
-          toJSON: () => ({}),
-        }),
+        value: () => {
+          const { width, height } = FakeMap.canvasRect;
+          return {
+            x: 0,
+            y: 0,
+            left: 0,
+            top: 0,
+            right: width,
+            bottom: height,
+            width,
+            height,
+            toJSON: () => ({}),
+          };
+        },
       });
       Object.defineProperty(this.canvas, "setPointerCapture", { value: () => undefined });
       options.container.appendChild(this.canvas);
@@ -157,6 +167,11 @@ const maplibreMock = vi.hoisted(() => {
       return this;
     }
 
+    cameraForBounds(...args: unknown[]) {
+      this.cameraForBoundsCalls.push(args);
+      return FakeMap.cameraForBoundsResult;
+    }
+
     easeTo(options: unknown) {
       this.easeToCalls.push(options);
       return this;
@@ -198,6 +213,9 @@ vi.mock("maplibre-gl", () => ({
 afterEach(() => {
   cleanup();
   maplibreMock.FakeMap.instances = [];
+  maplibreMock.FakeMap.canvasRect = { width: 1000, height: 500 };
+  maplibreMock.FakeMap.cameraForBoundsResult = { center: [12, 30], zoom: 0.92, bearing: 0 };
+  setWindowSize(1024, 768);
 });
 
 describe("ProbeMap", () => {
@@ -225,6 +243,75 @@ describe("ProbeMap", () => {
       expect.objectContaining({ maxZoom: 5.2 }),
     ]);
     expect(map.setProjectionCalls).toEqual([{ type: "mercator" }]);
+  });
+
+  it("uses a tighter 1000p desktop overview zoom after fitting probes", () => {
+    setWindowSize(1440, 1000);
+    maplibreMock.FakeMap.canvasRect = { width: 1000, height: 340 };
+    maplibreMock.FakeMap.cameraForBoundsResult = { center: [12, 30], zoom: 0.92, bearing: 0 };
+    renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
+    const map = latestMap();
+
+    act(() => map.triggerLoad());
+
+    expect(map.cameraForBoundsCalls.at(-1)).toEqual([
+      [
+        [-118.24, 34.05],
+        [139.76, 50.48],
+      ],
+      {
+        padding: { top: 48, right: 24, bottom: 28, left: 24 },
+        maxZoom: 5.2,
+      },
+    ]);
+    expect(map.easeToCalls.at(-1)).toMatchObject({
+      center: [12, 30],
+      zoom: 1.15,
+      duration: 420,
+      essential: true,
+    });
+    expect(map.fitBoundsCalls).toHaveLength(0);
+  });
+
+  it("keeps the fitted desktop camera when it is already tighter than the 1000p zoom floor", () => {
+    setWindowSize(1440, 1000);
+    maplibreMock.FakeMap.canvasRect = { width: 1000, height: 340 };
+    maplibreMock.FakeMap.cameraForBoundsResult = { center: [12, 30], zoom: 1.3, bearing: 0 };
+    renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
+    const map = latestMap();
+
+    act(() => map.triggerLoad());
+
+    expect(map.easeToCalls.at(-1)).toMatchObject({ zoom: 1.3 });
+    expect(map.fitBoundsCalls).toHaveLength(0);
+  });
+
+  it("keeps the standard fit on mobile and non-1000p desktop viewports", () => {
+    for (const viewport of [
+      { width: 390, height: 844, canvas: { width: 390, height: 354 } },
+      { width: 1280, height: 800, canvas: { width: 900, height: 300 } },
+    ]) {
+      cleanup();
+      maplibreMock.FakeMap.instances = [];
+      setWindowSize(viewport.width, viewport.height);
+      maplibreMock.FakeMap.canvasRect = viewport.canvas;
+      renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
+      const map = latestMap();
+
+      act(() => map.triggerLoad());
+
+      expect(map.cameraForBoundsCalls).toHaveLength(0);
+      expect(map.fitBoundsCalls.at(-1)).toEqual([
+        [
+          [-118.24, 34.05],
+          [139.76, 50.48],
+        ],
+        expect.objectContaining({
+          padding: { top: 68, right: 42, bottom: 42, left: 42 },
+          maxZoom: 5.2,
+        }),
+      ]);
+    }
   });
 
   it("moves to a single filtered probe", async () => {
@@ -306,6 +393,11 @@ function latestMap(): InstanceType<typeof maplibreMock.FakeMap> {
   const map = maplibreMock.FakeMap.instances.at(-1);
   if (!map) throw new Error("map was not created");
   return map;
+}
+
+function setWindowSize(width: number, height: number): void {
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+  Object.defineProperty(window, "innerHeight", { configurable: true, value: height });
 }
 
 function dispatchPointer(
