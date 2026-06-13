@@ -86,7 +86,7 @@ export function readStoredLiquidGlassEnabled(): boolean {
   } catch {
     // Liquid glass preference is best-effort.
   }
-  return !isAndroidDevice();
+  return isAppleDevice();
 }
 
 export function writeStoredLiquidGlassEnabled(enabled: boolean): void {
@@ -153,11 +153,12 @@ function useDocumentFallbackClass(forceFallback: boolean): void {
   }, [forceFallback]);
 }
 
-export function isAndroidDevice(): boolean {
+export function isAppleDevice(): boolean {
   if (typeof navigator === "undefined") return false;
   const navigatorWithUaData = navigator as Navigator & { userAgentData?: { platform?: string } };
+  if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) return true;
   return [navigator.userAgent, navigator.platform, navigatorWithUaData.userAgentData?.platform].some((value) =>
-    /android/i.test(value || ""),
+    /\b(macintosh|mac os x|macintel|macos|iphone|ipad|ipod|ios)\b/i.test(value || ""),
   );
 }
 

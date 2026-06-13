@@ -65,6 +65,7 @@ beforeEach(() => {
     configurable: true,
     value: createMemoryStorage(),
   });
+  setNavigatorDevice({ userAgent: "Mozilla/5.0 (X11; Linux x86_64)", platform: "Linux x86_64" });
 });
 
 afterEach(() => {
@@ -142,6 +143,7 @@ describe("App", () => {
 
   it("persists liquid glass preference locally", async () => {
     mockApi();
+    setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
 
     render(<App />);
 
@@ -163,6 +165,19 @@ describe("App", () => {
       expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe("enabled");
     });
     expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
+  });
+
+  it("defaults liquid glass off on non-Apple devices", async () => {
+    mockApi();
+    setNavigatorDevice({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", platform: "Win32" });
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+
+    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).not.toBeChecked();
+    expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
   });
 
   it("saves a Globalping token for the current session and sends it only to Globalping", async () => {
@@ -978,6 +993,26 @@ function createMemoryStorage(): Storage {
     removeItem: (key) => store.delete(key),
     setItem: (key, value) => store.set(key, String(value)),
   };
+}
+
+function setNavigatorDevice({
+  userAgent,
+  platform,
+  maxTouchPoints = 0,
+  userAgentDataPlatform,
+}: {
+  userAgent: string;
+  platform: string;
+  maxTouchPoints?: number;
+  userAgentDataPlatform?: string;
+}): void {
+  Object.defineProperty(window.navigator, "userAgent", { configurable: true, get: () => userAgent });
+  Object.defineProperty(window.navigator, "platform", { configurable: true, get: () => platform });
+  Object.defineProperty(window.navigator, "maxTouchPoints", { configurable: true, get: () => maxTouchPoints });
+  Object.defineProperty(window.navigator, "userAgentData", {
+    configurable: true,
+    get: () => (userAgentDataPlatform ? { platform: userAgentDataPlatform } : undefined),
+  });
 }
 
 function repeatProbes(probe: GlobalpingProbe, count: number): GlobalpingProbe[] {
