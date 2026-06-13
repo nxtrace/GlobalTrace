@@ -1710,6 +1710,19 @@ async function expectResultSelectedRouteNode(page: Page, nodeId: string | null):
 
 async function expectResultMapPopup(page: Page, text: string): Promise<void> {
   await expect(page.locator(".result-map-popup").getByText(text, { exact: true })).toBeVisible();
+  await expect
+    .poll(async () =>
+      page.locator(".result-map").evaluate((node) => {
+        const popup = node.querySelector(".result-map-popup-shell");
+        if (!popup) return false;
+        const popupZIndex = Number.parseInt(window.getComputedStyle(popup).zIndex, 10);
+        const markerZIndexes = [...node.querySelectorAll(".result-route-marker")].map((marker) => {
+          return Number.parseInt(window.getComputedStyle(marker).zIndex, 10) || 0;
+        });
+        return popupZIndex > Math.max(0, ...markerZIndexes);
+      }),
+    )
+    .toBe(true);
 }
 
 async function expectMapProjectsCoordinateInsideCanvas(page: Page, coordinate: [number, number]): Promise<void> {

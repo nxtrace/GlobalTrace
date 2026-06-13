@@ -91,3 +91,7 @@
   backdrop-filter: blur(18px) saturate(1.18);
   -webkit-backdrop-filter: blur(18px) saturate(1.18);
 }
+
+.result-map-popup-shell {
+  z-index: 20;
+}
