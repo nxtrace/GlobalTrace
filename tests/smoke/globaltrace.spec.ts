@@ -675,11 +675,20 @@ async function installBackgroundMock(page: Page): Promise<void> {
   });
   await page.route("**/api/background/image", async (route) => {
     await route.fulfill({
-      contentType: "image/png",
-      body: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mPMqP9fDwAF9ALka6ocEgAAAABJRU5ErkJggg==",
-        "base64",
-      ),
+      contentType: "image/svg+xml",
+      body: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+        <defs>
+          <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#1e7dd8"/>
+            <stop offset="0.42" stop-color="#f4b46d"/>
+            <stop offset="1" stop-color="#5d3fd3"/>
+          </linearGradient>
+        </defs>
+        <rect width="1200" height="800" fill="url(#sky)"/>
+        <circle cx="250" cy="180" r="150" fill="#f8e38a"/>
+        <path d="M0 610 C180 510 320 545 460 455 C650 330 780 470 930 390 C1050 330 1140 350 1200 315 L1200 800 L0 800 Z" fill="#236f5f"/>
+        <path d="M0 705 C160 650 330 660 520 610 C720 560 900 650 1200 560 L1200 800 L0 800 Z" fill="#172a4a"/>
+      </svg>`,
     });
   });
 }
@@ -1000,25 +1009,37 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
         return {
           filter: style.filter,
           backgroundImage: style.backgroundImage,
+          opacity: Number.parseFloat(style.opacity || "0") || 0,
         };
       })(),
-      bodyTextureOpacity: Number.parseFloat(window.getComputedStyle(document.body, "::before").opacity || "0") || 0,
+      shellTextureOpacity:
+        Number.parseFloat(window.getComputedStyle(document.querySelector(".app-shell") as Element, "::before").opacity || "0") || 0,
+      shellReady: document.querySelector(".app-shell")?.classList.contains("ambient-photo-ready") ?? false,
       filterPanel: read(".filter-panel"),
       primaryControls: read(".primary-controls-surface"),
       filterSummary: read('.filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary'),
       statusBar: read('.status-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content'),
       runActionButton: read('.run-action-surface[data-liquid-glass-mode="liquid"] .primary-action'),
+      probeTable: read(".probe-table-section"),
+      tableScroll: read(".table-scroll"),
+      resultsSection: read(".results-section"),
     };
   });
 
-  expect(state.ambientBackground?.filter).toContain("blur(28px)");
-  expect(state.ambientBackground?.filter).toContain("saturate(1.08)");
+  expect(state.shellReady).toBe(true);
+  expect(state.ambientBackground?.filter).toContain("blur(32px)");
+  expect(state.ambientBackground?.filter).toContain("saturate(1.24)");
+  expect(state.ambientBackground?.filter).toContain("contrast(1.08)");
+  expect(state.ambientBackground?.opacity).toBeGreaterThanOrEqual(0.88);
   expect(state.ambientBackground?.backgroundImage).toContain("/api/background/image");
-  expect(state.bodyTextureOpacity).toBeGreaterThan(0.2);
-  expect(state.primaryControls?.backgroundAlpha).toBeLessThanOrEqual(0.32);
-  expect(state.filterSummary?.backgroundAlpha).toBeLessThanOrEqual(0.32);
-  expect(state.statusBar?.backgroundAlpha).toBeLessThanOrEqual(0.36);
+  expect(state.shellTextureOpacity).toBeLessThanOrEqual(0.08);
+  expect(state.primaryControls?.backgroundAlpha).toBeLessThanOrEqual(0.22);
+  expect(state.filterSummary?.backgroundAlpha).toBeLessThanOrEqual(0.18);
+  expect(state.statusBar?.backgroundAlpha).toBeLessThanOrEqual(0.24);
   expect(state.runActionButton?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.probeTable?.backgroundAlpha).toBeGreaterThanOrEqual(0.34);
+  expect(state.tableScroll?.backgroundAlpha).toBeGreaterThanOrEqual(0.48);
+  expect(state.resultsSection).toBeNull();
   expect(state.filterPanel?.boxShadow).not.toMatch(/\b(?:58|70)px\b/);
   expect(state.primaryControls?.boxShadow).not.toMatch(/\b(?:58|70)px\b/);
 }

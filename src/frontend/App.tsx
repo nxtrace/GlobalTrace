@@ -531,7 +531,7 @@ export function App() {
     return (
       <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled}>
         <BackgroundLayer backgroundImage={backgroundImage} />
-        <Suspense fallback={<AboutPageFallback />}>
+        <Suspense fallback={<AboutPageFallback ambientPhotoReady={Boolean(backgroundImage)} />}>
           <AboutPage onBack={navigateHome} backgroundImage={backgroundImage} />
         </Suspense>
       </LiquidGlassPreferenceProvider>
@@ -541,7 +541,7 @@ export function App() {
   return (
     <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled}>
       <BackgroundLayer backgroundImage={backgroundImage} />
-      <main className={`app-shell${resultPriority ? " result-priority" : ""}`}>
+      <main className={`app-shell${backgroundImage ? " ambient-photo-ready" : ""}${resultPriority ? " result-priority" : ""}`}>
         <FilterPanel
           backgroundImage={backgroundImage}
           target={target}
@@ -680,9 +680,9 @@ function BackgroundLayer({ backgroundImage }: { backgroundImage: BackgroundImage
   return <div className="ambient-background" style={style} aria-hidden="true" />;
 }
 
-function AboutPageFallback() {
+function AboutPageFallback({ ambientPhotoReady = false }: { ambientPhotoReady?: boolean }) {
   return (
-    <main className="about-shell">
+    <main className={`about-shell${ambientPhotoReady ? " ambient-photo-ready" : ""}`}>
       <Surface asChild className="about-panel">
         <section role="status" aria-live="polite" aria-label="正在加载关于页面">
           <div className="empty-hero">

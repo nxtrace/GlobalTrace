@@ -106,6 +106,7 @@ describe("App", () => {
     expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
     const backgroundLayer = document.querySelector(".ambient-background") as HTMLElement | null;
     expect(backgroundLayer).not.toBeNull();
+    expect(document.querySelector(".app-shell")).toHaveClass("ambient-photo-ready");
     expect(backgroundLayer?.getAttribute("style")).toContain("--ambient-background-image: url(\"/api/background/image\")");
     expect(screen.getByText(/背景：岁月的层峦/).closest("a")).toHaveAttribute(
       "href",
@@ -120,6 +121,7 @@ describe("App", () => {
 
     expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
     expect(document.querySelector(".ambient-background")).toBeNull();
+    expect(document.querySelector(".app-shell")).not.toHaveClass("ambient-photo-ready");
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
@@ -382,6 +384,7 @@ describe("App", () => {
 
   it("renders the about route with attribution links", async () => {
     window.history.replaceState(null, "", "/about");
+    mockApi({ backgroundImage: bingBackgroundImage() });
 
     render(<App />);
 
@@ -410,6 +413,7 @@ describe("App", () => {
       "https://github.com/nxtrace/GlobalTrace/blob/master/LICENSE",
     );
     expect(screen.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
+    expect(document.querySelector(".about-shell")).toHaveClass("ambient-photo-ready");
   });
 
   it("updates filters when a map probe is selected", async () => {

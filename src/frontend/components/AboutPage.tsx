@@ -24,7 +24,7 @@ const attributionLinks = [
 
 export function AboutPage({ backgroundImage, onBack }: AboutPageProps) {
   return (
-    <main className="about-shell">
+    <main className={`about-shell${backgroundImage ? " ambient-photo-ready" : ""}`}>
       <LiquidGlassSurface variant="panel" fullWidth className="about-panel-surface">
         <section className="about-panel">
           <div className="about-header">

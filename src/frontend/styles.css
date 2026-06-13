@@ -2758,10 +2758,17 @@ pre {
     linear-gradient(135deg, transparent 0 47%, rgba(37, 111, 134, 0.08) 47% calc(47% + 1px), transparent calc(47% + 1px) 100%),
     linear-gradient(35deg, transparent 0 66%, rgba(153, 105, 52, 0.07) 66% calc(66% + 1px), transparent calc(66% + 1px) 100%),
     repeating-linear-gradient(90deg, transparent 0 68px, var(--network-node) 68px 70px, transparent 70px 190px);
-  --ambient-photo-opacity: 0.72;
+  --ambient-photo-opacity: 0.95;
   --ambient-background-overlay:
-    linear-gradient(135deg, rgba(245, 250, 248, 0.58), rgba(233, 247, 252, 0.46) 48%, rgba(241, 236, 255, 0.52)),
-    radial-gradient(circle at 20% 12%, rgba(255, 255, 255, 0.46), transparent 34%);
+    linear-gradient(135deg, rgba(245, 250, 248, 0.28), rgba(233, 247, 252, 0.2) 48%, rgba(241, 236, 255, 0.24)),
+    radial-gradient(circle at 20% 12%, rgba(255, 255, 255, 0.22), transparent 34%);
+  --photo-filter-panel-bg:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.48), rgba(239, 252, 255, 0.24) 50%, rgba(246, 240, 255, 0.2)),
+    rgba(255, 255, 255, 0.22);
+  --photo-primary-controls-bg: rgba(255, 255, 255, 0.18);
+  --photo-liquid-panel-bg: rgba(255, 255, 255, 0.16);
+  --photo-liquid-toolbar-bg: rgba(255, 255, 255, 0.14);
+  --photo-run-action-bg: linear-gradient(135deg, rgba(45, 212, 191, 0.66), rgba(79, 143, 134, 0.58) 48%, rgba(124, 92, 255, 0.62));
   --filter-panel-bg:
     linear-gradient(150deg, rgba(255, 255, 255, 0.68), rgba(239, 252, 255, 0.42) 50%, rgba(246, 240, 255, 0.36)),
     var(--glass-bg);
@@ -2848,10 +2855,17 @@ pre {
     linear-gradient(135deg, transparent 0 43%, rgba(92, 202, 234, 0.1) 43% calc(43% + 1px), transparent calc(43% + 1px) 100%),
     linear-gradient(35deg, transparent 0 68%, rgba(249, 161, 91, 0.08) 68% calc(68% + 1px), transparent calc(68% + 1px) 100%),
     repeating-linear-gradient(90deg, transparent 0 62px, var(--network-node) 62px 64px, transparent 64px 184px);
-  --ambient-photo-opacity: 0.66;
+  --ambient-photo-opacity: 0.9;
   --ambient-background-overlay:
-    linear-gradient(135deg, rgba(3, 8, 12, 0.82), rgba(6, 14, 22, 0.76) 48%, rgba(12, 8, 24, 0.78)),
-    radial-gradient(circle at 22% 10%, rgba(61, 215, 255, 0.12), transparent 32%);
+    linear-gradient(135deg, rgba(3, 8, 12, 0.58), rgba(6, 14, 22, 0.48) 48%, rgba(12, 8, 24, 0.52)),
+    radial-gradient(circle at 22% 10%, rgba(61, 215, 255, 0.1), transparent 32%);
+  --photo-filter-panel-bg:
+    linear-gradient(150deg, rgba(16, 31, 44, 0.44), rgba(10, 21, 32, 0.34) 52%, rgba(24, 16, 45, 0.28)),
+    rgba(10, 18, 27, 0.36);
+  --photo-primary-controls-bg: rgba(10, 20, 30, 0.2);
+  --photo-liquid-panel-bg: rgba(10, 20, 30, 0.18);
+  --photo-liquid-toolbar-bg: rgba(9, 18, 28, 0.22);
+  --photo-run-action-bg: linear-gradient(135deg, rgba(45, 212, 191, 0.64), rgba(53, 210, 255, 0.54) 48%, rgba(124, 92, 255, 0.62));
   --filter-panel-bg:
     linear-gradient(150deg, rgba(16, 31, 44, 0.62), rgba(10, 21, 32, 0.5) 52%, rgba(24, 16, 45, 0.42)),
     var(--glass-bg);
@@ -2940,10 +2954,17 @@ pre {
       linear-gradient(135deg, transparent 0 43%, rgba(92, 202, 234, 0.1) 43% calc(43% + 1px), transparent calc(43% + 1px) 100%),
       linear-gradient(35deg, transparent 0 68%, rgba(249, 161, 91, 0.08) 68% calc(68% + 1px), transparent calc(68% + 1px) 100%),
       repeating-linear-gradient(90deg, transparent 0 62px, var(--network-node) 62px 64px, transparent 64px 184px);
-    --ambient-photo-opacity: 0.66;
+    --ambient-photo-opacity: 0.9;
     --ambient-background-overlay:
-      linear-gradient(135deg, rgba(3, 8, 12, 0.82), rgba(6, 14, 22, 0.76) 48%, rgba(12, 8, 24, 0.78)),
-      radial-gradient(circle at 22% 10%, rgba(61, 215, 255, 0.12), transparent 32%);
+      linear-gradient(135deg, rgba(3, 8, 12, 0.58), rgba(6, 14, 22, 0.48) 48%, rgba(12, 8, 24, 0.52)),
+      radial-gradient(circle at 22% 10%, rgba(61, 215, 255, 0.1), transparent 32%);
+    --photo-filter-panel-bg:
+      linear-gradient(150deg, rgba(16, 31, 44, 0.44), rgba(10, 21, 32, 0.34) 52%, rgba(24, 16, 45, 0.28)),
+      rgba(10, 18, 27, 0.36);
+    --photo-primary-controls-bg: rgba(10, 20, 30, 0.2);
+    --photo-liquid-panel-bg: rgba(10, 20, 30, 0.18);
+    --photo-liquid-toolbar-bg: rgba(9, 18, 28, 0.22);
+    --photo-run-action-bg: linear-gradient(135deg, rgba(45, 212, 191, 0.64), rgba(53, 210, 255, 0.54) 48%, rgba(124, 92, 255, 0.62));
     --filter-panel-bg:
       linear-gradient(150deg, rgba(16, 31, 44, 0.62), rgba(10, 21, 32, 0.5) 52%, rgba(24, 16, 45, 0.42)),
       var(--glass-bg);
@@ -3013,15 +3034,13 @@ body::before {
   background-image: var(--ambient-background-image);
   background-position: center;
   background-size: cover;
-  filter: blur(28px) saturate(1.08);
+  filter: blur(32px) saturate(1.24) contrast(1.08);
   opacity: var(--ambient-photo-opacity);
-  transform: scale(1.04);
+  transform: scale(1.06);
 }
 
 .ambient-background::after {
-  background:
-    var(--ambient-background-overlay),
-    var(--body-texture);
+  background: var(--ambient-background-overlay);
 }
 
 .app-shell,
@@ -3041,12 +3060,22 @@ body::before {
   opacity: 0.36;
 }
 
+.app-shell.ambient-photo-ready::before,
+.about-shell.ambient-photo-ready::before {
+  opacity: 0.08;
+}
+
 .filter-panel,
 .about-panel {
   border: 1px solid var(--panel-border);
   box-shadow: var(--shadow-panel);
   backdrop-filter: blur(30px) saturate(1.28);
   -webkit-backdrop-filter: blur(30px) saturate(1.28);
+}
+
+.app-shell.ambient-photo-ready .filter-panel,
+.about-shell.ambient-photo-ready .about-panel {
+  background: var(--photo-filter-panel-bg);
 }
 
 .control-section,
@@ -3097,6 +3126,10 @@ textarea:hover {
   background: var(--primary-controls-bg);
 }
 
+.app-shell.ambient-photo-ready .primary-controls-surface {
+  background: var(--photo-primary-controls-bg);
+}
+
 .about-panel-surface {
   width: min(980px, 100%);
 }
@@ -3137,12 +3170,25 @@ textarea:hover {
   -webkit-backdrop-filter: none;
 }
 
+.app-shell.ambient-photo-ready .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
+.app-shell.ambient-photo-ready .run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
+.app-shell.ambient-photo-ready .attribution-glass-surface[data-liquid-glass-mode="liquid"] .attribution-panel,
+.about-shell.ambient-photo-ready .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel {
+  background: var(--photo-liquid-panel-bg);
+}
+
 .status-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
   border-color: var(--liquid-inner-border);
   background: var(--liquid-toolbar-bg);
   box-shadow: var(--liquid-toolbar-shadow);
+}
+
+.app-shell.ambient-photo-ready .status-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.app-shell.ambient-photo-ready .map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.app-shell.ambient-photo-ready .result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+  background: var(--photo-liquid-toolbar-bg);
 }
 
 .status-surface .glass,
@@ -3165,6 +3211,13 @@ textarea:hover {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.3) inset,
     0 8px 18px rgba(35, 184, 255, 0.12);
+}
+
+.app-shell.ambient-photo-ready .run-action-surface[data-liquid-glass-mode="liquid"] .primary-action {
+  background: var(--photo-run-action-bg);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28) inset,
+    0 7px 16px rgba(35, 184, 255, 0.1);
 }
 
 .run-action-surface[data-liquid-glass-mode="liquid"] .primary-action:hover {
