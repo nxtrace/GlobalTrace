@@ -116,6 +116,48 @@ describe("nxtrace enrichment", () => {
     expect(enriched.results[0]?.hops[1]?.enrichmentError).toContain("nxtrace batch failed");
   });
 
+  it("splits timeout batch failures so smaller successful batches can recover", async () => {
+    const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
+      const ips = JSON.parse(String(init?.body)).ips as string[];
+      if (ips.length === 16) {
+        throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+      }
+      return new Response(
+        JSON.stringify({
+          results: ips.map((ip) => ({ ip, ok: true, data: geo(ip) })),
+        }),
+      );
+    }) as unknown as typeof fetch;
+
+    const enriched = await enrichTraceResponse(sampleTrace(16), {
+      apiBase: "https://nxtrace.test",
+      token: "secret",
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(enriched.enrichment).toEqual({ status: "complete", cached: 0, fetched: 16, errors: [] });
+    expect(enriched.results[0]?.hops.every((hop) => hop.geo?.source === "mock")).toBe(true);
+  });
+
+  it("does not split non-timeout abort failures", async () => {
+    const fetcher = vi.fn(async () => {
+      throw new DOMException("The operation was aborted", "AbortError");
+    }) as unknown as typeof fetch;
+
+    const enriched = await enrichTraceResponse(sampleTrace(16), {
+      apiBase: "https://nxtrace.test",
+      token: "secret",
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(enriched.enrichment.status).toBe("partial");
+    expect(enriched.enrichment.errors).toHaveLength(1);
+    expect(enriched.enrichment.errors[0]?.ips).toHaveLength(16);
+    expect(enriched.enrichment.errors[0]?.message).toBe("The operation was aborted");
+  });
+
   it("does not split non-retryable 4xx batch failures", async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: "bad gateway" }), { status: 502 })) as
       unknown as typeof fetch;

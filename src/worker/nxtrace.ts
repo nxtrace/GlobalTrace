@@ -212,8 +212,8 @@ async function fetchBatchWithSplit(
   try {
     return { results: (await fetchBatch(ips, options)).results, errors: [] };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "nxtrace batch request failed";
-    if (ips.length > 1 && error instanceof NxtraceBatchError && error.retryBySplit) {
+    const message = errorMessage(error);
+    if (ips.length > 1 && isSplitRetryableError(error)) {
       const midpoint = Math.ceil(ips.length / 2);
       const left = await fetchBatchWithSplit(ips.slice(0, midpoint), options);
       const right = await fetchBatchWithSplit(ips.slice(midpoint), options);
@@ -228,6 +228,21 @@ async function fetchBatchWithSplit(
 
 function isSplitRetryableStatus(status: number): boolean {
   return status === 429 || status >= 500;
+}
+
+function isSplitRetryableError(error: unknown): boolean {
+  if (error instanceof NxtraceBatchError) return error.retryBySplit;
+  return errorName(error) === "TimeoutError";
+}
+
+function errorName(error: unknown): string | undefined {
+  return typeof error === "object" && error !== null && "name" in error && typeof error.name === "string" ? error.name : undefined;
+}
+
+function errorMessage(error: unknown): string {
+  return typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"
+    ? error.message
+    : "nxtrace batch request failed";
 }
 
 async function readCachedGeo(cache: Cache | undefined, ip: string): Promise<NxtraceGeo | null> {
