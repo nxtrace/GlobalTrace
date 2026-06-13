@@ -243,9 +243,14 @@ describe("ResultsView", () => {
     expect(screen.getByLabelText("trace summary").querySelectorAll(".metric-surface[data-liquid-glass]").length).toBeGreaterThan(0);
     const tabs = document.querySelector(".probe-tabs");
     const routeTabs = screen.getAllByRole("tab");
+    const tabsFrame = document.querySelector(".probe-tabs-frame-surface");
     expect(document.querySelector(".probe-tabs-surface")).toBeNull();
     expect(tabs?.closest(".probe-tabs-surface")).toBeNull();
-    expect(tabs?.parentElement).toHaveClass("probe-tabs-root");
+    expect(tabsFrame).not.toBeNull();
+    expect(tabsFrame).toHaveAttribute("data-liquid-glass");
+    expect(tabsFrame?.querySelector(".probe-tabs-frame")).not.toBeNull();
+    expect(tabs?.closest(".probe-tabs-frame-surface")).toBe(tabsFrame);
+    expect(tabsFrame?.parentElement).toHaveClass("probe-tabs-root");
     expect(document.querySelectorAll(".probe-tab-surface[data-liquid-glass]")).toHaveLength(routeTabs.length);
     for (const tab of routeTabs) {
       expect(tab).toHaveClass("probe-tab-button");

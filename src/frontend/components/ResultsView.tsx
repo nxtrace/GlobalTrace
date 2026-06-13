@@ -214,29 +214,33 @@ export function ResultsView({
         </div>
 
         <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
-          <TabsList className="probe-tabs" aria-label="probe results">
-            {result.results.map((item, index) => (
-              <LiquidGlassSurface
-                variant="tab"
-                className={`probe-tab-surface${index === activeIndex ? " is-active" : ""}`}
-                style={routeTabStyle(index)}
-                key={item.id}
-              >
-                <TabsTrigger
-                  unstyled
-                  className="probe-tab-button"
-                  value={String(index)}
-                  onClick={() => selectProbe(index)}
-                >
-                  <span className="probe-tab-route-dot" aria-hidden="true" />
-                  <span className="probe-tab-copy">
-                    <strong>{item.probe.city || item.probe.country}</strong>
-                    <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
-                  </span>
-                </TabsTrigger>
-              </LiquidGlassSurface>
-            ))}
-          </TabsList>
+          <LiquidGlassSurface variant="toolbar" fullWidth className="probe-tabs-frame-surface">
+            <div className="probe-tabs-frame">
+              <TabsList className="probe-tabs" aria-label="probe results">
+                {result.results.map((item, index) => (
+                  <LiquidGlassSurface
+                    variant="tab"
+                    className={`probe-tab-surface${index === activeIndex ? " is-active" : ""}`}
+                    style={routeTabStyle(index)}
+                    key={item.id}
+                  >
+                    <TabsTrigger
+                      unstyled
+                      className="probe-tab-button"
+                      value={String(index)}
+                      onClick={() => selectProbe(index)}
+                    >
+                      <span className="probe-tab-route-dot" aria-hidden="true" />
+                      <span className="probe-tab-copy">
+                        <strong>{item.probe.city || item.probe.country}</strong>
+                        <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
+                      </span>
+                    </TabsTrigger>
+                  </LiquidGlassSurface>
+                ))}
+              </TabsList>
+            </div>
+          </LiquidGlassSurface>
           <TabsContent value={String(activeIndex)} className="probe-tab-content">
             {renderMap && (
               <ResultMap

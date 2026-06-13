@@ -925,12 +925,16 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
     const activeButton = buttons.find((button) => button.getAttribute("aria-selected") === "true") ?? null;
     const activeSurface = activeButton?.closest(".probe-tab-surface") as HTMLElement | null;
     const activeSurfaceContent = activeSurface?.querySelector(".liquid-glass-content") as HTMLElement | null;
+    const frameSurface = tabs.closest(".probe-tabs-frame-surface") as HTMLElement | null;
+    const frameContent = frameSurface?.querySelector(".probe-tabs-frame") as HTMLElement | null;
     const tabsRect = tabs.getBoundingClientRect();
     const buttonBottom = Math.max(...buttons.map((button) => button.getBoundingClientRect().bottom));
     const firstButtonStyle = buttons[0] ? window.getComputedStyle(buttons[0]) : null;
     const activeButtonStyle = activeButton ? window.getComputedStyle(activeButton) : null;
     const activeSurfaceContentStyle = activeSurfaceContent ? window.getComputedStyle(activeSurfaceContent) : null;
+    const frameContentStyle = frameContent ? window.getComputedStyle(frameContent) : null;
     const styles = window.getComputedStyle(tabs);
+    const radiusValue = (value: string) => Number.parseFloat(value.split(" ")[0] || "0");
     return {
       backgroundColor: styles.backgroundColor,
       borderTopWidth: styles.borderTopWidth,
@@ -948,10 +952,19 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
       activeSurfaceBorderRadius: activeSurfaceContentStyle?.borderRadius ?? "",
       activeSurfaceBoxShadow: activeSurfaceContentStyle?.boxShadow ?? "",
       activeSurfaceClassName: activeSurface?.className ?? "",
+      frameBackgroundColor: frameContentStyle?.backgroundColor ?? "",
+      frameBackgroundImage: frameContentStyle?.backgroundImage ?? "",
+      frameBorderRadius: frameContentStyle?.borderRadius ?? "",
+      frameBorderTopWidth: frameContentStyle?.borderTopWidth ?? "",
+      frameBoxShadow: frameContentStyle?.boxShadow ?? "",
+      frameClassName: frameSurface?.className ?? "",
+      frameRadiusValue: radiusValue(frameContentStyle?.borderRadius ?? "0"),
+      activeSurfaceRadiusValue: radiusValue(activeSurfaceContentStyle?.borderRadius ?? "0"),
       clientWidth: tabs.clientWidth,
       flexWrap: styles.flexWrap,
       overflowX: styles.overflowX,
       paddingBottom: Number.parseFloat(styles.paddingBottom),
+      probeTabsFrameSurfaceCount: document.querySelectorAll(".probe-tabs-frame-surface[data-liquid-glass]").length,
       probeTabsSurfaceCount: document.querySelectorAll(".probe-tabs-surface").length,
       scrollbarColor: styles.scrollbarColor,
       scrollbarWidth: styles.scrollbarWidth,
@@ -965,6 +978,12 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.boxShadow).toBe("none");
   expect(state.probeTabsSurfaceCount).toBe(0);
+  expect(state.probeTabsFrameSurfaceCount).toBe(1);
+  expect(state.frameClassName).toContain("probe-tabs-frame-surface");
+  expect(state.frameBackgroundImage).not.toBe("none");
+  expect(state.frameBorderTopWidth).toBe("1px");
+  expect(state.frameBoxShadow).not.toBe("none");
+  expect(state.frameRadiusValue).toBeGreaterThanOrEqual(state.activeSurfaceRadiusValue);
   expect(state.tabSurfaceCount).toBe(state.tabButtonCount);
   expect(state.activeButtonClassName).toContain("probe-tab-button");
   expect(state.activeButtonClassName).not.toContain("data-[state=active]");
@@ -1519,6 +1538,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const copySurface = copyButton?.closest(".result-command-surface")?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const closeSurface = closeButton?.closest(".result-command-surface")?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
+    const tabsFrame = tabs?.closest(".probe-tabs-frame-surface") as HTMLElement | null;
+    const tabsFrameContent = tabsFrame?.querySelector(".probe-tabs-frame") as HTMLElement | null;
     const routeTabs = Array.from(document.querySelectorAll(".probe-tabs [role='tab']")) as HTMLElement[];
     const activeRouteTab = routeTabs.find((button) => button.getAttribute("aria-selected") === "true") ?? null;
     const activeRouteSurface = activeRouteTab?.closest(".probe-tab-surface") as HTMLElement | null;
@@ -1595,6 +1616,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const actionStyle = headerActions ? window.getComputedStyle(headerActions) : null;
     const activeRouteTabStyle = activeRouteTab ? window.getComputedStyle(activeRouteTab) : null;
     const activeRouteSurfaceStyle = activeRouteSurfaceContent ? window.getComputedStyle(activeRouteSurfaceContent) : null;
+    const tabsFrameStyle = tabsFrameContent ? window.getComputedStyle(tabsFrameContent) : null;
+    const radiusValue = (value: string) => Number.parseFloat(value.split(" ")[0] || "0");
     return {
       documentScroll: doc.scrollWidth,
       documentClient: doc.clientWidth,
@@ -1628,7 +1651,17 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       tabsOverflowX: tabs ? window.getComputedStyle(tabs).overflowX : "",
       tabsScrollWidth: tabs?.scrollWidth ?? 0,
       tabsClientWidth: tabs?.clientWidth ?? 0,
+      tabsFrameStyle: {
+        backgroundColor: tabsFrameStyle?.backgroundColor ?? "",
+        backgroundImage: tabsFrameStyle?.backgroundImage ?? "",
+        borderRadius: tabsFrameStyle?.borderRadius ?? "",
+        borderTopWidth: tabsFrameStyle?.borderTopWidth ?? "",
+        boxShadow: tabsFrameStyle?.boxShadow ?? "",
+        className: tabsFrame?.className ?? "",
+        radiusValue: radiusValue(tabsFrameStyle?.borderRadius ?? "0"),
+      },
       probeTabsSurfaceCount: document.querySelectorAll(".probe-tabs-surface").length,
+      probeTabsFrameSurfaceCount: document.querySelectorAll(".probe-tabs-frame-surface[data-liquid-glass]").length,
       routeTabCount: routeTabs.length,
       routeTabSurfaceCount: document.querySelectorAll(".probe-tabs .probe-tab-surface[data-liquid-glass]").length,
       activeRouteTabStyle: {
@@ -1644,6 +1677,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
         borderRadius: activeRouteSurfaceStyle?.borderRadius ?? "",
         boxShadow: activeRouteSurfaceStyle?.boxShadow ?? "",
         className: activeRouteSurface?.className ?? "",
+        radiusValue: radiusValue(activeRouteSurfaceStyle?.borderRadius ?? "0"),
       },
       mapHeight: mapRect?.height ?? 0,
       tableDisplay: table ? window.getComputedStyle(table).display : "",
@@ -1720,10 +1754,17 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgb(255, 255, 255)");
   expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgba(255, 255, 255, 0.9)");
   expect(state.probeTabsSurfaceCount).toBe(0);
+  expect(state.probeTabsFrameSurfaceCount).toBe(1);
   expect(state.routeTabSurfaceCount).toBe(state.routeTabCount);
   expect(state.tabsBackgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.tabsBorderTopWidth).toBe("0px");
   expect(state.tabsBoxShadow).toBe("none");
+  expect(state.tabsFrameStyle.className).toContain("probe-tabs-frame-surface");
+  expect(state.tabsFrameStyle.backgroundColor).not.toBe("rgb(255, 255, 255)");
+  expect(state.tabsFrameStyle.backgroundImage).not.toBe("none");
+  expect(state.tabsFrameStyle.borderTopWidth).toBe("1px");
+  expect(state.tabsFrameStyle.boxShadow).not.toBe("none");
+  expect(state.tabsFrameStyle.radiusValue).toBeGreaterThanOrEqual(state.activeRouteSurfaceStyle.radiusValue);
   expect(state.activeRouteTabStyle.className).toContain("probe-tab-button");
   expect(state.activeRouteTabStyle.className).not.toContain("data-[state=active]");
   expect(state.activeRouteSurfaceStyle.className).toContain("is-active");

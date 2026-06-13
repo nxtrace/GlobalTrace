@@ -1690,6 +1690,25 @@ tbody tr:hover {
   max-width: 100%;
 }
 
+.probe-tabs-frame-surface,
+.probe-tabs-frame-surface .liquid-glass-package,
+.probe-tabs-frame-surface .liquid-glass-content,
+.probe-tabs-frame-surface .liquid-glass-fallback-content,
+.probe-tabs-frame {
+  border-radius: var(--probe-tabs-frame-radius);
+}
+
+.probe-tabs-frame {
+  display: block;
+  padding: 6px;
+  overflow: hidden;
+  border: 1px solid var(--probe-tabs-frame-border);
+  background: var(--probe-tabs-frame-bg);
+  box-shadow: var(--probe-tabs-frame-shadow);
+  backdrop-filter: blur(18px) saturate(1.12);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+}
+
 .probe-tabs {
   --probe-tabs-bottom-padding: 0px;
   min-width: 0;
@@ -3149,6 +3168,14 @@ pre {
   --liquid-control-shadow:
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
     0 8px 20px rgba(22, 43, 53, 0.08);
+  --probe-tabs-frame-radius: 22px;
+  --probe-tabs-frame-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(35, 184, 255, 0.05) 54%, rgba(139, 92, 246, 0.06)),
+    rgba(255, 255, 255, 0.16);
+  --probe-tabs-frame-border: rgba(255, 255, 255, 0.42);
+  --probe-tabs-frame-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.42) inset,
+    0 5px 16px rgba(33, 50, 58, 0.06);
   --probe-tab-radius: 18px;
   --probe-tab-text: var(--ink);
   --probe-tab-meta-color: var(--ink-muted);
@@ -3166,7 +3193,7 @@ pre {
   --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 48%, rgba(255, 255, 255, 0.64));
   --probe-tab-shadow:
     0 1px 0 rgba(255, 255, 255, 0.46) inset,
-    0 3px 10px rgba(33, 50, 58, 0.05);
+    0 1px 5px rgba(33, 50, 58, 0.03);
   --probe-tab-active-shadow:
     0 1px 0 rgba(255, 255, 255, 0.52) inset,
     0 4px 14px color-mix(in srgb, var(--route-color, var(--accent)) 18%, transparent);
@@ -3279,6 +3306,13 @@ pre {
     0 1px 0 rgba(255, 255, 255, 0.12) inset,
     0 8px 24px rgba(0, 0, 0, 0.3),
     0 0 18px rgba(53, 210, 255, 0.08);
+  --probe-tabs-frame-bg:
+    linear-gradient(135deg, rgba(245, 251, 255, 0.07), rgba(53, 210, 255, 0.05) 54%, rgba(139, 92, 246, 0.08)),
+    rgba(8, 17, 27, 0.42);
+  --probe-tabs-frame-border: rgba(148, 226, 255, 0.18);
+  --probe-tabs-frame-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 5px 18px rgba(0, 0, 0, 0.16);
   --probe-tab-text: rgba(245, 251, 255, 0.96);
   --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
   --probe-tab-surface-bg:
@@ -3295,7 +3329,7 @@ pre {
   --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 50%, rgba(148, 226, 255, 0.28));
   --probe-tab-shadow:
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 3px 10px rgba(0, 0, 0, 0.14);
+    0 1px 5px rgba(0, 0, 0, 0.1);
   --probe-tab-active-shadow:
     0 1px 0 rgba(255, 255, 255, 0.12) inset,
     0 4px 14px color-mix(in srgb, var(--route-color, var(--accent)) 16%, rgba(0, 0, 0, 0.18));
@@ -3409,6 +3443,13 @@ pre {
       0 1px 0 rgba(255, 255, 255, 0.12) inset,
       0 8px 24px rgba(0, 0, 0, 0.3),
       0 0 18px rgba(53, 210, 255, 0.08);
+    --probe-tabs-frame-bg:
+      linear-gradient(135deg, rgba(245, 251, 255, 0.07), rgba(53, 210, 255, 0.05) 54%, rgba(139, 92, 246, 0.08)),
+      rgba(8, 17, 27, 0.42);
+    --probe-tabs-frame-border: rgba(148, 226, 255, 0.18);
+    --probe-tabs-frame-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 5px 18px rgba(0, 0, 0, 0.16);
     --probe-tab-text: rgba(245, 251, 255, 0.96);
     --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
     --probe-tab-surface-bg:
@@ -3425,7 +3466,7 @@ pre {
     --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 50%, rgba(148, 226, 255, 0.28));
     --probe-tab-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 3px 10px rgba(0, 0, 0, 0.14);
+      0 1px 5px rgba(0, 0, 0, 0.1);
     --probe-tab-active-shadow:
       0 1px 0 rgba(255, 255, 255, 0.12) inset,
       0 4px 14px color-mix(in srgb, var(--route-color, var(--accent)) 16%, rgba(0, 0, 0, 0.18));
@@ -3620,6 +3661,14 @@ textarea:hover {
   box-shadow: var(--liquid-inner-shadow);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+.probe-tabs-frame-surface[data-liquid-glass-mode="liquid"] .probe-tabs-frame {
+  border-color: var(--probe-tabs-frame-border);
+  background: var(--probe-tabs-frame-bg);
+  box-shadow: var(--probe-tabs-frame-shadow);
+  backdrop-filter: blur(18px) saturate(1.12);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
 }
 
 .probe-tab-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
