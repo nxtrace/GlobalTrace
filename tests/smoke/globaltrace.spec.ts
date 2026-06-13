@@ -508,10 +508,12 @@ test("shared measurement link shows loading while Globalping responds", async ({
 
   await page.goto("/?measurement=m-smoke");
 
-  await expect(page.getByRole("status", { name: "正在打开分享结果" })).toBeVisible();
   await expect(page.getByRole("dialog", { name: "读取诊断结果" })).toBeVisible();
+  await expect(page.getByRole("status", { name: "正在读取 measurement" })).toBeVisible();
   await expectGlassOverlayStructure(page, "读取诊断结果");
   await expect(page.getByText("正在读取 Globalping measurement，完成后会自动展示结果。")).toBeVisible();
+  await expect(page.getByText("m-smoke")).toBeVisible();
+  await expect(page.locator(".shared-result-loading")).toHaveCount(0);
   await expect(page.locator(".app-shell")).toBeVisible();
 
   releaseMeasurement();
@@ -521,6 +523,37 @@ test("shared measurement link shows loading while Globalping responds", async ({
   await expectBareResultOverlay(page);
   await expect(page.getByRole("link", { name: "打开" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "分享" })).toBeVisible();
+  await expectNoPageOverflow(page);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("created measurement loading dialog can be cancelled", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const consoleErrors = collectConsoleErrors(page);
+  let releaseMeasurement!: () => void;
+  const measurementDelay = new Promise<void>((resolve) => {
+    releaseMeasurement = resolve;
+  });
+  await installMocks(page, { beforeMeasurementResponse: () => measurementDelay });
+
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "开始网络路径诊断" })).toBeVisible();
+  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+
+  await expect(page.getByRole("dialog", { name: "读取诊断结果" })).toBeVisible();
+  await expect(page.getByRole("status", { name: "正在读取 measurement" })).toBeVisible();
+  await expect(page.getByText("正在读取 Globalping measurement，完成后会自动展示结果。")).toBeVisible();
+  await expect(page.locator(".loading-strip")).toHaveCount(0);
+  await expect(page).toHaveURL(/measurement=m-smoke/);
+
+  await page.getByRole("button", { name: "关闭读取诊断结果" }).click();
+  await expect(page.getByRole("dialog", { name: "读取诊断结果" })).toHaveCount(0);
+  await expect(page.getByLabel("probe map")).toBeVisible();
+
+  releaseMeasurement();
+
+  await expect(page.getByRole("dialog", { name: "诊断结果" })).toHaveCount(0);
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toHaveCount(0);
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -978,11 +1011,12 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.boxShadow).toBe("none");
   expect(state.probeTabsSurfaceCount).toBe(0);
-  expect(state.probeTabsFrameSurfaceCount).toBe(1);
+  expect(state.probeTabsFrameSurfaceCount).toBe(0);
   expect(state.frameClassName).toContain("probe-tabs-frame-surface");
-  expect(state.frameBackgroundImage).not.toBe("none");
-  expect(state.frameBorderTopWidth).toBe("1px");
-  expect(state.frameBoxShadow).not.toBe("none");
+  expect(state.frameBackgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.frameBackgroundImage).toBe("none");
+  expect(state.frameBorderTopWidth).toBe("0px");
+  expect(state.frameBoxShadow).toBe("none");
   expect(state.frameRadiusValue).toBeGreaterThanOrEqual(state.activeSurfaceRadiusValue);
   expect(state.tabSurfaceCount).toBe(state.tabButtonCount);
   expect(state.activeButtonClassName).toContain("probe-tab-button");
@@ -1754,16 +1788,16 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgb(255, 255, 255)");
   expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgba(255, 255, 255, 0.9)");
   expect(state.probeTabsSurfaceCount).toBe(0);
-  expect(state.probeTabsFrameSurfaceCount).toBe(1);
+  expect(state.probeTabsFrameSurfaceCount).toBe(0);
   expect(state.routeTabSurfaceCount).toBe(state.routeTabCount);
   expect(state.tabsBackgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.tabsBorderTopWidth).toBe("0px");
   expect(state.tabsBoxShadow).toBe("none");
   expect(state.tabsFrameStyle.className).toContain("probe-tabs-frame-surface");
-  expect(state.tabsFrameStyle.backgroundColor).not.toBe("rgb(255, 255, 255)");
-  expect(state.tabsFrameStyle.backgroundImage).not.toBe("none");
-  expect(state.tabsFrameStyle.borderTopWidth).toBe("1px");
-  expect(state.tabsFrameStyle.boxShadow).not.toBe("none");
+  expect(state.tabsFrameStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.tabsFrameStyle.backgroundImage).toBe("none");
+  expect(state.tabsFrameStyle.borderTopWidth).toBe("0px");
+  expect(state.tabsFrameStyle.boxShadow).toBe("none");
   expect(state.tabsFrameStyle.radiusValue).toBeGreaterThanOrEqual(state.activeRouteSurfaceStyle.radiusValue);
   expect(state.activeRouteTabStyle.className).toContain("probe-tab-button");
   expect(state.activeRouteTabStyle.className).not.toContain("data-[state=active]");

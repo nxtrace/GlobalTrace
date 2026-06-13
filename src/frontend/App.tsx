@@ -64,6 +64,11 @@ type AppRoute = "/" | "/about";
 type TraceLoadSource = "created" | "shared";
 type TraceEnrichmentMode = "worker" | "nexttraceToken";
 
+interface MeasurementLoadingState {
+  source: TraceLoadSource;
+  measurementId?: string;
+}
+
 interface StoredTokenState {
   token: string;
   remembered: boolean;
@@ -105,7 +110,7 @@ export function App() {
   const [result, setResult] = useState<TraceResultResponse | null>(null);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("select");
   const [loading, setLoading] = useState(false);
-  const [sharedLoadingMeasurementId, setSharedLoadingMeasurementId] = useState("");
+  const [measurementLoading, setMeasurementLoading] = useState<MeasurementLoadingState | null>(null);
   const [probeMapReady, setProbeMapReady] = useState(false);
   const [message, setMessage] = useState("");
   const [selectionNotice, setSelectionNotice] = useState("");
@@ -118,7 +123,7 @@ export function App() {
   const mapSelectionLimitManuallyChangedRef = useRef(false);
 
   const finalResult = result?.status === "in-progress" ? null : result;
-  const resultPriority = workspaceMode === "result" || Boolean(sharedLoadingMeasurementId);
+  const resultPriority = workspaceMode === "result" || Boolean(measurementLoading);
   const canSubmit = configReady;
   const deferredFilters = useDeferredValue(filters);
   const filteredProbes = useMemo(() => filterProbes(probes, deferredFilters), [deferredFilters, probes]);
@@ -209,17 +214,16 @@ export function App() {
     const controller = new AbortController();
     pollAbortRef.current = controller;
     setLoading(true);
+    setMeasurementLoading({ source, measurementId });
     if (source === "shared") {
-      setSharedLoadingMeasurementId(measurementId);
-      setWorkspaceMode("result");
+      setWorkspaceMode("select");
       setResult(null);
       setMessage("");
-    } else {
-      setSharedLoadingMeasurementId("");
     }
     try {
       if (enrichmentMode === "worker") {
         const cached = await fetchCachedTrace(measurementId, controller.signal);
+        if (controller.signal.aborted) return;
         if (cached) {
           setResult(cached);
           setMessage("");
@@ -231,6 +235,7 @@ export function App() {
       }
 
       let measurement = await fetchGlobalpingMeasurement(measurementId, nextGlobalpingToken, controller.signal);
+      if (controller.signal.aborted) return;
       let current = mtrMeasurementToTraceResponse(measurement);
       setResult(current);
       let attempts = 0;
@@ -238,6 +243,7 @@ export function App() {
         attempts += 1;
         await sleep(POLL_DELAY_MS, controller.signal);
         measurement = await fetchGlobalpingMeasurement(measurementId, nextGlobalpingToken, controller.signal);
+        if (controller.signal.aborted) return;
         current = mtrMeasurementToTraceResponse(measurement);
         setResult(current);
       }
@@ -251,6 +257,7 @@ export function App() {
         enrichmentMode === "worker"
           ? await enrichTraceAfterGlobalpingCooldown(measurementId, controller.signal)
           : await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       setResult(enriched);
       setMessage("");
       if (enriched.status !== "in-progress") {
@@ -265,9 +272,7 @@ export function App() {
     } finally {
       if (pollAbortRef.current === controller) {
         pollAbortRef.current = null;
-        if (source === "shared") {
-          setSharedLoadingMeasurementId("");
-        }
+        setMeasurementLoading(null);
         setLoading(false);
       }
     }
@@ -321,7 +326,11 @@ export function App() {
     enrichmentMode: TraceEnrichmentMode = "worker",
     activeNexttraceToken = "",
   ) => {
+    pollAbortRef.current?.abort();
+    const controller = new AbortController();
+    pollAbortRef.current = controller;
     setLoading(true);
+    setMeasurementLoading({ source: "created" });
     setMessage("");
     setWorkspaceMode("select");
     try {
@@ -337,11 +346,14 @@ export function App() {
           filters: traceFilters,
         },
         globalpingToken,
+        controller.signal,
       );
+      if (controller.signal.aborted) return;
       createdMeasurementIdRef.current = created.measurementId;
       const url = new URL(window.location.href);
       url.searchParams.set("measurement", created.measurementId);
       window.history.replaceState(null, "", url);
+      setMeasurementLoading({ source: "created", measurementId: created.measurementId });
       await loadTrace(
         created.measurementId,
         true,
@@ -351,9 +363,14 @@ export function App() {
         enrichmentMode,
       );
     } catch (error) {
+      if (isAbortError(error)) return;
       setMessage(userFacingErrorMessage(error, "创建 trace 失败"));
     } finally {
-      setLoading(false);
+      if (pollAbortRef.current === controller) {
+        pollAbortRef.current = null;
+        setMeasurementLoading(null);
+        setLoading(false);
+      }
     }
   }, [filters, globalpingToken, ipVersion, limit, loadTrace, packets, port, probes, protocol, target]);
 
@@ -422,7 +439,7 @@ export function App() {
   const reset = () => {
     setFilters({ magic: "world" });
     setWorkspaceMode("select");
-    setSharedLoadingMeasurementId("");
+    setMeasurementLoading(null);
     setLimit(DEFAULT_PROBE_LIMIT);
     setPort("");
     setPackets(3);
@@ -453,15 +470,18 @@ export function App() {
   }, [finalResult]);
 
   const closeResult = useCallback(() => {
-    if (sharedLoadingMeasurementId) {
-      pollAbortRef.current?.abort();
-      pollAbortRef.current = null;
-      setLoading(false);
-      sharedTraceStartedRef.current = "";
-    }
     setWorkspaceMode("select");
-    setSharedLoadingMeasurementId("");
-  }, [sharedLoadingMeasurementId]);
+  }, []);
+
+  const cancelMeasurementLoading = useCallback(() => {
+    pollAbortRef.current?.abort();
+    pollAbortRef.current = null;
+    setLoading(false);
+    setMeasurementLoading(null);
+    setWorkspaceMode("select");
+    setMessage("");
+    sharedTraceStartedRef.current = "";
+  }, []);
 
   const saveGlobalpingToken = useCallback(() => {
     const trimmed = globalpingTokenDraft.trim();
@@ -531,7 +551,7 @@ export function App() {
     pollAbortRef.current = null;
     window.history.pushState(null, "", "/");
     setWorkspaceMode("select");
-    setSharedLoadingMeasurementId("");
+    setMeasurementLoading(null);
     sharedTraceStartedRef.current = "";
     setMessage("");
     setLoading(false);
@@ -620,13 +640,6 @@ export function App() {
             </Surface>
           )}
 
-          {loading && !sharedLoadingMeasurementId && (
-            <Surface variant="flat" className="loading-strip">
-              <Loader2 size={18} className="spin" />
-              正在读取 measurement，完成后会自动展示结果。
-            </Surface>
-          )}
-
           <div className="workspace-content">
             <div className="map-and-table">
               {probeMapReady ? (
@@ -658,17 +671,21 @@ export function App() {
         </Suspense>
       </GlassOverlay>
 
+      <MeasurementLoadingDialog
+        open={Boolean(measurementLoading)}
+        measurementId={measurementLoading?.measurementId}
+        onCancel={cancelMeasurementLoading}
+      />
+
       <GlassOverlay
-        open={Boolean(sharedLoadingMeasurementId) || (workspaceMode === "result" && Boolean(finalResult))}
-        title={sharedLoadingMeasurementId ? "读取诊断结果" : "诊断结果"}
+        open={workspaceMode === "result" && Boolean(finalResult)}
+        title="诊断结果"
         size="result"
-        chrome={sharedLoadingMeasurementId ? "default" : "bare"}
+        chrome="bare"
         placement="center"
         onClose={closeResult}
       >
-        {sharedLoadingMeasurementId ? (
-          <SharedResultLoading measurementId={sharedLoadingMeasurementId} />
-        ) : finalResult ? (
+        {finalResult ? (
           <Suspense fallback={<ResultsViewFallback />}>
             <ResultsView
               result={finalResult}
@@ -738,18 +755,23 @@ function ResultsViewFallback() {
   );
 }
 
-function SharedResultLoading({ measurementId }: { measurementId: string }) {
+function MeasurementLoadingDialog({
+  open,
+  measurementId,
+  onCancel,
+}: {
+  open: boolean;
+  measurementId?: string;
+  onCancel: () => void;
+}) {
   return (
-    <Surface asChild className="shared-result-loading">
-      <section role="status" aria-live="polite" aria-label="正在打开分享结果">
+    <GlassOverlay open={open} title="读取诊断结果" size="compact" placement="center" onClose={onCancel}>
+      <section className="measurement-loading" role="status" aria-live="polite" aria-label="正在读取 measurement">
         <Loader2 size={24} className="spin" />
-        <div>
-          <h2>正在打开分享结果</h2>
-          <p>正在读取 Globalping measurement，完成后会自动展示结果。</p>
-          <span>{measurementId}</span>
-        </div>
+        <p>正在读取 Globalping measurement，完成后会自动展示结果。</p>
+        {measurementId && <span>{measurementId}</span>}
       </section>
-    </Surface>
+    </GlassOverlay>
   );
 }
 

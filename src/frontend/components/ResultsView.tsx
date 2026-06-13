@@ -214,9 +214,9 @@ export function ResultsView({
         </div>
 
         <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
-          <LiquidGlassSurface variant="toolbar" fullWidth className="probe-tabs-frame-surface">
+          <div className="probe-tabs-frame-surface">
             <div className="probe-tabs-frame">
-              <TabsList className="probe-tabs" aria-label="probe results">
+              <TabsList unstyled className="probe-tabs" aria-label="probe results">
                 {result.results.map((item, index) => (
                   <LiquidGlassSurface
                     variant="tab"
@@ -240,7 +240,7 @@ export function ResultsView({
                 ))}
               </TabsList>
             </div>
-          </LiquidGlassSurface>
+          </div>
           <TabsContent value={String(activeIndex)} className="probe-tab-content">
             {renderMap && (
               <ResultMap

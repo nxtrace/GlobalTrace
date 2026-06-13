@@ -60,7 +60,11 @@ export async function fetchLimits(globalpingToken = ""): Promise<GlobalpingLimit
   };
 }
 
-export async function createTrace(request: TraceCreateRequest, globalpingToken = ""): Promise<TraceCreateResponse> {
+export async function createTrace(
+  request: TraceCreateRequest,
+  globalpingToken = "",
+  signal?: AbortSignal,
+): Promise<TraceCreateResponse> {
   const input = validateTraceCreate(request);
   const response = await fetch(`${GLOBALPING_API_BASE}/v1/measurements`, {
     method: "POST",
@@ -70,6 +74,7 @@ export async function createTrace(request: TraceCreateRequest, globalpingToken =
       ...globalpingAuthHeader(globalpingToken),
     },
     body: JSON.stringify(toGlobalpingMeasurementRequest(input)),
+    signal,
   });
   const body = (await response.json().catch(() => null)) as { id?: string; probesCount?: number } | null;
   if (!response.ok || !body?.id) {

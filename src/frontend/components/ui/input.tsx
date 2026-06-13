@@ -22,11 +22,13 @@ Textarea.displayName = "Textarea";
 
 const NativeSelect = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
   ({ className, ...props }, ref) => (
-    <select
-      ref={ref}
-      className={cn(inputClassName, "cursor-pointer appearance-none pr-8", className)}
-      {...props}
-    />
+    <span className="native-select-control">
+      <select
+        ref={ref}
+        className={cn(inputClassName, "native-select cursor-pointer appearance-none pr-9", className)}
+        {...props}
+      />
+    </span>
   ),
 );
 NativeSelect.displayName = "NativeSelect";

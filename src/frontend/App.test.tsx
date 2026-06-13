@@ -788,13 +788,108 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("status", { name: "正在打开分享结果" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "读取诊断结果" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "正在读取 measurement" })).toBeInTheDocument();
     expect(screen.getByText("正在读取 Globalping measurement，完成后会自动展示结果。")).toBeInTheDocument();
+    expect(screen.getByText("m123")).toBeInTheDocument();
     expect(screen.getByText("网络路径诊断")).toBeInTheDocument();
+    expect(document.querySelector(".shared-result-loading")).toBeNull();
 
     measurementResponse.resolve(json(globalpingMeasurement("finished")));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+  });
+
+  it("uses the same loading dialog for created measurements", async () => {
+    mockApi({ traceStatus: () => "in-progress" });
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+
+    expect(await screen.findByRole("dialog", { name: "读取诊断结果" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "正在读取 measurement" })).toBeInTheDocument();
+    expect(screen.queryByText("正在读取 measurement，完成后会自动展示结果。")).not.toBeInTheDocument();
+    expect(document.querySelector(".loading-strip")).toBeNull();
+  });
+
+  it("cancels created measurement loading without showing late results", async () => {
+    const measurementResponse = deferredResponse();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        if (path === "/api/background") return new Response(null, { status: 204 });
+        if (path === "/api/config") return json({ mapStyleUrl: "about:blank" });
+        if (path === "/api/probes") return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
+        if (path === "https://api.globalping.io/v1/limits") {
+          return json({
+            rateLimit: { measurements: { create: { type: "ip", limit: 250, remaining: 249, reset: 60 } } },
+          });
+        }
+        if (path === "https://api.globalping.io/v1/measurements" && init?.method === "POST") {
+          return json({ id: "m123", probesCount: 1 }, 202);
+        }
+        if (path === "/api/trace/m123") return new Response(null, { status: 204 });
+        if (path === "https://api.globalping.io/v1/measurements/m123") return measurementResponse.promise;
+        if (path === "/api/trace/enrich" && init?.method === "POST") return json(traceResult("finished"));
+        throw new Error(`unexpected fetch: ${path}`);
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+    expect(await screen.findByRole("dialog", { name: "读取诊断结果" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "关闭读取诊断结果" }));
+    expect(screen.queryByRole("dialog", { name: "读取诊断结果" })).not.toBeInTheDocument();
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
+
+    measurementResponse.resolve(json(globalpingMeasurement("finished")));
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "诊断结果" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("cancels shared measurement loading without showing late results", async () => {
+    const measurementResponse = deferredResponse();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input);
+        if (path === "/api/background") return new Response(null, { status: 204 });
+        if (path === "/api/config") return json({ mapStyleUrl: "about:blank" });
+        if (path === "/api/probes") return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
+        if (path === "https://api.globalping.io/v1/limits") {
+          return json({
+            rateLimit: { measurements: { create: { type: "ip", limit: 250, remaining: 249, reset: 60 } } },
+          });
+        }
+        if (path === "/api/trace/m123") return new Response(null, { status: 204 });
+        if (path === "https://api.globalping.io/v1/measurements/m123") return measurementResponse.promise;
+        if (path === "/api/trace/enrich" && init?.method === "POST") return json(traceResult("finished"));
+        throw new Error(`unexpected fetch: ${path}`);
+      }),
+    );
+    window.history.replaceState(null, "", "/?measurement=m123");
+
+    render(<App />);
+
+    expect(await screen.findByRole("dialog", { name: "读取诊断结果" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "关闭读取诊断结果" }));
+    expect(screen.queryByRole("dialog", { name: "读取诊断结果" })).not.toBeInTheDocument();
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
+
+    measurementResponse.resolve(json(globalpingMeasurement("finished")));
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "诊断结果" })).not.toBeInTheDocument();
+    });
   });
 
   it("submits selected IP version and reset restores automatic mode", async () => {

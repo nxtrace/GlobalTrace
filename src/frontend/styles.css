@@ -48,6 +48,9 @@
   --table-row-hover: rgba(55, 115, 105, 0.07);
   --tooltip-bg: rgba(255, 255, 255, 0.88);
   --shadow-panel: 0 1px 1px rgba(31, 44, 40, 0.04), 0 22px 60px rgba(36, 50, 46, 0.12);
+  --filter-panel-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.54),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   --shadow-control: 0 1px 1px rgba(31, 44, 40, 0.05), 0 10px 24px rgba(36, 50, 46, 0.08);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.64);
   --shadow-popover: 0 18px 52px rgba(36, 50, 46, 0.18);
@@ -141,6 +144,9 @@
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.28), 0 18px 42px rgba(0, 0, 0, 0.3);
   --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.3), 0 24px 54px rgba(0, 0, 0, 0.34);
   --shadow-panel: 0 1px 1px rgba(0, 0, 0, 0.3), 0 22px 60px rgba(0, 0, 0, 0.34);
+  --filter-panel-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(114, 220, 255, 0.04);
   --shadow-control: 0 1px 1px rgba(0, 0, 0, 0.28), 0 10px 24px rgba(0, 0, 0, 0.24);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --shadow-popover: 0 18px 52px rgba(0, 0, 0, 0.4);
@@ -228,6 +234,9 @@
     --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.28), 0 18px 42px rgba(0, 0, 0, 0.3);
     --shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.3), 0 24px 54px rgba(0, 0, 0, 0.34);
     --shadow-panel: 0 1px 1px rgba(0, 0, 0, 0.3), 0 22px 60px rgba(0, 0, 0, 0.34);
+    --filter-panel-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 1px rgba(114, 220, 255, 0.04);
     --shadow-control: 0 1px 1px rgba(0, 0, 0, 0.28), 0 10px 24px rgba(0, 0, 0, 0.24);
     --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     --shadow-popover: 0 18px 52px rgba(0, 0, 0, 0.4);
@@ -336,6 +345,8 @@ button {
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .filter-panel-scroll,
@@ -394,7 +405,7 @@ button {
   place-items: center;
   border: 1px solid var(--liquid-control-border);
   background: var(--liquid-control-bg);
-  box-shadow: var(--liquid-control-shadow);
+  box-shadow: var(--panel-action-shadow, var(--liquid-control-shadow));
 }
 
 .panel-action-surface .glass {
@@ -519,6 +530,40 @@ textarea {
     box-shadow 160ms ease,
     background 160ms ease,
     transform 160ms ease;
+}
+
+.native-select-control {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  width: 100%;
+}
+
+.native-select-control::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--ink-muted);
+  border-bottom: 2px solid var(--ink-muted);
+  opacity: 0.82;
+  pointer-events: none;
+  transform: translateY(-65%) rotate(45deg);
+  transition:
+    border-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.native-select-control:hover::after,
+.native-select-control:focus-within::after {
+  border-color: var(--ink);
+  opacity: 0.95;
+}
+
+.native-select {
+  padding-right: 34px;
 }
 
 textarea {
@@ -702,8 +747,10 @@ summary:focus-visible {
 }
 
 .advanced-panel {
+  isolation: isolate;
   padding: 0;
   overflow: clip;
+  background-clip: padding-box;
 }
 
 .advanced-panel summary {
@@ -712,6 +759,8 @@ summary:focus-visible {
   align-items: center;
   gap: 8px;
   padding: 10px 13px;
+  border-radius: calc(18px - 1px);
+  background-clip: padding-box;
   cursor: pointer;
   color: var(--ink-soft);
   font-size: 13px;
@@ -728,11 +777,27 @@ summary:focus-visible {
 
 .advanced-panel[open] summary {
   border-bottom: 1px solid var(--line);
+  border-radius: calc(18px - 1px) calc(18px - 1px) 0 0;
+}
+
+.advanced-panel summary:focus-visible {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.advanced-panel:has(> summary:focus-visible) {
+  box-shadow:
+    var(--shadow-inset),
+    0 0 0 2px var(--focus-ring-soft);
 }
 
 .advanced-panel[open] {
   position: relative;
   z-index: 4;
+}
+
+.advanced-panel:has(.suggestion-popover) {
   overflow: visible;
 }
 
@@ -740,6 +805,7 @@ summary:focus-visible {
   display: grid;
   gap: 12px;
   padding: 12px 13px 13px;
+  border-radius: 0 0 calc(18px - 1px) calc(18px - 1px);
 }
 
 .advanced-panel-body .control-grid,
@@ -993,6 +1059,14 @@ summary:focus-visible {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.1) 42%, rgba(255, 255, 255, 0.28)),
     rgba(255, 255, 255, 0.08);
+  box-shadow: none !important;
+}
+
+.liquid-glass-surface > span[style],
+.liquid-glass-surface > div[style]:not(.liquid-glass-package) {
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.46),
+    inset 0 1px 3px rgba(255, 255, 255, 0.22) !important;
 }
 
 .liquid-glass-surface .glass > div:last-child {
@@ -1579,6 +1653,9 @@ summary:focus-visible {
   border: 1px solid var(--table-border);
   border-radius: 16px;
   background: var(--table-bg);
+  background-clip: padding-box;
+  clip-path: inset(0 round 16px);
+  isolation: isolate;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.24) transparent;
 }
@@ -1601,6 +1678,11 @@ table {
   font-size: 13px;
 }
 
+.table-scroll table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
 th,
 td {
   padding: 10px 9px;
@@ -1614,11 +1696,20 @@ th {
   top: 0;
   z-index: 1;
   background: var(--table-header-bg);
+  background-clip: padding-box;
   color: var(--ink-muted);
   font-size: 12px;
   font-weight: 760;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+.table-scroll thead th:first-child {
+  border-top-left-radius: 15px;
+}
+
+.table-scroll thead th:last-child {
+  border-top-right-radius: 15px;
 }
 
 td {
@@ -1698,15 +1789,39 @@ tbody tr:hover {
   border-radius: var(--probe-tabs-frame-radius);
 }
 
+.probe-tabs-frame-surface {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 .probe-tabs-frame {
   display: block;
-  padding: 6px;
-  overflow: hidden;
-  border: 1px solid var(--probe-tabs-frame-border);
-  background: var(--probe-tabs-frame-bg);
-  box-shadow: var(--probe-tabs-frame-shadow);
-  backdrop-filter: blur(18px) saturate(1.12);
-  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.probe-tabs-frame-surface > span[style],
+.probe-tabs-frame-surface > div[style]:not(.liquid-glass-package) {
+  display: none !important;
+}
+
+.probe-tabs-frame-surface .glass {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.probe-tabs-frame-surface .liquid-glass-content,
+.probe-tabs-frame-surface .liquid-glass-fallback-content {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .probe-tabs {
@@ -1717,6 +1832,12 @@ tbody tr:hover {
   display: flex;
   align-items: stretch;
   gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -1765,6 +1886,7 @@ tbody tr:hover {
   border-color: var(--probe-tab-active-border);
   background: var(--probe-tab-active-bg);
   box-shadow: var(--probe-tab-active-shadow);
+  transform: translateY(-1px);
 }
 
 .probe-tabs::-webkit-scrollbar {
@@ -1842,6 +1964,10 @@ tbody tr:hover {
   outline-offset: -4px;
 }
 
+.probe-tab-surface.is-active .probe-tab-copy strong {
+  color: var(--probe-tab-active-title-color, var(--probe-tab-text));
+}
+
 .probe-tab-meta {
   max-width: 100%;
   overflow: hidden;
@@ -1853,9 +1979,10 @@ tbody tr:hover {
 }
 
 .probe-tab-surface.is-active .probe-tab-route-dot {
+  transform: scale(1.18);
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--route-color, var(--accent)) 24%, transparent),
-    0 0 16px color-mix(in srgb, var(--route-color, var(--accent)) 52%, transparent);
+    0 0 0 4px color-mix(in srgb, var(--route-color, var(--accent)) 30%, transparent),
+    0 0 18px color-mix(in srgb, var(--route-color, var(--accent)) 62%, transparent);
 }
 
 .probe-tab-content {
@@ -2032,6 +2159,35 @@ tbody tr:hover {
 }
 
 .shared-result-loading span {
+  color: var(--ink-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.measurement-loading {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 18px 10px 20px;
+  text-align: center;
+}
+
+.measurement-loading > svg {
+  width: 30px;
+  height: 30px;
+  color: var(--warning);
+}
+
+.measurement-loading p {
+  max-width: 390px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.measurement-loading span {
+  max-width: 100%;
   color: var(--ink-muted);
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -3103,6 +3259,9 @@ pre {
     0 1px 1px rgba(255, 255, 255, 0.72) inset,
     0 10px 26px rgba(33, 50, 58, 0.08),
     0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+  --filter-panel-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.58),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16);
   --shadow-control:
     0 1px 0 rgba(255, 255, 255, 0.72) inset,
     0 7px 18px rgba(32, 52, 64, 0.08);
@@ -3168,14 +3327,14 @@ pre {
   --liquid-control-shadow:
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
     0 8px 20px rgba(22, 43, 53, 0.08);
+  --panel-action-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
   --probe-tabs-frame-radius: 22px;
   --probe-tabs-frame-bg:
     linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(35, 184, 255, 0.05) 54%, rgba(139, 92, 246, 0.06)),
     rgba(255, 255, 255, 0.16);
   --probe-tabs-frame-border: rgba(255, 255, 255, 0.42);
   --probe-tabs-frame-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.42) inset,
-    0 5px 16px rgba(33, 50, 58, 0.06);
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
   --probe-tab-radius: 18px;
   --probe-tab-text: var(--ink);
   --probe-tab-meta-color: var(--ink-muted);
@@ -3186,17 +3345,24 @@ pre {
     linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(35, 184, 255, 0.1) 58%, rgba(139, 92, 246, 0.12)),
     rgba(255, 255, 255, 0.2);
   --probe-tab-active-bg:
-    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 24%, rgba(255, 255, 255, 0.24)), rgba(255, 255, 255, 0.16)),
-    rgba(255, 255, 255, 0.2);
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--route-color, var(--accent)) 72%, rgba(255, 255, 255, 0.24)),
+      color-mix(in srgb, var(--route-color, var(--accent)) 44%, rgba(255, 255, 255, 0.2)) 58%,
+      color-mix(in srgb, var(--route-color, var(--accent)) 12%, rgba(255, 255, 255, 0.3))
+    ),
+    rgba(255, 255, 255, 0.36);
   --probe-tab-border: rgba(255, 255, 255, 0.46);
   --probe-tab-hover-border: rgba(255, 255, 255, 0.62);
-  --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 48%, rgba(255, 255, 255, 0.64));
+  --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 88%, rgba(255, 255, 255, 0.42));
   --probe-tab-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.46) inset,
-    0 1px 5px rgba(33, 50, 58, 0.03);
+    inset 0 1px 0 rgba(255, 255, 255, 0.46);
   --probe-tab-active-shadow:
     0 1px 0 rgba(255, 255, 255, 0.52) inset,
-    0 4px 14px color-mix(in srgb, var(--route-color, var(--accent)) 18%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 76%, transparent),
+    0 10px 22px color-mix(in srgb, var(--route-color, var(--accent)) 28%, transparent);
+  --probe-tab-active-title-color: color-mix(in srgb, var(--route-color, var(--accent)) 86%, var(--ink));
+  --probe-tab-active-meta-color: color-mix(in srgb, var(--route-color, var(--accent)) 58%, var(--ink-soft));
 }
 
 :root[data-theme="dark"] {
@@ -3238,6 +3404,9 @@ pre {
     0 1px 0 rgba(114, 220, 255, 0.1) inset,
     0 12px 34px rgba(0, 0, 0, 0.32),
     0 0 0 1px rgba(114, 220, 255, 0.06) inset;
+  --filter-panel-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0 1px rgba(114, 220, 255, 0.06);
   --shadow-control:
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
     0 8px 22px rgba(0, 0, 0, 0.28),
@@ -3306,13 +3475,13 @@ pre {
     0 1px 0 rgba(255, 255, 255, 0.12) inset,
     0 8px 24px rgba(0, 0, 0, 0.3),
     0 0 18px rgba(53, 210, 255, 0.08);
+  --panel-action-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --probe-tabs-frame-bg:
     linear-gradient(135deg, rgba(245, 251, 255, 0.07), rgba(53, 210, 255, 0.05) 54%, rgba(139, 92, 246, 0.08)),
     rgba(8, 17, 27, 0.42);
   --probe-tabs-frame-border: rgba(148, 226, 255, 0.18);
   --probe-tabs-frame-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 5px 18px rgba(0, 0, 0, 0.16);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --probe-tab-text: rgba(245, 251, 255, 0.96);
   --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
   --probe-tab-surface-bg:
@@ -3328,11 +3497,12 @@ pre {
   --probe-tab-hover-border: rgba(148, 226, 255, 0.32);
   --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 50%, rgba(148, 226, 255, 0.28));
   --probe-tab-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 1px 5px rgba(0, 0, 0, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --probe-tab-active-shadow:
     0 1px 0 rgba(255, 255, 255, 0.12) inset,
-    0 4px 14px color-mix(in srgb, var(--route-color, var(--accent)) 16%, rgba(0, 0, 0, 0.18));
+    0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 26%, rgba(0, 0, 0, 0.08));
+  --probe-tab-active-title-color: var(--probe-tab-text);
+  --probe-tab-active-meta-color: color-mix(in srgb, var(--probe-tab-text) 82%, var(--probe-tab-meta-color));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -3375,6 +3545,9 @@ pre {
       0 1px 0 rgba(114, 220, 255, 0.1) inset,
       0 12px 34px rgba(0, 0, 0, 0.32),
       0 0 0 1px rgba(114, 220, 255, 0.06) inset;
+    --filter-panel-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      inset 0 0 0 1px rgba(114, 220, 255, 0.06);
     --shadow-control:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
       0 8px 22px rgba(0, 0, 0, 0.28),
@@ -3443,13 +3616,13 @@ pre {
       0 1px 0 rgba(255, 255, 255, 0.12) inset,
       0 8px 24px rgba(0, 0, 0, 0.3),
       0 0 18px rgba(53, 210, 255, 0.08);
+    --panel-action-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
     --probe-tabs-frame-bg:
       linear-gradient(135deg, rgba(245, 251, 255, 0.07), rgba(53, 210, 255, 0.05) 54%, rgba(139, 92, 246, 0.08)),
       rgba(8, 17, 27, 0.42);
     --probe-tabs-frame-border: rgba(148, 226, 255, 0.18);
     --probe-tabs-frame-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 5px 18px rgba(0, 0, 0, 0.16);
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
     --probe-tab-text: rgba(245, 251, 255, 0.96);
     --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
     --probe-tab-surface-bg:
@@ -3465,11 +3638,12 @@ pre {
     --probe-tab-hover-border: rgba(148, 226, 255, 0.32);
     --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 50%, rgba(148, 226, 255, 0.28));
     --probe-tab-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 1px 5px rgba(0, 0, 0, 0.1);
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
     --probe-tab-active-shadow:
       0 1px 0 rgba(255, 255, 255, 0.12) inset,
-      0 4px 14px color-mix(in srgb, var(--route-color, var(--accent)) 16%, rgba(0, 0, 0, 0.18));
+      0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 26%, rgba(0, 0, 0, 0.08));
+    --probe-tab-active-title-color: var(--probe-tab-text);
+    --probe-tab-active-meta-color: color-mix(in srgb, var(--probe-tab-text) 82%, var(--probe-tab-meta-color));
   }
 }
 
@@ -3549,6 +3723,10 @@ html.ambient-photo-ready body::before {
   box-shadow: var(--shadow-panel);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
+}
+
+.filter-panel {
+  box-shadow: var(--filter-panel-shadow, var(--shadow-panel));
 }
 
 .app-shell.ambient-photo-ready .filter-panel,
@@ -3664,11 +3842,11 @@ textarea:hover {
 }
 
 .probe-tabs-frame-surface[data-liquid-glass-mode="liquid"] .probe-tabs-frame {
-  border-color: var(--probe-tabs-frame-border);
-  background: var(--probe-tabs-frame-bg);
-  box-shadow: var(--probe-tabs-frame-shadow);
-  backdrop-filter: blur(18px) saturate(1.12);
-  -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .probe-tab-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
@@ -3868,7 +4046,7 @@ textarea:hover {
 
 .probe-tab-surface.is-active .probe-tab-meta,
 .probe-tab-button[data-state="active"] .probe-tab-meta {
-  color: color-mix(in srgb, var(--probe-tab-text) 82%, var(--probe-tab-meta-color));
+  color: var(--probe-tab-active-meta-color, color-mix(in srgb, var(--probe-tab-text) 82%, var(--probe-tab-meta-color)));
 }
 
 .hop-card,

@@ -4,16 +4,24 @@ import { cn } from "@/frontend/lib/utils";
 
 const Tabs = TabsPrimitive.Root;
 
+type TabsListProps = React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> & {
+  unstyled?: boolean;
+};
+
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
+  TabsListProps
+>(({ className, unstyled = false, ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
-    className={cn(
-      "flex w-full gap-2 overflow-x-auto rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] p-2 shadow-[var(--shadow-inset)] backdrop-blur-2xl",
-      className,
-    )}
+    className={
+      unstyled
+        ? className
+        : cn(
+            "flex w-full gap-2 overflow-x-auto rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] p-2 shadow-[var(--shadow-inset)] backdrop-blur-2xl",
+            className,
+          )
+    }
     {...props}
   />
 ));
