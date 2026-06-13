@@ -10,9 +10,20 @@ interface GlassOverlayProps {
   onClose: () => void;
   className?: string;
   size?: "compact" | "about" | "result";
+  chrome?: "default" | "bare";
+  placement?: "center" | "sheet";
 }
 
-export function GlassOverlay({ open, title, children, onClose, className = "", size = "compact" }: GlassOverlayProps) {
+export function GlassOverlay({
+  open,
+  title,
+  children,
+  onClose,
+  className = "",
+  size = "compact",
+  chrome = "default",
+  placement = "center",
+}: GlassOverlayProps) {
   const titleId = useId();
 
   useEffect(() => {
@@ -30,9 +41,26 @@ export function GlassOverlay({ open, title, children, onClose, className = "", s
     if (event.target === event.currentTarget) onClose();
   };
 
+  const overlayClassName = `glass-overlay glass-overlay-${size} glass-overlay-${placement} glass-overlay-chrome-${chrome}`;
+
+  if (chrome === "bare") {
+    return (
+      <div className={overlayClassName} onMouseDown={closeFromBackdrop}>
+        <section
+          className={`glass-overlay-bare-surface ${className}`.trim()}
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+        >
+          {children}
+        </section>
+      </div>
+    );
+  }
+
   return (
-    <div className={`glass-overlay glass-overlay-${size}`} onMouseDown={closeFromBackdrop}>
-      <LiquidGlassSurface variant="panel" fullWidth className={`glass-overlay-surface ${className}`.trim()}>
+    <div className={overlayClassName} onMouseDown={closeFromBackdrop}>
+      <LiquidGlassSurface variant="floatingPanel" fullWidth className={`glass-overlay-surface ${className}`.trim()}>
         <section className="glass-overlay-panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <header className="glass-overlay-header">
             <h2 id={titleId}>{title}</h2>

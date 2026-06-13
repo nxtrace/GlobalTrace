@@ -652,7 +652,7 @@ export function App() {
         </div>
       </main>
 
-      <GlassOverlay open={route === "/about"} title="关于 GlobalTrace" size="about" onClose={navigateHome}>
+      <GlassOverlay open={route === "/about"} title="关于 GlobalTrace" size="about" placement="center" onClose={navigateHome}>
         <Suspense fallback={<AboutPageFallback />}>
           <AboutPage onBack={navigateHome} backgroundImage={backgroundImage} />
         </Suspense>
@@ -662,6 +662,8 @@ export function App() {
         open={Boolean(sharedLoadingMeasurementId) || (workspaceMode === "result" && Boolean(finalResult))}
         title={sharedLoadingMeasurementId ? "读取诊断结果" : "诊断结果"}
         size="result"
+        chrome={sharedLoadingMeasurementId ? "default" : "bare"}
+        placement="center"
         onClose={closeResult}
       >
         {sharedLoadingMeasurementId ? (

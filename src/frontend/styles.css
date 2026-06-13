@@ -380,6 +380,25 @@ button {
   gap: 4px;
 }
 
+.panel-action-surface,
+.panel-action-surface .liquid-glass-content,
+.panel-action-surface .liquid-glass-fallback-content {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+}
+
+.panel-action-surface .liquid-glass-content,
+.panel-action-surface .liquid-glass-fallback-content {
+  display: grid;
+  place-items: center;
+}
+
+.panel-action-surface button {
+  width: 100%;
+  height: 100%;
+}
+
 .brand-home-link {
   display: block;
   min-width: 0;
@@ -705,16 +724,6 @@ summary:focus-visible {
   overflow: visible;
 }
 
-.advanced-params-trigger-surface {
-  width: 100%;
-}
-
-.advanced-params-trigger {
-  width: 100%;
-  justify-content: flex-start;
-  border-radius: 14px;
-}
-
 .advanced-panel-body {
   display: grid;
   gap: 12px;
@@ -1007,10 +1016,34 @@ summary:focus-visible {
   border-radius: 999px;
 }
 
+.liquid-glass-iconButton,
+.liquid-glass-iconButton .liquid-glass-content,
+.liquid-glass-iconButton .liquid-glass-fallback-content {
+  border-radius: 999px;
+}
+
 .liquid-glass-toolbar,
 .liquid-glass-toolbar .liquid-glass-content,
 .liquid-glass-toolbar .liquid-glass-fallback-content {
   border-radius: 18px;
+}
+
+.liquid-glass-floatingPanel,
+.liquid-glass-floatingPanel .liquid-glass-content,
+.liquid-glass-floatingPanel .liquid-glass-fallback-content {
+  border-radius: 24px;
+}
+
+.liquid-glass-metric,
+.liquid-glass-metric .liquid-glass-content,
+.liquid-glass-metric .liquid-glass-fallback-content {
+  border-radius: 16px;
+}
+
+.liquid-glass-tab,
+.liquid-glass-tab .liquid-glass-content,
+.liquid-glass-tab .liquid-glass-fallback-content {
+  border-radius: 16px;
 }
 
 .run-action-surface {
@@ -1168,6 +1201,18 @@ summary:focus-visible {
   font-size: 13px;
   font-weight: 720;
   box-shadow: var(--shadow-control);
+}
+
+.result-command-surface,
+.result-command-surface .liquid-glass-content,
+.result-command-surface .liquid-glass-fallback-content {
+  min-width: 0;
+  border-radius: 999px;
+}
+
+.result-command-surface .liquid-glass-content,
+.result-command-surface .liquid-glass-fallback-content {
+  display: block;
 }
 
 .result-command-button:hover {
@@ -1492,6 +1537,21 @@ summary:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.results-section-surface,
+.results-section-surface .liquid-glass-package,
+.results-section-surface .liquid-glass-content,
+.results-section-surface .liquid-glass-fallback-content {
+  width: 100%;
+}
+
+.results-section-surface .liquid-glass-content,
+.results-section-surface .liquid-glass-fallback-content {
+  display: block;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .table-scroll {
   max-width: 100%;
   max-height: 370px;
@@ -1610,6 +1670,18 @@ tbody tr:hover {
   max-width: 100%;
 }
 
+.probe-tabs-surface,
+.probe-tabs-surface .liquid-glass-content,
+.probe-tabs-surface .liquid-glass-fallback-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.probe-tabs-surface .liquid-glass-content,
+.probe-tabs-surface .liquid-glass-fallback-content {
+  display: block;
+}
+
 .probe-tabs {
   --probe-tabs-bottom-padding: 8px;
   --probe-tabs-scrollbar-color: color-mix(in srgb, var(--ink-muted) 58%, transparent);
@@ -1724,8 +1796,22 @@ tbody tr:hover {
   gap: 8px;
 }
 
+.metric-surface,
+.metric-surface .liquid-glass-content,
+.metric-surface .liquid-glass-fallback-content {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.metric-surface .liquid-glass-content,
+.metric-surface .liquid-glass-fallback-content {
+  display: block;
+}
+
 .metric {
   min-width: 0;
+  height: 100%;
   display: grid;
   gap: 2px;
   padding: 7px 9px;
@@ -1885,16 +1971,35 @@ tbody tr:hover {
     rgba(0, 0, 0, 0.12);
 }
 
+.glass-overlay-center {
+  place-items: center;
+}
+
+.glass-overlay-sheet {
+  align-items: end;
+}
+
 .glass-overlay-surface {
   width: min(560px, calc(100vw - 32px));
   max-height: calc(100svh - 32px);
+}
+
+.glass-overlay-bare-surface {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px);
+  min-width: 0;
+  overflow: auto;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
 }
 
 .glass-overlay-about .glass-overlay-surface {
   width: min(980px, calc(100vw - 32px));
 }
 
-.glass-overlay-result .glass-overlay-surface {
+.glass-overlay-result .glass-overlay-surface,
+.glass-overlay-result .glass-overlay-bare-surface {
   width: min(1200px, calc(100vw - 32px));
 }
 
@@ -1949,6 +2054,20 @@ tbody tr:hover {
 
 .glass-overlay-result .glass-overlay-body {
   padding: 12px;
+}
+
+.glass-overlay-result.glass-overlay-chrome-bare {
+  background:
+    linear-gradient(135deg, rgba(5, 10, 15, 0.12), rgba(5, 10, 15, 0.04)),
+    rgba(0, 0, 0, 0.08);
+}
+
+.glass-overlay-result .glass-overlay-bare-surface {
+  max-height: calc(100svh - 32px);
+}
+
+.glass-overlay-result .glass-overlay-bare-surface > .results-section-surface {
+  width: 100%;
 }
 
 .glass-overlay-result .results-section,
@@ -2384,13 +2503,18 @@ pre {
   }
 
   .glass-overlay {
-    align-items: end;
     padding: 10px;
+  }
+
+  .glass-overlay-sheet {
+    align-items: end;
   }
 
   .glass-overlay-surface,
   .glass-overlay-about .glass-overlay-surface,
-  .glass-overlay-result .glass-overlay-surface {
+  .glass-overlay-result .glass-overlay-surface,
+  .glass-overlay-bare-surface,
+  .glass-overlay-result .glass-overlay-bare-surface {
     width: 100%;
     max-height: calc(100svh - 20px);
   }
@@ -2403,6 +2527,10 @@ pre {
   }
 
   .glass-overlay-panel {
+    border-radius: 20px;
+  }
+
+  .glass-overlay-sheet .glass-overlay-panel {
     border-radius: 20px 20px 0 0;
   }
 
@@ -2411,6 +2539,7 @@ pre {
   }
 
   .glass-overlay-result .glass-overlay-surface,
+  .glass-overlay-result .glass-overlay-bare-surface,
   .glass-overlay-result .glass-overlay-surface .liquid-glass-package,
   .glass-overlay-result .glass-overlay-surface .liquid-glass-content,
   .glass-overlay-result .glass-overlay-surface .liquid-glass-fallback-content,
@@ -2792,6 +2921,9 @@ pre {
     grid-column: 1 / -1;
   }
 
+  .results-section .result-command-surface,
+  .results-section .result-command-surface .liquid-glass-content,
+  .results-section .result-command-surface .liquid-glass-fallback-content,
   .results-section .result-command-button {
     width: 100%;
   }
@@ -3302,6 +3434,43 @@ textarea:hover {
   -webkit-backdrop-filter: none;
 }
 
+.panel-action-surface button,
+.result-command-surface .result-command-button {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.metric-surface[data-liquid-glass-mode="liquid"] .metric {
+  border-color: var(--liquid-inner-border);
+  background: var(--liquid-inner-bg);
+  box-shadow: var(--liquid-inner-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.probe-tabs-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+  border-color: var(--liquid-inner-border);
+  background: var(--liquid-toolbar-bg);
+  box-shadow: var(--liquid-toolbar-shadow);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.probe-tabs-surface[data-liquid-glass-mode="liquid"] .probe-tabs {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.results-section-surface[data-liquid-glass-mode="liquid"] .results-section {
+  border-color: var(--liquid-inner-border);
+  background: var(--liquid-inner-bg);
+  box-shadow: var(--shadow-panel);
+}
+
 .app-shell.ambient-photo-ready .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
 .app-shell.ambient-photo-ready .run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
 .app-shell.ambient-photo-ready .attribution-glass-surface[data-liquid-glass-mode="liquid"] .attribution-panel,
@@ -3309,6 +3478,11 @@ textarea:hover {
   background: var(--photo-liquid-panel-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+}
+
+.app-shell.ambient-photo-ready .metric-surface[data-liquid-glass-mode="liquid"] .metric,
+.app-shell.ambient-photo-ready .results-section-surface[data-liquid-glass-mode="liquid"] .results-section {
+  background: var(--photo-liquid-panel-bg);
 }
 
 .status-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
@@ -3418,13 +3592,13 @@ textarea:hover {
   -webkit-backdrop-filter: blur(18px) saturate(1.14);
 }
 
-.metric:nth-child(3n + 2) {
+.metric-surface:nth-child(3n + 2) .metric {
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(139, 92, 246, 0.1) 58%, rgba(249, 115, 22, 0.08)),
     var(--table-bg);
 }
 
-.metric:nth-child(3n) {
+.metric-surface:nth-child(3n) .metric {
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(249, 115, 22, 0.1) 58%, rgba(35, 184, 255, 0.08)),
     var(--table-bg);
@@ -3446,6 +3620,27 @@ textarea:hover {
   box-shadow: var(--shadow-inset);
   backdrop-filter: blur(20px) saturate(1.16);
   -webkit-backdrop-filter: blur(20px) saturate(1.16);
+}
+
+.probe-tabs-surface .liquid-glass-content,
+.probe-tabs-surface .liquid-glass-fallback-content {
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 5px 6px 0;
+  background: var(--glass-bg);
+  box-shadow: var(--shadow-inset);
+  backdrop-filter: blur(20px) saturate(1.16);
+  -webkit-backdrop-filter: blur(20px) saturate(1.16);
+}
+
+.probe-tabs-surface .probe-tabs {
+  border: 0;
+  border-radius: 0;
+  padding: 0 0 var(--probe-tabs-bottom-padding);
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .probe-tabs button {
@@ -3475,8 +3670,8 @@ textarea:hover {
 }
 
 :root[data-theme="dark"] .metric,
-:root[data-theme="dark"] .metric:nth-child(3n + 2),
-:root[data-theme="dark"] .metric:nth-child(3n),
+:root[data-theme="dark"] .metric-surface:nth-child(3n + 2) .metric,
+:root[data-theme="dark"] .metric-surface:nth-child(3n) .metric,
 :root[data-theme="dark"] .map-status {
   background:
     linear-gradient(145deg, rgba(53, 210, 255, 0.1), rgba(139, 92, 246, 0.09) 56%, rgba(249, 115, 22, 0.07)),
@@ -3485,8 +3680,8 @@ textarea:hover {
 
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] .metric,
-  :root[data-theme="system"] .metric:nth-child(3n + 2),
-  :root[data-theme="system"] .metric:nth-child(3n),
+  :root[data-theme="system"] .metric-surface:nth-child(3n + 2) .metric,
+  :root[data-theme="system"] .metric-surface:nth-child(3n) .metric,
   :root[data-theme="system"] .map-status {
     background:
       linear-gradient(145deg, rgba(53, 210, 255, 0.1), rgba(139, 92, 246, 0.09) 56%, rgba(249, 115, 22, 0.07)),
@@ -3532,4 +3727,19 @@ html.liquid-glass-force-fallback .liquid-glass-content,
 html.liquid-glass-force-fallback .liquid-glass-fallback-content {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+.result-map-toolbar-surface .liquid-glass-content,
+.result-map-toolbar-surface .liquid-glass-fallback-content {
+  border-style: solid;
+  border-width: 1px;
+  border-color: var(--control-border);
+  background: var(--control-bg);
+  box-shadow: var(--shadow-control);
+}
+
+.result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+  border-color: var(--liquid-inner-border);
+  background: var(--liquid-toolbar-bg);
+  box-shadow: var(--liquid-toolbar-shadow);
 }

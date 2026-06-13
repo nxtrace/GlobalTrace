@@ -159,7 +159,33 @@ describe("LiquidGlassSurface", () => {
     expect(screen.getByText("Panel content").closest("[data-liquid-glass]")).toHaveClass("liquid-glass-panel");
   });
 
+  it.each(["iconButton", "floatingPanel", "metric", "tab"] as const)(
+    "exposes the %s variant class for targeted glass surfaces",
+    (variant) => {
+      render(
+        <LiquidGlassSurface variant={variant}>
+          <span>Targeted content</span>
+        </LiquidGlassSurface>,
+      );
+
+      expect(screen.getByText("Targeted content").closest("[data-liquid-glass]")).toHaveClass(`liquid-glass-${variant}`);
+    },
+  );
+
   it.each([
+    [
+      "iconButton",
+      {
+        displacementScale: 62,
+        blurAmount: 0.058,
+        saturation: 148,
+        aberrationIntensity: 1.95,
+        elasticity: 0.22,
+        cornerRadius: 999,
+        overLight: true,
+        mode: "standard",
+      },
+    ],
     [
       "button",
       {
@@ -174,6 +200,19 @@ describe("LiquidGlassSurface", () => {
       },
     ],
     [
+      "tab",
+      {
+        displacementScale: 42,
+        blurAmount: 0.046,
+        saturation: 144,
+        aberrationIntensity: 1.45,
+        elasticity: 0.12,
+        cornerRadius: 999,
+        overLight: false,
+        mode: "standard",
+      },
+    ],
+    [
       "toolbar",
       {
         displacementScale: 38,
@@ -182,6 +221,32 @@ describe("LiquidGlassSurface", () => {
         aberrationIntensity: 1.35,
         elasticity: 0.1,
         cornerRadius: 18,
+        overLight: false,
+        mode: "standard",
+      },
+    ],
+    [
+      "metric",
+      {
+        displacementScale: 36,
+        blurAmount: 0.042,
+        saturation: 144,
+        aberrationIntensity: 1.3,
+        elasticity: 0.1,
+        cornerRadius: 16,
+        overLight: false,
+        mode: "standard",
+      },
+    ],
+    [
+      "floatingPanel",
+      {
+        displacementScale: 34,
+        blurAmount: 0.048,
+        saturation: 144,
+        aberrationIntensity: 1.25,
+        elasticity: 0.09,
+        cornerRadius: 24,
         overLight: false,
         mode: "standard",
       },

@@ -124,6 +124,10 @@ describe("FilterPanel", () => {
     expect(screen.getByRole("link", { name: "Globalping" })).toHaveAttribute("href", "https://globalping.io/");
     expect(screen.getByRole("link", { name: "NextTrace" })).toHaveAttribute("href", "https://www.nxtrace.org/");
     expect(screen.queryByRole("link", { name: "GlobalTrace GitHub" })).not.toBeInTheDocument();
+    const advancedParamsButton = screen.getByRole("button", { name: "打开高级参数" });
+    expect(advancedParamsButton.closest(".panel-title-actions")).not.toBeNull();
+    expect(advancedParamsButton.closest("[data-liquid-glass]")).toHaveClass("liquid-glass-iconButton");
+    expect(document.querySelector(".advanced-params-trigger-surface")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(onReset).toHaveBeenCalledTimes(1);
@@ -141,6 +145,8 @@ describe("FilterPanel", () => {
 
     openAdvancedParams();
     const advancedDialog = screen.getByRole("dialog", { name: "高级参数" });
+    expect(advancedDialog.closest(".glass-overlay-center")).not.toBeNull();
+    expect(advancedDialog.closest(".glass-overlay-sheet")).toBeNull();
     expect(within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
     expect(within(advancedDialog).getByLabelText("Globalping Token")).toBeVisible();
     expect(within(advancedDialog).getByText("未使用 Globalping Token")).toBeVisible();

@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
+import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, Settings, ShieldCheck, Sun } from "lucide-react";
 import { compactText, normalizeAsn, type FilterChip, type ProbeFilterSuggestions } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import { themeModeLabel, type ThemeMode } from "../theme";
@@ -124,19 +124,42 @@ export function FilterPanel(props: FilterPanelProps) {
               <p>Globalping x NextTrace 的全球路由追踪</p>
             </a>
             <div className="panel-title-actions">
-              <Button
-                variant="ghost"
-                size="icon"
-                type="button"
-                onClick={props.onCycleThemeMode}
-                title={`主题：${themeModeLabel(props.themeMode)}`}
-                aria-label={`主题：${themeModeLabel(props.themeMode)}`}
-              >
-                <ThemeIcon mode={props.themeMode} />
-              </Button>
-              <Button variant="ghost" size="icon" type="button" onClick={props.onReset} title="重置筛选" aria-label="重置筛选">
-                <RotateCcw size={18} />
-              </Button>
+              <LiquidGlassSurface variant="iconButton" interactive className="panel-action-surface">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  type="button"
+                  onClick={props.onCycleThemeMode}
+                  title={`主题：${themeModeLabel(props.themeMode)}`}
+                  aria-label={`主题：${themeModeLabel(props.themeMode)}`}
+                >
+                  <ThemeIcon mode={props.themeMode} />
+                </Button>
+              </LiquidGlassSurface>
+              <LiquidGlassSurface variant="iconButton" interactive className="panel-action-surface">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  type="button"
+                  onClick={openAdvancedParams}
+                  title="高级参数"
+                  aria-label="打开高级参数"
+                >
+                  <Settings size={18} />
+                </Button>
+              </LiquidGlassSurface>
+              <LiquidGlassSurface variant="iconButton" interactive className="panel-action-surface">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  type="button"
+                  onClick={props.onReset}
+                  title="重置筛选"
+                  aria-label="重置筛选"
+                >
+                  <RotateCcw size={18} />
+                </Button>
+              </LiquidGlassSurface>
             </div>
           </div>
 
@@ -308,21 +331,14 @@ export function FilterPanel(props: FilterPanelProps) {
             </details>
           </Surface>
 
-          <LiquidGlassSurface variant="panel" fullWidth className="advanced-params-trigger-surface">
-            <Button
-              variant="ghost"
-              size="lg"
-              className="advanced-params-trigger"
-              type="button"
-              onClick={openAdvancedParams}
-              aria-label="打开高级参数"
-            >
-              <SlidersHorizontal size={16} />
-              高级参数
-            </Button>
-          </LiquidGlassSurface>
-
-          <GlassOverlay open={advancedParamsOpen} title="高级参数" size="compact" onClose={() => setAdvancedParamsOpen(false)}>
+          <GlassOverlay
+            open={advancedParamsOpen}
+            title="高级参数"
+            size="compact"
+            chrome="default"
+            placement="center"
+            onClose={() => setAdvancedParamsOpen(false)}
+          >
             <AdvancedParamsPanel
               globalpingTokenStatusId={globalpingTokenStatusId}
               nexttraceTokenStatusId={nexttraceTokenStatusId}

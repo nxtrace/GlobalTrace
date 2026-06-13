@@ -17,7 +17,7 @@ interface LiquidGlassPreferenceProviderProps {
 interface LiquidGlassSurfaceProps {
   children: ReactNode;
   className?: string;
-  variant?: "button" | "toolbar" | "chip" | "panel";
+  variant?: "button" | "toolbar" | "chip" | "panel" | "iconButton" | "floatingPanel" | "metric" | "tab";
   fullWidth?: boolean;
   interactive?: boolean;
   disabled?: boolean;
@@ -196,6 +196,19 @@ function supportsGlassEffects(): boolean {
 }
 
 function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["variant"]>) {
+  if (variant === "iconButton") {
+    return {
+      displacementScale: 62,
+      blurAmount: 0.058,
+      saturation: 148,
+      aberrationIntensity: 1.95,
+      elasticity: 0.22,
+      cornerRadius: 999,
+      overLight: true,
+      mode: "standard" as const,
+    };
+  }
+
   if (variant === "button") {
     return {
       displacementScale: 56,
@@ -209,6 +222,19 @@ function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["var
     };
   }
 
+  if (variant === "tab") {
+    return {
+      displacementScale: 42,
+      blurAmount: 0.046,
+      saturation: 144,
+      aberrationIntensity: 1.45,
+      elasticity: 0.12,
+      cornerRadius: 999,
+      overLight: false,
+      mode: "standard" as const,
+    };
+  }
+
   if (variant === "toolbar") {
     return {
       displacementScale: 38,
@@ -217,6 +243,32 @@ function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["var
       aberrationIntensity: 1.35,
       elasticity: 0.1,
       cornerRadius: 18,
+      overLight: false,
+      mode: "standard" as const,
+    };
+  }
+
+  if (variant === "metric") {
+    return {
+      displacementScale: 36,
+      blurAmount: 0.042,
+      saturation: 144,
+      aberrationIntensity: 1.3,
+      elasticity: 0.1,
+      cornerRadius: 16,
+      overLight: false,
+      mode: "standard" as const,
+    };
+  }
+
+  if (variant === "floatingPanel") {
+    return {
+      displacementScale: 34,
+      blurAmount: 0.048,
+      saturation: 144,
+      aberrationIntensity: 1.25,
+      elasticity: 0.09,
+      cornerRadius: 24,
       overLight: false,
       mode: "standard" as const,
     };

@@ -239,6 +239,11 @@ describe("ResultsView", () => {
     expect(within(table).getByText("Google LLC / Google")).toBeInTheDocument();
     expect(within(table).getByText("美国，加利福尼亚，山景城")).toBeInTheDocument();
     expect(screen.getByText("raw output")).toBeInTheDocument();
+    expect(document.querySelector(".results-section-surface[data-liquid-glass]")).not.toBeNull();
+    expect(screen.getByLabelText("trace summary").querySelectorAll(".metric-surface[data-liquid-glass]").length).toBeGreaterThan(0);
+    expect(document.querySelector(".probe-tabs-surface[data-liquid-glass]")).not.toBeNull();
+    expect(document.querySelector(".hop-table-scroll[data-liquid-glass]")).toBeNull();
+    expect(document.querySelector(".raw-output[data-liquid-glass]")).toBeNull();
   });
 
   it("renders target metrics from the active resolved destination hop", () => {
@@ -446,8 +451,12 @@ describe("ResultsView", () => {
     const closeButton = within(headerActions).getByRole("button", { name: "关闭结果" });
     const twoDimensionalButton = screen.getByRole("button", { name: "切换结果地图到 2D" });
     const threeDimensionalButton = screen.getByRole("button", { name: "切换结果地图到 3D" });
-    expect(headerActions.children[1]).toBe(copyButton);
-    expect(headerActions.children[2]).toBe(closeButton);
+    expect(headerActions.children[1]).toContainElement(copyButton);
+    expect(headerActions.children[2]).toContainElement(closeButton);
+    expect(headerActions.children[1]).toHaveClass("result-command-surface");
+    expect(headerActions.children[2]).toHaveClass("result-command-surface");
+    expect(copyButton.closest("[data-liquid-glass]")).toHaveClass("liquid-glass-button");
+    expect(closeButton.closest("[data-liquid-glass]")).toHaveClass("liquid-glass-button");
     expect(copyButton).toHaveClass("result-command-button");
     expect(closeButton).toHaveClass("result-command-button");
     expect(twoDimensionalButton).toHaveClass("result-view-button");

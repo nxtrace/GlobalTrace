@@ -146,7 +146,11 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123", {}, { timeout: 3_000 })).toBeInTheDocument();
     expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "诊断结果" })).toBeInTheDocument();
+    const resultDialog = screen.getByRole("dialog", { name: "诊断结果" });
+    expect(resultDialog).toHaveClass("glass-overlay-bare-surface");
+    expect(document.querySelector(".glass-overlay-result .glass-overlay-header")).toBeNull();
+    expect(document.querySelector(".glass-overlay-result .glass-overlay-body")).toBeNull();
+    expect(document.querySelector(".glass-overlay-result .glass-overlay-panel")).toBeNull();
     expect(screen.getByText("projection:mercator")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 3D" }));

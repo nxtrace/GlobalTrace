@@ -170,67 +170,73 @@ export function ResultsView({
   const summary = resultSummary(result, active);
 
   return (
-    <Surface asChild className="results-section">
-      <section>
-      <div className="section-header">
-        <div>
-          <h2>{result.target}</h2>
-          <p>
-            {result.status} · {result.probesCount} probes · {result.measurementId}
-          </p>
-        </div>
-        <div className="result-header-actions">
-          {renderMap && <ResultMapToolbar mapProjection={mapProjection} onMapProjectionChange={onMapProjectionChange} />}
-          <ShareButton measurementId={result.measurementId} />
-          {onClose && (
-            <Button
-              variant="glass"
-              size="sm"
-              className="result-command-button"
-              type="button"
-              onClick={onClose}
-              title="关闭结果"
-              aria-label="关闭结果"
-            >
-              <X size={16} />
-              关闭结果
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="result-metrics" aria-label="trace summary">
-        {summary.map((metric) => (
-          <div className="metric" key={metric.label}>
-            <span>{metric.label}</span>
-            <strong>{metric.value}</strong>
+    <LiquidGlassSurface variant="floatingPanel" fullWidth className="results-section-surface">
+      <section className="results-section">
+        <div className="section-header">
+          <div>
+            <h2>{result.target}</h2>
+            <p>
+              {result.status} · {result.probesCount} probes · {result.measurementId}
+            </p>
           </div>
-        ))}
-        <GeoIpMetric result={result} />
-      </div>
+          <div className="result-header-actions">
+            {renderMap && <ResultMapToolbar mapProjection={mapProjection} onMapProjectionChange={onMapProjectionChange} />}
+            <ShareButton measurementId={result.measurementId} />
+            {onClose && (
+              <LiquidGlassSurface variant="button" interactive className="result-command-surface">
+                <Button
+                  variant="glass"
+                  size="sm"
+                  className="result-command-button"
+                  type="button"
+                  onClick={onClose}
+                  title="关闭结果"
+                  aria-label="关闭结果"
+                >
+                  <X size={16} />
+                  关闭结果
+                </Button>
+              </LiquidGlassSurface>
+            )}
+          </div>
+        </div>
 
-      <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
-        <TabsList className="probe-tabs" aria-label="probe results">
-          {result.results.map((item, index) => (
-            <TabsTrigger key={item.id} value={String(index)} style={routeTabStyle(index)} onClick={() => selectProbe(index)}>
-              <span className="probe-tab-route-dot" aria-hidden="true" />
-              <span className="probe-tab-copy">
-                <strong>{item.probe.city || item.probe.country}</strong>
-                <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
-              </span>
-            </TabsTrigger>
+        <div className="result-metrics" aria-label="trace summary">
+          {summary.map((metric) => (
+            <LiquidGlassSurface variant="metric" fullWidth className="metric-surface" key={metric.label}>
+              <div className="metric">
+                <span>{metric.label}</span>
+                <strong>{metric.value}</strong>
+              </div>
+            </LiquidGlassSurface>
           ))}
-        </TabsList>
-        <TabsContent value={String(activeIndex)} className="probe-tab-content">
-          {renderMap && (
-            <ResultMap
-              data={mapData}
-              mapStyleUrl={mapStyleUrl}
-              mapProjection={mapProjection}
-              selectedRouteNodeId={selectedRouteNodeId}
-              mapFocusRequest={mapFocusRequest}
-            />
-          )}
+          <GeoIpMetric result={result} />
+        </div>
+
+        <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
+          <LiquidGlassSurface variant="tab" fullWidth className="probe-tabs-surface">
+            <TabsList className="probe-tabs" aria-label="probe results">
+              {result.results.map((item, index) => (
+                <TabsTrigger key={item.id} value={String(index)} style={routeTabStyle(index)} onClick={() => selectProbe(index)}>
+                  <span className="probe-tab-route-dot" aria-hidden="true" />
+                  <span className="probe-tab-copy">
+                    <strong>{item.probe.city || item.probe.country}</strong>
+                    <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </LiquidGlassSurface>
+          <TabsContent value={String(activeIndex)} className="probe-tab-content">
+            {renderMap && (
+              <ResultMap
+                data={mapData}
+                mapStyleUrl={mapStyleUrl}
+                mapProjection={mapProjection}
+                selectedRouteNodeId={selectedRouteNodeId}
+                mapFocusRequest={mapFocusRequest}
+              />
+            )}
 
           {result.status === "in-progress" && (
             <Surface variant="flat" className="polling-state">
@@ -249,10 +255,10 @@ export function ResultsView({
           ) : (
             <p className="muted">暂无 probe result。</p>
           )}
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
       </section>
-    </Surface>
+    </LiquidGlassSurface>
   );
 }
 
@@ -314,17 +320,19 @@ function ShareButton({ measurementId }: { measurementId: string }) {
   };
 
   return (
-    <Button
-      variant="glass"
-      size="sm"
-      className="result-command-button"
-      type="button"
-      onClick={copy}
-      title="分享诊断链接"
-    >
-      <Share2 size={16} />
-      {copied ? "已复制" : "分享"}
-    </Button>
+    <LiquidGlassSurface variant="button" interactive className="result-command-surface">
+      <Button
+        variant="glass"
+        size="sm"
+        className="result-command-button"
+        type="button"
+        onClick={copy}
+        title="分享诊断链接"
+      >
+        <Share2 size={16} />
+        {copied ? "已复制" : "分享"}
+      </Button>
+    </LiquidGlassSurface>
   );
 }
 
@@ -468,16 +476,18 @@ function HopTable({
 function GeoIpMetric({ result }: { result: TraceResultResponse }) {
   const hasErrors = result.enrichment.errors.length > 0;
   return (
-    <div className={`metric geoip ${result.enrichment.status}`} aria-label="GeoIP enrichment status">
-      <span>GeoIP</span>
-      <strong className="geoip-value">
-        <b>{enrichmentLabel(result.enrichment.status)}</b>
-        <small>
-          cache {result.enrichment.cached} · fetch {result.enrichment.fetched}
-        </small>
-      </strong>
-      {hasErrors && <span className="metric-detail notice-text">{enrichmentErrorSummary(result.enrichment.errors)}</span>}
-    </div>
+    <LiquidGlassSurface variant="metric" fullWidth className="metric-surface">
+      <div className={`metric geoip ${result.enrichment.status}`} aria-label="GeoIP enrichment status">
+        <span>GeoIP</span>
+        <strong className="geoip-value">
+          <b>{enrichmentLabel(result.enrichment.status)}</b>
+          <small>
+            cache {result.enrichment.cached} · fetch {result.enrichment.fetched}
+          </small>
+        </strong>
+        {hasErrors && <span className="metric-detail notice-text">{enrichmentErrorSummary(result.enrichment.errors)}</span>}
+      </div>
+    </LiquidGlassSurface>
   );
 }
 
