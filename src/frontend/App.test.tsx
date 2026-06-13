@@ -79,6 +79,14 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
+const openExactFilters = () => {
+  fireEvent.click(screen.getByText("精确筛选"));
+};
+
+const openAdvancedParams = () => {
+  fireEvent.click(screen.getByRole("button", { name: "打开高级参数" }));
+};
+
 describe("App", () => {
   it("loads config, probes, and anonymous quota on startup", async () => {
     mockApi();
@@ -137,7 +145,8 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123", {}, { timeout: 3_000 })).toBeInTheDocument();
-    expect(screen.queryByLabelText("mock probe map")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "诊断结果" })).toBeInTheDocument();
     expect(screen.getByText("projection:mercator")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 3D" }));
@@ -176,7 +185,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openAdvancedParams();
 
     const liquidGlassSwitch = screen.getByRole("switch", { name: "液态玻璃效果" });
     expect(liquidGlassSwitch).toBeChecked();
@@ -202,7 +211,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openAdvancedParams();
 
     expect(screen.getByRole("switch", { name: "液态玻璃效果" })).not.toBeChecked();
     expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
@@ -213,7 +222,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openAdvancedParams();
     fireEvent.change(screen.getByLabelText("Globalping Token"), { target: { value: "  gp-token  " } });
     fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
 
@@ -247,7 +256,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openAdvancedParams();
     fireEvent.click(screen.getByLabelText("记住 Globalping 到本机"));
     fireEvent.change(screen.getByLabelText("Globalping Token"), { target: { value: "gp-token" } });
     fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
@@ -273,7 +282,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openAdvancedParams();
 
     expect(screen.getByLabelText("Globalping Token")).toHaveValue("legacy-gp");
     expect(screen.getByLabelText("NextTrace API Token")).toHaveValue("legacy-nt");
@@ -288,7 +297,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openAdvancedParams();
     fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: "  nt-token  " } });
     fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
 
@@ -326,7 +335,7 @@ describe("App", () => {
     expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
     expect(nexttraceBatchBodies(fetchMock)).toHaveLength(0);
 
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openAdvancedParams();
     fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: " nt-token " } });
     fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
 
@@ -387,37 +396,38 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("heading", { name: "GlobalTrace" })).toBeInTheDocument();
+    const aboutDialog = await screen.findByRole("dialog", { name: "关于 GlobalTrace" });
+    expect(await within(aboutDialog).findByRole("heading", { name: "GlobalTrace" })).toBeInTheDocument();
     expect(
-      screen.getByText(
+      within(aboutDialog).getByText(
         "GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Globalping API docs/ })).toHaveAttribute(
+    expect(within(aboutDialog).getByRole("link", { name: /Globalping API docs/ })).toHaveAttribute(
       "href",
       "https://globalping.io/docs/api.globalping.io",
     );
-    expect(screen.getByRole("link", { name: /NTrace-core GitHub/ })).toHaveAttribute(
+    expect(within(aboutDialog).getByRole("link", { name: /NTrace-core GitHub/ })).toHaveAttribute(
       "href",
       "https://github.com/nxtrace/NTrace-core",
     );
-    expect(screen.getByRole("link", { name: /GlobalTrace GitHub/ })).toHaveAttribute(
+    expect(within(aboutDialog).getByRole("link", { name: /GlobalTrace GitHub/ })).toHaveAttribute(
       "href",
       "https://github.com/nxtrace/GlobalTrace",
     );
-    expect(screen.getByRole("heading", { name: "开源协议" })).toBeInTheDocument();
-    expect(screen.getByText("GlobalTrace 以 GPL-3.0-or-later 开源发布。")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /GPL-3.0-or-later/ })).toHaveAttribute(
+    expect(within(aboutDialog).getByRole("heading", { name: "开源协议" })).toBeInTheDocument();
+    expect(within(aboutDialog).getByText("GlobalTrace 以 GPL-3.0-or-later 开源发布。")).toBeInTheDocument();
+    expect(within(aboutDialog).getByRole("link", { name: /GPL-3.0-or-later/ })).toHaveAttribute(
       "href",
       "https://github.com/nxtrace/GlobalTrace/blob/master/LICENSE",
     );
-    expect(screen.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
-    expect(screen.getByText(/背景：岁月的层峦/).closest("a")).toHaveAttribute(
+    expect(within(aboutDialog).getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
+    expect(within(aboutDialog).getByText(/背景：岁月的层峦/).closest("a")).toHaveAttribute(
       "href",
       "https://www.bing.com/search?q=%E6%81%B6%E5%9C%B0",
     );
     expect(document.documentElement).toHaveClass("ambient-photo-ready");
-    expect(document.querySelector(".about-shell")).toHaveClass("ambient-photo-ready");
+    expect(document.querySelector(".app-shell")).toHaveClass("ambient-photo-ready");
   });
 
   it("updates filters when a map probe is selected", async () => {
@@ -441,7 +451,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     const countryInput = screen.getByLabelText("国家/地区");
     fireEvent.change(countryInput, { target: { value: "US" } });
 
@@ -549,7 +559,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     const tagInput = screen.getByLabelText("tag");
     fireEvent.change(tagInput, { target: { value: "eye" } });
 
@@ -573,7 +583,7 @@ describe("App", () => {
     await screen.findByText("5 / 5 probes 匹配");
     expect(screen.getByLabelText("probes")).toHaveValue(3);
 
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
 
     await waitFor(() => {
@@ -593,7 +603,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("12 / 12 probes 匹配");
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
 
     await waitFor(() => {
@@ -651,7 +661,8 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(screen.queryByLabelText("mock probe map")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "诊断结果" })).toBeInTheDocument();
     expect(window.location.search).toBe("?measurement=m123");
     expect(fetchMock).toHaveBeenCalledWith("https://api.globalping.io/v1/measurements", expect.objectContaining({ method: "POST" }));
     expect(traceCreateBodies(fetchMock)[0].measurementOptions).not.toHaveProperty("ipVersion");
@@ -774,7 +785,7 @@ describe("App", () => {
 
     expect(await screen.findByRole("status", { name: "正在打开分享结果" })).toBeInTheDocument();
     expect(screen.getByText("正在读取 Globalping measurement，完成后会自动展示结果。")).toBeInTheDocument();
-    expect(screen.queryByLabelText("mock probe map")).not.toBeInTheDocument();
+    expect(screen.getByText("网络路径诊断")).toBeInTheDocument();
 
     measurementResponse.resolve(json(globalpingMeasurement("finished")));
 

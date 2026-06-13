@@ -705,6 +705,16 @@ summary:focus-visible {
   overflow: visible;
 }
 
+.advanced-params-trigger-surface {
+  width: 100%;
+}
+
+.advanced-params-trigger {
+  width: 100%;
+  justify-content: flex-start;
+  border-radius: 14px;
+}
+
 .advanced-panel-body {
   display: grid;
   gap: 12px;
@@ -768,6 +778,11 @@ summary:focus-visible {
   margin-top: 2px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
+}
+
+.advanced-params-panel {
+  display: grid;
+  gap: 14px;
 }
 
 .run-state {
@@ -1858,6 +1873,90 @@ tbody tr:hover {
   overflow-wrap: anywhere;
 }
 
+.glass-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background:
+    linear-gradient(135deg, rgba(5, 10, 15, 0.18), rgba(5, 10, 15, 0.08)),
+    rgba(0, 0, 0, 0.12);
+}
+
+.glass-overlay-surface {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px);
+}
+
+.glass-overlay-about .glass-overlay-surface {
+  width: min(980px, calc(100vw - 32px));
+}
+
+.glass-overlay-result .glass-overlay-surface {
+  width: min(1200px, calc(100vw - 32px));
+}
+
+.glass-overlay-surface .liquid-glass-package,
+.glass-overlay-surface .liquid-glass-content,
+.glass-overlay-surface .liquid-glass-fallback-content {
+  max-height: calc(100svh - 32px);
+}
+
+.glass-overlay-surface .liquid-glass-content,
+.glass-overlay-surface .liquid-glass-fallback-content {
+  display: block;
+}
+
+.glass-overlay-panel {
+  max-height: calc(100svh - 32px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  background: var(--photo-filter-panel-bg, var(--filter-panel-bg));
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(34px);
+  -webkit-backdrop-filter: blur(34px);
+}
+
+.glass-overlay-header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.glass-overlay-header h2 {
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 840;
+  overflow-wrap: anywhere;
+}
+
+.glass-overlay-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+}
+
+.glass-overlay-result .glass-overlay-body {
+  padding: 12px;
+}
+
+.glass-overlay-result .results-section,
+.glass-overlay-result .shared-result-loading,
+.glass-overlay-result .result-empty {
+  min-height: 0;
+}
+
 .polling-state,
 .loading-strip,
 .error-banner {
@@ -2282,6 +2381,49 @@ pre {
     gap: 12px;
     padding: 10px;
     overflow-x: hidden;
+  }
+
+  .glass-overlay {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .glass-overlay-surface,
+  .glass-overlay-about .glass-overlay-surface,
+  .glass-overlay-result .glass-overlay-surface {
+    width: 100%;
+    max-height: calc(100svh - 20px);
+  }
+
+  .glass-overlay-surface .liquid-glass-package,
+  .glass-overlay-surface .liquid-glass-content,
+  .glass-overlay-surface .liquid-glass-fallback-content,
+  .glass-overlay-panel {
+    max-height: calc(100svh - 20px);
+  }
+
+  .glass-overlay-panel {
+    border-radius: 20px 20px 0 0;
+  }
+
+  .glass-overlay-result {
+    padding: 4px;
+  }
+
+  .glass-overlay-result .glass-overlay-surface,
+  .glass-overlay-result .glass-overlay-surface .liquid-glass-package,
+  .glass-overlay-result .glass-overlay-surface .liquid-glass-content,
+  .glass-overlay-result .glass-overlay-surface .liquid-glass-fallback-content,
+  .glass-overlay-result .glass-overlay-panel {
+    max-height: calc(100svh - 8px);
+  }
+
+  .glass-overlay-result .glass-overlay-body {
+    padding: 4px;
+  }
+
+  .glass-overlay-result .results-section {
+    padding: 8px;
   }
 
   .workspace {

@@ -33,6 +33,14 @@ const NETWORK_MAGIC_SUGGESTIONS = [
   "Los Angeles+US+AS7922+eyeball-network",
 ];
 
+const openExactFilters = () => {
+  fireEvent.click(screen.getByText("精确筛选"));
+};
+
+const openAdvancedParams = () => {
+  fireEvent.click(screen.getByRole("button", { name: "打开高级参数" }));
+};
+
 describe("FilterPanel", () => {
   it("shows active filters, advanced controls, and reset action", () => {
     const filters: TraceFilters = { country: "US", city: "Los Angeles", eyeball: true };
@@ -109,8 +117,8 @@ describe("FilterPanel", () => {
     expect(screen.getByLabelText("magic string")).toBeVisible();
     expect(screen.getByLabelText("eyeball")).not.toBeVisible();
     expect(screen.getByLabelText("datacenter")).not.toBeVisible();
-    expect(screen.getByLabelText("液态玻璃效果")).not.toBeVisible();
-    expect(screen.getByLabelText("Globalping Token")).not.toBeVisible();
+    expect(screen.queryByLabelText("液态玻璃效果")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Globalping Token")).not.toBeInTheDocument();
     expect(screen.getByText(/Powered by/)).toBeInTheDocument();
     expect(screen.getByText("×")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Globalping" })).toHaveAttribute("href", "https://globalping.io/");
@@ -120,21 +128,25 @@ describe("FilterPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(onReset).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     expect(screen.getByLabelText("国家/地区")).toBeVisible();
     expect(screen.getByLabelText("ASN")).toBeVisible();
     expect(screen.getByLabelText("network")).toBeVisible();
     expect(screen.getByLabelText("tag")).toBeVisible();
     expect(screen.getByLabelText("eyeball")).toBeVisible();
     expect(screen.getByLabelText("datacenter")).toBeVisible();
-    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
-    const advancedPanel = screen.getByText("高级参数与精确筛选").closest("details") as HTMLElement;
+    const advancedPanel = screen.getByText("精确筛选").closest("details") as HTMLElement;
     expect(within(advancedPanel).queryByLabelText("magic string")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Globalping Token")).toBeVisible();
-    expect(screen.getByText("未使用 Globalping Token")).toBeVisible();
-    expect(screen.getByLabelText("NextTrace API Token")).toBeVisible();
-    expect(screen.getByText("未使用 NextTrace Token")).toBeVisible();
-    expect(screen.getByRole("link", { name: "获取 NextTrace API Token" })).toHaveAttribute(
+    expect(screen.queryByLabelText("Globalping Token")).not.toBeInTheDocument();
+
+    openAdvancedParams();
+    const advancedDialog = screen.getByRole("dialog", { name: "高级参数" });
+    expect(within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
+    expect(within(advancedDialog).getByLabelText("Globalping Token")).toBeVisible();
+    expect(within(advancedDialog).getByText("未使用 Globalping Token")).toBeVisible();
+    expect(within(advancedDialog).getByLabelText("NextTrace API Token")).toBeVisible();
+    expect(within(advancedDialog).getByText("未使用 NextTrace Token")).toBeVisible();
+    expect(within(advancedDialog).getByRole("link", { name: "获取 NextTrace API Token" })).toHaveAttribute(
       "href",
       "https://api.nxtrace.org/v4/api-tokens",
     );
@@ -148,7 +160,7 @@ describe("FilterPanel", () => {
     renderPanel({ onFiltersChange, onProtocolChange });
 
     fireEvent.change(screen.getByLabelText("协议"), { target: { value: "TCP" } });
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     fireEvent.click(screen.getByLabelText("eyeball"));
 
     expect(onProtocolChange).toHaveBeenCalledWith("TCP");
@@ -420,7 +432,7 @@ describe("FilterPanel", () => {
     const onFiltersChange = vi.fn();
     renderPanel({ filters: { magic: "DE+AS24940" }, chips: filterChips({ magic: "DE+AS24940" }), onFiltersChange });
 
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "US" } });
     fireEvent.change(screen.getByLabelText("ASN"), { target: { value: "7922" } });
     fireEvent.change(screen.getByLabelText("network"), { target: { value: "Comcast" } });
@@ -446,7 +458,7 @@ describe("FilterPanel", () => {
       onFiltersChange,
     });
 
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
 
     expect(document.querySelector("datalist")).toBeNull();
 
@@ -483,7 +495,7 @@ describe("FilterPanel", () => {
       onFiltersChange,
     });
 
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     const networkInput = screen.getByLabelText("network");
     fireEvent.focus(networkInput);
 
@@ -509,7 +521,7 @@ describe("FilterPanel", () => {
       onFiltersChange,
     });
 
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     const tagInput = screen.getByLabelText("tag");
     fireEvent.focus(tagInput);
 
@@ -526,7 +538,7 @@ describe("FilterPanel", () => {
     const onFiltersChange = vi.fn();
     renderPanel({ filters: {}, chips: filterChips({}), onFiltersChange });
 
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openExactFilters();
     fireEvent.change(screen.getByLabelText("network"), { target: { value: "Hetzner Online " } });
     fireEvent.change(screen.getByLabelText("network"), { target: { value: "   " } });
 
@@ -592,7 +604,7 @@ describe("FilterPanel", () => {
       onNavigateAbout,
     });
 
-    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    openAdvancedParams();
     fireEvent.change(screen.getByLabelText("Globalping Token"), { target: { value: "next-token" } });
     fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: "nexttrace-token" } });
     fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));

@@ -4,6 +4,7 @@ import { compactText, normalizeAsn, type FilterChip, type ProbeFilterSuggestions
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
+import { GlassOverlay } from "./GlassOverlay";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Input, NativeSelect, Textarea } from "./ui/input";
@@ -56,6 +57,7 @@ interface FilterPanelProps {
   onNexttraceTokenRememberedChange: (remembered: boolean) => void;
   onCycleThemeMode: () => void;
   onLiquidGlassEnabledChange: (enabled: boolean) => void;
+  onOpenAdvancedParams?: () => void;
   onNavigateHome: () => void;
   onNavigateAbout: () => void;
   onReset: () => void;
@@ -88,6 +90,12 @@ export function FilterPanel(props: FilterPanelProps) {
   const filterSuggestions = props.filterSuggestions ?? EMPTY_FILTER_SUGGESTIONS;
   const globalpingTokenStatusId = useId();
   const nexttraceTokenStatusId = useId();
+  const [advancedParamsOpen, setAdvancedParamsOpen] = useState(false);
+
+  const openAdvancedParams = () => {
+    props.onOpenAdvancedParams?.();
+    setAdvancedParamsOpen(true);
+  };
 
   const setFilter = (key: keyof TraceFilters, value: string | boolean) => {
     const nextValue = cleanFilterValue(value);
@@ -224,33 +232,12 @@ export function FilterPanel(props: FilterPanelProps) {
           <Surface asChild variant="flat">
             <details className="advanced-panel">
               <summary>
-                <SlidersHorizontal size={16} />
-                高级参数与精确筛选
+                <Filter size={16} />
+                精确筛选
               </summary>
 
               <div className="advanced-panel-body">
                 <div className="control-grid">
-                  <label className="field-label">
-                    <span>端口</span>
-                    <Input
-                      value={props.port}
-                      onChange={(event) => props.onPortChange(event.target.value)}
-                      inputMode="numeric"
-                      placeholder="自动"
-                      aria-label="端口"
-                    />
-                  </label>
-                  <label className="field-label">
-                    <span>包数</span>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={16}
-                      value={props.packets}
-                      onChange={(event) => props.onPacketsChange(Number(event.target.value))}
-                      aria-label="包数"
-                    />
-                  </label>
                   <label className="field-label">
                     <span>国家/地区</span>
                     <SuggestionInput
@@ -317,145 +304,31 @@ export function FilterPanel(props: FilterPanelProps) {
                     onChange={(value) => setFilter("tag", value)}
                   />
                 </label>
-
-                <div className="token-section">
-                  <div className="summary-title">
-                    <Monitor size={16} />
-                    <span>界面效果</span>
-                  </div>
-                  <label className="token-remember">
-                    <span>液态玻璃效果</span>
-                    <Switch
-                      checked={props.liquidGlassEnabled}
-                      onCheckedChange={(checked) => props.onLiquidGlassEnabledChange(Boolean(checked))}
-                      aria-label="液态玻璃效果"
-                    />
-                  </label>
-                </div>
-
-                <div className="token-section">
-                  <div className="summary-title">
-                    <KeyRound size={16} />
-                    <span>Globalping Token</span>
-                  </div>
-                  <label className="field-label">
-                    <span>Token</span>
-                    <Input
-                      type="password"
-                      value={props.globalpingTokenDraft}
-                      onChange={(event) => props.onGlobalpingTokenDraftChange(event.target.value)}
-                      placeholder="可选：使用自己的 Globalping Token"
-                      autoComplete="off"
-                      aria-label="Globalping Token"
-                      aria-describedby={globalpingTokenStatusId}
-                    />
-                  </label>
-                  <label className="token-remember">
-                    <span>记住到本机</span>
-                    <Switch
-                      checked={props.globalpingTokenRemembered}
-                      onCheckedChange={(checked) => props.onGlobalpingTokenRememberedChange(Boolean(checked))}
-                      aria-label="记住 Globalping 到本机"
-                    />
-                  </label>
-                  <div className="token-actions">
-                    <span id={globalpingTokenStatusId} role="status" aria-live="polite">
-                      {props.globalpingTokenSaved
-                        ? props.globalpingTokenRemembered
-                          ? "Globalping Token 已记住到本机浏览器"
-                          : "Globalping Token 仅当前会话可用"
-                        : "未使用 Globalping Token"}
-                    </span>
-                    <div>
-                      <Button
-                        variant="glass"
-                        size="sm"
-                        type="button"
-                        onClick={props.onSaveGlobalpingToken}
-                        aria-label="保存 Globalping"
-                      >
-                        保存
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        onClick={props.onClearGlobalpingToken}
-                        aria-label="清除 Globalping"
-                      >
-                        清除
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="token-section">
-                  <div className="summary-title">
-                    <KeyRound size={16} />
-                    <span>NextTrace API Token</span>
-                    <a
-                      className="token-help-link"
-                      href={NEXTTRACE_API_TOKEN_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="获取 NextTrace API Token"
-                    >
-                      获取 Token
-                    </a>
-                  </div>
-                  <label className="field-label">
-                    <span>Token</span>
-                    <Input
-                      type="password"
-                      value={props.nexttraceTokenDraft}
-                      onChange={(event) => props.onNexttraceTokenDraftChange(event.target.value)}
-                      placeholder="可选：直连 NextTrace enrichment"
-                      autoComplete="off"
-                      aria-label="NextTrace API Token"
-                      aria-describedby={nexttraceTokenStatusId}
-                    />
-                  </label>
-                  <label className="token-remember">
-                    <span>记住到本机</span>
-                    <Switch
-                      checked={props.nexttraceTokenRemembered}
-                      onCheckedChange={(checked) => props.onNexttraceTokenRememberedChange(Boolean(checked))}
-                      aria-label="记住 NextTrace 到本机"
-                    />
-                  </label>
-                  <div className="token-actions">
-                    <span id={nexttraceTokenStatusId} role="status" aria-live="polite">
-                      {props.nexttraceTokenSaved
-                        ? props.nexttraceTokenRemembered
-                          ? "NextTrace Token 已记住到本机浏览器"
-                          : "NextTrace Token 仅当前会话可用"
-                        : "未使用 NextTrace Token"}
-                    </span>
-                    <div>
-                      <Button
-                        variant="glass"
-                        size="sm"
-                        type="button"
-                        onClick={props.onSaveNexttraceToken}
-                        aria-label="保存 NextTrace"
-                      >
-                        保存
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        onClick={props.onClearNexttraceToken}
-                        aria-label="清除 NextTrace"
-                      >
-                        清除
-                      </Button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </details>
           </Surface>
+
+          <LiquidGlassSurface variant="panel" fullWidth className="advanced-params-trigger-surface">
+            <Button
+              variant="ghost"
+              size="lg"
+              className="advanced-params-trigger"
+              type="button"
+              onClick={openAdvancedParams}
+              aria-label="打开高级参数"
+            >
+              <SlidersHorizontal size={16} />
+              高级参数
+            </Button>
+          </LiquidGlassSurface>
+
+          <GlassOverlay open={advancedParamsOpen} title="高级参数" size="compact" onClose={() => setAdvancedParamsOpen(false)}>
+            <AdvancedParamsPanel
+              globalpingTokenStatusId={globalpingTokenStatusId}
+              nexttraceTokenStatusId={nexttraceTokenStatusId}
+              {...props}
+            />
+          </GlassOverlay>
         </div>
 
         <div className="filter-panel-footer" data-testid="filter-panel-footer">
@@ -463,11 +336,9 @@ export function FilterPanel(props: FilterPanelProps) {
             <div className="run-state" aria-live="polite">
               <ShieldCheck size={16} />
               <div>
-	                <strong>
-	                  {props.nexttraceTokenSaved
-	                    ? "NextTrace API Token 直连已启用"
-	                    : "Globalping credits 控制诊断创建"}
-	                </strong>
+                <strong>
+                  {props.nexttraceTokenSaved ? "NextTrace API Token 直连已启用" : "Globalping credits 控制诊断创建"}
+                </strong>
                 <span>{props.quotaLabel}</span>
               </div>
             </div>
@@ -517,6 +388,155 @@ export function FilterPanel(props: FilterPanelProps) {
         </div>
       </aside>
     </Surface>
+  );
+}
+
+function AdvancedParamsPanel({
+  globalpingTokenStatusId,
+  nexttraceTokenStatusId,
+  ...props
+}: FilterPanelProps & {
+  globalpingTokenStatusId: string;
+  nexttraceTokenStatusId: string;
+}) {
+  return (
+    <div className="advanced-params-panel">
+      <div className="control-grid">
+        <label className="field-label">
+          <span>端口</span>
+          <Input
+            value={props.port}
+            onChange={(event) => props.onPortChange(event.target.value)}
+            inputMode="numeric"
+            placeholder="自动"
+            aria-label="端口"
+          />
+        </label>
+        <label className="field-label">
+          <span>包数</span>
+          <Input
+            type="number"
+            min={1}
+            max={16}
+            value={props.packets}
+            onChange={(event) => props.onPacketsChange(Number(event.target.value))}
+            aria-label="包数"
+          />
+        </label>
+      </div>
+
+      <div className="token-section">
+        <div className="summary-title">
+          <Monitor size={16} />
+          <span>界面效果</span>
+        </div>
+        <label className="token-remember">
+          <span>液态玻璃效果</span>
+          <Switch
+            checked={props.liquidGlassEnabled}
+            onCheckedChange={(checked) => props.onLiquidGlassEnabledChange(Boolean(checked))}
+            aria-label="液态玻璃效果"
+          />
+        </label>
+      </div>
+
+      <div className="token-section">
+        <div className="summary-title">
+          <KeyRound size={16} />
+          <span>Globalping Token</span>
+        </div>
+        <label className="field-label">
+          <span>Token</span>
+          <Input
+            type="password"
+            value={props.globalpingTokenDraft}
+            onChange={(event) => props.onGlobalpingTokenDraftChange(event.target.value)}
+            placeholder="可选：使用自己的 Globalping Token"
+            autoComplete="off"
+            aria-label="Globalping Token"
+            aria-describedby={globalpingTokenStatusId}
+          />
+        </label>
+        <label className="token-remember">
+          <span>记住到本机</span>
+          <Switch
+            checked={props.globalpingTokenRemembered}
+            onCheckedChange={(checked) => props.onGlobalpingTokenRememberedChange(Boolean(checked))}
+            aria-label="记住 Globalping 到本机"
+          />
+        </label>
+        <div className="token-actions">
+          <span id={globalpingTokenStatusId} role="status" aria-live="polite">
+            {props.globalpingTokenSaved
+              ? props.globalpingTokenRemembered
+                ? "Globalping Token 已记住到本机浏览器"
+                : "Globalping Token 仅当前会话可用"
+              : "未使用 Globalping Token"}
+          </span>
+          <div>
+            <Button variant="glass" size="sm" type="button" onClick={props.onSaveGlobalpingToken} aria-label="保存 Globalping">
+              保存
+            </Button>
+            <Button variant="ghost" size="sm" type="button" onClick={props.onClearGlobalpingToken} aria-label="清除 Globalping">
+              清除
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="token-section">
+        <div className="summary-title">
+          <KeyRound size={16} />
+          <span>NextTrace API Token</span>
+          <a
+            className="token-help-link"
+            href={NEXTTRACE_API_TOKEN_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="获取 NextTrace API Token"
+          >
+            获取 Token
+          </a>
+        </div>
+        <label className="field-label">
+          <span>Token</span>
+          <Input
+            type="password"
+            value={props.nexttraceTokenDraft}
+            onChange={(event) => props.onNexttraceTokenDraftChange(event.target.value)}
+            placeholder="可选：直连 NextTrace enrichment"
+            autoComplete="off"
+            aria-label="NextTrace API Token"
+            aria-describedby={nexttraceTokenStatusId}
+          />
+        </label>
+        <label className="token-remember">
+          <span>记住到本机</span>
+          <Switch
+            checked={props.nexttraceTokenRemembered}
+            onCheckedChange={(checked) => props.onNexttraceTokenRememberedChange(Boolean(checked))}
+            aria-label="记住 NextTrace 到本机"
+          />
+        </label>
+        <div className="token-actions">
+          <span id={nexttraceTokenStatusId} role="status" aria-live="polite">
+            {props.nexttraceTokenSaved
+              ? props.nexttraceTokenRemembered
+                ? "NextTrace Token 已记住到本机浏览器"
+                : "NextTrace Token 仅当前会话可用"
+              : "未使用 NextTrace Token"}
+          </span>
+          <div>
+            <Button variant="glass" size="sm" type="button" onClick={props.onSaveNexttraceToken} aria-label="保存 NextTrace">
+              保存
+            </Button>
+            <Button variant="ghost" size="sm" type="button" onClick={props.onClearNexttraceToken} aria-label="清除 NextTrace">
+              清除
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -13,6 +13,7 @@ import {
   type BackgroundImage,
 } from "./api";
 import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
+import { GlassOverlay } from "./components/GlassOverlay";
 import {
   LiquidGlassPreferenceProvider,
   LiquidGlassSurface,
@@ -165,10 +166,10 @@ export function App() {
   }, [resultMapProjection]);
 
   useEffect(() => {
-    if (route !== "/" || bootstrappedRef.current) return;
+    if (bootstrappedRef.current) return;
     bootstrappedRef.current = true;
     void bootstrap();
-  }, [route]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,16 +187,15 @@ export function App() {
   }, [backgroundImage]);
 
   useEffect(() => {
-    if (route !== "/" || probeMapReady || probesStatus === "loading") return;
+    if (probeMapReady || probesStatus === "loading") return;
     return deferProbeMapLoad(() => setProbeMapReady(true));
-  }, [probeMapReady, probesStatus, route]);
+  }, [probeMapReady, probesStatus]);
 
   useEffect(() => {
-    if (route !== "/") return;
     return deferUntilIdle(() => {
       void loadLimits(globalpingToken);
     });
-  }, [globalpingToken, route]);
+  }, [globalpingToken]);
 
   const loadTrace = useCallback(async (
     measurementId: string,
@@ -453,9 +453,15 @@ export function App() {
   }, [finalResult]);
 
   const closeResult = useCallback(() => {
+    if (sharedLoadingMeasurementId) {
+      pollAbortRef.current?.abort();
+      pollAbortRef.current = null;
+      setLoading(false);
+      sharedTraceStartedRef.current = "";
+    }
     setWorkspaceMode("select");
     setSharedLoadingMeasurementId("");
-  }, []);
+  }, [sharedLoadingMeasurementId]);
 
   const saveGlobalpingToken = useCallback(() => {
     const trimmed = globalpingTokenDraft.trim();
@@ -531,17 +537,6 @@ export function App() {
     setLoading(false);
     setRoute("/");
   }, []);
-
-  if (route === "/about") {
-    return (
-      <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled}>
-        <BackgroundLayer backgroundImage={backgroundImage} />
-        <Suspense fallback={<AboutPageFallback ambientPhotoReady={Boolean(backgroundImage)} />}>
-          <AboutPage onBack={navigateHome} backgroundImage={backgroundImage} />
-        </Suspense>
-      </LiquidGlassPreferenceProvider>
-    );
-  }
 
   return (
     <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled}>
@@ -633,45 +628,58 @@ export function App() {
           )}
 
           <div className="workspace-content">
-            {sharedLoadingMeasurementId ? (
-              <SharedResultLoading
-                measurementId={sharedLoadingMeasurementId}
-              />
-            ) : workspaceMode === "select" || !finalResult ? (
-              <div className="map-and-table">
-                {probeMapReady ? (
-                  <Suspense fallback={<ProbeMapFallback />}>
-                    <ProbeMap
-                      probes={filteredProbes}
-                      totalProbes={probes.length}
-                      status={probesStatus}
-                      selectionNotice={selectionNotice}
-                      selectionActive={mapSelectionActive}
-                      mapStyleUrl={config.mapStyleUrl}
-                      onPickProbe={pickProbe}
-                      onBoxSelect={boxSelect}
-                      onClearSelection={clearMapSelection}
-                    />
-                  </Suspense>
-                ) : (
-                  <ProbeMapFallback />
-                )}
-                <ProbeTable probes={filteredProbes} totalProbes={probes.length} status={probesStatus} onPick={pickProbe} />
-              </div>
-            ) : (
-              <Suspense fallback={<ResultsViewFallback />}>
-                <ResultsView
-                  result={finalResult}
-                  mapStyleUrl={config.mapStyleUrl}
-                  mapProjection={resultMapProjection}
-                  onMapProjectionChange={setResultMapProjection}
-                  onClose={closeResult}
-                />
-              </Suspense>
-            )}
+            <div className="map-and-table">
+              {probeMapReady ? (
+                <Suspense fallback={<ProbeMapFallback />}>
+                  <ProbeMap
+                    probes={filteredProbes}
+                    totalProbes={probes.length}
+                    status={probesStatus}
+                    selectionNotice={selectionNotice}
+                    selectionActive={mapSelectionActive}
+                    mapStyleUrl={config.mapStyleUrl}
+                    onPickProbe={pickProbe}
+                    onBoxSelect={boxSelect}
+                    onClearSelection={clearMapSelection}
+                  />
+                </Suspense>
+              ) : (
+                <ProbeMapFallback />
+              )}
+              <ProbeTable probes={filteredProbes} totalProbes={probes.length} status={probesStatus} onPick={pickProbe} />
+            </div>
           </div>
         </div>
       </main>
+
+      <GlassOverlay open={route === "/about"} title="关于 GlobalTrace" size="about" onClose={navigateHome}>
+        <Suspense fallback={<AboutPageFallback />}>
+          <AboutPage onBack={navigateHome} backgroundImage={backgroundImage} />
+        </Suspense>
+      </GlassOverlay>
+
+      <GlassOverlay
+        open={Boolean(sharedLoadingMeasurementId) || (workspaceMode === "result" && Boolean(finalResult))}
+        title={sharedLoadingMeasurementId ? "读取诊断结果" : "诊断结果"}
+        size="result"
+        onClose={closeResult}
+      >
+        {sharedLoadingMeasurementId ? (
+          <SharedResultLoading measurementId={sharedLoadingMeasurementId} />
+        ) : finalResult ? (
+          <Suspense fallback={<ResultsViewFallback />}>
+            <ResultsView
+              result={finalResult}
+              mapStyleUrl={config.mapStyleUrl}
+              mapProjection={resultMapProjection}
+              onMapProjectionChange={setResultMapProjection}
+              onClose={closeResult}
+            />
+          </Suspense>
+        ) : (
+          <ResultsViewFallback />
+        )}
+      </GlassOverlay>
     </LiquidGlassPreferenceProvider>
   );
 }
@@ -684,20 +692,18 @@ function BackgroundLayer({ backgroundImage }: { backgroundImage: BackgroundImage
   return <div className="ambient-background" style={style} aria-hidden="true" />;
 }
 
-function AboutPageFallback({ ambientPhotoReady = false }: { ambientPhotoReady?: boolean }) {
+function AboutPageFallback() {
   return (
-    <main className={`about-shell${ambientPhotoReady ? " ambient-photo-ready" : ""}`}>
-      <Surface asChild className="about-panel">
-        <section role="status" aria-live="polite" aria-label="正在加载关于页面">
-          <div className="empty-hero">
-            <Loader2 size={20} className="spin" />
-            <div>
-              <h2>正在加载关于页面</h2>
-            </div>
+    <Surface asChild className="about-panel">
+      <section role="status" aria-live="polite" aria-label="正在加载关于页面">
+        <div className="empty-hero">
+          <Loader2 size={20} className="spin" />
+          <div>
+            <h2>正在加载关于页面</h2>
           </div>
-        </section>
-      </Surface>
-    </main>
+        </div>
+      </section>
+    </Surface>
   );
 }
 

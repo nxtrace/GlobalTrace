@@ -34,7 +34,9 @@ for (const viewport of viewports) {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expectLightModePanelBoundaries(page);
     await expectNoPageOverflow(page);
-    await page.getByText("高级参数与精确筛选").click();
+    await page.getByRole("button", { name: "打开高级参数" }).click();
+    await expect(page.getByRole("dialog", { name: "高级参数" })).toBeVisible();
+    await expectGlassOverlayStructure(page, "高级参数");
     await expect(page.getByLabel("Globalping Token")).toBeVisible();
     await expectNoPageOverflow(page);
     if (viewport.name === "390x844") {
@@ -43,7 +45,7 @@ for (const viewport of viewports) {
         fullPage: true,
       });
     }
-    await page.getByText("高级参数与精确筛选").click();
+    await page.getByRole("button", { name: "关闭高级参数" }).click();
     await page.getByRole("button", { name: "主题：Light" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
@@ -78,7 +80,7 @@ for (const viewport of viewports) {
     await page.getByLabel("IP 版本").selectOption("6");
     await expect(page.getByLabel("IP 版本")).toHaveValue("6");
 
-    await page.getByText("高级参数与精确筛选").click();
+    await page.getByText("精确筛选").click();
     await page.getByLabel("国家/地区").fill("US");
     await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
     await expect(page.locator("datalist")).toHaveCount(0);
@@ -113,10 +115,12 @@ for (const viewport of viewports) {
 
     await page.getByRole("button", { name: "开始网络路径诊断" }).click();
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
+    await expectGlassOverlayStructure(page, "诊断结果");
     await expect(page.getByRole("link", { name: "打开" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "分享" })).toBeVisible();
-    await expect(page.getByLabel("probe map")).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "在线 probes" })).toHaveCount(0);
+    await expect(page.getByLabel("probe map")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "在线 probes" })).toBeVisible();
     await expectVisibleHopText(page, "AS15169");
     await expectVisibleHopText(page, "Google LLC / Google");
     await expectHopTableColumns(page);
@@ -349,7 +353,7 @@ test("structured filters expand probes after explicit user filtering", async ({ 
 
   await expect(page.getByText("5 / 5 probes 匹配")).toBeVisible();
   await expect(page.getByLabel("probes")).toHaveValue("3");
-  await page.getByText("高级参数与精确筛选").click();
+  await page.getByText("精确筛选").click();
   await page.getByLabel("国家/地区").fill("CN");
   await expect(page.getByText("4 / 5 probes 匹配")).toBeVisible();
   await expect(page.getByLabel("probes")).toHaveValue("4");
@@ -376,7 +380,7 @@ test("generic magic and tag suggestions come from visible mock probes", async ({
 
   await page.getByRole("button", { name: "重置筛选" }).click();
   await expect(magicInput).toHaveValue("");
-  await page.getByText("高级参数与精确筛选").click();
+  await page.getByText("精确筛选").click();
   const tagInput = page.getByLabel("tag");
   await tagInput.fill("eye");
   await expect(page.getByText("3 / 4 probes 匹配")).toBeVisible();
@@ -411,7 +415,7 @@ test("token save defaults to session storage", async ({ page }) => {
   await installMocks(page);
 
   await page.goto("/");
-  await page.getByText("高级参数与精确筛选").click();
+  await page.getByRole("button", { name: "打开高级参数" }).click();
   await page.getByRole("textbox", { name: "Globalping Token" }).fill("gp-token");
   await page.getByRole("button", { name: "保存 Globalping" }).click();
   await page.getByRole("textbox", { name: "NextTrace API Token" }).fill("nt-token");
@@ -440,42 +444,44 @@ test("token save defaults to session storage", async ({ page }) => {
 test("about page exposes provider attribution links", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
-  await installBackgroundMock(page);
+  await installMocks(page);
 
   await page.goto("/about");
 
-  await expect(page.getByRole("heading", { name: "GlobalTrace" })).toBeVisible();
+  const aboutDialog = page.getByRole("dialog", { name: "关于 GlobalTrace" });
+  await expect(aboutDialog).toBeVisible();
+  await expect(aboutDialog.getByRole("heading", { name: "GlobalTrace", exact: true })).toBeVisible();
   await expect(
-    page.getByText(
+    aboutDialog.getByText(
       "GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。",
     ),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: /Globalping API docs/ })).toHaveAttribute(
+  await expect(aboutDialog.getByRole("link", { name: /Globalping API docs/ })).toHaveAttribute(
     "href",
     "https://globalping.io/docs/api.globalping.io",
   );
-  await expect(page.getByRole("link", { name: /Globalping OpenAPI spec/ })).toHaveAttribute(
+  await expect(aboutDialog.getByRole("link", { name: /Globalping OpenAPI spec/ })).toHaveAttribute(
     "href",
     "https://api.globalping.io/v1/spec.yaml",
   );
-  await expect(page.getByRole("link", { name: /NextTrace/ })).toHaveAttribute("href", "https://www.nxtrace.org/");
-  await expect(page.getByRole("link", { name: /NTrace-core GitHub/ })).toHaveAttribute(
+  await expect(aboutDialog.getByRole("link", { name: /NextTrace/ })).toHaveAttribute("href", "https://www.nxtrace.org/");
+  await expect(aboutDialog.getByRole("link", { name: /NTrace-core GitHub/ })).toHaveAttribute(
     "href",
     "https://github.com/nxtrace/NTrace-core",
   );
-  await expect(page.getByRole("link", { name: /GlobalTrace GitHub/ })).toHaveAttribute(
+  await expect(aboutDialog.getByRole("link", { name: /GlobalTrace GitHub/ })).toHaveAttribute(
     "href",
     "https://github.com/nxtrace/GlobalTrace",
   );
-  await expect(page.getByRole("heading", { name: "开源协议" })).toBeVisible();
-  await expect(page.getByText("GlobalTrace 以 GPL-3.0-or-later 开源发布。")).toBeVisible();
-  await expect(page.getByRole("link", { name: /GPL-3.0-or-later/ })).toHaveAttribute(
+  await expect(aboutDialog.getByRole("heading", { name: "开源协议" })).toBeVisible();
+  await expect(aboutDialog.getByText("GlobalTrace 以 GPL-3.0-or-later 开源发布。")).toBeVisible();
+  await expect(aboutDialog.getByRole("link", { name: /GPL-3.0-or-later/ })).toHaveAttribute(
     "href",
     "https://github.com/nxtrace/GlobalTrace/blob/master/LICENSE",
   );
-  await expect(page.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
-  await expect(page.getByText(/背景：岁月的层峦/)).toBeVisible();
-  await expectNoMapJavaScriptLoaded(page);
+  await expect(aboutDialog.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
+  await expect(aboutDialog.getByText(/背景：岁月的层峦/)).toBeVisible();
+  await expect(page.locator(".app-shell")).toBeVisible();
   await expectNoPageOverflow(page);
   await page.screenshot({
     path: `/tmp/${screenshotPrefix}-about-390x844.png`,
@@ -496,12 +502,14 @@ test("shared measurement link shows loading while Globalping responds", async ({
   await page.goto("/?measurement=m-smoke");
 
   await expect(page.getByRole("status", { name: "正在打开分享结果" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "读取诊断结果" })).toBeVisible();
   await expect(page.getByText("正在读取 Globalping measurement，完成后会自动展示结果。")).toBeVisible();
-  await expect(page.getByLabel("probe map")).toHaveCount(0);
+  await expect(page.locator(".app-shell")).toBeVisible();
 
   releaseMeasurement();
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
   await expect(page.getByRole("link", { name: "打开" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "分享" })).toBeVisible();
   await expectNoPageOverflow(page);
@@ -568,17 +576,19 @@ test("mobile advanced panel starts trace without an auth dialog", async ({ page 
   await page.goto("/");
 
   await expect(page.getByText("Globalping credits 控制诊断创建")).toBeVisible();
-  await page.getByText("高级参数与精确筛选").click();
+  await page.getByText("精确筛选").click();
   await page.getByLabel("ASN").fill("7922");
   await expect(page.getByLabel("ASN")).toHaveValue("7922");
   await expect(page.getByLabel("network")).toBeVisible();
   await expect(page.getByLabel("tag")).toBeVisible();
+  await page.getByRole("button", { name: "打开高级参数" }).click();
   await expect(page.getByLabel("Globalping Token")).toBeVisible();
+  await page.getByRole("button", { name: "关闭高级参数" }).click();
 
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect.poll(mocks.enrichRequests).toBe(1);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -592,7 +602,7 @@ test("shared result opens directly from measurement ID", async ({ page }) => {
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect.poll(mocks.enrichRequests).toBe(1);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -867,16 +877,6 @@ async function expectNoPageOverflow(page: Page): Promise<void> {
   expect(widths.bodyScroll).toBeLessThanOrEqual(widths.bodyClient);
 }
 
-async function expectNoMapJavaScriptLoaded(page: Page): Promise<void> {
-  const scripts = await page.evaluate(() =>
-    performance
-      .getEntriesByType("resource")
-      .filter((entry): entry is PerformanceResourceTiming => entry instanceof PerformanceResourceTiming && entry.initiatorType === "script")
-      .map((entry) => entry.name),
-  );
-  expect(scripts.filter((name) => !/\.css(?:\?|$)/.test(name) && /maplibre|ProbeMap|ResultsView/.test(name))).toEqual([]);
-}
-
 async function expectFilterSummaryConstrainsLongChips(page: Page): Promise<void> {
   const state = await page.getByTestId("filter-chips").evaluate((node) => {
     const chips = node as HTMLElement;
@@ -1053,6 +1053,39 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
   expect(state.resultsSection).toBeNull();
   expect(state.filterPanel?.boxShadow).not.toMatch(/\b(?:58|70)px\b/);
   expect(state.primaryControls?.boxShadow).not.toMatch(/\b(?:58|70)px\b/);
+}
+
+async function expectGlassOverlayStructure(page: Page, name: string): Promise<void> {
+  await expect(page.getByRole("dialog", { name })).toBeVisible();
+  const state = await page.evaluate(() => {
+    const overlay = document.querySelector(".glass-overlay") as HTMLElement | null;
+    const panel = overlay?.querySelector('[role="dialog"]') as HTMLElement | null;
+    const surface = overlay?.querySelector(".glass-overlay-surface") as HTMLElement | null;
+    const overlayStyle = overlay ? window.getComputedStyle(overlay) : null;
+    const panelStyle = panel ? window.getComputedStyle(panel) : null;
+    const surfaceStyle = surface ? window.getComputedStyle(surface) : null;
+    const alphaOf = (value: string) => {
+      const match = value.match(/rgba?\(([^)]+)\)/);
+      if (!match) return 1;
+      const parts = match[1].split(",").map((part) => part.trim());
+      if (parts.length < 4) return 1;
+      return Number.parseFloat(parts[3]) || 0;
+    };
+    return {
+      overlayPosition: overlayStyle?.position,
+      overlayZIndex: Number.parseInt(overlayStyle?.zIndex || "0", 10),
+      panelBackgroundAlpha: alphaOf(panelStyle?.backgroundColor || ""),
+      panelBackdropFilter: panelStyle?.backdropFilter || panelStyle?.getPropertyValue("-webkit-backdrop-filter"),
+      surfaceMaxHeight: surfaceStyle?.maxHeight,
+      panelMaxHeight: panelStyle?.maxHeight,
+    };
+  });
+  expect(state.overlayPosition).toBe("fixed");
+  expect(state.overlayZIndex).toBeGreaterThanOrEqual(300);
+  expect(state.panelBackgroundAlpha).toBeLessThanOrEqual(0.5);
+  expect(state.panelBackdropFilter).toContain("blur(34px)");
+  expect(state.surfaceMaxHeight).not.toBe("none");
+  expect(state.panelMaxHeight).not.toBe("none");
 }
 
 async function expectSuggestionPopoverReadable(popover: Locator): Promise<void> {
