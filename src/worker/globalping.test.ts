@@ -66,4 +66,28 @@ describe("Globalping client and validation", () => {
     expect(fetcher.mock.calls[0][1]?.headers).not.toHaveProperty("Authorization");
     expect(fetcher.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
   });
+
+  it("accepts current-size Globalping probe responses under the response cap", async () => {
+    const body = JSON.stringify([{ location: {}, tags: [], filler: "x".repeat(2_100_000) }]);
+    const fetcher = vi.fn().mockResolvedValue(new Response(body));
+    const client = new GlobalpingClient({ baseUrl: "https://globalping.test", fetcher });
+
+    await expect(client.listProbes()).resolves.toHaveLength(1);
+    expect(body.length).toBeGreaterThan(2_000_000);
+    expect(body.length).toBeLessThan(8 * 1024 * 1024);
+  });
+
+  it("reports invalid successful probe responses without a misleading HTTP 200 error", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ probes: [] })));
+    const client = new GlobalpingClient({ baseUrl: "https://globalping.test", fetcher });
+
+    await expect(client.listProbes()).rejects.toThrow("Globalping probes response is invalid or too large");
+  });
+
+  it("rejects Globalping probe responses above the response cap", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(" ".repeat(8 * 1024 * 1024 + 1)));
+    const client = new GlobalpingClient({ baseUrl: "https://globalping.test", fetcher });
+
+    await expect(client.listProbes()).rejects.toThrow("Globalping probes response is invalid or too large");
+  });
 });

@@ -16,7 +16,7 @@ export interface GlobalpingClientOptions {
   fetcher?: typeof fetch;
 }
 
-const GLOBALPING_RESPONSE_LIMIT_BYTES = 2_000_000;
+const GLOBALPING_RESPONSE_LIMIT_BYTES = 8 * 1024 * 1024;
 
 export class GlobalpingClient {
   private readonly baseUrl: string;
@@ -35,8 +35,11 @@ export class GlobalpingClient {
       },
     }));
     const body = await readJsonResponseWithLimit<GlobalpingProbe[]>(response, GLOBALPING_RESPONSE_LIMIT_BYTES);
-    if (!response.ok || !Array.isArray(body)) {
+    if (!response.ok) {
       throw new UpstreamError(`Globalping probes fetch failed with HTTP ${response.status}`);
+    }
+    if (!Array.isArray(body)) {
+      throw new UpstreamError("Globalping probes response is invalid or too large");
     }
     return body;
   }
