@@ -601,6 +601,23 @@ test("forced Liquid Glass fallback remains usable", async ({ page }) => {
   });
 });
 
+test("liquid glass surfaces keep textured backgrounds and restrained shadows", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page);
+  await page.addInitScript(() => {
+    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
+  });
+
+  await page.goto("/");
+
+  await expect(page.locator(".primary-controls-surface")).toBeVisible({ timeout: 8000 });
+  await expect(page.locator('.filter-summary-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
+  await expect(page.locator('.run-action-surface[data-liquid-glass-interactive="true"]')).toBeVisible();
+  await expectLiquidGlassVisualStructure(page);
+  expect(consoleErrors).toEqual([]);
+});
+
 function collectConsoleErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("console", (message) => {
@@ -914,6 +931,44 @@ async function expectLightModePanelBoundaries(page: Page): Promise<void> {
   expect(state.tableBorder).toBe("rgba(45, 72, 82, 0.16)");
   expect(state.panelBorderColor).not.toBe("rgba(255, 255, 255, 0.62)");
   expect(state.panelBorderWidth).toBe("1px");
+}
+
+async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
+  const state = await page.evaluate(() => {
+    const alphaOf = (value: string) => {
+      const match = value.match(/rgba?\(([^)]+)\)/);
+      if (!match) return 1;
+      const parts = match[1].split(",").map((part) => part.trim());
+      if (parts.length < 4) return 1;
+      return Number.parseFloat(parts[3]) || 0;
+    };
+    const read = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const style = window.getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        backgroundAlpha: alphaOf(style.backgroundColor),
+        boxShadow: style.boxShadow,
+      };
+    };
+    return {
+      bodyTextureOpacity: Number.parseFloat(window.getComputedStyle(document.body, "::before").opacity || "0") || 0,
+      filterPanel: read(".filter-panel"),
+      primaryControls: read(".primary-controls-surface"),
+      filterSummary: read('.filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary'),
+      statusBar: read('.status-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content'),
+      runActionButton: read('.run-action-surface[data-liquid-glass-mode="liquid"] .primary-action'),
+    };
+  });
+
+  expect(state.bodyTextureOpacity).toBeGreaterThan(0.2);
+  expect(state.primaryControls?.backgroundAlpha).toBeLessThanOrEqual(0.32);
+  expect(state.filterSummary?.backgroundAlpha).toBeLessThanOrEqual(0.32);
+  expect(state.statusBar?.backgroundAlpha).toBeLessThanOrEqual(0.36);
+  expect(state.runActionButton?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.filterPanel?.boxShadow).not.toMatch(/\b(?:58|70)px\b/);
+  expect(state.primaryControls?.boxShadow).not.toMatch(/\b(?:58|70)px\b/);
 }
 
 async function expectSuggestionPopoverReadable(popover: Locator): Promise<void> {

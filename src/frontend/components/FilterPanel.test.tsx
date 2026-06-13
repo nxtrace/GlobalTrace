@@ -96,6 +96,13 @@ describe("FilterPanel", () => {
     expect(screen.getByText("12 / 120 probes 匹配")).toBeInTheDocument();
     expect(screen.getByText("已从地图选择 US+Los Angeles+AS7922")).toBeInTheDocument();
     expect(screen.getByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
+    const baseControls = screen.getByRole("region", { name: "基础参数" });
+    expect(baseControls).toHaveClass("primary-controls-surface", "primary-controls");
+    expect(baseControls.closest("[data-liquid-glass]")).toBeNull();
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" }).closest("[data-liquid-glass]")).toHaveAttribute(
+      "data-liquid-glass-interactive",
+      "true",
+    );
     expect(screen.getByRole("button", { name: "主题：System" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "切换到 2D 视图" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "切换到 3D 视图" })).not.toBeInTheDocument();
@@ -531,6 +538,9 @@ describe("FilterPanel", () => {
     renderPanel({ loading: true, probesStatus: "error", quotaLabel: "诊断额度暂不可用" });
 
     expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" }).closest("[data-liquid-glass]")).not.toHaveAttribute(
+      "data-liquid-glass-interactive",
+    );
     expect(screen.getByText("运行中")).toBeInTheDocument();
     expect(screen.getByText("probes 读取失败")).toBeInTheDocument();
     expect(screen.getByText("诊断额度暂不可用")).toBeInTheDocument();

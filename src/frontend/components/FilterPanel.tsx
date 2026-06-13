@@ -132,8 +132,8 @@ export function FilterPanel(props: FilterPanelProps) {
             </div>
           </div>
 
-          <Surface asChild variant="flat" className="control-section primary-controls" aria-label="基础参数">
-            <section>
+          <Surface asChild variant="flat" className="primary-controls-surface">
+            <section className="control-section primary-controls" aria-label="基础参数">
               <label className="field-label">
                 <span>目标</span>
                 <Input
@@ -492,7 +492,13 @@ export function FilterPanel(props: FilterPanelProps) {
             </div>
           </LiquidGlassSurface>
 
-          <LiquidGlassSurface variant="button" fullWidth className="run-action-surface">
+          <LiquidGlassSurface
+            variant="button"
+            fullWidth
+            interactive
+            disabled={props.loading || !props.canSubmit}
+            className="run-action-surface"
+          >
             <Button
               variant="primary"
               size="lg"

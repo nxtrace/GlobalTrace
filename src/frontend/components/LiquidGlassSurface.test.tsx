@@ -3,8 +3,13 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 
+const liquidGlassCalls = vi.hoisted(() => [] as Array<Record<string, unknown>>);
+
 vi.mock("liquid-glass-react", () => ({
-  default: ({ children }: { children: ReactNode }) => <div data-testid="liquid-glass-mock">{children}</div>,
+  default: (props: { children: ReactNode }) => {
+    liquidGlassCalls.push(props as unknown as Record<string, unknown>);
+    return <div data-testid="liquid-glass-mock">{props.children}</div>;
+  },
 }));
 
 beforeEach(() => {
@@ -21,6 +26,7 @@ beforeEach(() => {
     ),
   );
   vi.stubGlobal("cancelIdleCallback", vi.fn((id: number) => window.clearTimeout(id)));
+  liquidGlassCalls.length = 0;
 });
 
 afterEach(() => {
@@ -151,6 +157,89 @@ describe("LiquidGlassSurface", () => {
     );
 
     expect(screen.getByText("Panel content").closest("[data-liquid-glass]")).toHaveClass("liquid-glass-panel");
+  });
+
+  it.each([
+    [
+      "button",
+      {
+        displacementScale: 56,
+        blurAmount: 0.052,
+        saturation: 142,
+        aberrationIntensity: 1.8,
+        elasticity: 0.18,
+        cornerRadius: 999,
+        overLight: true,
+        mode: "standard",
+      },
+    ],
+    [
+      "toolbar",
+      {
+        displacementScale: 38,
+        blurAmount: 0.044,
+        saturation: 142,
+        aberrationIntensity: 1.35,
+        elasticity: 0.1,
+        cornerRadius: 18,
+        overLight: false,
+        mode: "standard",
+      },
+    ],
+    [
+      "panel",
+      {
+        displacementScale: 28,
+        blurAmount: 0.036,
+        saturation: 142,
+        aberrationIntensity: 1.05,
+        elasticity: 0.07,
+        cornerRadius: 18,
+        overLight: false,
+        mode: "standard",
+      },
+    ],
+  ] as const)("passes restrained liquid glass props for the %s variant", async (variant, expectedProps) => {
+    setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+
+    render(
+      <LiquidGlassSurface variant={variant}>
+        <span>Variant content</span>
+      </LiquidGlassSurface>,
+    );
+
+    await waitFor(() => expect(liquidGlassCalls).toHaveLength(1));
+    expect(liquidGlassCalls[0]).toMatchObject(expectedProps);
+    expect(liquidGlassCalls[0]).not.toHaveProperty("onClick");
+  });
+
+  it("passes interactive click feedback only when enabled", async () => {
+    setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+    const { rerender } = render(
+      <LiquidGlassSurface variant="button" interactive>
+        <span>Run</span>
+      </LiquidGlassSurface>,
+    );
+
+    await waitFor(() => expect(liquidGlassCalls).toHaveLength(1));
+    expect(liquidGlassCalls[0]?.onClick).toEqual(expect.any(Function));
+    expect(screen.getByText("Run").closest("[data-liquid-glass]")).toHaveAttribute(
+      "data-liquid-glass-interactive",
+      "true",
+    );
+
+    liquidGlassCalls.length = 0;
+    rerender(
+      <LiquidGlassSurface variant="button" interactive disabled>
+        <span>Run</span>
+      </LiquidGlassSurface>,
+    );
+
+    await waitFor(() => expect(liquidGlassCalls).toHaveLength(1));
+    expect(liquidGlassCalls[0]).not.toHaveProperty("onClick");
+    expect(screen.getByText("Run").closest("[data-liquid-glass]")).not.toHaveAttribute(
+      "data-liquid-glass-interactive",
+    );
   });
 });
 

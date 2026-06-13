@@ -19,6 +19,8 @@ interface LiquidGlassSurfaceProps {
   className?: string;
   variant?: "button" | "toolbar" | "chip" | "panel";
   fullWidth?: boolean;
+  interactive?: boolean;
+  disabled?: boolean;
 }
 
 export function LiquidGlassPreferenceProvider({ children, enabled }: LiquidGlassPreferenceProviderProps) {
@@ -30,6 +32,8 @@ export function LiquidGlassSurface({
   className = "",
   variant = "chip",
   fullWidth = false,
+  interactive = false,
+  disabled = false,
 }: LiquidGlassSurfaceProps) {
   const liquidGlassEnabled = useLiquidGlassEnabled();
   const forceFallback = useForceFallback(liquidGlassEnabled);
@@ -55,6 +59,7 @@ export function LiquidGlassSurface({
   }, [LiquidGlass, canUseLiquid]);
 
   const glassProps = liquidPropsForVariant(variant);
+  const interactiveProps = interactive && !disabled ? { onClick: noop } : {};
   const classes = [
     "liquid-glass-surface",
     `liquid-glass-${variant}`,
@@ -65,9 +70,20 @@ export function LiquidGlassSurface({
     .join(" ");
 
   return (
-    <div className={classes} data-liquid-glass data-liquid-glass-mode={mode}>
+    <div
+      className={classes}
+      data-liquid-glass
+      data-liquid-glass-mode={mode}
+      data-liquid-glass-interactive={interactive && !disabled ? "true" : undefined}
+    >
       {canRenderLiquid ? (
-        <LiquidGlass {...glassProps} className="liquid-glass-package" padding="0" style={{ width: "100%" }}>
+        <LiquidGlass
+          {...glassProps}
+          {...interactiveProps}
+          className="liquid-glass-package"
+          padding="0"
+          style={{ width: "100%" }}
+        >
           <div className="liquid-glass-content">{children}</div>
         </LiquidGlass>
       ) : (
@@ -75,6 +91,10 @@ export function LiquidGlassSurface({
       )}
     </div>
   );
+}
+
+function noop(): void {
+  return undefined;
 }
 
 export function readStoredLiquidGlassEnabled(): boolean {
@@ -173,11 +193,11 @@ function supportsGlassEffects(): boolean {
 function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["variant"]>) {
   if (variant === "button") {
     return {
-      displacementScale: 48,
-      blurAmount: 0.04,
-      saturation: 150,
-      aberrationIntensity: 1.6,
-      elasticity: 0.12,
+      displacementScale: 56,
+      blurAmount: 0.052,
+      saturation: 142,
+      aberrationIntensity: 1.8,
+      elasticity: 0.18,
       cornerRadius: 999,
       overLight: true,
       mode: "standard" as const,
@@ -186,11 +206,11 @@ function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["var
 
   if (variant === "toolbar") {
     return {
-      displacementScale: 30,
-      blurAmount: 0.035,
-      saturation: 145,
-      aberrationIntensity: 1.2,
-      elasticity: 0.08,
+      displacementScale: 38,
+      blurAmount: 0.044,
+      saturation: 142,
+      aberrationIntensity: 1.35,
+      elasticity: 0.1,
       cornerRadius: 18,
       overLight: false,
       mode: "standard" as const,
@@ -199,23 +219,23 @@ function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["var
 
   if (variant === "panel") {
     return {
-      displacementScale: 22,
-      blurAmount: 0.028,
-      saturation: 150,
-      aberrationIntensity: 0.9,
-      elasticity: 0.06,
-      cornerRadius: 22,
+      displacementScale: 28,
+      blurAmount: 0.036,
+      saturation: 142,
+      aberrationIntensity: 1.05,
+      elasticity: 0.07,
+      cornerRadius: 18,
       overLight: false,
       mode: "standard" as const,
     };
   }
 
   return {
-    displacementScale: 26,
-    blurAmount: 0.03,
+    displacementScale: 30,
+    blurAmount: 0.034,
     saturation: 140,
-    aberrationIntensity: 1,
-    elasticity: 0.07,
+    aberrationIntensity: 1.05,
+    elasticity: 0.08,
     cornerRadius: 999,
     overLight: false,
     mode: "standard" as const,

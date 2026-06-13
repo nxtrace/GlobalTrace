@@ -2680,15 +2680,18 @@ pre {
   --accent-strong: #276d64;
   --accent-soft: rgba(35, 184, 255, 0.12);
   --accent-border: rgba(35, 184, 255, 0.36);
-  --glass-bg: rgba(255, 255, 255, 0.58);
-  --glass-control: rgba(255, 255, 255, 0.62);
-  --glass-control-hover: rgba(255, 255, 255, 0.86);
+  --network-line: rgba(37, 111, 134, 0.1);
+  --network-line-soft: rgba(117, 90, 156, 0.08);
+  --network-node: rgba(37, 111, 134, 0.14);
+  --glass-bg: rgba(255, 255, 255, 0.46);
+  --glass-control: rgba(255, 255, 255, 0.56);
+  --glass-control-hover: rgba(255, 255, 255, 0.78);
   --glass-border: rgba(45, 72, 82, 0.22);
-  --panel-solid: rgba(255, 255, 255, 0.9);
-  --panel-flat: rgba(255, 255, 255, 0.48);
+  --panel-solid: rgba(255, 255, 255, 0.86);
+  --panel-flat: rgba(255, 255, 255, 0.36);
   --panel-border: rgba(45, 72, 82, 0.22);
-  --control-bg: rgba(255, 255, 255, 0.56);
-  --control-bg-hover: rgba(255, 255, 255, 0.82);
+  --control-bg: rgba(255, 255, 255, 0.5);
+  --control-bg-hover: rgba(255, 255, 255, 0.76);
   --control-border: rgba(45, 72, 82, 0.2);
   --input-bg: rgba(255, 255, 255, 0.72);
   --input-bg-hover: rgba(255, 255, 255, 0.9);
@@ -2703,30 +2706,30 @@ pre {
   --tooltip-bg: rgba(255, 255, 255, 0.88);
   --shadow-soft: 0 1px 2px rgba(19, 35, 41, 0.05), 0 20px 46px rgba(51, 67, 83, 0.1);
   --shadow-panel:
-    0 1px 1px rgba(255, 255, 255, 0.78) inset,
-    0 22px 58px rgba(33, 50, 58, 0.13),
-    0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+    0 1px 1px rgba(255, 255, 255, 0.72) inset,
+    0 10px 26px rgba(33, 50, 58, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.18) inset;
   --shadow-control:
     0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 10px 24px rgba(32, 52, 64, 0.1);
+    0 7px 18px rgba(32, 52, 64, 0.08);
   --shadow-inset:
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     inset 0 -1px 0 rgba(35, 184, 255, 0.06);
-  --shadow-popover: 0 20px 58px rgba(28, 48, 60, 0.22);
-  --body-bg:
-    linear-gradient(135deg, rgba(230, 247, 255, 0.96), rgba(249, 247, 241, 0.94) 42%, rgba(240, 232, 255, 0.9)),
-    var(--page);
+  --shadow-popover: 0 16px 42px rgba(28, 48, 60, 0.16);
+  --body-bg: #f3f6f7;
   --body-texture:
-    repeating-linear-gradient(90deg, rgba(35, 184, 255, 0.08) 0 1px, transparent 1px 120px),
-    repeating-linear-gradient(0deg, rgba(139, 92, 246, 0.06) 0 1px, transparent 1px 120px),
-    linear-gradient(135deg, transparent 0 42%, rgba(35, 184, 255, 0.08) 42% 43%, transparent 43% 100%),
-    linear-gradient(35deg, transparent 0 62%, rgba(249, 115, 22, 0.06) 62% 63%, transparent 63% 100%);
+    linear-gradient(90deg, transparent 0 94px, var(--network-line) 94px 95px, transparent 95px 170px),
+    linear-gradient(0deg, transparent 0 118px, var(--network-line-soft) 118px 119px, transparent 119px 210px),
+    linear-gradient(135deg, transparent 0 47%, rgba(37, 111, 134, 0.08) 47% calc(47% + 1px), transparent calc(47% + 1px) 100%),
+    linear-gradient(35deg, transparent 0 66%, rgba(153, 105, 52, 0.07) 66% calc(66% + 1px), transparent calc(66% + 1px) 100%),
+    repeating-linear-gradient(90deg, transparent 0 68px, var(--network-node) 68px 70px, transparent 70px 190px);
   --filter-panel-bg:
-    linear-gradient(150deg, rgba(255, 255, 255, 0.82), rgba(239, 252, 255, 0.58) 50%, rgba(246, 240, 255, 0.54)),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.68), rgba(239, 252, 255, 0.42) 50%, rgba(246, 240, 255, 0.36)),
     var(--glass-bg);
   --section-bg:
-    linear-gradient(150deg, rgba(255, 255, 255, 0.68), rgba(236, 251, 255, 0.42) 52%, rgba(250, 244, 255, 0.38)),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.42), rgba(236, 251, 255, 0.24) 52%, rgba(250, 244, 255, 0.22)),
     var(--panel-flat);
+  --primary-controls-bg: rgba(255, 255, 255, 0.28);
   --map-control-bg: rgba(255, 255, 255, 0.64);
   --map-control-bg-hover: rgba(255, 255, 255, 0.86);
   --map-control-border: rgba(27, 112, 143, 0.24);
@@ -2734,13 +2737,22 @@ pre {
   --map-control-muted: rgba(27, 41, 48, 0.7);
   --map-control-shadow:
     0 1px 0 rgba(255, 255, 255, 0.76) inset,
-    0 14px 32px rgba(22, 43, 53, 0.16);
+    0 9px 22px rgba(22, 43, 53, 0.1);
   --map-popup-bg: rgba(255, 255, 255, 0.86);
   --liquid-fallback-bg: rgba(255, 255, 255, 0.58);
   --status-glass-bg:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.38), rgba(35, 184, 255, 0.1) 42%, rgba(139, 92, 246, 0.13)),
-    rgba(255, 255, 255, 0.16);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(35, 184, 255, 0.08) 42%, rgba(139, 92, 246, 0.1)),
+    rgba(255, 255, 255, 0.08);
   --status-glass-border: rgba(255, 255, 255, 0.72);
+  --liquid-inner-bg: rgba(255, 255, 255, 0.24);
+  --liquid-toolbar-bg: rgba(255, 255, 255, 0.22);
+  --liquid-inner-border: rgba(255, 255, 255, 0.58);
+  --liquid-inner-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 7px 18px rgba(33, 50, 58, 0.06);
+  --liquid-toolbar-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.46) inset,
+    0 8px 20px rgba(22, 43, 53, 0.08);
 }
 
 :root[data-theme="dark"] {
@@ -2753,15 +2765,18 @@ pre {
   --accent-strong: #9eeaff;
   --accent-soft: rgba(53, 210, 255, 0.16);
   --accent-border: rgba(53, 210, 255, 0.42);
-  --glass-bg: rgba(10, 18, 27, 0.64);
-  --glass-control: rgba(12, 24, 34, 0.68);
-  --glass-control-hover: rgba(20, 38, 54, 0.9);
+  --network-line: rgba(92, 202, 234, 0.1);
+  --network-line-soft: rgba(153, 122, 214, 0.1);
+  --network-node: rgba(92, 202, 234, 0.14);
+  --glass-bg: rgba(10, 18, 27, 0.54);
+  --glass-control: rgba(12, 24, 34, 0.58);
+  --glass-control-hover: rgba(20, 38, 54, 0.82);
   --glass-border: rgba(114, 220, 255, 0.18);
   --panel-solid: rgba(11, 20, 30, 0.92);
-  --panel-flat: rgba(12, 24, 34, 0.54);
+  --panel-flat: rgba(12, 24, 34, 0.42);
   --panel-border: rgba(114, 220, 255, 0.16);
-  --control-bg: rgba(10, 20, 30, 0.72);
-  --control-bg-hover: rgba(18, 36, 52, 0.92);
+  --control-bg: rgba(10, 20, 30, 0.6);
+  --control-bg-hover: rgba(18, 36, 52, 0.84);
   --control-border: rgba(114, 220, 255, 0.15);
   --input-bg: rgba(9, 18, 28, 0.82);
   --input-bg-hover: rgba(17, 32, 47, 0.94);
@@ -2777,30 +2792,30 @@ pre {
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.34), 0 18px 42px rgba(0, 0, 0, 0.36);
   --shadow-panel:
     0 1px 0 rgba(114, 220, 255, 0.1) inset,
-    0 24px 70px rgba(0, 0, 0, 0.46),
-    0 0 44px rgba(53, 210, 255, 0.08);
+    0 12px 34px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(114, 220, 255, 0.06) inset;
   --shadow-control:
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 12px 30px rgba(0, 0, 0, 0.36),
-    0 0 22px rgba(53, 210, 255, 0.08);
+    0 8px 22px rgba(0, 0, 0, 0.28),
+    0 0 14px rgba(53, 210, 255, 0.06);
   --shadow-inset:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     inset 0 -1px 0 rgba(53, 210, 255, 0.08);
-  --shadow-popover: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 36px rgba(139, 92, 246, 0.12);
-  --body-bg:
-    linear-gradient(135deg, rgba(6, 15, 23, 0.98), rgba(10, 13, 23, 0.98) 48%, rgba(16, 10, 31, 0.96)),
-    var(--page);
+  --shadow-popover: 0 18px 48px rgba(0, 0, 0, 0.42), 0 0 20px rgba(139, 92, 246, 0.08);
+  --body-bg: #071018;
   --body-texture:
-    repeating-linear-gradient(90deg, rgba(53, 210, 255, 0.08) 0 1px, transparent 1px 110px),
-    repeating-linear-gradient(0deg, rgba(139, 92, 246, 0.08) 0 1px, transparent 1px 110px),
-    linear-gradient(135deg, transparent 0 38%, rgba(53, 210, 255, 0.1) 38% 39%, transparent 39% 100%),
-    linear-gradient(35deg, transparent 0 66%, rgba(249, 115, 22, 0.08) 66% 67%, transparent 67% 100%);
+    linear-gradient(90deg, transparent 0 88px, var(--network-line) 88px 89px, transparent 89px 164px),
+    linear-gradient(0deg, transparent 0 112px, var(--network-line-soft) 112px 113px, transparent 113px 204px),
+    linear-gradient(135deg, transparent 0 43%, rgba(92, 202, 234, 0.1) 43% calc(43% + 1px), transparent calc(43% + 1px) 100%),
+    linear-gradient(35deg, transparent 0 68%, rgba(249, 161, 91, 0.08) 68% calc(68% + 1px), transparent calc(68% + 1px) 100%),
+    repeating-linear-gradient(90deg, transparent 0 62px, var(--network-node) 62px 64px, transparent 64px 184px);
   --filter-panel-bg:
-    linear-gradient(150deg, rgba(16, 31, 44, 0.78), rgba(10, 21, 32, 0.66) 52%, rgba(24, 16, 45, 0.58)),
+    linear-gradient(150deg, rgba(16, 31, 44, 0.62), rgba(10, 21, 32, 0.5) 52%, rgba(24, 16, 45, 0.42)),
     var(--glass-bg);
   --section-bg:
-    linear-gradient(150deg, rgba(18, 36, 52, 0.54), rgba(10, 21, 32, 0.42) 52%, rgba(24, 16, 45, 0.34)),
+    linear-gradient(150deg, rgba(18, 36, 52, 0.36), rgba(10, 21, 32, 0.28) 52%, rgba(24, 16, 45, 0.24)),
     var(--panel-flat);
+  --primary-controls-bg: rgba(10, 20, 30, 0.3);
   --map-control-bg: rgba(9, 18, 28, 0.84);
   --map-control-bg-hover: rgba(17, 34, 50, 0.94);
   --map-control-border: rgba(114, 220, 255, 0.24);
@@ -2808,14 +2823,23 @@ pre {
   --map-control-muted: rgba(196, 213, 223, 0.76);
   --map-control-shadow:
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
-    0 14px 34px rgba(0, 0, 0, 0.42),
-    0 0 28px rgba(53, 210, 255, 0.12);
+    0 9px 24px rgba(0, 0, 0, 0.32),
+    0 0 16px rgba(53, 210, 255, 0.08);
   --map-popup-bg: rgba(9, 18, 28, 0.9);
   --liquid-fallback-bg: rgba(10, 20, 30, 0.72);
   --status-glass-bg:
-    linear-gradient(135deg, rgba(245, 251, 255, 0.11), rgba(53, 210, 255, 0.08) 42%, rgba(139, 92, 246, 0.14)),
-    rgba(9, 18, 28, 0.82);
+    linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.06) 42%, rgba(139, 92, 246, 0.1)),
+    rgba(9, 18, 28, 0.62);
   --status-glass-border: rgba(114, 220, 255, 0.18);
+  --liquid-inner-bg: rgba(10, 20, 30, 0.28);
+  --liquid-toolbar-bg: rgba(9, 18, 28, 0.32);
+  --liquid-inner-border: rgba(114, 220, 255, 0.2);
+  --liquid-inner-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 8px 22px rgba(0, 0, 0, 0.2);
+  --liquid-toolbar-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 8px 22px rgba(0, 0, 0, 0.24);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -2829,15 +2853,18 @@ pre {
     --accent-strong: #9eeaff;
     --accent-soft: rgba(53, 210, 255, 0.16);
     --accent-border: rgba(53, 210, 255, 0.42);
-    --glass-bg: rgba(10, 18, 27, 0.64);
-    --glass-control: rgba(12, 24, 34, 0.68);
-    --glass-control-hover: rgba(20, 38, 54, 0.9);
+    --network-line: rgba(92, 202, 234, 0.1);
+    --network-line-soft: rgba(153, 122, 214, 0.1);
+    --network-node: rgba(92, 202, 234, 0.14);
+    --glass-bg: rgba(10, 18, 27, 0.54);
+    --glass-control: rgba(12, 24, 34, 0.58);
+    --glass-control-hover: rgba(20, 38, 54, 0.82);
     --glass-border: rgba(114, 220, 255, 0.18);
     --panel-solid: rgba(11, 20, 30, 0.92);
-    --panel-flat: rgba(12, 24, 34, 0.54);
+    --panel-flat: rgba(12, 24, 34, 0.42);
     --panel-border: rgba(114, 220, 255, 0.16);
-    --control-bg: rgba(10, 20, 30, 0.72);
-    --control-bg-hover: rgba(18, 36, 52, 0.92);
+    --control-bg: rgba(10, 20, 30, 0.6);
+    --control-bg-hover: rgba(18, 36, 52, 0.84);
     --control-border: rgba(114, 220, 255, 0.15);
     --input-bg: rgba(9, 18, 28, 0.82);
     --input-bg-hover: rgba(17, 32, 47, 0.94);
@@ -2853,30 +2880,30 @@ pre {
     --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.34), 0 18px 42px rgba(0, 0, 0, 0.36);
     --shadow-panel:
       0 1px 0 rgba(114, 220, 255, 0.1) inset,
-      0 24px 70px rgba(0, 0, 0, 0.46),
-      0 0 44px rgba(53, 210, 255, 0.08);
+      0 12px 34px rgba(0, 0, 0, 0.32),
+      0 0 0 1px rgba(114, 220, 255, 0.06) inset;
     --shadow-control:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 12px 30px rgba(0, 0, 0, 0.36),
-      0 0 22px rgba(53, 210, 255, 0.08);
+      0 8px 22px rgba(0, 0, 0, 0.28),
+      0 0 14px rgba(53, 210, 255, 0.06);
     --shadow-inset:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       inset 0 -1px 0 rgba(53, 210, 255, 0.08);
-    --shadow-popover: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 36px rgba(139, 92, 246, 0.12);
-    --body-bg:
-      linear-gradient(135deg, rgba(6, 15, 23, 0.98), rgba(10, 13, 23, 0.98) 48%, rgba(16, 10, 31, 0.96)),
-      var(--page);
+    --shadow-popover: 0 18px 48px rgba(0, 0, 0, 0.42), 0 0 20px rgba(139, 92, 246, 0.08);
+    --body-bg: #071018;
     --body-texture:
-      repeating-linear-gradient(90deg, rgba(53, 210, 255, 0.08) 0 1px, transparent 1px 110px),
-      repeating-linear-gradient(0deg, rgba(139, 92, 246, 0.08) 0 1px, transparent 1px 110px),
-      linear-gradient(135deg, transparent 0 38%, rgba(53, 210, 255, 0.1) 38% 39%, transparent 39% 100%),
-      linear-gradient(35deg, transparent 0 66%, rgba(249, 115, 22, 0.08) 66% 67%, transparent 67% 100%);
+      linear-gradient(90deg, transparent 0 88px, var(--network-line) 88px 89px, transparent 89px 164px),
+      linear-gradient(0deg, transparent 0 112px, var(--network-line-soft) 112px 113px, transparent 113px 204px),
+      linear-gradient(135deg, transparent 0 43%, rgba(92, 202, 234, 0.1) 43% calc(43% + 1px), transparent calc(43% + 1px) 100%),
+      linear-gradient(35deg, transparent 0 68%, rgba(249, 161, 91, 0.08) 68% calc(68% + 1px), transparent calc(68% + 1px) 100%),
+      repeating-linear-gradient(90deg, transparent 0 62px, var(--network-node) 62px 64px, transparent 64px 184px);
     --filter-panel-bg:
-      linear-gradient(150deg, rgba(16, 31, 44, 0.78), rgba(10, 21, 32, 0.66) 52%, rgba(24, 16, 45, 0.58)),
+      linear-gradient(150deg, rgba(16, 31, 44, 0.62), rgba(10, 21, 32, 0.5) 52%, rgba(24, 16, 45, 0.42)),
       var(--glass-bg);
     --section-bg:
-      linear-gradient(150deg, rgba(18, 36, 52, 0.54), rgba(10, 21, 32, 0.42) 52%, rgba(24, 16, 45, 0.34)),
+      linear-gradient(150deg, rgba(18, 36, 52, 0.36), rgba(10, 21, 32, 0.28) 52%, rgba(24, 16, 45, 0.24)),
       var(--panel-flat);
+    --primary-controls-bg: rgba(10, 20, 30, 0.3);
     --map-control-bg: rgba(9, 18, 28, 0.84);
     --map-control-bg-hover: rgba(17, 34, 50, 0.94);
     --map-control-border: rgba(114, 220, 255, 0.24);
@@ -2884,14 +2911,23 @@ pre {
     --map-control-muted: rgba(196, 213, 223, 0.76);
     --map-control-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
-      0 14px 34px rgba(0, 0, 0, 0.42),
-      0 0 28px rgba(53, 210, 255, 0.12);
+      0 9px 24px rgba(0, 0, 0, 0.32),
+      0 0 16px rgba(53, 210, 255, 0.08);
     --map-popup-bg: rgba(9, 18, 28, 0.9);
     --liquid-fallback-bg: rgba(10, 20, 30, 0.72);
     --status-glass-bg:
-      linear-gradient(135deg, rgba(245, 251, 255, 0.11), rgba(53, 210, 255, 0.08) 42%, rgba(139, 92, 246, 0.14)),
-      rgba(9, 18, 28, 0.82);
+      linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.06) 42%, rgba(139, 92, 246, 0.1)),
+      rgba(9, 18, 28, 0.62);
     --status-glass-border: rgba(114, 220, 255, 0.18);
+    --liquid-inner-bg: rgba(10, 20, 30, 0.28);
+    --liquid-toolbar-bg: rgba(9, 18, 28, 0.32);
+    --liquid-inner-border: rgba(114, 220, 255, 0.2);
+    --liquid-inner-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 22px rgba(0, 0, 0, 0.2);
+    --liquid-toolbar-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 8px 22px rgba(0, 0, 0, 0.24);
   }
 }
 
@@ -2907,7 +2943,7 @@ body::before {
   z-index: 0;
   pointer-events: none;
   background: var(--body-texture);
-  opacity: 0.72;
+  opacity: 0.42;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.18) 76%, transparent);
 }
 
@@ -2915,6 +2951,17 @@ body::before {
 .about-shell {
   position: relative;
   z-index: 1;
+}
+
+.app-shell::before,
+.about-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--body-texture);
+  opacity: 0.36;
 }
 
 .filter-panel,
@@ -2961,10 +3008,16 @@ textarea:hover {
 }
 
 .filter-summary-surface,
+.primary-controls-surface,
 .run-state-surface,
 .attribution-glass-surface,
 .about-panel-surface {
   width: 100%;
+}
+
+.primary-controls-surface {
+  z-index: 6;
+  background: var(--primary-controls-bg);
 }
 
 .about-panel-surface {
@@ -2993,7 +3046,26 @@ textarea:hover {
 .liquid-glass-panel .liquid-glass-fallback-content {
   border-color: var(--glass-border);
   background: var(--section-bg);
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-control);
+}
+
+.filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
+.run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
+.attribution-glass-surface[data-liquid-glass-mode="liquid"] .attribution-panel,
+.about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel {
+  border-color: var(--liquid-inner-border);
+  background: var(--liquid-inner-bg);
+  box-shadow: var(--liquid-inner-shadow);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.status-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+  border-color: var(--liquid-inner-border);
+  background: var(--liquid-toolbar-bg);
+  box-shadow: var(--liquid-toolbar-shadow);
 }
 
 .status-surface .glass,
@@ -3008,6 +3080,21 @@ textarea:hover {
   background:
     linear-gradient(135deg, rgba(35, 184, 255, 0.16), rgba(139, 92, 246, 0.14)),
     var(--liquid-fallback-bg);
+}
+
+.run-action-surface[data-liquid-glass-mode="liquid"] .primary-action {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.72), rgba(79, 143, 134, 0.66) 48%, rgba(124, 92, 255, 0.68));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 8px 18px rgba(35, 184, 255, 0.12);
+}
+
+.run-action-surface[data-liquid-glass-mode="liquid"] .primary-action:hover {
+  background: linear-gradient(135deg, rgba(55, 232, 209, 0.78), rgba(63, 126, 118, 0.7) 48%, rgba(139, 92, 246, 0.74));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.34) inset,
+    0 9px 20px rgba(35, 184, 255, 0.14);
 }
 
 .primary-action {
