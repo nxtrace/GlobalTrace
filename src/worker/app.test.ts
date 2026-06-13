@@ -335,6 +335,26 @@ describe("worker API", () => {
     expect(execution.ctx.waitUntil).toHaveBeenCalledTimes(1);
   });
 
+  it("serves cached probe lists when Cache API returns immutable headers", async () => {
+    const cachedBody = JSON.stringify({ probes: [sampleProbe()], fetchedAt: "2026-06-13T00:00:00.000Z" });
+    const cachedResponse = await fetch(`data:application/json,${encodeURIComponent(cachedBody)}`);
+    expect(() => cachedResponse.headers.set("X-Test", "1")).toThrow();
+    const matchMock = vi.fn().mockResolvedValue(cachedResponse);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("caches", { default: { match: matchMock, put: vi.fn() } });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(new Request("https://globaltrace.test/api/probes"), env);
+    const body = (await response.json()) as { fetchedAt: string; probes: unknown[] };
+
+    expect(response.status).toBe(200);
+    expect(body.probes).toHaveLength(1);
+    expect(body.fetchedAt).toBe("2026-06-13T00:00:00.000Z");
+    expectSecurityHeaders(response.headers);
+    expect(matchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("maps non-finished Globalping measurement statuses to error responses", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

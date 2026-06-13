@@ -56,14 +56,11 @@ export function createApp() {
     const cacheKey = probesCacheKey(c.req.raw, c.env);
     const cachedProbes = await responseCache?.match(cacheKey);
     if (cachedProbes?.ok) {
-      return cachedProbes;
+      return new Response(cachedProbes.body, cachedProbes);
     }
 
     const probes = await client(c.env).listProbes();
-    const response = c.json({ probes, fetchedAt: new Date().toISOString() });
-    for (const [key, value] of probesCacheHeaders()) {
-      response.headers.set(key, value);
-    }
+    const response = createJsonResponse({ probes, fetchedAt: new Date().toISOString() }, { headers: probesCacheHeaders() });
     queueCacheWrite(c, responseCache?.put(cacheKey, response.clone()));
     return response;
   });
