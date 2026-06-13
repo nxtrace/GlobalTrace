@@ -929,6 +929,7 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
     return {
       backgroundColor: styles.backgroundColor,
       borderTopWidth: styles.borderTopWidth,
+      boxShadow: styles.boxShadow,
       bottomGap: tabsRect.bottom - buttonBottom,
       buttonMinHeight: firstButtonStyle?.minHeight ?? "",
       buttonPaddingRight: firstButtonStyle?.paddingRight ?? "",
@@ -937,14 +938,20 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
       flexWrap: styles.flexWrap,
       overflowX: styles.overflowX,
       paddingBottom: Number.parseFloat(styles.paddingBottom),
+      probeTabsSurfaceCount: document.querySelectorAll(".probe-tabs-surface").length,
       scrollbarColor: styles.scrollbarColor,
       scrollbarWidth: styles.scrollbarWidth,
       scrollWidth: tabs.scrollWidth,
+      tabSurfaceCount: tabs.querySelectorAll(".probe-tab-surface[data-liquid-glass]").length,
+      tabButtonCount: buttons.length,
     };
   });
   expect(state.flexWrap).toBe("nowrap");
   expect(state.borderTopWidth).toBe("0px");
   expect(state.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.boxShadow).toBe("none");
+  expect(state.probeTabsSurfaceCount).toBe(0);
+  expect(state.tabSurfaceCount).toBe(state.tabButtonCount);
   expect(["auto", "scroll"]).toContain(state.overflowX);
   expect(state.scrollWidth).toBeGreaterThan(state.clientWidth);
   expect(state.paddingBottom).toBeGreaterThanOrEqual(8);
@@ -1492,6 +1499,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const copySurface = copyButton?.closest(".result-command-surface")?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const closeSurface = closeButton?.closest(".result-command-surface")?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
+    const routeTabs = Array.from(document.querySelectorAll(".probe-tabs [role='tab']")) as HTMLElement[];
     const map = document.querySelector(".result-map") as HTMLElement | null;
     const table = document.querySelector(".hop-table-scroll") as HTMLElement | null;
     const cards = document.querySelector(".hop-card-list") as HTMLElement | null;
@@ -1589,9 +1597,15 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       closeButtonHeight: closeButtonRect?.height ?? 0,
       closeButtonTop: closeButtonRect?.top ?? 0,
       tabsFlexWrap: tabs ? window.getComputedStyle(tabs).flexWrap : "",
+      tabsBackgroundColor: tabs ? window.getComputedStyle(tabs).backgroundColor : "",
+      tabsBorderTopWidth: tabs ? window.getComputedStyle(tabs).borderTopWidth : "",
+      tabsBoxShadow: tabs ? window.getComputedStyle(tabs).boxShadow : "",
       tabsOverflowX: tabs ? window.getComputedStyle(tabs).overflowX : "",
       tabsScrollWidth: tabs?.scrollWidth ?? 0,
       tabsClientWidth: tabs?.clientWidth ?? 0,
+      probeTabsSurfaceCount: document.querySelectorAll(".probe-tabs-surface").length,
+      routeTabCount: routeTabs.length,
+      routeTabSurfaceCount: document.querySelectorAll(".probe-tabs .probe-tab-surface[data-liquid-glass]").length,
       mapHeight: mapRect?.height ?? 0,
       tableDisplay: table ? window.getComputedStyle(table).display : "",
       tableOverflowX: table ? window.getComputedStyle(table).overflowX : "",
@@ -1666,6 +1680,11 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.actionSurfaceStyles.copy.backgroundColor).toBe(state.actionSurfaceStyles.close.backgroundColor);
   expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgb(255, 255, 255)");
   expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgba(255, 255, 255, 0.9)");
+  expect(state.probeTabsSurfaceCount).toBe(0);
+  expect(state.routeTabSurfaceCount).toBe(state.routeTabCount);
+  expect(state.tabsBackgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.tabsBorderTopWidth).toBe("0px");
+  expect(state.tabsBoxShadow).toBe("none");
   const viewButtonStyles = [
     state.actionButtonStyles.twoDimensional,
     state.actionButtonStyles.threeDimensional,

@@ -214,19 +214,19 @@ export function ResultsView({
         </div>
 
         <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
-          <LiquidGlassSurface variant="tab" fullWidth className="probe-tabs-surface">
-            <TabsList className="probe-tabs" aria-label="probe results">
-              {result.results.map((item, index) => (
-                <TabsTrigger key={item.id} value={String(index)} style={routeTabStyle(index)} onClick={() => selectProbe(index)}>
+          <TabsList className="probe-tabs" aria-label="probe results">
+            {result.results.map((item, index) => (
+              <LiquidGlassSurface variant="tab" className="probe-tab-surface" key={item.id}>
+                <TabsTrigger value={String(index)} style={routeTabStyle(index)} onClick={() => selectProbe(index)}>
                   <span className="probe-tab-route-dot" aria-hidden="true" />
                   <span className="probe-tab-copy">
                     <strong>{item.probe.city || item.probe.country}</strong>
                     <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
                   </span>
                 </TabsTrigger>
-              ))}
-            </TabsList>
-          </LiquidGlassSurface>
+              </LiquidGlassSurface>
+            ))}
+          </TabsList>
           <TabsContent value={String(activeIndex)} className="probe-tab-content">
             {renderMap && (
               <ResultMap
