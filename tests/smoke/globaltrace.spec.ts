@@ -922,9 +922,14 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   const state = await page.locator(".probe-tabs").evaluate((node) => {
     const tabs = node as HTMLElement;
     const buttons = Array.from(tabs.querySelectorAll("button")) as HTMLElement[];
+    const activeButton = buttons.find((button) => button.getAttribute("aria-selected") === "true") ?? null;
+    const activeSurface = activeButton?.closest(".probe-tab-surface") as HTMLElement | null;
+    const activeSurfaceContent = activeSurface?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const tabsRect = tabs.getBoundingClientRect();
     const buttonBottom = Math.max(...buttons.map((button) => button.getBoundingClientRect().bottom));
     const firstButtonStyle = buttons[0] ? window.getComputedStyle(buttons[0]) : null;
+    const activeButtonStyle = activeButton ? window.getComputedStyle(activeButton) : null;
+    const activeSurfaceContentStyle = activeSurfaceContent ? window.getComputedStyle(activeSurfaceContent) : null;
     const styles = window.getComputedStyle(tabs);
     return {
       backgroundColor: styles.backgroundColor,
@@ -934,6 +939,15 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
       buttonMinHeight: firstButtonStyle?.minHeight ?? "",
       buttonPaddingRight: firstButtonStyle?.paddingRight ?? "",
       buttonPaddingTop: firstButtonStyle?.paddingTop ?? "",
+      activeButtonBackgroundColor: activeButtonStyle?.backgroundColor ?? "",
+      activeButtonBorderRadius: activeButtonStyle?.borderRadius ?? "",
+      activeButtonBorderTopWidth: activeButtonStyle?.borderTopWidth ?? "",
+      activeButtonBoxShadow: activeButtonStyle?.boxShadow ?? "",
+      activeButtonClassName: activeButton?.className ?? "",
+      activeSurfaceBackgroundImage: activeSurfaceContentStyle?.backgroundImage ?? "",
+      activeSurfaceBorderRadius: activeSurfaceContentStyle?.borderRadius ?? "",
+      activeSurfaceBoxShadow: activeSurfaceContentStyle?.boxShadow ?? "",
+      activeSurfaceClassName: activeSurface?.className ?? "",
       clientWidth: tabs.clientWidth,
       flexWrap: styles.flexWrap,
       overflowX: styles.overflowX,
@@ -952,17 +966,23 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.boxShadow).toBe("none");
   expect(state.probeTabsSurfaceCount).toBe(0);
   expect(state.tabSurfaceCount).toBe(state.tabButtonCount);
+  expect(state.activeButtonClassName).toContain("probe-tab-button");
+  expect(state.activeButtonClassName).not.toContain("data-[state=active]");
+  expect(state.activeSurfaceClassName).toContain("is-active");
+  expect(state.activeButtonBackgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.activeButtonBorderTopWidth).toBe("0px");
+  expect(state.activeButtonBoxShadow).toBe("none");
+  expect(state.activeSurfaceBackgroundImage).not.toBe("none");
+  expect(state.activeSurfaceBoxShadow).not.toContain("inset 3px");
+  expect(state.activeSurfaceBorderRadius).toBe(state.activeButtonBorderRadius);
   expect(["auto", "scroll"]).toContain(state.overflowX);
   expect(state.scrollWidth).toBeGreaterThan(state.clientWidth);
-  expect(state.paddingBottom).toBeGreaterThanOrEqual(8);
-  expect(state.paddingBottom).toBeLessThanOrEqual(10);
-  expect(state.bottomGap).toBeGreaterThanOrEqual(7);
-  expect(state.bottomGap).toBeLessThanOrEqual(11);
+  expect(state.paddingBottom).toBeLessThanOrEqual(1);
+  expect(state.bottomGap).toBeLessThanOrEqual(2);
   expect(state.buttonMinHeight).toBe("42px");
-  expect(state.buttonPaddingTop).toBe("6px");
-  expect(state.buttonPaddingRight).toBe("9px");
-  expect(state.scrollbarWidth).toBe("thin");
-  expect(state.scrollbarColor).not.toBe("auto");
+  expect(state.buttonPaddingTop).toBe("7px");
+  expect(state.buttonPaddingRight).toBe("11px");
+  expect(state.scrollbarWidth).toBe("none");
 }
 
 async function expectGeoIpMetricReadable(page: Page): Promise<void> {
@@ -1500,6 +1520,9 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const closeSurface = closeButton?.closest(".result-command-surface")?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const routeTabs = Array.from(document.querySelectorAll(".probe-tabs [role='tab']")) as HTMLElement[];
+    const activeRouteTab = routeTabs.find((button) => button.getAttribute("aria-selected") === "true") ?? null;
+    const activeRouteSurface = activeRouteTab?.closest(".probe-tab-surface") as HTMLElement | null;
+    const activeRouteSurfaceContent = activeRouteSurface?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const map = document.querySelector(".result-map") as HTMLElement | null;
     const table = document.querySelector(".hop-table-scroll") as HTMLElement | null;
     const cards = document.querySelector(".hop-card-list") as HTMLElement | null;
@@ -1570,6 +1593,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const mapRect = map?.getBoundingClientRect();
     const cardRects = Array.from(cards?.querySelectorAll(".hop-card") || []).map(rectFor);
     const actionStyle = headerActions ? window.getComputedStyle(headerActions) : null;
+    const activeRouteTabStyle = activeRouteTab ? window.getComputedStyle(activeRouteTab) : null;
+    const activeRouteSurfaceStyle = activeRouteSurfaceContent ? window.getComputedStyle(activeRouteSurfaceContent) : null;
     return {
       documentScroll: doc.scrollWidth,
       documentClient: doc.clientWidth,
@@ -1606,6 +1631,20 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       probeTabsSurfaceCount: document.querySelectorAll(".probe-tabs-surface").length,
       routeTabCount: routeTabs.length,
       routeTabSurfaceCount: document.querySelectorAll(".probe-tabs .probe-tab-surface[data-liquid-glass]").length,
+      activeRouteTabStyle: {
+        backgroundColor: activeRouteTabStyle?.backgroundColor ?? "",
+        borderRadius: activeRouteTabStyle?.borderRadius ?? "",
+        borderTopWidth: activeRouteTabStyle?.borderTopWidth ?? "",
+        boxShadow: activeRouteTabStyle?.boxShadow ?? "",
+        className: activeRouteTab?.className ?? "",
+      },
+      activeRouteSurfaceStyle: {
+        backgroundColor: activeRouteSurfaceStyle?.backgroundColor ?? "",
+        backgroundImage: activeRouteSurfaceStyle?.backgroundImage ?? "",
+        borderRadius: activeRouteSurfaceStyle?.borderRadius ?? "",
+        boxShadow: activeRouteSurfaceStyle?.boxShadow ?? "",
+        className: activeRouteSurface?.className ?? "",
+      },
       mapHeight: mapRect?.height ?? 0,
       tableDisplay: table ? window.getComputedStyle(table).display : "",
       tableOverflowX: table ? window.getComputedStyle(table).overflowX : "",
@@ -1685,6 +1724,16 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.tabsBackgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.tabsBorderTopWidth).toBe("0px");
   expect(state.tabsBoxShadow).toBe("none");
+  expect(state.activeRouteTabStyle.className).toContain("probe-tab-button");
+  expect(state.activeRouteTabStyle.className).not.toContain("data-[state=active]");
+  expect(state.activeRouteSurfaceStyle.className).toContain("is-active");
+  expect(state.activeRouteTabStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.activeRouteTabStyle.borderTopWidth).toBe("0px");
+  expect(state.activeRouteTabStyle.boxShadow).toBe("none");
+  expect(state.activeRouteSurfaceStyle.backgroundColor).not.toBe("rgb(255, 255, 255)");
+  expect(state.activeRouteSurfaceStyle.backgroundImage).not.toBe("none");
+  expect(state.activeRouteSurfaceStyle.boxShadow).not.toContain("inset 3px");
+  expect(state.activeRouteSurfaceStyle.borderRadius).toBe(state.activeRouteTabStyle.borderRadius);
   const viewButtonStyles = [
     state.actionButtonStyles.twoDimensional,
     state.actionButtonStyles.threeDimensional,

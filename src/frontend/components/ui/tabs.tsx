@@ -19,16 +19,20 @@ const TabsList = React.forwardRef<
 ));
 TabsList.displayName = TabsPrimitive.List.displayName;
 
+type TabsTriggerProps = React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> & {
+  unstyled?: boolean;
+};
+
+const triggerClassName =
+  "min-w-40 flex-1 rounded-xl border border-transparent px-3 py-2 text-left text-sm text-[color:var(--muted-foreground)] transition-[background,border-color,box-shadow,color,transform] hover:-translate-y-px hover:bg-[color:var(--control-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] data-[state=active]:border-[color:var(--accent-border)] data-[state=active]:bg-[color:var(--panel-solid)] data-[state=active]:text-[color:var(--foreground)] data-[state=active]:shadow-[var(--shadow-control)]";
+
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className, ...props }, ref) => (
+  TabsTriggerProps
+>(({ className, unstyled = false, ...props }, ref) => (
   <TabsPrimitive.Trigger
     ref={ref}
-    className={cn(
-      "min-w-40 flex-1 rounded-xl border border-transparent px-3 py-2 text-left text-sm text-[color:var(--muted-foreground)] transition-[background,border-color,box-shadow,color,transform] hover:-translate-y-px hover:bg-[color:var(--control-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] data-[state=active]:border-[color:var(--accent-border)] data-[state=active]:bg-[color:var(--panel-solid)] data-[state=active]:text-[color:var(--foreground)] data-[state=active]:shadow-[var(--shadow-control)]",
-      className,
-    )}
+    className={unstyled ? className : cn(triggerClassName, className)}
     {...props}
   />
 ));

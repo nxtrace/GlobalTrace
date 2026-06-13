@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type CSSProperties, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { deferUntilIdle } from "../lib/defer";
 
 type LiquidGlassComponent = (typeof import("liquid-glass-react"))["default"];
@@ -17,6 +17,7 @@ interface LiquidGlassPreferenceProviderProps {
 interface LiquidGlassSurfaceProps {
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
   variant?: "button" | "toolbar" | "chip" | "panel" | "iconButton" | "floatingPanel" | "metric" | "tab";
   fullWidth?: boolean;
   interactive?: boolean;
@@ -30,6 +31,7 @@ export function LiquidGlassPreferenceProvider({ children, enabled }: LiquidGlass
 export function LiquidGlassSurface({
   children,
   className = "",
+  style,
   variant = "chip",
   fullWidth = false,
   interactive = false,
@@ -76,6 +78,7 @@ export function LiquidGlassSurface({
       data-liquid-glass
       data-liquid-glass-mode={mode}
       data-liquid-glass-interactive={interactive && !disabled ? "true" : undefined}
+      style={style}
     >
       {canRenderLiquid ? (
         <LiquidGlass

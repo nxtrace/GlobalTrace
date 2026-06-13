@@ -247,6 +247,13 @@ describe("ResultsView", () => {
     expect(tabs?.closest(".probe-tabs-surface")).toBeNull();
     expect(tabs?.parentElement).toHaveClass("probe-tabs-root");
     expect(document.querySelectorAll(".probe-tab-surface[data-liquid-glass]")).toHaveLength(routeTabs.length);
+    for (const tab of routeTabs) {
+      expect(tab).toHaveClass("probe-tab-button");
+      expect(tab.className).not.toContain("data-[state=active]");
+      expect(tab.closest(".probe-tab-surface")).not.toBeNull();
+      expect(tab.closest(".probe-tab-surface")?.getAttribute("style")).toContain("--route-color");
+    }
+    expect(routeTabs[0]?.closest(".probe-tab-surface")).toHaveClass("is-active");
     expect(document.querySelector(".hop-table-scroll[data-liquid-glass]")).toBeNull();
     expect(document.querySelector(".raw-output[data-liquid-glass]")).toBeNull();
   });
@@ -332,11 +339,13 @@ describe("ResultsView", () => {
 
     const tabs = screen.getAllByRole("tab");
     expect(tabs[0]?.querySelector(".probe-tab-route-dot")).not.toBeNull();
-    expect((tabs[0] as HTMLElement).style.getPropertyValue("--route-color")).toBe("#14b8a6");
-    expect((tabs[1] as HTMLElement).style.getPropertyValue("--route-color")).toBe("#f97316");
+    expect((tabs[0]?.closest(".probe-tab-surface") as HTMLElement).style.getPropertyValue("--route-color")).toBe("#14b8a6");
+    expect((tabs[1]?.closest(".probe-tab-surface") as HTMLElement).style.getPropertyValue("--route-color")).toBe("#f97316");
     expect(screen.getByText("Los Angeles")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Tokyo/ }));
 
+    expect(tabs[0]?.closest(".probe-tab-surface")).not.toHaveClass("is-active");
+    expect(tabs[1]?.closest(".probe-tab-surface")).toHaveClass("is-active");
     const table = screen.getByRole("table");
     expect(within(table).getByText("203.0.113.9")).toBeInTheDocument();
     expect(within(table).getByText("AS64500")).toBeInTheDocument();

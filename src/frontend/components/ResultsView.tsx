@@ -216,8 +216,18 @@ export function ResultsView({
         <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
           <TabsList className="probe-tabs" aria-label="probe results">
             {result.results.map((item, index) => (
-              <LiquidGlassSurface variant="tab" className="probe-tab-surface" key={item.id}>
-                <TabsTrigger value={String(index)} style={routeTabStyle(index)} onClick={() => selectProbe(index)}>
+              <LiquidGlassSurface
+                variant="tab"
+                className={`probe-tab-surface${index === activeIndex ? " is-active" : ""}`}
+                style={routeTabStyle(index)}
+                key={item.id}
+              >
+                <TabsTrigger
+                  unstyled
+                  className="probe-tab-button"
+                  value={String(index)}
+                  onClick={() => selectProbe(index)}
+                >
                   <span className="probe-tab-route-dot" aria-hidden="true" />
                   <span className="probe-tab-copy">
                     <strong>{item.probe.city || item.probe.country}</strong>

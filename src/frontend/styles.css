@@ -1691,8 +1691,7 @@ tbody tr:hover {
 }
 
 .probe-tabs {
-  --probe-tabs-bottom-padding: 8px;
-  --probe-tabs-scrollbar-color: color-mix(in srgb, var(--ink-muted) 58%, transparent);
+  --probe-tabs-bottom-padding: 0px;
   min-width: 0;
   width: 100%;
   max-width: 100%;
@@ -1700,36 +1699,59 @@ tbody tr:hover {
   align-items: stretch;
   gap: 8px;
   overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--probe-tabs-scrollbar-color) transparent;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
 }
 
 .probe-tab-surface {
   flex: 1 0 min(180px, 70vw);
   min-width: 160px;
   min-height: 42px;
+  isolation: isolate;
 }
 
 .probe-tab-surface,
+.probe-tab-surface .liquid-glass-package,
 .probe-tab-surface .liquid-glass-content,
 .probe-tab-surface .liquid-glass-fallback-content {
-  border-radius: 14px;
+  border-radius: var(--probe-tab-radius);
 }
 
 .probe-tab-surface .liquid-glass-content,
 .probe-tab-surface .liquid-glass-fallback-content {
   display: block;
   height: 100%;
-  border: 1px solid var(--liquid-inner-border);
-  background: var(--liquid-inner-bg);
-  box-shadow: var(--liquid-inner-shadow);
+  overflow: hidden;
+  border: 1px solid var(--probe-tab-border);
+  background: var(--probe-tab-surface-bg);
+  box-shadow: var(--probe-tab-shadow);
   backdrop-filter: blur(18px) saturate(1.12);
   -webkit-backdrop-filter: blur(18px) saturate(1.12);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.probe-tab-surface:hover .liquid-glass-content,
+.probe-tab-surface:hover .liquid-glass-fallback-content {
+  border-color: var(--probe-tab-hover-border);
+  background: var(--probe-tab-hover-bg);
+  box-shadow: var(--probe-tab-shadow);
+  transform: translateY(-1px);
+}
+
+.probe-tab-surface.is-active .liquid-glass-content,
+.probe-tab-surface.is-active .liquid-glass-fallback-content {
+  border-color: var(--probe-tab-active-border);
+  background: var(--probe-tab-active-bg);
+  box-shadow: var(--probe-tab-active-shadow);
 }
 
 .probe-tabs::-webkit-scrollbar {
-  height: 8px;
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .probe-tabs::-webkit-scrollbar-track {
@@ -1739,10 +1761,10 @@ tbody tr:hover {
 
 .probe-tabs::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: var(--probe-tabs-scrollbar-color);
+  background: transparent;
 }
 
-.probe-tabs button {
+.probe-tab-button {
   width: 100%;
   min-width: 0;
   min-height: 42px;
@@ -1752,17 +1774,17 @@ tbody tr:hover {
   align-items: center;
   gap: 7px;
   justify-items: stretch;
-  border-radius: 12px;
-  padding: 6px 9px;
+  border: 0;
+  border-radius: var(--probe-tab-radius);
+  padding: 7px 11px;
   background: transparent;
+  box-shadow: none;
   color: var(--probe-tab-text);
   text-align: left;
   cursor: pointer;
   transition:
-    transform 160ms ease,
-    background 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+    color 160ms ease,
+    transform 160ms ease;
 }
 
 .probe-tab-route-dot {
@@ -1789,10 +1811,16 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
-.probe-tabs button:hover {
-  transform: translateY(-1px);
-  background: var(--hover-bg);
-  box-shadow: 0 9px 22px rgba(0, 0, 0, 0.07);
+.probe-tab-button:hover,
+.probe-tab-button[data-state="active"] {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.probe-tab-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -4px;
 }
 
 .probe-tab-meta {
@@ -1805,11 +1833,10 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
-.probe-tabs button.active,
-.probe-tabs button[data-state="active"] {
-  border-color: color-mix(in srgb, var(--route-color, var(--accent)) 42%, var(--line));
-  background: var(--accent-soft);
-  box-shadow: inset 3px 0 0 var(--route-color, var(--accent));
+.probe-tab-surface.is-active .probe-tab-route-dot {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--route-color, var(--accent)) 24%, transparent),
+    0 0 16px color-mix(in srgb, var(--route-color, var(--accent)) 52%, transparent);
 }
 
 .probe-tab-content {
@@ -2817,7 +2844,7 @@ pre {
   }
 
   .probe-tabs {
-    --probe-tabs-bottom-padding: 2px;
+    --probe-tabs-bottom-padding: 0px;
     flex-wrap: wrap;
     overflow-x: visible;
   }
@@ -2827,9 +2854,9 @@ pre {
     min-width: 0;
   }
 
-  .probe-tabs button {
+  .probe-tab-button {
     min-height: 44px;
-    padding: 6px 8px;
+    padding: 7px 9px;
   }
 
   .hop-table-scroll {
@@ -3122,11 +3149,27 @@ pre {
   --liquid-control-shadow:
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
     0 8px 20px rgba(22, 43, 53, 0.08);
+  --probe-tab-radius: 18px;
   --probe-tab-text: var(--ink);
   --probe-tab-meta-color: var(--ink-muted);
+  --probe-tab-surface-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(35, 184, 255, 0.06) 58%, rgba(139, 92, 246, 0.08)),
+    rgba(255, 255, 255, 0.16);
+  --probe-tab-hover-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(35, 184, 255, 0.1) 58%, rgba(139, 92, 246, 0.12)),
+    rgba(255, 255, 255, 0.2);
   --probe-tab-active-bg:
-    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 18%, transparent), var(--accent-soft)),
-    var(--control-bg);
+    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 24%, rgba(255, 255, 255, 0.24)), rgba(255, 255, 255, 0.16)),
+    rgba(255, 255, 255, 0.2);
+  --probe-tab-border: rgba(255, 255, 255, 0.46);
+  --probe-tab-hover-border: rgba(255, 255, 255, 0.62);
+  --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 48%, rgba(255, 255, 255, 0.64));
+  --probe-tab-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.46) inset,
+    0 3px 10px rgba(33, 50, 58, 0.05);
+  --probe-tab-active-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.52) inset,
+    0 4px 14px color-mix(in srgb, var(--route-color, var(--accent)) 18%, transparent);
 }
 
 :root[data-theme="dark"] {
@@ -3238,9 +3281,24 @@ pre {
     0 0 18px rgba(53, 210, 255, 0.08);
   --probe-tab-text: rgba(245, 251, 255, 0.96);
   --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
+  --probe-tab-surface-bg:
+    linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.06) 58%, rgba(139, 92, 246, 0.08)),
+    rgba(9, 18, 28, 0.42);
+  --probe-tab-hover-bg:
+    linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.1) 58%, rgba(139, 92, 246, 0.12)),
+    rgba(12, 25, 38, 0.56);
   --probe-tab-active-bg:
-    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 24%, rgba(8, 18, 28, 0.42)), rgba(53, 210, 255, 0.12)),
-    rgba(10, 22, 34, 0.76);
+    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 32%, rgba(8, 18, 28, 0.48)), rgba(53, 210, 255, 0.1)),
+    rgba(9, 19, 30, 0.64);
+  --probe-tab-border: rgba(148, 226, 255, 0.2);
+  --probe-tab-hover-border: rgba(148, 226, 255, 0.32);
+  --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 50%, rgba(148, 226, 255, 0.28));
+  --probe-tab-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 3px 10px rgba(0, 0, 0, 0.14);
+  --probe-tab-active-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.12) inset,
+    0 4px 14px color-mix(in srgb, var(--route-color, var(--accent)) 16%, rgba(0, 0, 0, 0.18));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -3353,9 +3411,24 @@ pre {
       0 0 18px rgba(53, 210, 255, 0.08);
     --probe-tab-text: rgba(245, 251, 255, 0.96);
     --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
+    --probe-tab-surface-bg:
+      linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.06) 58%, rgba(139, 92, 246, 0.08)),
+      rgba(9, 18, 28, 0.42);
+    --probe-tab-hover-bg:
+      linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.1) 58%, rgba(139, 92, 246, 0.12)),
+      rgba(12, 25, 38, 0.56);
     --probe-tab-active-bg:
-      linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 24%, rgba(8, 18, 28, 0.42)), rgba(53, 210, 255, 0.12)),
-      rgba(10, 22, 34, 0.76);
+      linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 32%, rgba(8, 18, 28, 0.48)), rgba(53, 210, 255, 0.1)),
+      rgba(9, 19, 30, 0.64);
+    --probe-tab-border: rgba(148, 226, 255, 0.2);
+    --probe-tab-hover-border: rgba(148, 226, 255, 0.32);
+    --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 50%, rgba(148, 226, 255, 0.28));
+    --probe-tab-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 3px 10px rgba(0, 0, 0, 0.14);
+    --probe-tab-active-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.12) inset,
+      0 4px 14px color-mix(in srgb, var(--route-color, var(--accent)) 16%, rgba(0, 0, 0, 0.18));
   }
 }
 
@@ -3550,11 +3623,23 @@ textarea:hover {
 }
 
 .probe-tab-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
-  border-color: var(--liquid-inner-border);
-  background: var(--liquid-inner-bg);
-  box-shadow: var(--liquid-inner-shadow);
+  border-color: var(--probe-tab-border);
+  background: var(--probe-tab-surface-bg);
+  box-shadow: var(--probe-tab-shadow);
   backdrop-filter: blur(18px) saturate(1.12);
   -webkit-backdrop-filter: blur(18px) saturate(1.12);
+}
+
+.probe-tab-surface[data-liquid-glass-mode="liquid"]:hover .liquid-glass-content {
+  border-color: var(--probe-tab-hover-border);
+  background: var(--probe-tab-hover-bg);
+  box-shadow: var(--probe-tab-shadow);
+}
+
+.probe-tab-surface[data-liquid-glass-mode="liquid"].is-active .liquid-glass-content {
+  border-color: var(--probe-tab-active-border);
+  background: var(--probe-tab-active-bg);
+  box-shadow: var(--probe-tab-active-shadow);
 }
 
 .results-section-surface[data-liquid-glass-mode="liquid"] .results-section {
@@ -3732,17 +3817,8 @@ textarea:hover {
   -webkit-backdrop-filter: none;
 }
 
-.probe-tabs button {
-  border: 1px solid transparent;
-}
-
-.probe-tabs button.active,
-.probe-tabs button[data-state="active"] {
-  background: var(--probe-tab-active-bg);
-}
-
-.probe-tabs button.active .probe-tab-meta,
-.probe-tabs button[data-state="active"] .probe-tab-meta {
+.probe-tab-surface.is-active .probe-tab-meta,
+.probe-tab-button[data-state="active"] .probe-tab-meta {
   color: color-mix(in srgb, var(--probe-tab-text) 82%, var(--probe-tab-meta-color));
 }
 
