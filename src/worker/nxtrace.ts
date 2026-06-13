@@ -30,6 +30,21 @@ interface BatchResponse {
   results: BatchResult[];
 }
 
+class NxtraceBatchError extends Error {
+  readonly retryBySplit: boolean;
+
+  constructor(message: string, retryBySplit: boolean) {
+    super(message);
+    this.name = "NxtraceBatchError";
+    this.retryBySplit = retryBySplit;
+  }
+}
+
+interface SplitBatchResponse {
+  results: BatchResult[];
+  errors: EnrichmentSummary["errors"];
+}
+
 export async function enrichTraceResponse(
   trace: TraceResultResponse,
   options: NxtraceEnricherOptions,
@@ -72,26 +87,26 @@ export async function enrichTraceResponse(
   }
 
   for (const chunk of chunks(missed, NXTRACE_BATCH_SIZE)) {
-    try {
-      const batch = await fetchBatch(chunk, {
-        apiBase: options.apiBase,
-        token,
-        fetcher,
-      });
-      for (const result of batch.results) {
-        if (result.ok && result.data) {
-          geoByIp.set(result.ip, result.data);
-          fetched += 1;
-          await writeCachedGeo(cache, result.ip, result.data);
-        } else {
-          errorByIp.set(result.ip, result.error || "nxtrace lookup failed");
-        }
+    const batch = await fetchBatchWithSplit(chunk, {
+      apiBase: options.apiBase,
+      token,
+      fetcher,
+    });
+    errors.push(...batch.errors);
+    for (const result of batch.results) {
+      if (result.ok && result.data) {
+        geoByIp.set(result.ip, result.data);
+        fetched += 1;
+        await writeCachedGeo(cache, result.ip, result.data);
+      } else {
+        const message = result.error || "nxtrace lookup failed";
+        errorByIp.set(result.ip, message);
+        errors.push({ ips: [result.ip], message });
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "nxtrace batch request failed";
-      errors.push({ ips: chunk, message });
-      for (const ip of chunk) {
-        errorByIp.set(ip, message);
+    }
+    for (const error of batch.errors) {
+      for (const ip of error.ips) {
+        errorByIp.set(ip, error.message);
       }
     }
   }
@@ -173,10 +188,38 @@ async function fetchBatch(
     body: JSON.stringify({ ips }),
   });
   const body = (await response.json().catch(() => null)) as BatchResponse | null;
-  if (!response.ok || !body || !Array.isArray(body.results)) {
-    throw new Error(`nxtrace batch failed with HTTP ${response.status}`);
+  if (!response.ok) {
+    throw new NxtraceBatchError(`nxtrace batch failed with HTTP ${response.status}`, isSplitRetryableStatus(response.status));
+  }
+  if (!body || !Array.isArray(body.results)) {
+    throw new NxtraceBatchError(`nxtrace batch failed with HTTP ${response.status}`, true);
   }
   return body;
+}
+
+async function fetchBatchWithSplit(
+  ips: string[],
+  options: { apiBase?: string; token: string; fetcher: typeof fetch },
+): Promise<SplitBatchResponse> {
+  try {
+    return { results: (await fetchBatch(ips, options)).results, errors: [] };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "nxtrace batch request failed";
+    if (ips.length > 1 && error instanceof NxtraceBatchError && error.retryBySplit) {
+      const midpoint = Math.ceil(ips.length / 2);
+      const left = await fetchBatchWithSplit(ips.slice(0, midpoint), options);
+      const right = await fetchBatchWithSplit(ips.slice(midpoint), options);
+      return {
+        results: [...left.results, ...right.results],
+        errors: [...left.errors, ...right.errors],
+      };
+    }
+    return { results: [], errors: [{ ips, message }] };
+  }
+}
+
+function isSplitRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500;
 }
 
 async function readCachedGeo(cache: Cache | undefined, ip: string): Promise<NxtraceGeo | null> {

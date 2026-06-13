@@ -367,6 +367,54 @@ describe("worker API", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("does not cache partial enriched trace responses", async () => {
+    const cache = new MemoryCache();
+    vi.stubGlobal("caches", { default: cache });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(finishedMeasurement("m-partial"))))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "gateway timeout" }), { status: 504 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(finishedMeasurement("m-partial"))))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: [{ ip: "8.8.8.8", ok: true, data: { ip: "8.8.8.8", source: "mock" } }],
+          }),
+          { status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const app = createApp();
+    const envWithToken = { ...env, NXTRACE_API_V4_TOKEN: "secret" };
+
+    const first = await app.fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ measurementId: "m-partial" }),
+      }),
+      envWithToken,
+    );
+    const second = await app.fetch(new Request("https://globaltrace.test/api/trace/m-partial"), envWithToken);
+    const third = await app.fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ measurementId: "m-partial" }),
+      }),
+      envWithToken,
+    );
+    const firstBody = (await first.json()) as { enrichment: { status: string } };
+    const thirdBody = (await third.json()) as { enrichment: { status: string; fetched: number } };
+
+    expect(first.headers.get("Cache-Control")).toBe("no-store");
+    expect(firstBody.enrichment.status).toBe("partial");
+    expect(second.status).toBe(204);
+    expect(third.headers.get("Cache-Control")).toBe("public, max-age=604800");
+    expect(thirdBody.enrichment).toMatchObject({ status: "complete", fetched: 1 });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it.each([404, 429, 503])("surfaces Globalping measurement fetch HTTP %s failures", async (status) => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "upstream error" }), { status }));
     vi.stubGlobal("fetch", fetchMock);

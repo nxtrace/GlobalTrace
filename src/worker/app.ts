@@ -17,6 +17,7 @@ type HonoEnv = {
 };
 
 const TRACE_RESPONSE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
+const TRACE_RESPONSE_CACHE_VERSION = "v2";
 const PROBES_CACHE_TTL_SECONDS = 180;
 const TRACE_ENRICH_BODY_LIMIT_BYTES = 256_000;
 const MAX_GLOBALPING_HOPS_PER_RESULT = 64;
@@ -79,9 +80,11 @@ export function createApp() {
       cache: responseCache,
     });
     const response = c.json(enriched);
-    if (enriched.status === "finished") {
+    if (isCacheableTraceResponse(enriched)) {
       response.headers.set("Cache-Control", `public, max-age=${TRACE_RESPONSE_CACHE_TTL_SECONDS}`);
       await responseCache?.put(traceResponseCacheKey(measurementId), response.clone());
+    } else if (enriched.status === "finished") {
+      response.headers.set("Cache-Control", "no-store");
     }
     return response;
   });
@@ -132,7 +135,13 @@ async function readCachedTraceResponse(
 }
 
 function traceResponseCacheKey(measurementId: string): Request {
-  return new Request(`https://globaltrace.local/cache/trace/${encodeURIComponent(measurementId)}`);
+  return new Request(`https://globaltrace.local/cache/trace/${TRACE_RESPONSE_CACHE_VERSION}/${encodeURIComponent(measurementId)}`);
+}
+
+function isCacheableTraceResponse(trace: TraceResultResponse): boolean {
+  if (trace.status !== "finished") return false;
+  if (trace.enrichment.status === "complete") return true;
+  return trace.enrichment.status === "skipped" && trace.enrichment.errors.length === 0;
 }
 
 function probesCacheKey(request: Request, env: WorkerEnv): Request {

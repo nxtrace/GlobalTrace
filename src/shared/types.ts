@@ -1,7 +1,7 @@
 export const DEFAULT_MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 export const DEFAULT_PROBE_LIMIT = 3;
 export const MAX_TRACE_PROBES = 10;
-export const NXTRACE_BATCH_SIZE = 64;
+export const NXTRACE_BATCH_SIZE = 16;
 export const NXTRACE_CACHE_TTL_SECONDS = 86400;
 
 export type TraceProtocol = "ICMP" | "TCP" | "UDP";

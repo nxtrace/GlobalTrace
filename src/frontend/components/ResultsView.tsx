@@ -53,6 +53,7 @@ interface ResultMapRoute {
   color: string;
   active: boolean;
   pathCoordinates: ResultMapCoordinate[];
+  pathSections: ResultMapCoordinate[][];
   pathSegments: ResultRouteSegment[];
   pathLengthKm: number;
   fitCoordinates: ResultMapCoordinate[];
@@ -331,7 +332,8 @@ function HopTable({
   }, [selectedRouteNodeId, selectedTtls]);
 
   if (!active.hops.length) {
-    return <div className="table-empty">该 probe 还没有 hop 数据。</div>;
+    const failure = active.status === "failed" && active.rawOutput ? `该 probe 失败：${active.rawOutput}` : "该 probe 还没有 hop 数据。";
+    return <div className="table-empty">{failure}</div>;
   }
 
   return (
@@ -452,7 +454,7 @@ function EnrichmentStrip({ result }: { result: TraceResultResponse }) {
       <span>GeoIP: {enrichmentLabel(result.enrichment.status)}</span>
       <Badge variant="muted">cache {result.enrichment.cached}</Badge>
       <Badge variant="muted">fetch {result.enrichment.fetched}</Badge>
-      {hasErrors && <span className="notice-text">{result.enrichment.errors.length} batch error</span>}
+      {hasErrors && <span className="notice-text">{enrichmentErrorSummary(result.enrichment.errors)}</span>}
     </Surface>
   );
 }
@@ -775,14 +777,18 @@ export function buildResultMapData(
       }),
     );
     const routeCoordinates = routeNodes.map((node) => node.coordinate);
-    const displayCoordinates = resultDisplayRouteCoordinates(routeCoordinates);
-    const pathSegments = resultRouteSegments(displayCoordinates);
-    const pathLengthKm = pathSegments.at(-1)?.endKm || 0;
-    if (displayCoordinates.length > 1) {
+    const pathSections = continuousRouteNodeSections(routeNodes)
+      .map((section) => resultDisplayRouteCoordinates(section.map((node) => node.coordinate)))
+      .filter((section) => section.length > 0);
+    const displayCoordinates = pathSections.flat();
+    const pathSegments = pathSections.flatMap(resultRouteSegments);
+    const pathLengthKm = pathSections.reduce((total, section) => total + routeSectionLengthKm(section), 0);
+    for (const [sectionIndex, section] of pathSections.entries()) {
+      if (section.length <= 1) continue;
       features.push({
         type: "Feature",
-        geometry: { type: "LineString", coordinates: displayCoordinates },
-        properties: { kind: "path", routeId, routeIndex: resultIndex, resultId: item.id, color, active: activeRoute },
+        geometry: { type: "LineString", coordinates: section },
+        properties: { kind: "path", routeId, routeIndex: resultIndex, resultId: item.id, sectionIndex, color, active: activeRoute },
       });
     }
     for (const node of routeNodes) {
@@ -814,6 +820,7 @@ export function buildResultMapData(
       color,
       active: activeRoute,
       pathCoordinates: displayCoordinates,
+      pathSections,
       pathSegments,
       pathLengthKm,
       fitCoordinates: resultFitCoordinates(item, routeCoordinates),
@@ -883,6 +890,27 @@ function resultEndpointRole(index: number, count: number): RouteEndpointRole {
   if (index === 0) return "start";
   if (index === count - 1) return "end";
   return "middle";
+}
+
+function continuousRouteNodeSections(nodes: ResultRouteNode[]): ResultRouteNode[][] {
+  const sections: ResultRouteNode[][] = [];
+  for (const node of nodes) {
+    const previous = sections.at(-1)?.at(-1);
+    if (!previous || firstTtl(node) !== lastTtl(previous) + 1) {
+      sections.push([node]);
+      continue;
+    }
+    sections.at(-1)?.push(node);
+  }
+  return sections;
+}
+
+function firstTtl(node: ResultRouteNode): number {
+  return node.ttlList[0] ?? node.primaryHop.ttl;
+}
+
+function lastTtl(node: ResultRouteNode): number {
+  return node.ttlList.at(-1) ?? node.primaryHop.ttl;
 }
 
 function selectedHopFilter(nodeId: string | null): maplibregl.FilterSpecification {
@@ -1005,27 +1033,32 @@ export function buildPacketFeatureCollection(routes: ResultMapRoute[], elapsedMs
   const features: Feature[] = [];
   const elapsedKm = (elapsedMs / 1000) * RESULT_PACKET_SPEED_KM_PER_SECOND;
   for (const route of routes) {
-    if (route.pathSegments.length === 0 || route.pathLengthKm <= 0) continue;
-    const packetCount = Math.max(1, Math.floor(route.pathLengthKm / RESULT_PACKET_SPACING_KM));
-    for (let index = 0; index < packetCount; index += 1) {
-      const distanceKm = positiveModulo(elapsedKm + index * RESULT_PACKET_SPACING_KM, route.pathLengthKm);
-      const coordinate = routeCoordinateAtDistance(route.pathSegments, distanceKm);
-      if (!coordinate) continue;
-      features.push({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: coordinate },
-        properties: {
-          kind: "packet",
-          routeId: route.routeId,
-          routeIndex: route.resultIndex,
-          resultId: route.resultId,
-          packetIndex: index,
-          distanceKm,
-          pathLengthKm: route.pathLengthKm,
-          color: route.color,
-          active: route.active,
-        },
-      });
+    for (const [sectionIndex, section] of route.pathSections.entries()) {
+      const sectionSegments = resultRouteSegments(section);
+      const sectionLengthKm = sectionSegments.at(-1)?.endKm || 0;
+      if (sectionSegments.length === 0 || sectionLengthKm <= 0) continue;
+      const packetCount = Math.max(1, Math.floor(sectionLengthKm / RESULT_PACKET_SPACING_KM));
+      for (let index = 0; index < packetCount; index += 1) {
+        const distanceKm = positiveModulo(elapsedKm + index * RESULT_PACKET_SPACING_KM, sectionLengthKm);
+        const coordinate = routeCoordinateAtDistance(sectionSegments, distanceKm);
+        if (!coordinate) continue;
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: coordinate },
+          properties: {
+            kind: "packet",
+            routeId: route.routeId,
+            routeIndex: route.resultIndex,
+            resultId: route.resultId,
+            sectionIndex,
+            packetIndex: index,
+            distanceKm,
+            pathLengthKm: sectionLengthKm,
+            color: route.color,
+            active: route.active,
+          },
+        });
+      }
     }
   }
   return { type: "FeatureCollection", features };
@@ -1069,6 +1102,10 @@ function resultRouteSegments(coordinates: ResultMapCoordinate[]): ResultRouteSeg
     previousEndKm = endKm;
   }
   return segments;
+}
+
+function routeSectionLengthKm(coordinates: ResultMapCoordinate[]): number {
+  return resultRouteSegments(coordinates).at(-1)?.endKm || 0;
 }
 
 function routeCoordinateAtDistance(segments: ResultRouteSegment[], distanceKm: number): ResultMapCoordinate | null {
@@ -1267,6 +1304,7 @@ function compactHopDetails(hop: TraceHop) {
 
 function resultSummary(result: TraceResultResponse, active: TraceProbeResult | null) {
   const finished = result.results.filter((item) => item.status === "finished").length;
+  const failed = result.results.filter((item) => item.status === "failed" || item.status === "error").length;
   const hopCount = active?.hops.length || 0;
   const targetHop = findTargetHop(active);
   const targetLoss = targetHop?.stats ? formatPercent(targetHop.stats.loss) : "N/A";
@@ -1275,13 +1313,17 @@ function resultSummary(result: TraceResultResponse, active: TraceProbeResult | n
       ? formatMs(targetHop.stats.avg)
       : "N/A";
 
-  return [
+  const summary = [
     { label: "status", value: result.status },
     { label: "probes", value: `${finished}/${result.probesCount}` },
     { label: "hops", value: String(hopCount) },
     { label: "目标延迟", value: targetLatency },
     { label: "目标丢包", value: targetLoss },
   ];
+  if (failed > 0) {
+    summary.splice(2, 0, { label: "失败 probes", value: String(failed) });
+  }
+  return summary;
 }
 
 function findTargetHop(active: TraceProbeResult | null): TraceHop | null {
@@ -1294,4 +1336,11 @@ function enrichmentLabel(status: TraceResultResponse["enrichment"]["status"]): s
   if (status === "complete") return "完成";
   if (status === "partial") return "部分完成";
   return "跳过";
+}
+
+function enrichmentErrorSummary(errors: TraceResultResponse["enrichment"]["errors"]): string {
+  const failedIpCount = new Set(errors.flatMap((error) => error.ips)).size;
+  const messages = [...new Set(errors.map((error) => error.message.trim()).filter(Boolean))].slice(0, 2);
+  const prefix = failedIpCount > 0 ? `${failedIpCount} IP 失败` : `${errors.length} batch error`;
+  return messages.length ? `${prefix}: ${messages.join("; ")}` : prefix;
 }

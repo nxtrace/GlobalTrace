@@ -57,7 +57,7 @@ function routeNodesForHops(hops: TraceHop[], options: BuildRouteNodesOptions): R
     const previous = nodes.at(-1)?.coordinate;
     const coordinate = normalizeNextCoordinate([hop.geo.lng, hop.geo.lat], previous);
     const last = nodes.at(-1);
-    if (last && shouldMergeCoordinates(last.coordinate, coordinate, options.mergeDistanceKm)) {
+    if (last && shouldMergeRouteNode(last, hop, coordinate, options.mergeDistanceKm)) {
       last.hops.push(hop);
       continue;
     }
@@ -107,6 +107,16 @@ function normalizeNextCoordinate(coordinate: ResultRouteCoordinate, previous: Re
 function shouldMergeCoordinates(left: ResultRouteCoordinate, right: ResultRouteCoordinate, mergeDistanceKm: number | undefined): boolean {
   if (sameCoordinate(left, right)) return true;
   return typeof mergeDistanceKm === "number" && mergeDistanceKm > 0 && coordinateDistanceKm(left, right) <= mergeDistanceKm;
+}
+
+function shouldMergeRouteNode(
+  previous: RouteNode,
+  hop: TraceHop,
+  coordinate: ResultRouteCoordinate,
+  mergeDistanceKm: number | undefined,
+): boolean {
+  const previousHop = previous.hops.at(-1);
+  return Boolean(previousHop && hop.ttl === previousHop.ttl + 1 && shouldMergeCoordinates(previous.coordinate, coordinate, mergeDistanceKm));
 }
 
 function sameCoordinate(left: ResultRouteCoordinate, right: ResultRouteCoordinate): boolean {

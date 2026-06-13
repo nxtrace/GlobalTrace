@@ -37,7 +37,7 @@ class MemoryCache implements Cache {
 }
 
 describe("nxtrace enrichment", () => {
-  it("chunks nxtrace batch lookups at 64 unique public IPs and caches successful data", async () => {
+  it("chunks nxtrace batch lookups at 16 unique public IPs and caches successful data", async () => {
     const cache = new MemoryCache();
     const trace = sampleTrace(65);
     const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
@@ -56,7 +56,7 @@ describe("nxtrace enrichment", () => {
       fetcher,
     });
 
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(5);
     expect(enriched.enrichment.fetched).toBe(65);
     expect(enriched.results[0]?.hops[0]?.geo?.source).toBe("mock");
 
@@ -66,12 +66,41 @@ describe("nxtrace enrichment", () => {
       cache,
       fetcher,
     });
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(5);
   });
 
-  it("reports a failed nxtrace batch as partial enrichment", async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: "bad gateway" }), { status: 502 })) as
-      unknown as typeof fetch;
+  it("splits retryable failed batches so successful halves are not polluted", async () => {
+    const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
+      const ips = JSON.parse(String(init?.body)).ips as string[];
+      if (ips.length === 4) {
+        return new Response(JSON.stringify({ error: "gateway timeout" }), { status: 504 });
+      }
+      return new Response(
+        JSON.stringify({
+          results: ips.map((ip) => ({ ip, ok: true, data: geo(ip) })),
+        }),
+      );
+    }) as unknown as typeof fetch;
+
+    const enriched = await enrichTraceResponse(sampleTrace(4), {
+      apiBase: "https://nxtrace.test",
+      token: "secret",
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(enriched.enrichment).toMatchObject({ status: "complete", fetched: 4, errors: [] });
+    expect(enriched.results[0]?.hops.every((hop) => hop.geo?.source === "mock")).toBe(true);
+  });
+
+  it("reports only the single IP that still fails after split retries", async () => {
+    const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
+      const ips = JSON.parse(String(init?.body)).ips as string[];
+      if (ips.length > 1 || ips[0] === "8.8.0.1") {
+        return new Response(JSON.stringify({ error: "gateway timeout" }), { status: 504 });
+      }
+      return new Response(JSON.stringify({ results: [{ ip: ips[0], ok: true, data: geo(ips[0]) }] }));
+    }) as unknown as typeof fetch;
 
     const enriched = await enrichTraceResponse(sampleTrace(2), {
       apiBase: "https://nxtrace.test",
@@ -79,10 +108,39 @@ describe("nxtrace enrichment", () => {
       fetcher,
     });
 
+    expect(fetcher).toHaveBeenCalledTimes(3);
     expect(enriched.enrichment.status).toBe("partial");
-    expect(enriched.enrichment.errors).toHaveLength(1);
-    expect(enriched.results[0]?.hops[0]?.enrichmentError).toContain("nxtrace batch failed");
+    expect(enriched.enrichment.errors).toEqual([{ ips: ["8.8.0.1"], message: "nxtrace batch failed with HTTP 504" }]);
+    expect(enriched.results[0]?.hops[0]?.geo?.source).toBe("mock");
     expect(enriched.results[0]?.hops[1]?.enrichmentError).toContain("nxtrace batch failed");
+  });
+
+  it("does not split non-retryable 4xx batch failures", async () => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: "bad gateway" }), { status: 502 })) as
+      unknown as typeof fetch;
+
+    const retryable = await enrichTraceResponse(sampleTrace(2), {
+      apiBase: "https://nxtrace.test",
+      token: "secret",
+      fetcher,
+    });
+
+    expect(retryable.enrichment.status).toBe("partial");
+    expect(retryable.enrichment.errors).toHaveLength(2);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+
+    const forbiddenFetcher = vi.fn(async () => new Response(JSON.stringify({ error: "bad token" }), { status: 403 })) as
+      unknown as typeof fetch;
+    const forbidden = await enrichTraceResponse(sampleTrace(4), {
+      apiBase: "https://nxtrace.test",
+      token: "secret",
+      fetcher: forbiddenFetcher,
+    });
+
+    expect(forbiddenFetcher).toHaveBeenCalledTimes(1);
+    expect(forbidden.enrichment.errors).toEqual([
+      { ips: ["8.8.0.0", "8.8.0.1", "8.8.0.2", "8.8.0.3"], message: "nxtrace batch failed with HTTP 403" },
+    ]);
   });
 
   it("uses cached GeoIP data without issuing another nxtrace request", async () => {

@@ -12,7 +12,7 @@ beforeEach(() => {
 });
 
 describe("browser NextTrace enrichment", () => {
-  it("chunks public hop IPs at 64 and sends only browser-safe headers", async () => {
+  it("chunks public hop IPs at 16 and sends only browser-safe headers", async () => {
     const trace = sampleTrace(Array.from({ length: 65 }, (_, index) => hop(`8.8.8.${index + 1}`)));
     const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe("https://api.nxtrace.org/v4/ipGeo/batch");
@@ -30,9 +30,49 @@ describe("browser NextTrace enrichment", () => {
 
     const enriched = await enrichTraceWithNexttraceToken(trace, " nt-token ", { fetcher });
 
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(5);
     expect(enriched.enrichment).toEqual({ status: "complete", cached: 0, fetched: 65, errors: [] });
     expect(enriched.results[0]?.hops[0]?.geo?.source).toBe("nexttrace");
+  });
+
+  it("splits retryable failed batches so successful halves are not polluted", async () => {
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const ips = JSON.parse(String(init?.body)).ips as string[];
+      if (ips.length === 4) return json({ error: "bad gateway" }, 504);
+      return json({
+        results: ips.map((ip) => ({ ip, ok: true, data: { ip, asnumber: "AS15169", source: "nexttrace" } })),
+      });
+    }) as unknown as typeof fetch;
+
+    const enriched = await enrichTraceWithNexttraceToken(
+      sampleTrace(["8.8.0.0", "8.8.0.1", "8.8.0.2", "8.8.0.3"].map((ip) => hop(ip))),
+      "nt-token",
+      { fetcher },
+    );
+
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(enriched.enrichment).toEqual({ status: "complete", cached: 0, fetched: 4, errors: [] });
+    expect(enriched.results[0]?.hops.map((hop) => hop.geo?.ip)).toEqual(["8.8.0.0", "8.8.0.1", "8.8.0.2", "8.8.0.3"]);
+  });
+
+  it("reports only the single IP that still fails after split retries", async () => {
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const ips = JSON.parse(String(init?.body)).ips as string[];
+      if (ips.length > 1 || ips[0] === "8.8.0.1") return json({ error: "bad gateway" }, 504);
+      return json({
+        results: ips.map((ip) => ({ ip, ok: true, data: { ip, asnumber: "AS15169", source: "nexttrace" } })),
+      });
+    }) as unknown as typeof fetch;
+
+    const enriched = await enrichTraceWithNexttraceToken(sampleTrace([hop("8.8.0.0"), hop("8.8.0.1")]), "nt-token", {
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(enriched.enrichment.status).toBe("partial");
+    expect(enriched.enrichment.errors).toEqual([{ ips: ["8.8.0.1"], message: "nexttrace batch failed with HTTP 504" }]);
+    expect(enriched.results[0]?.hops[0]?.geo?.ip).toBe("8.8.0.0");
+    expect(enriched.results[0]?.hops[1]?.enrichmentError).toContain("nexttrace batch failed");
   });
 
   it("caches successful batch results in localStorage", async () => {

@@ -350,7 +350,16 @@ describe("ResultsView", () => {
     render(<ResultsView result={partialResult} mapStyleUrl="about:blank" renderMap={false} />);
 
     expect(screen.getByText("GeoIP: 部分完成")).toBeInTheDocument();
-    expect(screen.getByText("1 batch error")).toBeInTheDocument();
+    expect(screen.getByText("1 IP 失败: nxtrace batch failed")).toBeInTheDocument();
+  });
+
+  it("shows failed probe counts and raw failure reason", () => {
+    render(<ResultsView result={failedProbeResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    expectSummaryMetric("probes", "1/2");
+    expectSummaryMetric("失败 probes", "1");
+    fireEvent.click(screen.getByRole("tab", { name: /Ningbo/ }));
+    expect(screen.getByText("该 probe 失败：Private IP ranges are not allowed.")).toBeInTheDocument();
   });
 
   it("renders the result map projection switch and reports changes", () => {
@@ -583,7 +592,7 @@ describe("ResultsView", () => {
     });
   });
 
-  it("builds all probe routes with stable colors, endpoints, and distance-based packets", () => {
+  it("builds probe routes with stable colors, endpoints, and distance-based packets", () => {
     const data = buildResultMapData(multiRouteResult.results[0], multiRouteResult.results);
     const paths = pathFeatures(data.featureCollection);
     const hops = data.featureCollection.features.filter((feature) => feature.properties?.kind === "hop");
@@ -591,9 +600,8 @@ describe("ResultsView", () => {
     const route1Packets = packetFeatures(data.packetFeatureCollection, "route-1");
 
     expect(data.routes).toHaveLength(2);
-    expect(paths).toHaveLength(2);
-    expect(paths[0]?.properties).toMatchObject({ routeId: "route-0", color: "#14b8a6", active: true });
-    expect(paths[1]?.properties).toMatchObject({ routeId: "route-1", color: "#f97316", active: false });
+    expect(paths).toHaveLength(1);
+    expect(paths[0]?.properties).toMatchObject({ routeId: "route-1", color: "#f97316", active: false });
     expect(hops.map((feature) => feature.properties?.nodeId)).toEqual([
       "route-0-node-1-2",
       "route-0-node-5",
@@ -601,13 +609,12 @@ describe("ResultsView", () => {
       "route-1-node-2",
     ]);
     expect(hops.filter((feature) => feature.properties?.endpoint).map((feature) => feature.properties?.endpointRole)).toEqual(["start", "end", "start", "end"]);
-    expect(route0Packets.length).toBeGreaterThan(route1Packets.length);
+    expect(route0Packets).toHaveLength(0);
     expect(route1Packets).toHaveLength(1);
-    expect(packetDistances(route0Packets).slice(0, 4)).toEqual([0, 1800, 3600, 5400]);
-    packetDistances(route0Packets).forEach((distance, index, distances) => {
+    packetDistances(route1Packets).forEach((distance, index, distances) => {
       if (index > 0) expect(distance - distances[index - 1]).toBeCloseTo(1800, 6);
     });
-    expect(data.packetFeatureCollection.features[0]?.properties).toMatchObject({ kind: "packet", routeId: "route-0", color: "#14b8a6", active: true });
+    expect(data.packetFeatureCollection.features[0]?.properties).toMatchObject({ kind: "packet", routeId: "route-1", color: "#f97316", active: false });
     expect(data.routeNodeById.get("route-1-node-2")).toMatchObject({ resultIndex: 1, color: "#f97316" });
   });
 
@@ -655,27 +662,46 @@ describe("ResultsView", () => {
   it("builds route map data with filtered, merged, and numbered hop points", () => {
     const active = routeQualityResult.results[0];
     const data = buildResultMapData(active, routeQualityResult.results);
-    const line = lineCoordinates(data.featureCollection);
+    const paths = pathFeatures(data.featureCollection);
     const labels = hopLabels(data.featureCollection);
 
     expect(labels).toEqual(["1-2", "5"]);
     expect(data.routeNodes[0]).toMatchObject({ nodeId: "route-0-node-1-2", ttlList: [1, 2], label: "1-2" });
     expect(data.routeNodeIdByTtl.get(2)).toBe("route-0-node-1-2");
-    expect(line.length).toBeGreaterThan(2);
-    expect(line[0]).toEqual([-122.08, 37.39]);
-    expect(line.at(-1)).toEqual([-0.12, 51.5]);
+    expect(paths).toHaveLength(0);
     expect(data.fitCoordinates).toContainEqual([-118.24, 34.05]);
+  });
+
+  it("does not connect drawable hops across missing TTL gaps", () => {
+    const active = gappedRouteResult.results[0];
+    const data = buildResultMapData(active, gappedRouteResult.results);
+
+    expect(hopLabels(data.featureCollection)).toEqual(["6", "15"]);
+    expect(pathFeatures(data.featureCollection)).toHaveLength(0);
+    expect(packetFeatures(data.packetFeatureCollection, "route-0")).toHaveLength(0);
+  });
+
+  it("does not build route paths for failed probes without hops", () => {
+    const active = failedProbeResult.results[1];
+    const data = buildResultMapData(active, failedProbeResult.results);
+    const failedRouteFeatures = data.featureCollection.features.filter((feature) => feature.properties?.routeId === "route-1");
+
+    expect(failedRouteFeatures.filter((feature) => feature.properties?.kind === "probe")).toHaveLength(1);
+    expect(failedRouteFeatures.filter((feature) => feature.properties?.kind === "hop")).toHaveLength(0);
+    expect(failedRouteFeatures.filter((feature) => feature.properties?.kind === "path")).toHaveLength(0);
   });
 
   it("normalizes antimeridian route coordinates for the short path", () => {
     const active = antimeridianResult.results[0];
     const data = buildResultMapData(active, antimeridianResult.results);
+    const paths = pathFeatures(data.featureCollection);
     const line = lineCoordinates(data.featureCollection);
 
     expect(hopLabels(data.featureCollection)).toEqual(["1", "2", "4-5"]);
-    expect(line.length).toBeGreaterThanOrEqual(3);
+    expect(paths).toHaveLength(1);
+    expect(line).toHaveLength(2);
     expect(line[0]).toEqual([179.4, 10]);
-    expect(line.at(-1)).toEqual([181.1, 12]);
+    expect(line.at(-1)).toEqual([180.7, 11]);
     expect(lngSpan(line)).toBeLessThan(3);
     expect(lngSpan(data.fitCoordinates)).toBeLessThan(3);
   });
@@ -1012,6 +1038,32 @@ const partialResult: TraceResultResponse = {
   },
 };
 
+const failedProbeResult: TraceResultResponse = {
+  ...sampleResult,
+  measurementId: "m-failed-probe",
+  probesCount: 2,
+  results: [
+    sampleResult.results[0],
+    {
+      ...sampleResult.results[0],
+      id: "probe-failed",
+      probe: {
+        ...sampleResult.results[0].probe,
+        city: "Ningbo",
+        asn: 56048,
+        latitude: 29.86,
+        longitude: 121.55,
+        network: "China Mobile",
+      },
+      status: "failed",
+      resolvedAddress: null,
+      resolvedHostname: null,
+      rawOutput: "Private IP ranges are not allowed.",
+      hops: [],
+    },
+  ],
+};
+
 const routeQualityResult: TraceResultResponse = {
   ...sampleResult,
   measurementId: "m-route-quality",
@@ -1043,6 +1095,32 @@ const routeQualityResult: TraceResultResponse = {
           country_en: "United Kingdom",
           city_en: "London",
         }),
+      ],
+    },
+  ],
+};
+
+const gappedRouteResult: TraceResultResponse = {
+  ...sampleResult,
+  measurementId: "m-gapped-route",
+  results: [
+    {
+      ...sampleResult.results[0],
+      hops: [
+        hopWithGeo(6, "198.51.100.6", 22.54, 114.06, { country_en: "China", prov_en: "Guangdong", city_en: "Shenzhen" }),
+        {
+          ttl: 7,
+          ip: null,
+          hostname: null,
+          asn: [],
+          timingsMs: [],
+          stats: { min: 0, avg: 0, max: 0, total: 1, rcv: 0, drop: 1, loss: 100 },
+        },
+        {
+          ...hopWithGeo(8, "198.51.100.8", 0, 0, { country_en: "China" }),
+          enrichmentError: "nxtrace batch failed with HTTP 504",
+        },
+        hopWithGeo(15, "198.51.100.15", 35.68, 139.76, { country_en: "Japan", city_en: "Tokyo" }),
       ],
     },
   ],

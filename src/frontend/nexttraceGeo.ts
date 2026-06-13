@@ -26,6 +26,21 @@ interface BatchResponse {
   results: BatchResult[];
 }
 
+class NexttraceBatchError extends Error {
+  readonly retryBySplit: boolean;
+
+  constructor(message: string, retryBySplit: boolean) {
+    super(message);
+    this.name = "NexttraceBatchError";
+    this.retryBySplit = retryBySplit;
+  }
+}
+
+interface SplitBatchResponse {
+  results: BatchResult[];
+  errors: EnrichmentSummary["errors"];
+}
+
 interface CachedNexttraceGeo {
   expiresAt: number;
   geo: NxtraceGeo;
@@ -72,24 +87,22 @@ export async function enrichTraceWithNexttraceToken(
   }
 
   for (const chunk of chunks(missed, NXTRACE_BATCH_SIZE)) {
-    try {
-      const batch = await fetchBatch(chunk, nextToken, { ...options, fetcher });
-      for (const result of batch.results) {
-        if (result.ok && result.data) {
-          geoByIp.set(result.ip, result.data);
-          fetched += 1;
-          writeCachedGeo(result.ip, result.data);
-          continue;
-        }
-        const message = result.error || "nexttrace lookup failed";
-        errorByIp.set(result.ip, message);
-        errors.push({ ips: [result.ip], message });
+    const batch = await fetchBatchWithSplit(chunk, nextToken, { ...options, fetcher });
+    errors.push(...batch.errors);
+    for (const result of batch.results) {
+      if (result.ok && result.data) {
+        geoByIp.set(result.ip, result.data);
+        fetched += 1;
+        writeCachedGeo(result.ip, result.data);
+        continue;
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "nexttrace batch request failed";
-      errors.push({ ips: chunk, message });
-      for (const ip of chunk) {
-        errorByIp.set(ip, message);
+      const message = result.error || "nexttrace lookup failed";
+      errorByIp.set(result.ip, message);
+      errors.push({ ips: [result.ip], message });
+    }
+    for (const error of batch.errors) {
+      for (const ip of error.ips) {
+        errorByIp.set(ip, error.message);
       }
     }
   }
@@ -121,10 +134,39 @@ async function fetchBatch(
     signal: options.signal,
   });
   const body = (await response.json().catch(() => null)) as BatchResponse | null;
-  if (!response.ok || !body || !Array.isArray(body.results)) {
-    throw new Error(`nexttrace batch failed with HTTP ${response.status}`);
+  if (!response.ok) {
+    throw new NexttraceBatchError(`nexttrace batch failed with HTTP ${response.status}`, isSplitRetryableStatus(response.status));
+  }
+  if (!body || !Array.isArray(body.results)) {
+    throw new NexttraceBatchError(`nexttrace batch failed with HTTP ${response.status}`, true);
   }
   return body;
+}
+
+async function fetchBatchWithSplit(
+  ips: string[],
+  token: string,
+  options: Required<Pick<NexttraceTokenOptions, "fetcher">> & NexttraceTokenOptions,
+): Promise<SplitBatchResponse> {
+  try {
+    return { results: (await fetchBatch(ips, token, options)).results, errors: [] };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "nexttrace batch request failed";
+    if (ips.length > 1 && error instanceof NexttraceBatchError && error.retryBySplit) {
+      const midpoint = Math.ceil(ips.length / 2);
+      const left = await fetchBatchWithSplit(ips.slice(0, midpoint), token, options);
+      const right = await fetchBatchWithSplit(ips.slice(midpoint), token, options);
+      return {
+        results: [...left.results, ...right.results],
+        errors: [...left.errors, ...right.errors],
+      };
+    }
+    return { results: [], errors: [{ ips, message }] };
+  }
+}
+
+function isSplitRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500;
 }
 
 function collectPublicHopIps(trace: TraceResultResponse): { trace: TraceResultResponse; publicIps: string[] } {
