@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { createJsonResponse, getClientIp, jsonError, readJson, trimTrailingSlash, ValidationError } from "./http";
+import {
+  createJsonResponse,
+  getClientIp,
+  jsonError,
+  readJson,
+  readJsonResponseWithLimit,
+  SECURITY_HEADERS,
+  trimTrailingSlash,
+  ValidationError,
+} from "./http";
 
 describe("worker http helpers", () => {
   it("formats JSON errors with optional details", () => {
@@ -21,6 +30,13 @@ describe("worker http helpers", () => {
     await expect(readJson(new Request("https://globaltrace.test", { body: "{", method: "POST" }))).rejects.toThrow(
       ValidationError,
     );
+  });
+
+  it("reads upstream JSON responses with a byte limit", async () => {
+    await expect(readJsonResponseWithLimit<{ ok: boolean }>(new Response("{\"ok\":true}"), 20)).resolves.toEqual({
+      ok: true,
+    });
+    await expect(readJsonResponseWithLimit(new Response("{\"ok\":true}"), 5)).resolves.toBeNull();
   });
 
   it("uses Cloudflare client IP before forwarded IP headers", () => {
@@ -48,6 +64,9 @@ describe("worker http helpers", () => {
 
     expect(response.status).toBe(201);
     expect(response.headers.get("Content-Type")).toBe("application/json; charset=utf-8");
+    for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+      expect(response.headers.get(key)).toBe(value);
+    }
     await expect(response.json()).resolves.toEqual({ ok: true });
   });
 });

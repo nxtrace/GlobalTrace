@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_MAP_STYLE_URL } from "../shared/types";
 import { createApp, handleRequest } from "./app";
 import type { WorkerEnv } from "./env";
+import { SECURITY_HEADERS } from "./http";
 
 const env: WorkerEnv = {
   ASSETS: { fetch: vi.fn() } as unknown as Fetcher,
@@ -29,6 +30,9 @@ describe("worker API", () => {
     await expect(configured.json()).resolves.toEqual({
       mapStyleUrl: "https://tiles.example.com/style.json",
     });
+    expect(defaults.headers.get("Cache-Control")).toBe("public, max-age=300");
+    expect(defaults.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    expectSecurityHeaders(defaults.headers);
   });
 
   it("rejects invalid JSON bodies", async () => {
@@ -64,6 +68,55 @@ describe("worker API", () => {
 
     expect(response.status).toBe(400);
     expect(body.error.message).toBe("request body is too large");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects streamed oversized enrich bodies without Content-Length", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("x".repeat(256_001)));
+        controller.close();
+      },
+    });
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        body: stream,
+        duplex: "half",
+      } as RequestInit),
+      env,
+    );
+    const body = (await response.json()) as { error: { message: string } };
+
+    expect(response.status).toBe(400);
+    expect(body.error.message).toBe("request body is too large");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects cross-site enrich requests before fetching Globalping", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://evil.test",
+          "Sec-Fetch-Site": "cross-site",
+        },
+        body: JSON.stringify({ measurementId: "m123" }),
+      }),
+      env,
+    );
+    const body = (await response.json()) as { error: { message: string } };
+
+    expect(response.status).toBe(403);
+    expect(body.error.message).toBe("cross-site requests are not allowed");
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -262,9 +315,11 @@ describe("worker API", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([sampleProbe()])));
     vi.stubGlobal("fetch", fetchMock);
     const app = createApp();
+    const execution = createExecutionContext();
 
-    const first = await app.fetch(new Request("https://globaltrace.test/api/probes"), env);
+    const first = await app.fetch(new Request("https://globaltrace.test/api/probes"), env, execution.ctx);
     const firstBody = (await first.json()) as { fetchedAt: string; probes: unknown[] };
+    await Promise.all(execution.promises);
     const second = await app.fetch(new Request("https://globaltrace.test/api/probes"), env);
     const secondBody = (await second.json()) as { fetchedAt: string; probes: unknown[] };
     const head = await app.fetch(new Request("https://globaltrace.test/api/probes", { method: "HEAD" }), env);
@@ -277,6 +332,7 @@ describe("worker API", () => {
     expect(head.status).toBe(200);
     expect(head.headers.get("Cache-Control")).toBe("public, max-age=180");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(execution.ctx.waitUntil).toHaveBeenCalledTimes(1);
   });
 
   it("maps non-finished Globalping measurement statuses to error responses", async () => {
@@ -484,6 +540,23 @@ class MemoryCache {
   async put(request: RequestInfo | URL, response: Response): Promise<void> {
     const key = request instanceof Request ? request.url : String(request);
     this.store.set(key, response.clone());
+  }
+}
+
+function createExecutionContext(): { ctx: ExecutionContext; promises: Promise<unknown>[] } {
+  const promises: Promise<unknown>[] = [];
+  const ctx = {
+    waitUntil: vi.fn((promise: Promise<unknown>) => {
+      promises.push(promise);
+    }),
+    passThroughOnException: vi.fn(),
+  } as unknown as ExecutionContext;
+  return { ctx, promises };
+}
+
+function expectSecurityHeaders(headers: Headers): void {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    expect(headers.get(key)).toBe(value);
   }
 }
 

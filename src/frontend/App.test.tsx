@@ -61,6 +61,10 @@ beforeEach(() => {
     configurable: true,
     value: createMemoryStorage(),
   });
+  Object.defineProperty(window, "sessionStorage", {
+    configurable: true,
+    value: createMemoryStorage(),
+  });
 });
 
 afterEach(() => {
@@ -68,6 +72,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   window.localStorage?.clear();
+  window.sessionStorage?.clear();
   document.documentElement.removeAttribute("data-theme");
   window.history.replaceState(null, "", "/");
 });
@@ -134,7 +139,7 @@ describe("App", () => {
     });
   });
 
-  it("saves a Globalping token locally and sends it only to Globalping", async () => {
+  it("saves a Globalping token for the current session and sends it only to Globalping", async () => {
     const fetchMock = mockApi();
     render(<App />);
 
@@ -144,7 +149,8 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
 
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.globalpingToken")).toBe("gp-token");
+      expect(window.sessionStorage.getItem("globaltrace.globalpingToken")).toBe("gp-token");
+      expect(window.localStorage.getItem("globaltrace.globalpingToken")).toBeNull();
       expect(fetchMock).toHaveBeenCalledWith(
         "https://api.globalping.io/v1/limits",
         expect.objectContaining({
@@ -152,7 +158,7 @@ describe("App", () => {
         }),
       );
     });
-    expect(screen.getByText("Globalping Token 已保存到本机浏览器")).toBeInTheDocument();
+    expect(screen.getByText("Globalping Token 仅当前会话可用")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     await waitFor(() => {
@@ -167,7 +173,48 @@ describe("App", () => {
     expect(enrichCall?.[1]?.headers).not.toEqual(expect.objectContaining({ Authorization: expect.any(String) }));
   });
 
-  it("saves a NextTrace token locally and uses it without server enrichment", async () => {
+  it("remembers tokens locally only when the user opts in", async () => {
+    mockApi();
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+    fireEvent.click(screen.getByLabelText("记住 Globalping 到本机"));
+    fireEvent.change(screen.getByLabelText("Globalping Token"), { target: { value: "gp-token" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
+    fireEvent.click(screen.getByLabelText("记住 NextTrace 到本机"));
+    fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: "nt-token" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.globalpingToken")).toBe("gp-token");
+      expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBe("nt-token");
+    });
+    expect(window.sessionStorage.getItem("globaltrace.globalpingToken")).toBeNull();
+    expect(window.sessionStorage.getItem("globaltrace.nexttraceApiToken")).toBeNull();
+    expect(screen.getByText("Globalping Token 已记住到本机浏览器")).toBeInTheDocument();
+    expect(screen.getByText("NextTrace Token 已记住到本机浏览器")).toBeInTheDocument();
+  });
+
+  it("reads legacy localStorage tokens as remembered", async () => {
+    window.localStorage.setItem("globaltrace.globalpingToken", "legacy-gp");
+    window.localStorage.setItem("globaltrace.nexttraceApiToken", "legacy-nt");
+    mockApi();
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+
+    expect(screen.getByLabelText("Globalping Token")).toHaveValue("legacy-gp");
+    expect(screen.getByLabelText("NextTrace API Token")).toHaveValue("legacy-nt");
+    expect(screen.getByLabelText("记住 Globalping 到本机")).toHaveAttribute("data-state", "checked");
+    expect(screen.getByLabelText("记住 NextTrace 到本机")).toHaveAttribute("data-state", "checked");
+    expect(screen.getByText("Globalping Token 已记住到本机浏览器")).toBeInTheDocument();
+    expect(screen.getByText("NextTrace Token 已记住到本机浏览器")).toBeInTheDocument();
+  });
+
+  it("saves a NextTrace token for the current session and uses it without server enrichment", async () => {
     const fetchMock = mockApi({ measurement: globalpingMeasurementWithHop });
     render(<App />);
 
@@ -177,9 +224,10 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
 
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBe("nt-token");
+      expect(window.sessionStorage.getItem("globaltrace.nexttraceApiToken")).toBe("nt-token");
+      expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBeNull();
     });
-    expect(screen.getByText("NextTrace Token 已保存到本机浏览器")).toBeInTheDocument();
+    expect(screen.getByText("NextTrace Token 仅当前会话可用")).toBeInTheDocument();
     expect(screen.getByText("NextTrace API Token 直连已启用")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
@@ -220,7 +268,8 @@ describe("App", () => {
     expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
   });
 
-  it("opens shared results through a saved NextTrace token without server enrichment", async () => {
+  it("opens shared results without auto-using saved browser tokens", async () => {
+    window.localStorage.setItem("globaltrace.globalpingToken", "gp-token");
     window.localStorage.setItem("globaltrace.nexttraceApiToken", "nt-token");
     window.history.replaceState(null, "", "/?measurement=m123");
     const fetchMock = mockApi({
@@ -231,11 +280,14 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
-    expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
+    expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]);
+    expect(nexttraceBatchBodies(fetchMock)).toHaveLength(0);
+    expect(fetchMock.mock.calls.find(([path]) => path === "https://api.globalping.io/v1/measurements/m123")?.[1]?.headers).not.toEqual(
+      expect.objectContaining({ Authorization: expect.any(String) }),
+    );
   });
 
-  it("bypasses cached worker traces when opening shared results through a saved NextTrace token", async () => {
+  it("uses cached worker traces when opening shared results with a saved NextTrace token", async () => {
     window.localStorage.setItem("globaltrace.nexttraceApiToken", "nt-token");
     window.history.replaceState(null, "", "/?measurement=m123");
     const fetchMock = mockApi({
@@ -255,9 +307,9 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toBe(true);
+    expect(fetchMock.mock.calls.some(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toBe(false);
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
-    expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
+    expect(nexttraceBatchBodies(fetchMock)).toHaveLength(0);
   });
 
   it("renders the about route with attribution links", async () => {
@@ -742,7 +794,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("probes down")).toBeInTheDocument();
-    expect(screen.getByText("诊断额度暂不可用")).toBeInTheDocument();
+    expect(await screen.findByText("诊断额度暂不可用")).toBeInTheDocument();
   });
 
   it("turns upstream parameter validation failures into actionable copy", async () => {

@@ -7,8 +7,8 @@ import {
   type TraceResultResponse,
 } from "../shared/types";
 import { isPublicIp } from "../shared/ip";
-import { trimTrailingSlash } from "./http";
-import { defaultFetch } from "./fetcher";
+import { readJsonResponseWithLimit, trimTrailingSlash } from "./http";
+import { defaultFetch, withUpstreamTimeout } from "./fetcher";
 
 export { isPublicIp };
 
@@ -17,6 +17,7 @@ export interface NxtraceEnricherOptions {
   token?: string;
   cache?: Cache;
   fetcher?: typeof fetch;
+  waitUntil?: (promise: Promise<unknown>) => void;
 }
 
 interface BatchResult {
@@ -29,6 +30,8 @@ interface BatchResult {
 interface BatchResponse {
   results: BatchResult[];
 }
+
+const NXTRACE_RESPONSE_LIMIT_BYTES = 1_000_000;
 
 class NxtraceBatchError extends Error {
   readonly retryBySplit: boolean;
@@ -97,7 +100,12 @@ export async function enrichTraceResponse(
       if (result.ok && result.data) {
         geoByIp.set(result.ip, result.data);
         fetched += 1;
-        await writeCachedGeo(cache, result.ip, result.data);
+        const write = writeCachedGeo(cache, result.ip, result.data);
+        if (options.waitUntil) {
+          options.waitUntil(write.catch(() => undefined));
+        } else {
+          await write;
+        }
       } else {
         const message = result.error || "nxtrace lookup failed";
         errorByIp.set(result.ip, message);
@@ -177,7 +185,7 @@ async function fetchBatch(
   options: { apiBase?: string; token: string; fetcher: typeof fetch },
 ): Promise<BatchResponse> {
   const apiBase = trimTrailingSlash(options.apiBase || "https://api.nxtrace.org");
-  const response = await options.fetcher(`${apiBase}/v4/ipGeo/batch`, {
+  const response = await options.fetcher(`${apiBase}/v4/ipGeo/batch`, withUpstreamTimeout({
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -186,8 +194,8 @@ async function fetchBatch(
       "User-Agent": "GlobalTrace/0.1",
     },
     body: JSON.stringify({ ips }),
-  });
-  const body = (await response.json().catch(() => null)) as BatchResponse | null;
+  }));
+  const body = await readJsonResponseWithLimit<BatchResponse>(response, NXTRACE_RESPONSE_LIMIT_BYTES);
   if (!response.ok) {
     throw new NxtraceBatchError(`nxtrace batch failed with HTTP ${response.status}`, isSplitRetryableStatus(response.status));
   }

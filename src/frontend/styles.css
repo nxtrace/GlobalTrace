@@ -813,6 +813,15 @@ summary:focus-visible {
   text-decoration: underline;
 }
 
+.token-remember {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
 .token-actions,
 .attribution-panel {
   display: flex;

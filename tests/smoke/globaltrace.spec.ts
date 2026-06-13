@@ -399,6 +399,38 @@ test("saved NextTrace token sends browser batch request", async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test("token save defaults to session storage", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page);
+
+  await page.goto("/");
+  await page.getByText("高级参数与精确筛选").click();
+  await page.getByRole("textbox", { name: "Globalping Token" }).fill("gp-token");
+  await page.getByRole("button", { name: "保存 Globalping" }).click();
+  await page.getByRole("textbox", { name: "NextTrace API Token" }).fill("nt-token");
+  await page.getByRole("button", { name: "保存 NextTrace" }).click();
+
+  await expect(page.getByText("Globalping Token 仅当前会话可用")).toBeVisible();
+  await expect(page.getByText("NextTrace Token 仅当前会话可用")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        globalpingLocal: window.localStorage.getItem("globaltrace.globalpingToken"),
+        globalpingSession: window.sessionStorage.getItem("globaltrace.globalpingToken"),
+        nexttraceLocal: window.localStorage.getItem("globaltrace.nexttraceApiToken"),
+        nexttraceSession: window.sessionStorage.getItem("globaltrace.nexttraceApiToken"),
+      })),
+    )
+    .toEqual({
+      globalpingLocal: null,
+      globalpingSession: "gp-token",
+      nexttraceLocal: null,
+      nexttraceSession: "nt-token",
+    });
+  expect(consoleErrors).toEqual([]);
+});
+
 test("about page exposes provider attribution links", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
@@ -1491,8 +1523,13 @@ async function clickResultMapRouteNode(page: Page, nodeId: string): Promise<void
 }
 
 async function clickMapCoordinate(page: Page, coordinate: [number, number]): Promise<void> {
-  const point = await mapScreenPoint(page, coordinate);
-  await page.mouse.click(point.x, point.y);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await expectMapProjectsCoordinateInsideCanvas(page, coordinate);
+    const point = await mapScreenPoint(page, coordinate);
+    await page.mouse.click(point.x, point.y);
+    if ((await page.getByLabel("probe map").getByText(/^已选择 /).count()) > 0) return;
+    await page.waitForTimeout(250);
+  }
 }
 
 async function resultMapRouteNodeCanvasPoint(page: Page, nodeId: string): Promise<{ x: number; y: number } | null> {

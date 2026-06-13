@@ -55,6 +55,11 @@ type AppRoute = "/" | "/about";
 type TraceLoadSource = "created" | "shared";
 type TraceEnrichmentMode = "worker" | "nexttraceToken";
 
+interface StoredTokenState {
+  token: string;
+  remembered: boolean;
+}
+
 const AboutPage = lazy(() => import("./components/AboutPage").then((module) => ({ default: module.AboutPage })));
 const ProbeMap = lazy(() => import("./components/ProbeMap").then((module) => ({ default: module.ProbeMap })));
 const ResultsView = lazy(() => import("./components/ResultsView").then((module) => ({ default: module.ResultsView })));
@@ -63,9 +68,13 @@ export function App() {
   const [route, setRoute] = useState<AppRoute>(currentRoute);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
   const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
-  const [globalpingToken, setGlobalpingToken] = useState(readStoredGlobalpingToken);
+  const [storedGlobalpingToken] = useState(readStoredGlobalpingToken);
+  const [globalpingToken, setGlobalpingToken] = useState(storedGlobalpingToken.token);
+  const [globalpingTokenRemembered, setGlobalpingTokenRemembered] = useState(storedGlobalpingToken.remembered);
   const [globalpingTokenDraft, setGlobalpingTokenDraft] = useState(globalpingToken);
-  const [nexttraceToken, setNexttraceToken] = useState(readStoredNexttraceToken);
+  const [storedNexttraceToken] = useState(readStoredNexttraceToken);
+  const [nexttraceToken, setNexttraceToken] = useState(storedNexttraceToken.token);
+  const [nexttraceTokenRemembered, setNexttraceTokenRemembered] = useState(storedNexttraceToken.remembered);
   const [nexttraceTokenDraft, setNexttraceTokenDraft] = useState(nexttraceToken);
   const [config, setConfig] = useState<AppConfig>({
     mapStyleUrl: import.meta.env.VITE_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL,
@@ -152,13 +161,15 @@ export function App() {
   }, [route]);
 
   useEffect(() => {
-    if (route !== "/" || probeMapReady) return;
+    if (route !== "/" || probeMapReady || probesStatus === "loading") return;
     return deferUntilIdle(() => setProbeMapReady(true));
-  }, [probeMapReady, route]);
+  }, [probeMapReady, probesStatus, route]);
 
   useEffect(() => {
     if (route !== "/") return;
-    void loadLimits(globalpingToken);
+    return deferUntilIdle(() => {
+      void loadLimits(globalpingToken);
+    });
   }, [globalpingToken, route]);
 
   const loadTrace = useCallback(async (
@@ -243,21 +254,9 @@ export function App() {
     if (!id || id === createdMeasurementIdRef.current) return;
     if (sharedTraceStartedRef.current === id) return;
     if (hasReusableSharedResult(result, id)) return;
-    if (nexttraceToken) {
-      sharedTraceStartedRef.current = id;
-      void loadTrace(id, true, globalpingToken, nexttraceToken, "shared", "nexttraceToken");
-      return;
-    }
     sharedTraceStartedRef.current = id;
-    void loadTrace(id, true, globalpingToken, "", "shared");
-  }, [
-    configReady,
-    globalpingToken,
-    loadTrace,
-    nexttraceToken,
-    result,
-    route,
-  ]);
+    void loadTrace(id, true, "", "", "shared");
+  }, [configReady, loadTrace, result, route]);
 
   useEffect(() => () => pollAbortRef.current?.abort(), []);
 
@@ -437,20 +436,25 @@ export function App() {
     const trimmed = globalpingTokenDraft.trim();
     setGlobalpingToken(trimmed);
     setGlobalpingTokenDraft(trimmed);
-    writeStoredGlobalpingToken(trimmed);
-  }, [globalpingTokenDraft]);
+    writeStoredGlobalpingToken(trimmed, globalpingTokenRemembered);
+  }, [globalpingTokenDraft, globalpingTokenRemembered]);
 
   const clearGlobalpingToken = useCallback(() => {
     setGlobalpingToken("");
     setGlobalpingTokenDraft("");
-    writeStoredGlobalpingToken("");
+    clearStoredToken(GLOBALPING_TOKEN_STORAGE_KEY);
   }, []);
+
+  const updateGlobalpingTokenRemembered = useCallback((remembered: boolean) => {
+    setGlobalpingTokenRemembered(remembered);
+    writeStoredGlobalpingToken(globalpingToken, remembered);
+  }, [globalpingToken]);
 
   const saveNexttraceToken = useCallback(() => {
     const trimmed = nexttraceTokenDraft.trim();
     setNexttraceToken(trimmed);
     setNexttraceTokenDraft(trimmed);
-    writeStoredNexttraceToken(trimmed);
+    writeStoredNexttraceToken(trimmed, nexttraceTokenRemembered);
     if (trimmed && result?.status === "finished" && result.measurementId) {
       setLoading(true);
       void enrichTraceWithNexttraceToken(result, trimmed)
@@ -464,13 +468,18 @@ export function App() {
         })
         .finally(() => setLoading(false));
     }
-  }, [nexttraceTokenDraft, result]);
+  }, [nexttraceTokenDraft, nexttraceTokenRemembered, result]);
 
   const clearNexttraceToken = useCallback(() => {
     setNexttraceToken("");
     setNexttraceTokenDraft("");
-    writeStoredNexttraceToken("");
+    clearStoredToken(NEXTTRACE_TOKEN_STORAGE_KEY);
   }, []);
+
+  const updateNexttraceTokenRemembered = useCallback((remembered: boolean) => {
+    setNexttraceTokenRemembered(remembered);
+    writeStoredNexttraceToken(nexttraceToken, remembered);
+  }, [nexttraceToken]);
 
   const cycleThemeMode = useCallback(() => {
     setThemeMode((current) => nextThemeMode(current));
@@ -522,8 +531,10 @@ export function App() {
           canSubmit={canSubmit}
           globalpingTokenDraft={globalpingTokenDraft}
           globalpingTokenSaved={Boolean(globalpingToken)}
+          globalpingTokenRemembered={globalpingTokenRemembered}
           nexttraceTokenDraft={nexttraceTokenDraft}
           nexttraceTokenSaved={Boolean(nexttraceToken)}
+          nexttraceTokenRemembered={nexttraceTokenRemembered}
           themeMode={themeMode}
           onTargetChange={setTarget}
           onProtocolChange={setProtocol}
@@ -535,9 +546,11 @@ export function App() {
           onGlobalpingTokenDraftChange={setGlobalpingTokenDraft}
           onSaveGlobalpingToken={saveGlobalpingToken}
           onClearGlobalpingToken={clearGlobalpingToken}
+          onGlobalpingTokenRememberedChange={updateGlobalpingTokenRemembered}
           onNexttraceTokenDraftChange={setNexttraceTokenDraft}
           onSaveNexttraceToken={saveNexttraceToken}
           onClearNexttraceToken={clearNexttraceToken}
+          onNexttraceTokenRememberedChange={updateNexttraceTokenRemembered}
           onCycleThemeMode={cycleThemeMode}
           onNavigateHome={navigateHome}
           onNavigateAbout={navigateAbout}
@@ -707,41 +720,55 @@ function hasExplicitFilter(filters: TraceFilters): boolean {
   );
 }
 
-function readStoredGlobalpingToken(): string {
+function readStoredGlobalpingToken(): StoredTokenState {
+  return readStoredToken(GLOBALPING_TOKEN_STORAGE_KEY);
+}
+
+function writeStoredGlobalpingToken(token: string, remembered: boolean): void {
+  writeStoredToken(GLOBALPING_TOKEN_STORAGE_KEY, token, remembered);
+}
+
+function readStoredNexttraceToken(): StoredTokenState {
+  return readStoredToken(NEXTTRACE_TOKEN_STORAGE_KEY);
+}
+
+function writeStoredNexttraceToken(token: string, remembered: boolean): void {
+  writeStoredToken(NEXTTRACE_TOKEN_STORAGE_KEY, token, remembered);
+}
+
+function readStoredToken(key: string): StoredTokenState {
+  const localToken = readStorageValue(window.localStorage, key);
+  if (localToken) return { token: localToken, remembered: true };
+  return { token: readStorageValue(window.sessionStorage, key), remembered: false };
+}
+
+function readStorageValue(storage: Storage, key: string): string {
   try {
-    return window.localStorage.getItem(GLOBALPING_TOKEN_STORAGE_KEY)?.trim() || "";
+    return storage.getItem(key)?.trim() || "";
   } catch {
     return "";
   }
 }
 
-function writeStoredGlobalpingToken(token: string): void {
+function writeStoredToken(key: string, token: string, remembered: boolean): void {
+  clearStoredToken(key);
+  if (!token) return;
   try {
-    if (token) {
-      window.localStorage.setItem(GLOBALPING_TOKEN_STORAGE_KEY, token);
-    } else {
-      window.localStorage.removeItem(GLOBALPING_TOKEN_STORAGE_KEY);
-    }
+    const storage = remembered ? window.localStorage : window.sessionStorage;
+    storage.setItem(key, token);
   } catch {
     // Ignore storage failures; the token still works for the current tab.
   }
 }
 
-function readStoredNexttraceToken(): string {
+function clearStoredToken(key: string): void {
   try {
-    return window.localStorage.getItem(NEXTTRACE_TOKEN_STORAGE_KEY)?.trim() || "";
+    window.localStorage.removeItem(key);
   } catch {
-    return "";
+    // Ignore storage failures; the token still works for the current tab.
   }
-}
-
-function writeStoredNexttraceToken(token: string): void {
   try {
-    if (token) {
-      window.localStorage.setItem(NEXTTRACE_TOKEN_STORAGE_KEY, token);
-    } else {
-      window.localStorage.removeItem(NEXTTRACE_TOKEN_STORAGE_KEY);
-    }
+    window.sessionStorage.removeItem(key);
   } catch {
     // Ignore storage failures; the token still works for the current tab.
   }

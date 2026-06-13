@@ -33,8 +33,10 @@ interface FilterPanelProps {
   canSubmit: boolean;
   globalpingTokenDraft: string;
   globalpingTokenSaved: boolean;
+  globalpingTokenRemembered: boolean;
   nexttraceTokenDraft: string;
   nexttraceTokenSaved: boolean;
+  nexttraceTokenRemembered: boolean;
   themeMode: ThemeMode;
   onTargetChange: (value: string) => void;
   onProtocolChange: (value: TraceProtocol) => void;
@@ -46,9 +48,11 @@ interface FilterPanelProps {
   onGlobalpingTokenDraftChange: (token: string) => void;
   onSaveGlobalpingToken: () => void;
   onClearGlobalpingToken: () => void;
+  onGlobalpingTokenRememberedChange: (remembered: boolean) => void;
   onNexttraceTokenDraftChange: (token: string) => void;
   onSaveNexttraceToken: () => void;
   onClearNexttraceToken: () => void;
+  onNexttraceTokenRememberedChange: (remembered: boolean) => void;
   onCycleThemeMode: () => void;
   onNavigateHome: () => void;
   onNavigateAbout: () => void;
@@ -80,6 +84,8 @@ interface IndexedMagicOption {
 
 export function FilterPanel(props: FilterPanelProps) {
   const filterSuggestions = props.filterSuggestions ?? EMPTY_FILTER_SUGGESTIONS;
+  const globalpingTokenStatusId = useId();
+  const nexttraceTokenStatusId = useId();
 
   const setFilter = (key: keyof TraceFilters, value: string | boolean) => {
     const nextValue = cleanFilterValue(value);
@@ -324,10 +330,25 @@ export function FilterPanel(props: FilterPanelProps) {
                       placeholder="可选：使用自己的 Globalping Token"
                       autoComplete="off"
                       aria-label="Globalping Token"
+                      aria-describedby={globalpingTokenStatusId}
+                    />
+                  </label>
+                  <label className="token-remember">
+                    <span>记住到本机</span>
+                    <Switch
+                      checked={props.globalpingTokenRemembered}
+                      onCheckedChange={(checked) => props.onGlobalpingTokenRememberedChange(Boolean(checked))}
+                      aria-label="记住 Globalping 到本机"
                     />
                   </label>
                   <div className="token-actions">
-                    <span>{props.globalpingTokenSaved ? "Globalping Token 已保存到本机浏览器" : "未使用 Globalping Token"}</span>
+                    <span id={globalpingTokenStatusId} role="status" aria-live="polite">
+                      {props.globalpingTokenSaved
+                        ? props.globalpingTokenRemembered
+                          ? "Globalping Token 已记住到本机浏览器"
+                          : "Globalping Token 仅当前会话可用"
+                        : "未使用 Globalping Token"}
+                    </span>
                     <div>
                       <Button
                         variant="glass"
@@ -374,10 +395,25 @@ export function FilterPanel(props: FilterPanelProps) {
                       placeholder="可选：直连 NextTrace enrichment"
                       autoComplete="off"
                       aria-label="NextTrace API Token"
+                      aria-describedby={nexttraceTokenStatusId}
+                    />
+                  </label>
+                  <label className="token-remember">
+                    <span>记住到本机</span>
+                    <Switch
+                      checked={props.nexttraceTokenRemembered}
+                      onCheckedChange={(checked) => props.onNexttraceTokenRememberedChange(Boolean(checked))}
+                      aria-label="记住 NextTrace 到本机"
                     />
                   </label>
                   <div className="token-actions">
-                    <span>{props.nexttraceTokenSaved ? "NextTrace Token 已保存到本机浏览器" : "未使用 NextTrace Token"}</span>
+                    <span id={nexttraceTokenStatusId} role="status" aria-live="polite">
+                      {props.nexttraceTokenSaved
+                        ? props.nexttraceTokenRemembered
+                          ? "NextTrace Token 已记住到本机浏览器"
+                          : "NextTrace Token 仅当前会话可用"
+                        : "未使用 NextTrace Token"}
+                    </span>
                     <div>
                       <Button
                         variant="glass"

@@ -57,6 +57,7 @@ describe("nxtrace enrichment", () => {
     });
 
     expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(vi.mocked(fetcher).mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
     expect(enriched.enrichment.fetched).toBe(65);
     expect(enriched.results[0]?.hops[0]?.geo?.source).toBe("mock");
 
@@ -166,6 +167,34 @@ describe("nxtrace enrichment", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(cached.enrichment.cached).toBe(2);
     expect(cached.enrichment.fetched).toBe(0);
+  });
+
+  it("queues successful GeoIP cache writes with waitUntil", async () => {
+    const cache = new MemoryCache();
+    const trace = sampleTrace(2);
+    const waitUntilPromises: Promise<unknown>[] = [];
+    const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
+      const ips = JSON.parse(String(init?.body)).ips as string[];
+      return new Response(
+        JSON.stringify({
+          results: ips.map((ip) => ({ ip, ok: true, data: geo(ip) })),
+        }),
+      );
+    }) as unknown as typeof fetch;
+
+    await enrichTraceResponse(trace, {
+      apiBase: "https://nxtrace.test",
+      token: "secret",
+      cache,
+      fetcher,
+      waitUntil: (promise) => waitUntilPromises.push(promise),
+    });
+    await Promise.all(waitUntilPromises);
+    const cached = await enrichTraceResponse(trace, { apiBase: "https://nxtrace.test", token: "secret", cache, fetcher });
+
+    expect(waitUntilPromises).toHaveLength(2);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(cached.enrichment.cached).toBe(2);
   });
 
   it("does not send private or invalid hop addresses to nxtrace", () => {

@@ -1,5 +1,4 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
+import { Hono, type Context } from "hono";
 import {
   DEFAULT_MAP_STYLE_URL,
   MAX_TRACE_PROBES,
@@ -8,7 +7,7 @@ import {
 import type { GlobalpingMeasurement } from "../shared/globalping";
 import type { WorkerEnv } from "./env";
 import { GlobalpingClient } from "./globalping";
-import { createJsonResponse, HttpError, jsonError, ValidationError } from "./http";
+import { applySecurityHeaders, createJsonResponse, HttpError, jsonError, ValidationError } from "./http";
 import { enrichTraceResponse } from "./nxtrace";
 import { measurementToTraceResponse } from "./transform";
 
@@ -26,19 +25,26 @@ const MAX_GLOBALPING_RAW_OUTPUT_CHARS = 20_000;
 export function createApp() {
   const app = new Hono<HonoEnv>();
 
-  app.use(
-    "/api/*",
-    cors({
-      origin: "*",
-      allowMethods: ["GET", "POST", "OPTIONS"],
-      allowHeaders: ["Content-Type"],
-    }),
-  );
+  app.use("/api/*", async (c, next) => {
+    await next();
+    applySecurityHeaders(c.res.headers);
+  });
+
+  app.use("/api/trace/enrich", async (c, next) => {
+    if (isCrossSiteRequest(c.req.raw)) {
+      return c.json(jsonError("cross-site requests are not allowed"), 403);
+    }
+    await next();
+  });
 
   app.get("/api/config", (c) =>
-    c.json({
-      mapStyleUrl: c.env.MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL,
-    }),
+    c.json(
+      {
+        mapStyleUrl: c.env.MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL,
+      },
+      200,
+      { "Cache-Control": "public, max-age=300" },
+    ),
   );
 
   app.on(["GET", "HEAD"], "/api/probes", async (c) => {
@@ -58,7 +64,7 @@ export function createApp() {
     for (const [key, value] of probesCacheHeaders()) {
       response.headers.set(key, value);
     }
-    await responseCache?.put(cacheKey, response.clone());
+    queueCacheWrite(c, responseCache?.put(cacheKey, response.clone()));
     return response;
   });
 
@@ -78,6 +84,7 @@ export function createApp() {
       apiBase: c.env.NXTRACE_API_BASE,
       token: c.env.NXTRACE_API_V4_TOKEN,
       cache: responseCache,
+      waitUntil: (promise) => queueWaitUntil(c, promise),
     });
     const response = c.json(enriched);
     if (isCacheableTraceResponse(enriched)) {
@@ -160,20 +167,75 @@ function probesCacheHeaders(): Headers {
 }
 
 async function readJsonWithLimit<T>(request: Request, limitBytes: number): Promise<T> {
-  const contentLength = Number(request.headers.get("Content-Length") || 0);
-  if (contentLength > limitBytes) {
+  const contentLength = parseContentLength(request.headers.get("Content-Length"));
+  if (contentLength !== null && contentLength > limitBytes) {
     throw new ValidationError("request body is too large");
   }
 
-  const text = await request.text();
-  if (text.length > limitBytes) {
-    throw new ValidationError("request body is too large");
-  }
+  const text = await readTextWithLimit(request, limitBytes);
 
   try {
     return JSON.parse(text) as T;
   } catch {
     throw new ValidationError("invalid json body");
+  }
+}
+
+async function readTextWithLimit(request: Request, limitBytes: number): Promise<string> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > limitBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new ValidationError("request body is too large");
+    }
+    chunks.push(value);
+  }
+
+  const buffer = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(buffer);
+}
+
+function parseContentLength(value: string | null): number | null {
+  if (value === null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function isCrossSiteRequest(request: Request): boolean {
+  const origin = request.headers.get("Origin");
+  if (origin && origin !== new URL(request.url).origin) return true;
+  return request.headers.get("Sec-Fetch-Site") === "cross-site";
+}
+
+function queueCacheWrite(c: Context<HonoEnv>, write: Promise<unknown> | undefined): void {
+  if (!write) return;
+  queueWaitUntil(c, write);
+}
+
+function queueWaitUntil(c: Context<HonoEnv>, write: Promise<unknown>): void {
+  const guarded = write.catch(() => undefined);
+  let ctx: ExecutionContext | undefined;
+  try {
+    ctx = c.executionCtx as ExecutionContext | undefined;
+  } catch {
+    ctx = undefined;
+  }
+  if (ctx) {
+    ctx.waitUntil(guarded);
+  } else {
+    void guarded;
   }
 }
 

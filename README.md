@@ -8,7 +8,7 @@ GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping
 - UI：Radix UI、lucide-react、liquid-glass-react。
 - Worker：Hono on Cloudflare Workers Static Assets。
 - 测量来源：Globalping `type: "mtr"` measurement。
-- 增强数据：Worker 按 Globalping measurement ID 拉取可信结果后调用 nxtrace API v4 batch GeoIP/ASN/whois；用户保存个人 NextTrace API Token 后由浏览器直连 batch API。
+- 增强数据：Worker 按 Globalping measurement ID 拉取可信结果后调用 nxtrace API v4 batch GeoIP/ASN/whois；用户提供个人 NextTrace API Token 后，新建诊断可由浏览器直连 batch API。
 
 ## 本地运行
 
@@ -50,14 +50,14 @@ Worker 调用 nxtrace batch 接口：
 
 ## 个人 NextTrace API Token
 
-高级参数里可以保存个人 `NextTrace API Token`。该 Token 仅保存在当前浏览器 `localStorage`，不会发送给 Globalping 或 GlobalTrace Worker。
+高级参数里可以保存个人 `NextTrace API Token`。默认仅保存在当前浏览器会话；勾选“记住到本机”后才写入 `localStorage`。该 Token 不会发送给 Globalping 或 GlobalTrace Worker。
 
-保存后，新建诊断和打开分享结果会由浏览器直接请求 `https://api.nxtrace.org/v4/ipGeo/batch`，并通过 `X-NextTrace-Token` 传递该 Token。
+保存后，新建诊断会由浏览器直接请求 `https://api.nxtrace.org/v4/ipGeo/batch`，并通过 `X-NextTrace-Token` 传递该 Token。打开分享结果默认走 Worker enrichment，不会自动消耗浏览器里保存的个人 Token。
 
 ## 缓存和存储边界
 
 - 完成态 enriched trace 使用 Worker Cache API 缓存 7 天；Cloudflare 仍可能提前驱逐缓存。
-- 个人 NextTrace API Token 只保存在浏览器本地，不进入 Worker Cache、日志或服务端配置。
+- 个人 NextTrace API Token 只保存在浏览器会话或用户明确记住的本机存储中，不进入 Worker Cache、日志或服务端配置。
 - 项目不使用 KV、D1、R2、Durable Object 或服务端报告存储。
 - 分享链接依赖 measurement ID 和缓存结果；不会把报告持久写入数据库。
 

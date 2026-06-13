@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { GlobalpingLimitResponse, GlobalpingProbe } from "../../src/shared/types";
+import { SECURITY_HEADERS } from "../../src/worker/http";
 
 test("serves the built Vite app through Worker Static Assets", async ({ page, request }) => {
   const response = await request.get("/");
@@ -7,17 +8,36 @@ test("serves the built Vite app through Worker Static Assets", async ({ page, re
   expect(response.ok()).toBe(true);
   expect(html).toContain("/assets/");
   expect(html).toContain('name="description"');
+  expectSecurityHeaders(response.headers());
 
-  const assetPath = html.match(/src="([^"]*\/assets\/[^"]+\.js)"/)?.[1];
-  expect(assetPath).toBeTruthy();
-  const assetResponse = await request.get(assetPath as string);
-  expect(assetResponse.headers()["cache-control"]).toBe("public, max-age=31556952, immutable");
+  const assetPaths = Array.from(html.matchAll(/(?:src|href)="([^"]*\/assets\/[^"]+\.(?:js|css))"/g), (match) => match[1]);
+  expect(assetPaths.length).toBeGreaterThan(0);
+  for (const assetPath of assetPaths) {
+    const assetResponse = await request.get(assetPath);
+    expect(assetResponse.ok()).toBe(true);
+    expect(assetResponse.headers()["cache-control"]).toBe("public, max-age=31556952, immutable");
+    expectSecurityHeaders(assetResponse.headers());
+  }
 
   const robotsResponse = await request.get("/robots.txt");
   const robots = await robotsResponse.text();
   expect(robotsResponse.ok()).toBe(true);
+  expectSecurityHeaders(robotsResponse.headers());
   expect(robots).toContain("User-agent: *");
   expect(robots).not.toContain("<!doctype html>");
+
+  const faviconResponse = await request.get("/favicon.ico");
+  const favicon = await faviconResponse.body();
+  expect(faviconResponse.ok()).toBe(true);
+  expect(favicon.length).toBeGreaterThan(0);
+  expect(faviconResponse.headers()["content-type"] || "").not.toContain("text/html");
+  expectSecurityHeaders(faviconResponse.headers());
+
+  const configResponse = await request.get("/api/config");
+  expect(configResponse.ok()).toBe(true);
+  expect(configResponse.headers()["cache-control"]).toBe("public, max-age=300");
+  expect(configResponse.headers()["access-control-allow-origin"]).toBeUndefined();
+  expectSecurityHeaders(configResponse.headers());
 
   const consoleErrors = collectConsoleErrors(page);
   await installStaticAssetMocks(page);
@@ -47,6 +67,12 @@ function collectConsoleErrors(page: Page): string[] {
   });
   page.on("pageerror", (error) => errors.push(error.message));
   return errors;
+}
+
+function expectSecurityHeaders(headers: Record<string, string>): void {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    expect(headers[key.toLowerCase()]).toBe(value);
+  }
 }
 
 async function installStaticAssetMocks(page: Page): Promise<void> {

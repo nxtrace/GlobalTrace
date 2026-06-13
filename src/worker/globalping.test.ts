@@ -64,5 +64,6 @@ describe("Globalping client and validation", () => {
     await expect(client.listProbes()).resolves.toEqual([{ location: {}, tags: [] }]);
     expect(fetcher.mock.calls[0][0]).toBe("https://globalping.test/v1/probes");
     expect(fetcher.mock.calls[0][1]?.headers).not.toHaveProperty("Authorization");
+    expect(fetcher.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
   });
 });

@@ -58,8 +58,10 @@ describe("FilterPanel", () => {
         canSubmit={true}
         globalpingTokenDraft=""
         globalpingTokenSaved={false}
+        globalpingTokenRemembered={false}
         nexttraceTokenDraft=""
         nexttraceTokenSaved={false}
+        nexttraceTokenRemembered={false}
         themeMode="system"
         onTargetChange={vi.fn()}
         onProtocolChange={vi.fn()}
@@ -71,9 +73,11 @@ describe("FilterPanel", () => {
         onGlobalpingTokenDraftChange={vi.fn()}
         onSaveGlobalpingToken={vi.fn()}
         onClearGlobalpingToken={vi.fn()}
+        onGlobalpingTokenRememberedChange={vi.fn()}
         onNexttraceTokenDraftChange={vi.fn()}
         onSaveNexttraceToken={vi.fn()}
         onClearNexttraceToken={vi.fn()}
+        onNexttraceTokenRememberedChange={vi.fn()}
         onCycleThemeMode={vi.fn()}
         onNavigateHome={vi.fn()}
         onNavigateAbout={vi.fn()}
@@ -544,23 +548,29 @@ describe("FilterPanel", () => {
     const onGlobalpingTokenDraftChange = vi.fn();
     const onSaveGlobalpingToken = vi.fn();
     const onClearGlobalpingToken = vi.fn();
+    const onGlobalpingTokenRememberedChange = vi.fn();
     const onNexttraceTokenDraftChange = vi.fn();
     const onSaveNexttraceToken = vi.fn();
     const onClearNexttraceToken = vi.fn();
+    const onNexttraceTokenRememberedChange = vi.fn();
     const onCycleThemeMode = vi.fn();
     const onNavigateAbout = vi.fn();
     renderPanel({
       globalpingTokenDraft: "gp-token",
       globalpingTokenSaved: true,
+      globalpingTokenRemembered: true,
       nexttraceTokenDraft: "nt-token",
       nexttraceTokenSaved: true,
+      nexttraceTokenRemembered: true,
       themeMode: "dark",
       onGlobalpingTokenDraftChange,
       onSaveGlobalpingToken,
       onClearGlobalpingToken,
+      onGlobalpingTokenRememberedChange,
       onNexttraceTokenDraftChange,
       onSaveNexttraceToken,
       onClearNexttraceToken,
+      onNexttraceTokenRememberedChange,
       onCycleThemeMode,
       onNavigateAbout,
     });
@@ -570,19 +580,23 @@ describe("FilterPanel", () => {
     fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: "nexttrace-token" } });
     fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
     fireEvent.click(screen.getByRole("button", { name: "清除 Globalping" }));
+    fireEvent.click(screen.getByLabelText("记住 Globalping 到本机"));
     fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
     fireEvent.click(screen.getByRole("button", { name: "清除 NextTrace" }));
+    fireEvent.click(screen.getByLabelText("记住 NextTrace 到本机"));
     fireEvent.click(screen.getByRole("button", { name: "主题：Dark" }));
     fireEvent.click(screen.getByRole("button", { name: "关于 GlobalTrace" }));
 
-    expect(screen.getByText("Globalping Token 已保存到本机浏览器")).toBeInTheDocument();
-    expect(screen.getByText("NextTrace Token 已保存到本机浏览器")).toBeInTheDocument();
+    expect(screen.getByText("Globalping Token 已记住到本机浏览器")).toBeInTheDocument();
+    expect(screen.getByText("NextTrace Token 已记住到本机浏览器")).toBeInTheDocument();
     expect(onGlobalpingTokenDraftChange).toHaveBeenCalledWith("next-token");
     expect(onNexttraceTokenDraftChange).toHaveBeenCalledWith("nexttrace-token");
     expect(onSaveGlobalpingToken).toHaveBeenCalledTimes(1);
     expect(onClearGlobalpingToken).toHaveBeenCalledTimes(1);
+    expect(onGlobalpingTokenRememberedChange).toHaveBeenCalledWith(false);
     expect(onSaveNexttraceToken).toHaveBeenCalledTimes(1);
     expect(onClearNexttraceToken).toHaveBeenCalledTimes(1);
+    expect(onNexttraceTokenRememberedChange).toHaveBeenCalledWith(false);
     expect(onCycleThemeMode).toHaveBeenCalledTimes(1);
     expect(onNavigateAbout).toHaveBeenCalledTimes(1);
   });
@@ -618,8 +632,10 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       canSubmit={true}
       globalpingTokenDraft=""
       globalpingTokenSaved={false}
+      globalpingTokenRemembered={false}
       nexttraceTokenDraft=""
       nexttraceTokenSaved={false}
+      nexttraceTokenRemembered={false}
       themeMode="system"
       onTargetChange={vi.fn()}
       onProtocolChange={vi.fn()}
@@ -631,9 +647,11 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       onGlobalpingTokenDraftChange={vi.fn()}
       onSaveGlobalpingToken={vi.fn()}
       onClearGlobalpingToken={vi.fn()}
+      onGlobalpingTokenRememberedChange={vi.fn()}
       onNexttraceTokenDraftChange={vi.fn()}
       onSaveNexttraceToken={vi.fn()}
       onClearNexttraceToken={vi.fn()}
+      onNexttraceTokenRememberedChange={vi.fn()}
       onCycleThemeMode={vi.fn()}
       onNavigateHome={vi.fn()}
       onNavigateAbout={vi.fn()}
