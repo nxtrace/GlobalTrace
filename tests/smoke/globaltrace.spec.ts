@@ -457,6 +457,7 @@ test("about page exposes provider attribution links", async ({ page }) => {
 
   const aboutDialog = page.getByRole("dialog", { name: "关于 GlobalTrace" });
   await expect(aboutDialog).toBeVisible();
+  await expectBareAboutOverlay(page);
   await expect(aboutDialog.getByRole("heading", { name: "GlobalTrace", exact: true })).toBeVisible();
   await expect(
     aboutDialog.getByText(
@@ -1238,6 +1239,34 @@ async function expectBareResultOverlay(page: Page): Promise<void> {
   expect(state.hasPanel).toBe(false);
   expect(state.firstChildClassName).toContain("results-section-surface");
   expect(state.resultSurfaceMode).toMatch(/^(liquid|fallback)$/);
+}
+
+async function expectBareAboutOverlay(page: Page): Promise<void> {
+  await expect(page.getByRole("dialog", { name: "关于 GlobalTrace" })).toBeVisible();
+  const state = await page.evaluate(() => {
+    const overlay = document.querySelector(".glass-overlay-about") as HTMLElement | null;
+    const dialog = overlay?.querySelector('[role="dialog"]') as HTMLElement | null;
+    const firstChild = dialog?.firstElementChild as HTMLElement | null;
+    const dialogStyle = dialog ? window.getComputedStyle(dialog) : null;
+    return {
+      overlayClassName: overlay?.className || "",
+      dialogClassName: dialog?.className || "",
+      dialogBackground: dialogStyle?.backgroundColor || "",
+      dialogBoxShadow: dialogStyle?.boxShadow || "",
+      hasHeader: Boolean(overlay?.querySelector(".glass-overlay-header")),
+      hasBody: Boolean(overlay?.querySelector(".glass-overlay-body")),
+      hasPanel: Boolean(overlay?.querySelector(".glass-overlay-panel")),
+      firstChildClassName: firstChild?.className || "",
+    };
+  });
+  expect(state.overlayClassName).toContain("glass-overlay-chrome-bare");
+  expect(state.dialogClassName).toContain("glass-overlay-bare-surface");
+  expect(state.dialogBackground).toBe("rgba(0, 0, 0, 0)");
+  expect(state.dialogBoxShadow).toBe("none");
+  expect(state.hasHeader).toBe(false);
+  expect(state.hasBody).toBe(false);
+  expect(state.hasPanel).toBe(false);
+  expect(state.firstChildClassName).toContain("about-panel");
 }
 
 async function expectSuggestionPopoverReadable(popover: Locator): Promise<void> {

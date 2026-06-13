@@ -2233,7 +2233,8 @@ tbody tr:hover {
   outline: none;
 }
 
-.glass-overlay-about .glass-overlay-surface {
+.glass-overlay-about .glass-overlay-surface,
+.glass-overlay-about .glass-overlay-bare-surface {
   width: min(980px, calc(100vw - 32px));
 }
 

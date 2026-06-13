@@ -665,7 +665,14 @@ export function App() {
         </div>
       </main>
 
-      <GlassOverlay open={route === "/about"} title="关于 GlobalTrace" size="about" placement="center" onClose={navigateHome}>
+      <GlassOverlay
+        open={route === "/about"}
+        title="关于 GlobalTrace"
+        size="about"
+        chrome="bare"
+        placement="center"
+        onClose={navigateHome}
+      >
         <Suspense fallback={<AboutPageFallback />}>
           <AboutPage onBack={navigateHome} backgroundImage={backgroundImage} />
         </Suspense>

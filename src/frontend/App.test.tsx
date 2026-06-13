@@ -402,6 +402,11 @@ describe("App", () => {
     render(<App />);
 
     const aboutDialog = await screen.findByRole("dialog", { name: "关于 GlobalTrace" });
+    expect(aboutDialog).toHaveClass("glass-overlay-bare-surface");
+    expect(document.querySelector(".glass-overlay-about .glass-overlay-header")).toBeNull();
+    expect(document.querySelector(".glass-overlay-about .glass-overlay-body")).toBeNull();
+    expect(document.querySelector(".glass-overlay-about .glass-overlay-panel")).toBeNull();
+    expect(aboutDialog.querySelector(".about-panel")).not.toBeNull();
     expect(await within(aboutDialog).findByRole("heading", { name: "GlobalTrace" })).toBeInTheDocument();
     expect(
       within(aboutDialog).getByText(
