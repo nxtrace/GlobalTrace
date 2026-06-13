@@ -177,6 +177,7 @@ for (const viewport of [
     await expect(page.getByRole("button", { name: "切换到 3D 视图" })).toHaveCount(0);
     await expectMapCanvasPainted(page);
     await expectProbeMapProjection(page, "mercator");
+    const homeMapHeight = await expectCompactHomeProbeMapLayout(page);
     await expectNoPageOverflow(page);
 
     await page.getByRole("button", { name: "开始网络路径诊断" }).click();
@@ -191,6 +192,7 @@ for (const viewport of [
     await expect(page.getByLabel("trace result map")).toBeVisible();
     await expectMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
+    await expectResultMapHeight(page, homeMapHeight);
 
     await page.getByRole("button", { name: "切换结果地图到 3D" }).click();
 
@@ -985,6 +987,63 @@ async function expectProbeMapProjection(page: Page, projection: "mercator" | "gl
     .toBe(projection);
 }
 
+async function expectCompactHomeProbeMapLayout(page: Page): Promise<number> {
+  const mapSection = page.getByLabel("probe map");
+  await expect(mapSection.getByText("3 / 3 probes", { exact: true })).toBeVisible();
+  await expect(mapSection.getByText("点选地图表示选择筛选条件，不承诺指定精确 probe")).toBeVisible();
+  await expect(mapSection.getByText("eyeball", { exact: true })).toBeVisible();
+  await expect(mapSection.getByText("datacenter", { exact: true })).toBeVisible();
+
+  const state = await page.locator(".map-section").evaluate((section) => {
+    const map = section.querySelector(".map-container") as HTMLElement | null;
+    const status = section.querySelector(".map-status") as HTMLElement | null;
+    const legend = section.querySelector(".map-legend") as HTMLElement | null;
+    const legendItems = Array.from(section.querySelectorAll(".map-legend > span")) as HTMLElement[];
+    const mapRect = map?.getBoundingClientRect();
+    const statusStyle = status ? window.getComputedStyle(status) : null;
+    const statusTextStyle = status?.querySelector("strong") ? window.getComputedStyle(status.querySelector("strong") as HTMLElement) : null;
+    const noticeStyle = status?.querySelector("div:first-child span")
+      ? window.getComputedStyle(status.querySelector("div:first-child span") as HTMLElement)
+      : null;
+    const legendStyle = legend ? window.getComputedStyle(legend) : null;
+    const firstLegendItemStyle = legendItems[0] ? window.getComputedStyle(legendItems[0]) : null;
+
+    return {
+      mapHeight: mapRect?.height ?? 0,
+      mapComputedHeight: map ? window.getComputedStyle(map).height : "",
+      statusMinHeight: statusStyle?.minHeight ?? "",
+      statusPaddingTop: statusStyle?.paddingTop ?? "",
+      statusPaddingRight: statusStyle?.paddingRight ?? "",
+      statusGap: statusStyle?.gap ?? "",
+      statusOverflow: status ? status.scrollHeight - status.clientHeight : 0,
+      statusTextLineHeight: statusTextStyle?.lineHeight ?? "",
+      noticeLineHeight: noticeStyle?.lineHeight ?? "",
+      legendGap: legendStyle?.gap ?? "",
+      legendTexts: legendItems.map((item) => item.textContent?.trim()),
+      legendItemMinHeight: firstLegendItemStyle?.minHeight ?? "",
+      legendItemPaddingTop: firstLegendItemStyle?.paddingTop ?? "",
+      legendItemPaddingRight: firstLegendItemStyle?.paddingRight ?? "",
+    };
+  });
+
+  expect(state.mapHeight).toBeGreaterThanOrEqual(300);
+  expect(Math.abs(Number.parseFloat(state.mapComputedHeight) - state.mapHeight)).toBeLessThanOrEqual(1);
+  expect(state.statusMinHeight).toBe("44px");
+  expect(state.statusPaddingTop).toBe("7px");
+  expect(state.statusPaddingRight).toBe("10px");
+  expect(state.statusGap).toBe("8px");
+  expect(state.statusOverflow).toBeLessThanOrEqual(1);
+  expect(Number.parseFloat(state.statusTextLineHeight)).toBeLessThan(16);
+  expect(Number.parseFloat(state.noticeLineHeight)).toBeLessThan(15);
+  expect(state.legendGap).toBe("6px");
+  expect(state.legendTexts).toEqual(["eyeball", "datacenter"]);
+  expect(state.legendItemMinHeight).toBe("22px");
+  expect(state.legendItemPaddingTop).toBe("3px");
+  expect(state.legendItemPaddingRight).toBe("8px");
+
+  return state.mapHeight;
+}
+
 async function expectResultMapProjection(page: Page, projection: "mercator" | "globe"): Promise<void> {
   await expect
     .poll(async () => {
@@ -994,6 +1053,11 @@ async function expectResultMapProjection(page: Page, projection: "mercator" | "g
       });
     })
     .toBe(projection);
+}
+
+async function expectResultMapHeight(page: Page, expectedHeight: number): Promise<void> {
+  const resultHeight = await page.locator(".result-map").evaluate((node) => node.getBoundingClientRect().height);
+  expect(Math.abs(resultHeight - expectedHeight)).toBeLessThanOrEqual(1);
 }
 
 async function expectResultMapHasCountryLabelStyle(page: Page): Promise<void> {

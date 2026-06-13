@@ -1307,7 +1307,7 @@ summary:focus-visible {
 }
 
 .map-container {
-  height: clamp(430px, 58svh, 650px);
+  height: clamp(300px, 34svh, 440px);
   background: var(--map-bg);
 }
 
@@ -1339,30 +1339,32 @@ summary:focus-visible {
 }
 
 .map-status {
-  min-height: 58px;
+  min-height: 44px;
   display: flex;
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 11px 13px;
+  gap: 8px;
+  padding: 7px 10px;
   border-top: 1px solid var(--table-border);
   background: var(--subtle-panel-bg);
 }
 
 .map-status div:first-child {
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .map-status strong {
   font-size: 13px;
   font-weight: 760;
+  line-height: 1.15;
 }
 
 .map-status span {
   color: var(--ink-soft);
   font-size: 12px;
+  line-height: 1.15;
 }
 
 .map-legend {
@@ -1370,14 +1372,18 @@ summary:focus-visible {
   min-width: 0;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 9px;
+  gap: 6px;
 }
 
-.map-legend span {
+.map-legend > span {
   display: inline-flex;
   min-width: 0;
+  min-height: 22px;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  padding: 3px 8px;
+  line-height: 1.05;
+  white-space: nowrap;
 }
 
 .legend-dot {
@@ -2278,7 +2284,7 @@ pre {
   }
 
   .map-container {
-    height: clamp(340px, 48svh, 520px);
+    height: clamp(300px, 42svh, 440px);
   }
 
   .about-shell {
@@ -2391,7 +2397,7 @@ pre {
   }
 
   .map-container {
-    height: min(360px, 52svh);
+    height: clamp(300px, 44svh, 400px);
   }
 
   .result-map {
@@ -2616,6 +2622,7 @@ pre {
 }
 
 @media (max-width: 900px) and (max-height: 560px) {
+  .map-container,
   .result-map,
   .result-map-globe {
     height: clamp(300px, 68svh, 420px);
