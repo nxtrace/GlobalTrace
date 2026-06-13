@@ -844,9 +844,13 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
     const buttons = Array.from(tabs.querySelectorAll("button")) as HTMLElement[];
     const tabsRect = tabs.getBoundingClientRect();
     const buttonBottom = Math.max(...buttons.map((button) => button.getBoundingClientRect().bottom));
+    const firstButtonStyle = buttons[0] ? window.getComputedStyle(buttons[0]) : null;
     const styles = window.getComputedStyle(tabs);
     return {
       bottomGap: tabsRect.bottom - buttonBottom,
+      buttonMinHeight: firstButtonStyle?.minHeight ?? "",
+      buttonPaddingRight: firstButtonStyle?.paddingRight ?? "",
+      buttonPaddingTop: firstButtonStyle?.paddingTop ?? "",
       clientWidth: tabs.clientWidth,
       flexWrap: styles.flexWrap,
       overflowX: styles.overflowX,
@@ -859,8 +863,13 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.flexWrap).toBe("nowrap");
   expect(["auto", "scroll"]).toContain(state.overflowX);
   expect(state.scrollWidth).toBeGreaterThan(state.clientWidth);
-  expect(state.paddingBottom).toBeGreaterThanOrEqual(14);
-  expect(state.bottomGap).toBeGreaterThanOrEqual(13);
+  expect(state.paddingBottom).toBeGreaterThanOrEqual(8);
+  expect(state.paddingBottom).toBeLessThanOrEqual(10);
+  expect(state.bottomGap).toBeGreaterThanOrEqual(7);
+  expect(state.bottomGap).toBeLessThanOrEqual(11);
+  expect(state.buttonMinHeight).toBe("42px");
+  expect(state.buttonPaddingTop).toBe("6px");
+  expect(state.buttonPaddingRight).toBe("9px");
   expect(state.scrollbarWidth).toBe("thin");
   expect(state.scrollbarColor).not.toBe("auto");
 }

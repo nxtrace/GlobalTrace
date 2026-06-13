@@ -1575,7 +1575,7 @@ tbody tr:hover {
 }
 
 .probe-tabs {
-  --probe-tabs-bottom-padding: 14px;
+  --probe-tabs-bottom-padding: 8px;
   --probe-tabs-scrollbar-color: color-mix(in srgb, var(--ink-muted) 58%, transparent);
   min-width: 0;
   width: 100%;
@@ -1606,14 +1606,14 @@ tbody tr:hover {
 .probe-tabs button {
   flex: 1 0 min(180px, 70vw);
   min-width: 160px;
-  min-height: 52px;
+  min-height: 42px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: 7px;
   justify-items: stretch;
-  border-radius: 14px;
-  padding: 9px 11px;
+  border-radius: 12px;
+  padding: 6px 9px;
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -1626,8 +1626,8 @@ tbody tr:hover {
 }
 
 .probe-tab-route-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
   background: var(--route-color, var(--accent));
   box-shadow:
@@ -1638,12 +1638,13 @@ tbody tr:hover {
 .probe-tab-copy {
   min-width: 0;
   display: grid;
-  gap: 3px;
+  gap: 2px;
 }
 
 .probe-tab-copy strong {
   max-width: 100%;
   overflow: hidden;
+  line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1658,7 +1659,8 @@ tbody tr:hover {
   max-width: 100%;
   overflow: hidden;
   color: var(--ink-muted);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1689,10 +1691,10 @@ tbody tr:hover {
 .metric {
   min-width: 0;
   display: grid;
-  gap: 3px;
-  padding: 10px 11px;
+  gap: 2px;
+  padding: 7px 9px;
   border: 1px solid var(--glass-border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--table-bg);
 }
 
@@ -1700,10 +1702,12 @@ tbody tr:hover {
   color: var(--ink-muted);
   font-size: 11px;
   font-weight: 720;
+  line-height: 1.15;
 }
 
 .metric strong {
   overflow: hidden;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1711,7 +1715,7 @@ tbody tr:hover {
 .metric-detail {
   min-width: 0;
   overflow-wrap: anywhere;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .metric.geoip {
@@ -2454,8 +2458,8 @@ pre {
   .probe-tabs button {
     flex: 1 1 calc(50% - 6px);
     min-width: 0;
-    min-height: 50px;
-    padding: 8px 9px;
+    min-height: 44px;
+    padding: 6px 8px;
   }
 
   .hop-table-scroll {
@@ -2471,8 +2475,8 @@ pre {
   }
 
   .metric {
-    padding: 9px;
-    border-radius: 12px;
+    padding: 7px 8px;
+    border-radius: 10px;
   }
 
   .metric strong {
@@ -3019,7 +3023,7 @@ textarea:hover {
 }
 
 .result-metrics {
-  gap: 10px;
+  gap: 8px;
 }
 
 .metric {
@@ -3054,8 +3058,8 @@ textarea:hover {
 
 .probe-tabs {
   border: 1px solid var(--glass-border);
-  border-radius: 18px;
-  padding: 7px 7px var(--probe-tabs-bottom-padding);
+  border-radius: 14px;
+  padding: 5px 6px var(--probe-tabs-bottom-padding);
   background: var(--glass-bg);
   box-shadow: var(--shadow-inset);
   backdrop-filter: blur(20px) saturate(1.16);
