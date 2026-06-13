@@ -45,6 +45,7 @@ import "./styles.css";
 export const POLL_DELAY_MS = 1000;
 export const ENRICH_AFTER_FINISHED_DELAY_MS = 500;
 export const TRACE_MAX_POLL_ATTEMPTS = 120;
+const PROBE_MAP_BROWSER_DELAY_MS = 1600;
 const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
@@ -162,7 +163,7 @@ export function App() {
 
   useEffect(() => {
     if (route !== "/" || probeMapReady || probesStatus === "loading") return;
-    return deferUntilIdle(() => setProbeMapReady(true));
+    return deferProbeMapLoad(() => setProbeMapReady(true));
   }, [probeMapReady, probesStatus, route]);
 
   useEffect(() => {
@@ -805,6 +806,20 @@ function writeStoredResultMapProjection(projection: MapProjection): void {
   } catch {
     // Result map projection persistence is best-effort.
   }
+}
+
+function deferProbeMapLoad(callback: () => void): () => void {
+  if (!("requestIdleCallback" in window) || typeof window.requestIdleCallback !== "function") {
+    return deferUntilIdle(callback);
+  }
+  let timerId: number | undefined;
+  const cancelIdle = deferUntilIdle(() => {
+    timerId = window.setTimeout(callback, PROBE_MAP_BROWSER_DELAY_MS);
+  });
+  return () => {
+    cancelIdle();
+    if (timerId !== undefined) window.clearTimeout(timerId);
+  };
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
