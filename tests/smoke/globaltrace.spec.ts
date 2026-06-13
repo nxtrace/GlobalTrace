@@ -474,6 +474,7 @@ test("about page exposes provider attribution links", async ({ page }) => {
     "https://github.com/nxtrace/GlobalTrace/blob/master/LICENSE",
   );
   await expect(page.getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
+  await expect(page.getByText(/背景：岁月的层峦/)).toBeVisible();
   await expectNoMapJavaScriptLoaded(page);
   await expectNoPageOverflow(page);
   await page.screenshot({
@@ -629,7 +630,7 @@ test("liquid glass surfaces keep textured backgrounds and restrained shadows", a
   await expect(page.locator(".primary-controls-surface")).toBeVisible({ timeout: 8000 });
   await expect(page.locator('.filter-summary-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
   await expect(page.locator('.run-action-surface[data-liquid-glass-interactive="true"]')).toBeVisible();
-  await expect(page.getByText(/背景：岁月的层峦/)).toBeVisible();
+  await expect(page.getByText(/背景：岁月的层峦/)).toBeHidden();
   await expectLiquidGlassVisualStructure(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -679,15 +680,15 @@ async function installBackgroundMock(page: Page): Promise<void> {
       body: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
         <defs>
           <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0" stop-color="#1e7dd8"/>
-            <stop offset="0.42" stop-color="#f4b46d"/>
-            <stop offset="1" stop-color="#5d3fd3"/>
+            <stop offset="0" stop-color="#98a9b0"/>
+            <stop offset="0.46" stop-color="#c7b99d"/>
+            <stop offset="1" stop-color="#76818a"/>
           </linearGradient>
         </defs>
         <rect width="1200" height="800" fill="url(#sky)"/>
-        <circle cx="250" cy="180" r="150" fill="#f8e38a"/>
-        <path d="M0 610 C180 510 320 545 460 455 C650 330 780 470 930 390 C1050 330 1140 350 1200 315 L1200 800 L0 800 Z" fill="#236f5f"/>
-        <path d="M0 705 C160 650 330 660 520 610 C720 560 900 650 1200 560 L1200 800 L0 800 Z" fill="#172a4a"/>
+        <circle cx="245" cy="180" r="142" fill="#d7c58d" opacity="0.72"/>
+        <path d="M0 596 C178 520 320 550 468 458 C652 344 790 470 930 398 C1052 336 1140 354 1200 318 L1200 800 L0 800 Z" fill="#697d73"/>
+        <path d="M0 690 C158 646 330 660 522 612 C720 560 900 648 1200 558 L1200 800 L0 800 Z" fill="#3d4b55"/>
       </svg>`,
     });
   });
@@ -998,6 +999,7 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
       return {
         backgroundColor: style.backgroundColor,
         backgroundAlpha: alphaOf(style.backgroundColor),
+        backdropFilter: style.backdropFilter || style.getPropertyValue("-webkit-backdrop-filter"),
         boxShadow: style.boxShadow,
       };
     };
@@ -1012,31 +1014,40 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
           opacity: Number.parseFloat(style.opacity || "0") || 0,
         };
       })(),
+      htmlReady: document.documentElement.classList.contains("ambient-photo-ready"),
+      bodyTextureOpacity: Number.parseFloat(window.getComputedStyle(document.body, "::before").opacity || "0") || 0,
       shellTextureOpacity:
         Number.parseFloat(window.getComputedStyle(document.querySelector(".app-shell") as Element, "::before").opacity || "0") || 0,
       shellReady: document.querySelector(".app-shell")?.classList.contains("ambient-photo-ready") ?? false,
       filterPanel: read(".filter-panel"),
       primaryControls: read(".primary-controls-surface"),
-      filterSummary: read('.filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary'),
-      statusBar: read('.status-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content'),
-      runActionButton: read('.run-action-surface[data-liquid-glass-mode="liquid"] .primary-action'),
+      filterSummary: read('.filter-summary-surface[data-liquid-glass-mode="liquid"]'),
+      statusBar: read('.status-surface[data-liquid-glass-mode="liquid"]'),
+      runActionButton: read('.run-action-surface[data-liquid-glass-mode="liquid"]'),
       probeTable: read(".probe-table-section"),
       tableScroll: read(".table-scroll"),
       resultsSection: read(".results-section"),
     };
   });
 
+  expect(state.htmlReady).toBe(true);
   expect(state.shellReady).toBe(true);
-  expect(state.ambientBackground?.filter).toContain("blur(32px)");
-  expect(state.ambientBackground?.filter).toContain("saturate(1.24)");
-  expect(state.ambientBackground?.filter).toContain("contrast(1.08)");
-  expect(state.ambientBackground?.opacity).toBeGreaterThanOrEqual(0.88);
+  expect(state.ambientBackground?.filter).not.toContain("blur(");
+  expect(state.ambientBackground?.filter).toContain("saturate(1.12)");
+  expect(state.ambientBackground?.filter).toContain("contrast(1.04)");
+  expect(state.ambientBackground?.opacity).toBeGreaterThanOrEqual(0.96);
   expect(state.ambientBackground?.backgroundImage).toContain("/api/background/image");
-  expect(state.shellTextureOpacity).toBeLessThanOrEqual(0.08);
+  expect(state.bodyTextureOpacity).toBeLessThanOrEqual(0.01);
+  expect(state.shellTextureOpacity).toBeLessThanOrEqual(0.01);
+  expect(state.filterPanel?.backgroundAlpha).toBeLessThanOrEqual(0.4);
+  expect(state.filterPanel?.backdropFilter).toContain("blur(30px)");
   expect(state.primaryControls?.backgroundAlpha).toBeLessThanOrEqual(0.22);
   expect(state.filterSummary?.backgroundAlpha).toBeLessThanOrEqual(0.18);
+  expect(state.filterSummary?.backdropFilter).toContain("blur(24px)");
   expect(state.statusBar?.backgroundAlpha).toBeLessThanOrEqual(0.24);
+  expect(state.statusBar?.backdropFilter).toContain("blur(24px)");
   expect(state.runActionButton?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.runActionButton?.backdropFilter).toContain("blur(24px)");
   expect(state.probeTable?.backgroundAlpha).toBeGreaterThanOrEqual(0.34);
   expect(state.tableScroll?.backgroundAlpha).toBeGreaterThanOrEqual(0.48);
   expect(state.resultsSection).toBeNull();

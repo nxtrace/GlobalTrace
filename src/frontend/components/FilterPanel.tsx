@@ -2,7 +2,6 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type M
 import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import { compactText, normalizeAsn, type FilterChip, type ProbeFilterSuggestions } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
-import type { BackgroundImage } from "../api";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Badge } from "./ui/badge";
@@ -16,7 +15,6 @@ const NEXTTRACE_API_TOKEN_URL = "https://api.nxtrace.org/v4/api-tokens";
 export type IpVersionSelection = "" | 4 | 6;
 
 interface FilterPanelProps {
-  backgroundImage?: BackgroundImage | null;
   target: string;
   protocol: TraceProtocol;
   ipVersion: IpVersionSelection;
@@ -488,16 +486,6 @@ export function FilterPanel(props: FilterPanelProps) {
                     NextTrace
                   </a>
                 </span>
-                {props.backgroundImage && (
-                  <a
-                    className="background-credit"
-                    href={props.backgroundImage.copyrightLink}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    背景：{props.backgroundImage.title || "Bing 每日美景"} · {props.backgroundImage.copyright}
-                  </a>
-                )}
               </span>
               <Button variant="ghost" size="sm" type="button" onClick={props.onNavigateAbout} aria-label="关于 GlobalTrace">
                 <Info size={15} />

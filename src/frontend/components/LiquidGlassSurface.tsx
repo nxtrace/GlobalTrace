@@ -64,6 +64,7 @@ export function LiquidGlassSurface({
     "liquid-glass-surface",
     `liquid-glass-${variant}`,
     fullWidth ? "liquid-glass-full" : "",
+    surfaceBackdropClassName(variant),
     className,
   ]
     .filter(Boolean)
@@ -91,6 +92,10 @@ export function LiquidGlassSurface({
       )}
     </div>
   );
+}
+
+function surfaceBackdropClassName(variant: LiquidGlassSurfaceProps["variant"]): string {
+  return variant === "chip" ? "" : "backdrop-blur-xl";
 }
 
 function noop(): void {

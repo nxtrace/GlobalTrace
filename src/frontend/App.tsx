@@ -181,6 +181,11 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    document.documentElement.classList.toggle("ambient-photo-ready", Boolean(backgroundImage));
+    return () => document.documentElement.classList.remove("ambient-photo-ready");
+  }, [backgroundImage]);
+
+  useEffect(() => {
     if (route !== "/" || probeMapReady || probesStatus === "loading") return;
     return deferProbeMapLoad(() => setProbeMapReady(true));
   }, [probeMapReady, probesStatus, route]);
@@ -543,7 +548,6 @@ export function App() {
       <BackgroundLayer backgroundImage={backgroundImage} />
       <main className={`app-shell${backgroundImage ? " ambient-photo-ready" : ""}${resultPriority ? " result-priority" : ""}`}>
         <FilterPanel
-          backgroundImage={backgroundImage}
           target={target}
           protocol={protocol}
           ipVersion={ipVersion}
