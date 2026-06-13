@@ -1,4 +1,12 @@
-import { createContext, type CSSProperties, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  type CSSProperties,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { deferUntilIdle } from "../lib/defer";
 
 type LiquidGlassComponent = (typeof import("liquid-glass-react"))["default"];
@@ -33,6 +41,7 @@ interface LiquidGlassSurfaceProps {
   fullWidth?: boolean;
   interactive?: boolean;
   disabled?: boolean;
+  onClick?: () => void;
 }
 
 export function LiquidGlassPreferenceProvider({ children, enabled, intensity }: LiquidGlassPreferenceProviderProps) {
@@ -54,10 +63,12 @@ export function LiquidGlassSurface({
   fullWidth = false,
   interactive = false,
   disabled = false,
+  onClick,
 }: LiquidGlassSurfaceProps) {
   const liquidGlassPreference = useLiquidGlassPreference();
   const forceFallback = useForceFallback(liquidGlassPreference.enabled);
   const canUseLiquid = !forceFallback && supportsGlassEffects();
+  const partialDisplacement = canUseLiquid && usesPartialDisplacementBrowser();
   const [LiquidGlass, setLiquidGlass] = useState<LiquidGlassComponent | null>(null);
   const canRenderLiquid = canUseLiquid && LiquidGlass;
   const mode = canRenderLiquid ? "liquid" : "fallback";
@@ -79,16 +90,30 @@ export function LiquidGlassSurface({
   }, [LiquidGlass, canUseLiquid]);
 
   const glassProps = liquidPropsForVariant(variant, liquidGlassPreference.intensity);
-  const interactiveProps = interactive && !disabled ? { onClick: noop } : {};
+  const interactiveProps = !disabled && (interactive || onClick) ? { onClick: noop } : {};
   const classes = [
     "liquid-glass-surface",
     `liquid-glass-${variant}`,
     fullWidth ? "liquid-glass-full" : "",
+    partialDisplacement ? "liquid-glass-partial-displacement" : "",
     surfaceBackdropClassName(variant),
     className,
   ]
     .filter(Boolean)
     .join(" ");
+  const content = canRenderLiquid ? (
+    <LiquidGlass
+      {...glassProps}
+      {...interactiveProps}
+      className="liquid-glass-package"
+      padding="0"
+      style={{ width: "100%" }}
+    >
+      <div className="liquid-glass-content">{children}</div>
+    </LiquidGlass>
+  ) : (
+    <div className="liquid-glass-content liquid-glass-fallback-content">{children}</div>
+  );
 
   return (
     <div
@@ -96,22 +121,12 @@ export function LiquidGlassSurface({
       data-liquid-glass
       data-liquid-glass-mode={mode}
       data-liquid-glass-intensity={liquidGlassPreference.intensity}
+      data-liquid-glass-partial-displacement={partialDisplacement ? "true" : undefined}
       data-liquid-glass-interactive={interactive && !disabled ? "true" : undefined}
       style={style}
+      onClickCapture={onClick && !disabled ? onClick : undefined}
     >
-      {canRenderLiquid ? (
-        <LiquidGlass
-          {...glassProps}
-          {...interactiveProps}
-          className="liquid-glass-package"
-          padding="0"
-          style={{ width: "100%" }}
-        >
-          <div className="liquid-glass-content">{children}</div>
-        </LiquidGlass>
-      ) : (
-        <div className="liquid-glass-content liquid-glass-fallback-content">{children}</div>
-      )}
+      {content}
     </div>
   );
 }
@@ -242,80 +257,85 @@ function supportsGlassEffects(): boolean {
   return supportsBackdrop && supportsSvgFilter;
 }
 
+function usesPartialDisplacementBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /\b(firefox|fxios|safari)\b/i.test(navigator.userAgent) && !/\b(chrome|chromium|crios|edg|opr)\b/i.test(navigator.userAgent);
+}
+
 function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["variant"]>, intensity: number) {
   const t = clampLiquidGlassIntensity(intensity) / MAX_LIQUID_GLASS_INTENSITY;
   const specs = {
     iconButton: {
-      displacementScale: [58, 88],
-      blurAmount: [0.054, 0.074],
-      saturation: [146, 164],
-      aberrationIntensity: [1.8, 2.9],
-      elasticity: [0.18, 0.36],
+      displacementScale: [42, 68],
+      blurAmount: [0.055, 0.11],
+      saturation: [146, 162],
+      aberrationIntensity: [1.3, 2.4],
+      elasticity: [0.16, 0.35],
       cornerRadius: 999,
       mode: "prominent" as const,
     },
     button: {
-      displacementScale: [54, 84],
-      blurAmount: [0.05, 0.072],
-      saturation: [142, 162],
-      aberrationIntensity: [1.65, 2.7],
-      elasticity: [0.15, 0.34],
+      displacementScale: [40, 66],
+      blurAmount: [0.055, 0.105],
+      saturation: [145, 160],
+      aberrationIntensity: [1.25, 2.2],
+      elasticity: [0.14, 0.35],
       cornerRadius: 999,
       mode: "prominent" as const,
     },
     tab: {
-      displacementScale: [42, 76],
-      blurAmount: [0.046, 0.066],
-      saturation: [144, 160],
-      aberrationIntensity: [1.35, 2.5],
-      elasticity: [0.11, 0.3],
+      displacementScale: [36, 64],
+      blurAmount: [0.05, 0.102],
+      saturation: [145, 160],
+      aberrationIntensity: [1.2, 2.15],
+      elasticity: [0.12, 0.32],
       cornerRadius: 999,
       mode: "prominent" as const,
     },
     toolbar: {
-      displacementScale: [40, 68],
-      blurAmount: [0.044, 0.064],
-      saturation: [142, 158],
-      aberrationIntensity: [1.35, 2.25],
-      elasticity: [0.1, 0.24],
+      displacementScale: [34, 64],
+      blurAmount: [0.05, 0.1],
+      saturation: [144, 160],
+      aberrationIntensity: [1.15, 2.05],
+      elasticity: [0.1, 0.3],
       cornerRadius: 18,
-      mode: "standard" as const,
+      mode: "prominent" as const,
     },
     metric: {
-      displacementScale: [38, 64],
-      blurAmount: [0.042, 0.062],
-      saturation: [144, 158],
-      aberrationIntensity: [1.3, 2.2],
-      elasticity: [0.1, 0.22],
+      displacementScale: [30, 52],
+      blurAmount: [0.04, 0.08],
+      saturation: [142, 154],
+      aberrationIntensity: [1.05, 1.7],
+      elasticity: [0.08, 0.19],
       cornerRadius: 16,
       mode: "standard" as const,
     },
     floatingPanel: {
-      displacementScale: [36, 62],
-      blurAmount: [0.048, 0.068],
-      saturation: [144, 160],
-      aberrationIntensity: [1.25, 2.15],
-      elasticity: [0.09, 0.21],
+      displacementScale: [30, 54],
+      blurAmount: [0.045, 0.083],
+      saturation: [142, 156],
+      aberrationIntensity: [1.05, 1.75],
+      elasticity: [0.08, 0.2],
       cornerRadius: 24,
       mode: "standard" as const,
     },
     panel: {
-      displacementScale: [30, 56],
-      blurAmount: [0.038, 0.058],
-      saturation: [142, 156],
-      aberrationIntensity: [1.1, 2],
-      elasticity: [0.08, 0.2],
+      displacementScale: [26, 48],
+      blurAmount: [0.038, 0.074],
+      saturation: [140, 152],
+      aberrationIntensity: [1, 1.6],
+      elasticity: [0.07, 0.18],
       cornerRadius: 18,
       mode: "standard" as const,
     },
     chip: {
-      displacementScale: [32, 58],
-      blurAmount: [0.036, 0.056],
-      saturation: [140, 154],
-      aberrationIntensity: [1.1, 1.95],
-      elasticity: [0.08, 0.19],
+      displacementScale: [34, 64],
+      blurAmount: [0.048, 0.1],
+      saturation: [142, 158],
+      aberrationIntensity: [1.1, 2],
+      elasticity: [0.1, 0.28],
       cornerRadius: 999,
-      mode: "standard" as const,
+      mode: "prominent" as const,
     },
   } satisfies Record<
     NonNullable<LiquidGlassSurfaceProps["variant"]>,

@@ -24,7 +24,6 @@ import {
 } from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
 import { Badge } from "./components/ui/badge";
-import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
 import type { MapProjection } from "./components/mapProjection";
 import { deferUntilIdle } from "./lib/defer";
@@ -629,10 +628,15 @@ export function App() {
               </div>
               <div className="status-actions">
                 {finalResult && workspaceMode === "select" && (
-                  <LiquidGlassSurface variant="button" className="result-command-surface status-action-surface">
-                    <Button
-                      variant="glass"
-                      size="sm"
+                  <div className="status-action-wrapper">
+                    <LiquidGlassSurface
+                      variant="button"
+                      interactive
+                      className="result-command-surface status-action-surface"
+                    >
+                      <span className="status-action-glass-fill" aria-hidden="true" />
+                    </LiquidGlassSurface>
+                    <button
                       type="button"
                       className="result-command-button status-action-button"
                       onClick={showResult}
@@ -640,8 +644,8 @@ export function App() {
                     >
                       <Eye size={16} />
                       查看结果
-                    </Button>
-                  </LiquidGlassSurface>
+                    </button>
+                  </div>
                 )}
                 {limits && (
                   <Badge variant="accent" className="quota-chip">

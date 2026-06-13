@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -181,11 +181,11 @@ describe("LiquidGlassSurface", () => {
     [
       "iconButton",
       {
-        displacementScale: 79,
-        blurAmount: 0.068,
-        saturation: 158.6,
-        aberrationIntensity: 2.57,
-        elasticity: 0.306,
+        displacementScale: 60.2,
+        blurAmount: 0.094,
+        saturation: 157.2,
+        aberrationIntensity: 2.07,
+        elasticity: 0.293,
         cornerRadius: 999,
         overLight: false,
         mode: "prominent",
@@ -194,11 +194,11 @@ describe("LiquidGlassSurface", () => {
     [
       "button",
       {
-        displacementScale: 75,
-        blurAmount: 0.065,
-        saturation: 156,
-        aberrationIntensity: 2.385,
-        elasticity: 0.283,
+        displacementScale: 58.2,
+        blurAmount: 0.09,
+        saturation: 155.5,
+        aberrationIntensity: 1.915,
+        elasticity: 0.287,
         cornerRadius: 999,
         overLight: false,
         mode: "prominent",
@@ -207,11 +207,11 @@ describe("LiquidGlassSurface", () => {
     [
       "tab",
       {
-        displacementScale: 65.8,
-        blurAmount: 0.06,
-        saturation: 155.2,
-        aberrationIntensity: 2.155,
-        elasticity: 0.243,
+        displacementScale: 55.6,
+        blurAmount: 0.086,
+        saturation: 155.5,
+        aberrationIntensity: 1.865,
+        elasticity: 0.26,
         cornerRadius: 999,
         overLight: false,
         mode: "prominent",
@@ -220,24 +220,24 @@ describe("LiquidGlassSurface", () => {
     [
       "toolbar",
       {
-        displacementScale: 59.6,
-        blurAmount: 0.058,
-        saturation: 153.2,
-        aberrationIntensity: 1.98,
-        elasticity: 0.198,
+        displacementScale: 55,
+        blurAmount: 0.085,
+        saturation: 155.2,
+        aberrationIntensity: 1.78,
+        elasticity: 0.24,
         cornerRadius: 18,
         overLight: false,
-        mode: "standard",
+        mode: "prominent",
       },
     ],
     [
       "metric",
       {
-        displacementScale: 56.2,
-        blurAmount: 0.056,
-        saturation: 153.8,
-        aberrationIntensity: 1.93,
-        elasticity: 0.184,
+        displacementScale: 45.4,
+        blurAmount: 0.068,
+        saturation: 150.4,
+        aberrationIntensity: 1.505,
+        elasticity: 0.157,
         cornerRadius: 16,
         overLight: false,
         mode: "standard",
@@ -246,11 +246,11 @@ describe("LiquidGlassSurface", () => {
     [
       "floatingPanel",
       {
-        displacementScale: 54.2,
-        blurAmount: 0.062,
-        saturation: 155.2,
-        aberrationIntensity: 1.88,
-        elasticity: 0.174,
+        displacementScale: 46.8,
+        blurAmount: 0.072,
+        saturation: 151.8,
+        aberrationIntensity: 1.54,
+        elasticity: 0.164,
         cornerRadius: 24,
         overLight: false,
         mode: "standard",
@@ -259,17 +259,30 @@ describe("LiquidGlassSurface", () => {
     [
       "panel",
       {
-        displacementScale: 48.2,
-        blurAmount: 0.052,
-        saturation: 151.8,
-        aberrationIntensity: 1.73,
-        elasticity: 0.164,
+        displacementScale: 41.4,
+        blurAmount: 0.063,
+        saturation: 148.4,
+        aberrationIntensity: 1.42,
+        elasticity: 0.147,
         cornerRadius: 18,
         overLight: false,
         mode: "standard",
       },
     ],
-  ] as const)("passes restrained liquid glass props for the %s variant", async (variant, expectedProps) => {
+    [
+      "chip",
+      {
+        displacementScale: 55,
+        blurAmount: 0.084,
+        saturation: 153.2,
+        aberrationIntensity: 1.73,
+        elasticity: 0.226,
+        cornerRadius: 999,
+        overLight: false,
+        mode: "prominent",
+      },
+    ],
+  ] as const)("passes stronger reference-oriented liquid glass props for the %s variant", async (variant, expectedProps) => {
     setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
 
     render(
@@ -286,6 +299,43 @@ describe("LiquidGlassSurface", () => {
       "70",
     );
   });
+
+  it.each([
+    ["button", "prominent", 66, 0.105, 2.2, 0.35],
+    ["iconButton", "prominent", 68, 0.11, 2.4, 0.35],
+    ["tab", "prominent", 64, 0.102, 2.15, 0.32],
+    ["chip", "prominent", 64, 0.1, 2, 0.28],
+    ["toolbar", "prominent", 64, 0.1, 2.05, 0.3],
+    ["floatingPanel", "standard", 54, 0.083, 1.75, 0.2],
+    ["panel", "standard", 48, 0.074, 1.6, 0.18],
+    ["metric", "standard", 52, 0.08, 1.7, 0.19],
+  ] as const)(
+    "maps intensity 100 to the reference-strength range for %s",
+    async (variant, expectedMode, displacementScale, blurAmount, aberrationIntensity, elasticity) => {
+      setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+
+      render(
+        <LiquidGlassPreferenceProvider enabled intensity={100}>
+          <LiquidGlassSurface variant={variant}>
+            <span>Max intensity content</span>
+          </LiquidGlassSurface>
+        </LiquidGlassPreferenceProvider>,
+      );
+
+      await waitFor(() => expect(liquidGlassCalls).toHaveLength(1));
+      expect(liquidGlassCalls[0]).toMatchObject({
+        displacementScale,
+        blurAmount,
+        aberrationIntensity,
+        elasticity,
+        mode: expectedMode,
+      });
+      expect(screen.getByText("Max intensity content").closest("[data-liquid-glass]")).toHaveAttribute(
+        "data-liquid-glass-intensity",
+        "100",
+      );
+    },
+  );
 
   it("maps stored intensity into stronger liquid glass props", async () => {
     setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
@@ -326,6 +376,62 @@ describe("LiquidGlassSurface", () => {
     );
   });
 
+  it("marks Safari and Firefox as partial displacement browsers without forcing fallback", async () => {
+    setNavigatorDevice({
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+      platform: "MacIntel",
+    });
+
+    const { rerender } = render(
+      <LiquidGlassSurface variant="button">
+        <span>Partial displacement content</span>
+      </LiquidGlassSurface>,
+    );
+
+    const safariSurface = screen.getByText("Partial displacement content").closest("[data-liquid-glass]");
+    await waitFor(() => expect(safariSurface).toHaveAttribute("data-liquid-glass-mode", "liquid"));
+    expect(safariSurface).toHaveAttribute("data-liquid-glass-partial-displacement", "true");
+
+    rerender(
+      <LiquidGlassPreferenceProvider enabled intensity={70}>
+        <LiquidGlassSurface variant="button">
+          <span>Partial displacement content</span>
+        </LiquidGlassSurface>
+      </LiquidGlassPreferenceProvider>,
+    );
+    setNavigatorDevice({ userAgent: "Mozilla/5.0 Firefox/129.0", platform: "MacIntel" });
+    rerender(
+      <LiquidGlassPreferenceProvider enabled intensity={70}>
+        <LiquidGlassSurface variant="button">
+          <span>Partial displacement content</span>
+        </LiquidGlassSurface>
+      </LiquidGlassPreferenceProvider>,
+    );
+
+    const firefoxSurface = screen.getByText("Partial displacement content").closest("[data-liquid-glass]");
+    await waitFor(() => expect(firefoxSurface).toHaveAttribute("data-liquid-glass-mode", "liquid"));
+    expect(firefoxSurface).toHaveAttribute("data-liquid-glass-partial-displacement", "true");
+  });
+
+  it("does not mark Chromium as a partial displacement browser", async () => {
+    setNavigatorDevice({
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      platform: "MacIntel",
+    });
+
+    render(
+      <LiquidGlassSurface variant="button">
+        <span>Chromium content</span>
+      </LiquidGlassSurface>,
+    );
+
+    const surface = screen.getByText("Chromium content").closest("[data-liquid-glass]");
+    await waitFor(() => expect(surface).toHaveAttribute("data-liquid-glass-mode", "liquid"));
+    expect(surface).not.toHaveAttribute("data-liquid-glass-partial-displacement");
+  });
+
   it("persists liquid glass intensity with clamped defaults", () => {
     expect(readStoredLiquidGlassIntensity()).toBe(70);
     window.localStorage.setItem("globaltrace.liquidGlassIntensity", "not-a-number");
@@ -362,6 +468,28 @@ describe("LiquidGlassSurface", () => {
     await waitFor(() => expect(liquidGlassCalls).toHaveLength(1));
     expect(liquidGlassCalls[0]).not.toHaveProperty("onClick");
     expect(screen.getByText("Run").closest("[data-liquid-glass]")).not.toHaveAttribute(
+      "data-liquid-glass-interactive",
+    );
+  });
+
+  it("handles explicit click surfaces from the accessible root", async () => {
+    setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+    const onClick = vi.fn();
+
+    render(
+      <LiquidGlassSurface variant="button" onClick={onClick}>
+        <span>Open result</span>
+      </LiquidGlassSurface>,
+    );
+
+    await waitFor(() => expect(liquidGlassCalls).toHaveLength(1));
+    expect(liquidGlassCalls[0]?.onClick).toEqual(expect.any(Function));
+    expect(liquidGlassCalls[0]?.onClick).not.toBe(onClick);
+    const surface = screen.getByText("Open result").closest("[data-liquid-glass]");
+    expect(surface).not.toHaveAttribute("role", "button");
+    fireEvent.click(surface as Element);
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Open result").closest("[data-liquid-glass]")).not.toHaveAttribute(
       "data-liquid-glass-interactive",
     );
   });

@@ -678,6 +678,7 @@ test("liquid glass surfaces keep textured backgrounds and restrained shadows", a
   await installMocks(page);
   await page.addInitScript(() => {
     window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
+    window.localStorage.setItem("globaltrace.liquidGlassIntensity", "100");
   });
 
   await page.goto("/");
@@ -686,13 +687,39 @@ test("liquid glass surfaces keep textured backgrounds and restrained shadows", a
   await expect(page.locator('.panel-action-surface[data-liquid-glass-mode="liquid"]').first()).toBeVisible();
   await expect(page.locator('.panel-action-surface[data-liquid-glass-mode="liquid"]').first()).toHaveAttribute(
     "data-liquid-glass-intensity",
-    "70",
+    "100",
   );
   await expect(page.locator('.filter-summary-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
   await expect(page.locator('.run-action-surface[data-liquid-glass-interactive="true"]')).toBeVisible();
   await expect(page.getByText(/背景：岁月的层峦/)).toBeHidden();
   await expectLiquidGlassVisualStructure(page);
   expect(consoleErrors).toEqual([]);
+});
+
+test.describe("partial displacement browser liquid glass path", () => {
+  test.use({
+    userAgent:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+  });
+
+  test("keeps liquid mode and applies the Safari optical enhancement marker", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const consoleErrors = collectConsoleErrors(page);
+    await installMocks(page);
+    await page.addInitScript(() => {
+      window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
+      window.localStorage.setItem("globaltrace.liquidGlassIntensity", "100");
+    });
+
+    await page.goto("/");
+
+    const actionSurface = page.locator('.panel-action-surface[data-liquid-glass-mode="liquid"]').first();
+    await expect(actionSurface).toBeVisible({ timeout: 8000 });
+    await expect(actionSurface).toHaveAttribute("data-liquid-glass-partial-displacement", "true");
+    await expect(actionSurface).toHaveClass(/liquid-glass-partial-displacement/);
+    await expect(page.locator("html.liquid-glass-force-fallback")).toHaveCount(0);
+    expect(consoleErrors).toEqual([]);
+  });
 });
 
 function collectConsoleErrors(page: Page): string[] {
@@ -1117,6 +1144,32 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
         boxShadow: style.boxShadow,
       };
     };
+    const readLiquidInternals = (selector: string) => {
+      const surface = document.querySelector(selector);
+      const glass = surface?.querySelector(".glass");
+      const warp = surface?.querySelector(".glass__warp");
+      const content = surface?.querySelector(".liquid-glass-content");
+      const glassStyle = glass ? window.getComputedStyle(glass) : null;
+      const warpStyle = warp ? window.getComputedStyle(warp) : null;
+      const contentStyle = content ? window.getComputedStyle(content) : null;
+      const beforeStyle = content ? window.getComputedStyle(content, "::before") : null;
+      const blurMatch = (warpStyle?.backdropFilter || warpStyle?.getPropertyValue("-webkit-backdrop-filter") || "").match(
+        /blur\(([\d.]+)px\)/,
+      );
+      return {
+        glassBackgroundColor: glassStyle?.backgroundColor ?? "",
+        glassBoxShadow: glassStyle?.boxShadow ?? "",
+        warpBackdropFilter: warpStyle?.backdropFilter || warpStyle?.getPropertyValue("-webkit-backdrop-filter") || "",
+        warpBlurPx: blurMatch ? Number.parseFloat(blurMatch[1]) : 0,
+        warpDisplay: warpStyle?.display ?? "",
+        warpOpacity: Number.parseFloat(warpStyle?.opacity || "0") || 0,
+        contentBackgroundImage: contentStyle?.backgroundImage ?? "",
+        contentBorderTopWidth: contentStyle?.borderTopWidth ?? "",
+        contentBoxShadow: contentStyle?.boxShadow ?? "",
+        opticalLayerBackgroundImage: beforeStyle?.backgroundImage ?? "",
+        opticalLayerOpacity: Number.parseFloat(beforeStyle?.opacity || "0") || 0,
+      };
+    };
     return {
       ambientBackground: (() => {
         const element = document.querySelector(".ambient-background");
@@ -1138,6 +1191,9 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
       filterSummary: read('.filter-summary-surface[data-liquid-glass-mode="liquid"]'),
       statusBar: read('.status-surface[data-liquid-glass-mode="liquid"]'),
       runActionButton: read('.run-action-surface[data-liquid-glass-mode="liquid"]'),
+      panelActionLiquid: readLiquidInternals('.panel-action-surface[data-liquid-glass-mode="liquid"]'),
+      runActionLiquid: readLiquidInternals('.run-action-surface[data-liquid-glass-mode="liquid"]'),
+      statusLiquid: readLiquidInternals('.status-surface[data-liquid-glass-mode="liquid"]'),
       probeTable: read(".probe-table-section"),
       tableScroll: read(".table-scroll"),
       resultsSection: read(".results-section"),
@@ -1162,6 +1218,18 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
   expect(state.statusBar?.backdropFilter).toContain("blur(24px)");
   expect(state.runActionButton?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.runActionButton?.backdropFilter).toContain("blur(24px)");
+  for (const liquidState of [state.panelActionLiquid, state.runActionLiquid, state.statusLiquid]) {
+    expect(liquidState?.warpDisplay).not.toBe("none");
+    expect(liquidState?.warpOpacity).toBeGreaterThanOrEqual(0.95);
+    expect(liquidState?.warpBackdropFilter).toContain("blur(");
+    expect(liquidState?.warpBlurPx).toBeGreaterThanOrEqual(7);
+    expect(liquidState?.glassBackgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(liquidState?.glassBoxShadow).not.toBe("none");
+    expect(liquidState?.opticalLayerBackgroundImage).not.toBe("none");
+    expect(liquidState?.contentBorderTopWidth).toBe("1px");
+    expect(liquidState?.contentBoxShadow).not.toBe("none");
+    expect(liquidState?.opticalLayerOpacity).toBeGreaterThanOrEqual(0.4);
+  }
   expect(state.probeTable?.backgroundAlpha).toBeGreaterThanOrEqual(0.34);
   expect(state.tableScroll?.backgroundAlpha).toBeGreaterThanOrEqual(0.48);
   expect(state.resultsSection).toBeNull();
@@ -1650,9 +1718,17 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     };
     const surfaceStyleFor = (element: HTMLElement | null) => {
       const style = element ? window.getComputedStyle(element) : null;
+      const beforeStyle = element ? window.getComputedStyle(element, "::before") : null;
+      const glass = element?.closest("[data-liquid-glass]")?.querySelector(".glass") as HTMLElement | null;
+      const glassStyle = glass ? window.getComputedStyle(glass) : null;
       return {
         backgroundColor: style?.backgroundColor ?? "",
+        backgroundImage: style?.backgroundImage ?? "",
         borderColor: style?.borderColor ?? "",
+        borderTopWidth: style?.borderTopWidth ?? "",
+        boxShadow: style?.boxShadow ?? "",
+        glassBoxShadow: glassStyle?.boxShadow ?? "",
+        opticalLayerOpacity: Number.parseFloat(beforeStyle?.opacity || "0") || 0,
       };
     };
     const rectFor = (element: Element | null) => {
@@ -1840,9 +1916,16 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.actionButtonStyles.copy.backgroundColor).toBe(state.actionButtonStyles.close.backgroundColor);
   expect(state.actionButtonStyles.copy.borderColor).toBe(state.actionButtonStyles.close.borderColor);
   expect(state.actionButtonStyles.copy.color).toBe(state.actionButtonStyles.close.color);
-  expect(state.actionSurfaceStyles.copy.backgroundColor).toBe(state.actionSurfaceStyles.close.backgroundColor);
-  expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgb(255, 255, 255)");
-  expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgba(255, 255, 255, 0.9)");
+  for (const actionSurfaceStyle of [state.actionSurfaceStyles.copy, state.actionSurfaceStyles.close]) {
+    expect(actionSurfaceStyle.backgroundColor).not.toBe("rgb(255, 255, 255)");
+    expect(actionSurfaceStyle.backgroundColor).not.toBe("rgba(255, 255, 255, 0.9)");
+    expect(
+      actionSurfaceStyle.borderTopWidth === "1px" ||
+        actionSurfaceStyle.boxShadow !== "none" ||
+        actionSurfaceStyle.glassBoxShadow !== "none",
+    ).toBe(true);
+    expect(actionSurfaceStyle.opticalLayerOpacity > 0 || actionSurfaceStyle.glassBoxShadow !== "none").toBe(true);
+  }
   expect(state.probeTabsSurfaceCount).toBe(0);
   expect(state.probeTabsFrameSurfaceCount).toBe(1);
   expect(state.routeTabSurfaceCount).toBe(state.routeTabCount);
