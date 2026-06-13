@@ -1,6 +1,6 @@
 import "./maplibre.css";
 import maplibregl, { type ExpressionSpecification, type GeoJSONSource } from "maplibre-gl";
-import { AlertTriangle, Clock3, ExternalLink, Globe2, Map as MapIcon, Route, Server, Share2, X } from "lucide-react";
+import { Clock3, ExternalLink, Globe2, Map as MapIcon, Route, Share2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
 import type { Feature, FeatureCollection } from "geojson";
 import type { TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
@@ -13,7 +13,6 @@ import {
   type ResultRouteNode as SharedResultRouteNode,
 } from "../lib/resultRouteNodes";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -185,6 +184,7 @@ export function ResultsView({
             <strong>{metric.value}</strong>
           </div>
         ))}
+        <GeoIpMetric result={result} />
       </div>
 
       <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
@@ -210,8 +210,6 @@ export function ResultsView({
               onSelectRouteNode={(nodeId, routeIndex) => selectRouteNode(nodeId, false, routeIndex)}
             />
           )}
-
-          <EnrichmentStrip result={result} />
 
           {result.status === "in-progress" && (
             <Surface variant="flat" className="polling-state">
@@ -446,16 +444,15 @@ function HopTable({
   );
 }
 
-function EnrichmentStrip({ result }: { result: TraceResultResponse }) {
+function GeoIpMetric({ result }: { result: TraceResultResponse }) {
   const hasErrors = result.enrichment.errors.length > 0;
   return (
-    <Surface variant="flat" className={`enrichment-strip ${result.enrichment.status}`} aria-label="GeoIP enrichment status">
-      {hasErrors ? <AlertTriangle size={16} /> : <Server size={16} />}
-      <span>GeoIP: {enrichmentLabel(result.enrichment.status)}</span>
-      <Badge variant="muted">cache {result.enrichment.cached}</Badge>
-      <Badge variant="muted">fetch {result.enrichment.fetched}</Badge>
-      {hasErrors && <span className="notice-text">{enrichmentErrorSummary(result.enrichment.errors)}</span>}
-    </Surface>
+    <div className={`metric geoip ${result.enrichment.status}`} aria-label="GeoIP enrichment status">
+      <span>GeoIP</span>
+      <strong>{enrichmentLabel(result.enrichment.status)}</strong>
+      <span className="metric-detail">cache {result.enrichment.cached} · fetch {result.enrichment.fetched}</span>
+      {hasErrors && <span className="metric-detail notice-text">{enrichmentErrorSummary(result.enrichment.errors)}</span>}
+    </div>
   );
 }
 

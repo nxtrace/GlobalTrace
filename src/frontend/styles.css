@@ -1682,7 +1682,7 @@ tbody tr:hover {
 
 .result-metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1706,6 +1706,31 @@ tbody tr:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.metric-detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.metric.geoip {
+  background: rgba(88, 127, 120, 0.08);
+  color: var(--accent-strong);
+}
+
+.metric.geoip.partial {
+  background: rgba(156, 140, 114, 0.1);
+  color: #6f614d;
+}
+
+.metric.geoip.skipped {
+  background: rgba(0, 0, 0, 0.035);
+  color: var(--ink-soft);
+}
+
+.metric.geoip .notice-text {
+  color: inherit;
 }
 
 .result-map {
@@ -1783,7 +1808,6 @@ tbody tr:hover {
   overflow-wrap: anywhere;
 }
 
-.enrichment-strip,
 .polling-state,
 .loading-strip,
 .error-banner {
@@ -1794,22 +1818,6 @@ tbody tr:hover {
   border-radius: 16px;
   padding: 8px 11px;
   font-size: 13px;
-}
-
-.enrichment-strip {
-  flex-wrap: wrap;
-  background: rgba(88, 127, 120, 0.08);
-  color: var(--accent-strong);
-}
-
-.enrichment-strip.partial {
-  background: rgba(156, 140, 114, 0.1);
-  color: #6f614d;
-}
-
-.enrichment-strip.skipped {
-  background: rgba(0, 0, 0, 0.035);
-  color: var(--ink-soft);
 }
 
 .polling-state,
@@ -3001,7 +3009,6 @@ textarea:hover {
 .map-empty,
 .table-empty,
 .table-note,
-.enrichment-strip,
 .polling-state,
 .loading-strip,
 .error-banner {

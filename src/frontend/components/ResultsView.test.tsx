@@ -181,7 +181,8 @@ describe("ResultsView", () => {
     ]);
     expect(within(table).queryByRole("columnheader", { name: "source" })).not.toBeInTheDocument();
     expect(screen.getByText("example.com")).toBeInTheDocument();
-    expect(screen.getByText("GeoIP: 完成")).toBeInTheDocument();
+    expectGeoIpMetric("完成", "cache 0 · fetch 1");
+    expect(screen.queryByText("GeoIP: 完成")).not.toBeInTheDocument();
     expect(within(table).getByText("8.8.8.8")).toBeInTheDocument();
     expect(within(table).getByText("dns.google")).toBeInTheDocument();
     expect(within(table).getByText("AS15169")).toBeInTheDocument();
@@ -342,14 +343,14 @@ describe("ResultsView", () => {
     render(<ResultsView result={inProgressResult} mapStyleUrl="about:blank" renderMap={false} />);
 
     expect(screen.getByText("measurement 正在运行，轮询完成后会补齐 hop 和 GeoIP。")).toBeInTheDocument();
-    expect(screen.getByText("GeoIP: 跳过")).toBeInTheDocument();
+    expectGeoIpMetric("跳过", "cache 0 · fetch 0");
     expect(screen.getByText("该 probe 还没有 hop 数据。")).toBeInTheDocument();
   });
 
   it("surfaces partial enrichment batch errors", () => {
     render(<ResultsView result={partialResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    expect(screen.getByText("GeoIP: 部分完成")).toBeInTheDocument();
+    expectGeoIpMetric("部分完成", "cache 3 · fetch 64");
     expect(screen.getByText("1 IP 失败: nxtrace batch failed")).toBeInTheDocument();
   });
 
@@ -734,6 +735,16 @@ function expectSummaryMetric(label: string, value: string) {
   const metric = within(summary).getByText(label).closest(".metric");
   if (!metric) throw new Error(`metric not found for ${label}`);
   expect(within(metric as HTMLElement).getByText(value)).toBeInTheDocument();
+}
+
+function expectGeoIpMetric(status: string, detail: string) {
+  const summary = screen.getByLabelText("trace summary");
+  const metric = within(summary).getByLabelText("GeoIP enrichment status");
+  expect(metric).toHaveClass("metric", "geoip");
+  expect(within(metric).getByText("GeoIP")).toBeInTheDocument();
+  expect(within(metric).getByText(status)).toBeInTheDocument();
+  expect(within(metric).getByText(detail)).toBeInTheDocument();
+  expect(summary).toContainElement(metric);
 }
 
 function hopLabels(collection: ReturnType<typeof buildResultMapData>["featureCollection"]): string[] {
