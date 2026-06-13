@@ -229,7 +229,6 @@ export function ResultsView({
               mapProjection={mapProjection}
               selectedRouteNodeId={selectedRouteNodeId}
               mapFocusRequest={mapFocusRequest}
-              onSelectRouteNode={(nodeId, routeIndex) => selectRouteNode(nodeId, false, routeIndex)}
             />
           )}
 
@@ -488,20 +487,17 @@ function ResultMap({
   mapProjection,
   selectedRouteNodeId,
   mapFocusRequest,
-  onSelectRouteNode,
 }: {
   data: ResultMapData;
   mapStyleUrl: string;
   mapProjection: MapProjection;
   selectedRouteNodeId: string | null;
   mapFocusRequest: number;
-  onSelectRouteNode: (nodeId: string, routeIndex?: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const dataRef = useRef(data);
   const selectedRouteNodeIdRef = useRef(selectedRouteNodeId);
-  const onSelectRouteNodeRef = useRef(onSelectRouteNode);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const routeMarkersRef = useRef<maplibregl.Marker[]>([]);
   const loadedRef = useRef(false);
@@ -509,7 +505,6 @@ function ResultMap({
   const expandedGroupId = pinnedGroupId;
   dataRef.current = data;
   selectedRouteNodeIdRef.current = selectedRouteNodeId;
-  onSelectRouteNodeRef.current = onSelectRouteNode;
 
   useEffect(() => {
     if (!pinnedGroupId || data.routeGroupById.has(pinnedGroupId)) return;
@@ -549,8 +544,8 @@ function ResultMap({
           layout: { "line-join": "round", "line-cap": "round", "line-sort-key": activeNumberExpression(1, 0) },
           paint: {
             "line-color": routeColorExpression(),
-            "line-width": activeNumberExpression(10, 3.8),
-            "line-opacity": activeNumberExpression(0.4, 0.07),
+            "line-width": activeNumberExpression(7.6, 2.8),
+            "line-opacity": activeNumberExpression(0.22, 0.04),
             "line-blur": 3.2,
           },
         });
@@ -563,8 +558,8 @@ function ResultMap({
         layout: { "line-join": "round", "line-cap": "round", "line-sort-key": activeNumberExpression(1, 0) },
         paint: {
           "line-color": routeColorExpression(),
-          "line-width": activeNumberExpression(globeValue(mapProjection, 5.4, 2.9), globeValue(mapProjection, 2.1, 1.25)),
-          "line-opacity": activeNumberExpression(globeValue(mapProjection, 1, 0.86), globeValue(mapProjection, 0.2, 0.18)),
+          "line-width": activeNumberExpression(globeValue(mapProjection, 5.8, 3.2), globeValue(mapProjection, 2.25, 1.45)),
+          "line-opacity": activeNumberExpression(globeValue(mapProjection, 0.96, 0.9), globeValue(mapProjection, 0.22, 0.24)),
           "line-blur": globeValue(mapProjection, 0.4, 0),
         },
       });
@@ -610,7 +605,6 @@ function ResultMap({
         selectedRouteNodeId: selectedRouteNodeIdRef.current,
         expandedGroupId: null,
         popupRef,
-        onSelectRouteNode: onSelectRouteNodeRef.current,
         setPinnedGroupId,
       });
       applySelectedRouteNode(map, selectedRouteNodeIdRef.current, dataRef.current, popupRef);
@@ -675,7 +669,6 @@ function ResultMap({
       selectedRouteNodeId,
       expandedGroupId,
       popupRef,
-      onSelectRouteNode: onSelectRouteNodeRef.current,
       setPinnedGroupId,
     });
   }, [data, expandedGroupId, selectedRouteNodeId]);
@@ -751,7 +744,7 @@ export function buildResultMapData(
       features.push({
         type: "Feature",
         geometry: { type: "LineString", coordinates: section },
-        properties: { kind: "path", routeId, routeIndex: resultIndex, resultId: item.id, sectionIndex, color, active: activeRoute },
+        properties: { kind: "path", routeId, routeIndex: resultIndex, resultId: item.id, sectionIndex, color, lineColor: resultRouteLineColor(color, activeRoute), active: activeRoute },
       });
     }
     for (const node of routeNodes) {
@@ -913,6 +906,19 @@ function resultRouteColor(index: number): string {
   return RESULT_ROUTE_COLORS[index % RESULT_ROUTE_COLORS.length];
 }
 
+function resultRouteLineColor(color: string, active: boolean): string {
+  return active ? darkenHexColor(color, 0.14) : color;
+}
+
+function darkenHexColor(hex: string, amount: number): string {
+  const value = hex.replace("#", "");
+  if (value.length !== 6) return hex;
+  const factor = Math.max(0, Math.min(1, 1 - amount));
+  const components = [value.slice(0, 2), value.slice(2, 4), value.slice(4, 6)].map((component) => Number.parseInt(component, 16));
+  if (components.some((component) => Number.isNaN(component))) return hex;
+  return `#${components.map((component) => Math.round(component * factor).toString(16).padStart(2, "0")).join("")}`;
+}
+
 function routeTabStyle(index: number): CSSProperties {
   return { "--route-color": resultRouteColor(index) } as CSSProperties;
 }
@@ -925,7 +931,7 @@ function resultEndpointRole(index: number, count: number): RouteEndpointRole {
 }
 
 function routeColorExpression(): ExpressionSpecification {
-  return ["coalesce", ["get", "color"], "#587f78"] as ExpressionSpecification;
+  return ["coalesce", ["get", "lineColor"], ["get", "color"], "#587f78"] as ExpressionSpecification;
 }
 
 function activeNumberExpression(active: number, inactive: number): ExpressionSpecification {
@@ -939,7 +945,6 @@ function renderResultRouteMarkers({
   selectedRouteNodeId,
   expandedGroupId,
   popupRef,
-  onSelectRouteNode,
   setPinnedGroupId,
 }: {
   map: maplibregl.Map;
@@ -948,7 +953,6 @@ function renderResultRouteMarkers({
   selectedRouteNodeId: string | null;
   expandedGroupId: string | null;
   popupRef: MutableRefObject<maplibregl.Popup | null>;
-  onSelectRouteNode: (nodeId: string, routeIndex?: number) => void;
   setPinnedGroupId: GroupStateSetter;
 }): void {
   ensureResultRouteMarkerStyles();
@@ -961,7 +965,6 @@ function renderResultRouteMarkers({
       expanded,
       map,
       popupRef,
-      onSelectRouteNode,
       setPinnedGroupId,
     });
     const marker = new maplibregl.Marker({
@@ -1015,7 +1018,6 @@ function createRouteGroupMarkerElement({
   expanded,
   map,
   popupRef,
-  onSelectRouteNode,
   setPinnedGroupId,
 }: {
   group: ResultRouteGroup;
@@ -1023,7 +1025,6 @@ function createRouteGroupMarkerElement({
   expanded: boolean;
   map: maplibregl.Map;
   popupRef: MutableRefObject<maplibregl.Popup | null>;
-  onSelectRouteNode: (nodeId: string, routeIndex?: number) => void;
   setPinnedGroupId: GroupStateSetter;
 }): HTMLElement {
   const element = document.createElement("div");
@@ -1049,7 +1050,6 @@ function createRouteGroupMarkerElement({
         size: 28,
         map,
         popupRef,
-        onSelectRouteNode,
         setPinnedGroupId,
       }),
     );
@@ -1075,7 +1075,6 @@ function createRouteGroupMarkerElement({
         size: 25,
         map,
         popupRef,
-        onSelectRouteNode,
         setPinnedGroupId,
       }),
     );
@@ -1109,7 +1108,6 @@ function createRouteNodeButton({
   size,
   map,
   popupRef,
-  onSelectRouteNode,
   setPinnedGroupId,
 }: {
   node: ResultRouteNode;
@@ -1119,7 +1117,6 @@ function createRouteNodeButton({
   size: number;
   map: maplibregl.Map;
   popupRef: MutableRefObject<maplibregl.Popup | null>;
-  onSelectRouteNode: (nodeId: string, routeIndex?: number) => void;
   setPinnedGroupId: GroupStateSetter;
 }): HTMLButtonElement {
   const button = document.createElement("button");
@@ -1134,7 +1131,6 @@ function createRouteNodeButton({
     event.preventDefault();
     event.stopPropagation();
     setPinnedGroupId(node.groupSize > 1 ? node.groupId : null);
-    onSelectRouteNode(node.nodeId, node.resultIndex);
     showRouteNodePopup(map, node, popupRef);
   });
   return button;

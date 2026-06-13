@@ -520,8 +520,9 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
   await expectResultRouteData(page, { labels: ["1-2", "5"], minLineLength: 2, maxLineLngSpan: 140 });
   await clickResultMapRouteNode(page, "route-0-node-2");
   await expect(page.locator('.hop-table tr[data-ttl="1"]')).not.toHaveClass(/selected/);
-  await expect(page.locator('.hop-table tr[data-ttl="2"]')).toHaveClass(/selected/);
-  await expectResultSelectedRouteNode(page, "route-0-node-2");
+  await expect(page.locator('.hop-table tr[data-ttl="2"]')).not.toHaveClass(/selected/);
+  await expectResultSelectedRouteNode(page, null);
+  await expectResultMapPopup(page, "TTL 2");
   await clickVisibleHop(page, 5);
   await expect(page.locator('.hop-table tr[data-ttl="1"]')).not.toHaveClass(/selected/);
   await expect(page.locator('.hop-table tr[data-ttl="5"]')).toHaveClass(/selected/);
@@ -530,8 +531,14 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
   await expectResultMapProjection(page, "globe");
   await expectResultRouteData(page, { labels: ["1-2", "5"], minLineLength: 2, maxLineLngSpan: 140 });
   await clickResultMapRouteNode(page, "route-0-node-1");
-  await expect(page.locator('.hop-table tr[data-ttl="1"]')).toHaveClass(/selected/);
+  await expect(page.locator('.hop-table tr[data-ttl="1"]')).not.toHaveClass(/selected/);
   await expect(page.locator('.hop-table tr[data-ttl="2"]')).not.toHaveClass(/selected/);
+  await expect(page.locator('.hop-table tr[data-ttl="5"]')).toHaveClass(/selected/);
+  await expectResultSelectedRouteNode(page, "route-0-node-5");
+  await expectResultMapPopup(page, "TTL 1");
+  await clickVisibleHop(page, 1);
+  await expect(page.locator('.hop-table tr[data-ttl="1"]')).toHaveClass(/selected/);
+  await expect(page.locator('.hop-table tr[data-ttl="5"]')).not.toHaveClass(/selected/);
   await expectResultSelectedRouteNode(page, "route-0-node-1");
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
@@ -1229,18 +1236,18 @@ async function expectResultMapGlobeLineStyle(page: Page): Promise<void> {
     "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
   });
   expect(style.glowPaint).toMatchObject({
-    "line-color": ["coalesce", ["get", "color"], "#587f78"],
-    "line-width": ["case", ["boolean", ["get", "active"], false], 10, 3.8],
-    "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.4, 0.07],
+    "line-color": ["coalesce", ["get", "lineColor"], ["get", "color"], "#587f78"],
+    "line-width": ["case", ["boolean", ["get", "active"], false], 7.6, 2.8],
+    "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.22, 0.04],
     "line-blur": 3.2,
   });
   expect(style.lineLayout).toMatchObject({
     "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
   });
   expect(style.linePaint).toMatchObject({
-    "line-color": ["coalesce", ["get", "color"], "#587f78"],
-    "line-width": ["case", ["boolean", ["get", "active"], false], 5.4, 2.1],
-    "line-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.2],
+    "line-color": ["coalesce", ["get", "lineColor"], ["get", "color"], "#587f78"],
+    "line-width": ["case", ["boolean", ["get", "active"], false], 5.8, 2.25],
+    "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.96, 0.22],
   });
 }
 
@@ -1691,7 +1698,7 @@ async function resultRouteState(page: Page): Promise<{ labels: string[]; lineLen
   });
 }
 
-async function expectResultSelectedRouteNode(page: Page, nodeId: string): Promise<void> {
+async function expectResultSelectedRouteNode(page: Page, nodeId: string | null): Promise<void> {
   await expect
     .poll(async () =>
       page.locator(".result-map").evaluate((node) => {
@@ -1699,6 +1706,10 @@ async function expectResultSelectedRouteNode(page: Page, nodeId: string): Promis
       }),
     )
     .toBe(nodeId);
+}
+
+async function expectResultMapPopup(page: Page, text: string): Promise<void> {
+  await expect(page.locator(".result-map-popup").getByText(text, { exact: true })).toBeVisible();
 }
 
 async function expectMapProjectsCoordinateInsideCanvas(page: Page, coordinate: [number, number]): Promise<void> {
@@ -1732,11 +1743,9 @@ async function clickResultMapRouteNode(page: Page, nodeId: string): Promise<void
   await expect
     .poll(async () => {
       await nodeButton.click();
-      return page.locator(".result-map").evaluate((node) => {
-        return (node as HTMLElement & { __globalTraceSelectedRouteNodeId?: string | null }).__globalTraceSelectedRouteNodeId || null;
-      });
+      return page.locator(".result-map-popup").count();
     })
-    .toBe(nodeId);
+    .toBeGreaterThan(0);
 }
 
 async function clickMapCoordinate(page: Page, coordinate: [number, number]): Promise<void> {

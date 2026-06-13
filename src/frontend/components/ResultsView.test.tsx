@@ -473,8 +473,9 @@ describe("ResultsView", () => {
       "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
     });
     expect(map.layers.find((layer) => layer.id === "result-line")?.paint).toMatchObject({
-      "line-width": ["case", ["boolean", ["get", "active"], false], 2.9, 1.25],
-      "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.86, 0.18],
+      "line-color": ["coalesce", ["get", "lineColor"], ["get", "color"], "#587f78"],
+      "line-width": ["case", ["boolean", ["get", "active"], false], 3.2, 1.45],
+      "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.9, 0.24],
       "line-blur": 0,
     });
     expect(map.layers.find((layer) => layer.id === "result-packets")?.paint).toMatchObject({
@@ -520,18 +521,18 @@ describe("ResultsView", () => {
       "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
     });
     expect(map.layers.find((layer) => layer.id === "result-line-glow")?.paint).toMatchObject({
-      "line-color": ["coalesce", ["get", "color"], "#587f78"],
-      "line-width": ["case", ["boolean", ["get", "active"], false], 10, 3.8],
-      "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.4, 0.07],
+      "line-color": ["coalesce", ["get", "lineColor"], ["get", "color"], "#587f78"],
+      "line-width": ["case", ["boolean", ["get", "active"], false], 7.6, 2.8],
+      "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.22, 0.04],
       "line-blur": 3.2,
     });
     expect(map.layers.find((layer) => layer.id === "result-line")?.layout).toMatchObject({
       "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
     });
     expect(map.layers.find((layer) => layer.id === "result-line")?.paint).toMatchObject({
-      "line-color": ["coalesce", ["get", "color"], "#587f78"],
-      "line-width": ["case", ["boolean", ["get", "active"], false], 5.4, 2.1],
-      "line-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.2],
+      "line-color": ["coalesce", ["get", "lineColor"], ["get", "color"], "#587f78"],
+      "line-width": ["case", ["boolean", ["get", "active"], false], 5.8, 2.25],
+      "line-opacity": ["case", ["boolean", ["get", "active"], false], 0.96, 0.22],
       "line-blur": 0.4,
     });
     expect(screen.getByRole("button", { name: "选择 TTL 1" })).toBeInTheDocument();
@@ -557,7 +558,7 @@ describe("ResultsView", () => {
     });
   });
 
-  it("expands a grouped globe marker and selects an individual TTL", async () => {
+  it("expands a grouped globe marker and opens TTL popup without selecting a table row", async () => {
     const scrollIntoView = mockScrollIntoView();
     render(<ResultsView result={routeQualityResult} mapStyleUrl="about:blank" mapProjection="globe" />);
     const map = await latestMap();
@@ -569,17 +570,18 @@ describe("ResultsView", () => {
     const row1 = rowForText("203.0.113.1");
     const row2 = rowForText("203.0.113.2");
     const row5 = rowForText("203.0.113.5");
-    await waitFor(() => expect(row2).toHaveClass("selected"));
     expect(row1).not.toHaveClass("selected");
+    expect(row2).not.toHaveClass("selected");
     expect(row5).not.toHaveClass("selected");
-    expect(scrollIntoView).toHaveBeenCalled();
+    expect(screen.getByLabelText("trace result map")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
+    expect(scrollIntoView).not.toHaveBeenCalled();
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 2");
 
     fireEvent.click(screen.getByRole("button", { name: "选择 TTL 5" }));
 
-    await waitFor(() => expect(row5).toHaveClass("selected"));
     expect(row1).not.toHaveClass("selected");
     expect(row2).not.toHaveClass("selected");
+    expect(row5).not.toHaveClass("selected");
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 5");
   });
 
@@ -657,7 +659,18 @@ describe("ResultsView", () => {
 
     expect(data.routes).toHaveLength(2);
     expect(paths).toHaveLength(2);
-    expect(paths.find((feature) => feature.properties?.routeId === "route-1")?.properties).toMatchObject({ routeId: "route-1", color: "#f97316", active: false });
+    expect(paths.find((feature) => feature.properties?.routeId === "route-0")?.properties).toMatchObject({
+      routeId: "route-0",
+      color: "#14b8a6",
+      lineColor: "#119e8f",
+      active: true,
+    });
+    expect(paths.find((feature) => feature.properties?.routeId === "route-1")?.properties).toMatchObject({
+      routeId: "route-1",
+      color: "#f97316",
+      lineColor: "#f97316",
+      active: false,
+    });
     expect(hops.map((feature) => feature.properties?.nodeId)).toEqual([
       "route-0-node-1",
       "route-0-node-2",
@@ -701,7 +714,7 @@ describe("ResultsView", () => {
     expect(Math.abs(coordinate[1] - (coordinate[0] - 1))).toBeGreaterThan(0.05);
   });
 
-  it("switches to an inactive route when its map point is clicked", async () => {
+  it("opens an inactive route map point without switching route or selecting a table row", async () => {
     const scrollIntoView = mockScrollIntoView();
     render(<ResultsView result={multiRouteResult} mapStyleUrl="about:blank" mapProjection="globe" />);
     const map = await latestMap();
@@ -709,11 +722,13 @@ describe("ResultsView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "选择 TTL 1" }));
 
-    await waitFor(() => expect(screen.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "true"));
-    const row = rowForText("198.51.100.10");
-    expect(row).toHaveClass("selected");
-    expect(scrollIntoView).toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "false");
+    expect(document.querySelector(".hop-table tr.selected")).toBeNull();
+    expect(screen.getByLabelText("trace result map")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
+    expect(scrollIntoView).not.toHaveBeenCalled();
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1");
+    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("198.51.100.10");
   });
 
   it("builds route map data with filtered, grouped, and numbered hop points", () => {
