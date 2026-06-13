@@ -45,7 +45,7 @@ import "./styles.css";
 export const POLL_DELAY_MS = 1000;
 export const ENRICH_AFTER_FINISHED_DELAY_MS = 500;
 export const TRACE_MAX_POLL_ATTEMPTS = 120;
-const PROBE_MAP_BROWSER_DELAY_MS = 1600;
+const PROBE_MAP_BROWSER_DELAY_MS = 800;
 const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
