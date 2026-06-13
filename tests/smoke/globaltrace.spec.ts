@@ -188,6 +188,7 @@ for (const viewport of [
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
     await expect(page.getByRole("group", { name: "结果地图视图" })).toBeVisible();
     await expectResultHeaderActions(page);
+    await expectGeoIpMetricReadable(page);
     await expect(page.getByRole("button", { name: "切换结果地图到 2D" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
     await expectHopTableColumns(page);
@@ -872,6 +873,28 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.buttonPaddingRight).toBe("9px");
   expect(state.scrollbarWidth).toBe("thin");
   expect(state.scrollbarColor).not.toBe("auto");
+}
+
+async function expectGeoIpMetricReadable(page: Page): Promise<void> {
+  const metric = page.getByLabel("GeoIP enrichment status");
+  await expect(metric).toContainText("GeoIP");
+  await expect(metric).toContainText("cache 0 · fetch 1");
+
+  const state = await metric.evaluate((node) => {
+    const value = node.querySelector(".geoip-value") as HTMLElement | null;
+    const style = value ? window.getComputedStyle(value) : null;
+    return {
+      overflowX: style?.overflowX ?? "",
+      scrollOverflow: value ? value.scrollWidth - value.clientWidth : 0,
+      textOverflow: style?.textOverflow ?? "",
+      whiteSpace: style?.whiteSpace ?? "",
+    };
+  });
+
+  expect(state.textOverflow).toBe("clip");
+  expect(state.overflowX).toBe("visible");
+  expect(state.whiteSpace).toBe("normal");
+  expect(state.scrollOverflow).toBeLessThanOrEqual(1);
 }
 
 async function expectLightModePanelBoundaries(page: Page): Promise<void> {

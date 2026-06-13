@@ -1723,6 +1723,31 @@ tbody tr:hover {
   color: var(--accent-strong);
 }
 
+.metric.geoip .geoip-value {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.metric.geoip .geoip-value b {
+  flex: 0 0 auto;
+  font-weight: inherit;
+}
+
+.metric.geoip .geoip-value small {
+  min-width: 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
 .metric.geoip.partial {
   background: rgba(156, 140, 114, 0.1);
   color: #6f614d;

@@ -742,7 +742,10 @@ function expectGeoIpMetric(status: string, detail: string) {
   const metric = within(summary).getByLabelText("GeoIP enrichment status");
   expect(metric).toHaveClass("metric", "geoip");
   expect(within(metric).getByText("GeoIP")).toBeInTheDocument();
-  expect(within(metric).getByText(`${status} · ${detail}`)).toBeInTheDocument();
+  const value = metric.querySelector(".geoip-value");
+  if (!value) throw new Error("GeoIP value not found");
+  expect(within(value as HTMLElement).getByText(status)).toBeInTheDocument();
+  expect(within(value as HTMLElement).getByText(detail)).toBeInTheDocument();
   expect(summary).toContainElement(metric);
 }
 

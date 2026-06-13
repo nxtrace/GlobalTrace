@@ -449,8 +449,11 @@ function GeoIpMetric({ result }: { result: TraceResultResponse }) {
   return (
     <div className={`metric geoip ${result.enrichment.status}`} aria-label="GeoIP enrichment status">
       <span>GeoIP</span>
-      <strong>
-        {enrichmentLabel(result.enrichment.status)} · cache {result.enrichment.cached} · fetch {result.enrichment.fetched}
+      <strong className="geoip-value">
+        <b>{enrichmentLabel(result.enrichment.status)}</b>
+        <small>
+          cache {result.enrichment.cached} · fetch {result.enrichment.fetched}
+        </small>
       </strong>
       {hasErrors && <span className="metric-detail notice-text">{enrichmentErrorSummary(result.enrichment.errors)}</span>}
     </div>
