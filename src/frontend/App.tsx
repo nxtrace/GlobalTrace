@@ -1,14 +1,16 @@
 import { AlertCircle, Eye, Loader2 } from "lucide-react";
-import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   createTrace,
   enrichTrace,
+  fetchBackgroundImage,
   fetchCachedTrace,
   fetchConfig,
   fetchGlobalpingMeasurement,
   fetchLimits,
   fetchProbes,
   type AppConfig,
+  type BackgroundImage,
 } from "./api";
 import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
 import {
@@ -75,6 +77,7 @@ export function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
   const [liquidGlassEnabled, setLiquidGlassEnabled] = useState(readStoredLiquidGlassEnabled);
   const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
+  const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
   const [storedGlobalpingToken] = useState(readStoredGlobalpingToken);
   const [globalpingToken, setGlobalpingToken] = useState(storedGlobalpingToken.token);
   const [globalpingTokenRemembered, setGlobalpingTokenRemembered] = useState(storedGlobalpingToken.remembered);
@@ -166,6 +169,16 @@ export function App() {
     bootstrappedRef.current = true;
     void bootstrap();
   }, [route]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchBackgroundImage().then((image) => {
+      if (!cancelled) setBackgroundImage(image);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (route !== "/" || probeMapReady || probesStatus === "loading") return;
@@ -517,8 +530,9 @@ export function App() {
   if (route === "/about") {
     return (
       <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled}>
+        <BackgroundLayer backgroundImage={backgroundImage} />
         <Suspense fallback={<AboutPageFallback />}>
-          <AboutPage onBack={navigateHome} />
+          <AboutPage onBack={navigateHome} backgroundImage={backgroundImage} />
         </Suspense>
       </LiquidGlassPreferenceProvider>
     );
@@ -526,8 +540,10 @@ export function App() {
 
   return (
     <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled}>
+      <BackgroundLayer backgroundImage={backgroundImage} />
       <main className={`app-shell${resultPriority ? " result-priority" : ""}`}>
         <FilterPanel
+          backgroundImage={backgroundImage}
           target={target}
           protocol={protocol}
           ipVersion={ipVersion}
@@ -654,6 +670,14 @@ export function App() {
       </main>
     </LiquidGlassPreferenceProvider>
   );
+}
+
+function BackgroundLayer({ backgroundImage }: { backgroundImage: BackgroundImage | null }) {
+  if (!backgroundImage) return null;
+  const style = {
+    "--ambient-background-image": `url("${backgroundImage.imageUrl}")`,
+  } as CSSProperties;
+  return <div className="ambient-background" style={style} aria-hidden="true" />;
 }
 
 function AboutPageFallback() {

@@ -18,9 +18,21 @@ type HonoEnv = {
 const TRACE_RESPONSE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
 const TRACE_RESPONSE_CACHE_VERSION = "v2";
 const PROBES_CACHE_TTL_SECONDS = 180;
+const BACKGROUND_IMAGE_CACHE_TTL_SECONDS = 24 * 60 * 60;
 const TRACE_ENRICH_BODY_LIMIT_BYTES = 256_000;
 const MAX_GLOBALPING_HOPS_PER_RESULT = 64;
 const MAX_GLOBALPING_RAW_OUTPUT_CHARS = 20_000;
+const BING_BACKGROUND_ARCHIVE_URL = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN";
+const BING_ORIGIN = "https://www.bing.com";
+
+interface BingBackgroundImage {
+  url: string;
+  title: string;
+  copyright: string;
+  copyrightlink: string;
+  startdate: string;
+  hsh: string;
+}
 
 export function createApp() {
   const app = new Hono<HonoEnv>();
@@ -46,6 +58,54 @@ export function createApp() {
       { "Cache-Control": "public, max-age=300" },
     ),
   );
+
+  app.get("/api/background", async () => {
+    const background = await fetchBingBackground().catch(() => null);
+    if (!background) {
+      return new Response(null, {
+        status: 204,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+    return createJsonResponse(
+      {
+        imageUrl: "/api/background/image",
+        title: background.title,
+        copyright: background.copyright,
+        copyrightLink: background.copyrightlink,
+        source: "bing",
+      },
+      { headers: { "Cache-Control": "public, max-age=1800" } },
+    );
+  });
+
+  app.get("/api/background/image", async (c) => {
+    const background = await fetchBingBackground().catch(() => null);
+    if (!background) return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+
+    const responseCache = typeof caches === "undefined" ? undefined : caches.default;
+    const cacheKey = backgroundImageCacheKey(background);
+    const cachedImage = await responseCache?.match(cacheKey);
+    if (cachedImage?.ok) return new Response(cachedImage.body, cachedImage);
+
+    const imageResponse = await fetch(new URL(background.url, BING_ORIGIN).toString(), {
+      headers: { Accept: "image/avif,image/webp,image/jpeg,image/*,*/*;q=0.8" },
+    });
+    const contentType = imageResponse.headers.get("Content-Type") || "";
+    if (!imageResponse.ok || !contentType.startsWith("image/")) {
+      return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+    }
+
+    const response = new Response(imageResponse.body, {
+      status: 200,
+      headers: {
+        "Cache-Control": `public, max-age=${BACKGROUND_IMAGE_CACHE_TTL_SECONDS}`,
+        "Content-Type": contentType,
+      },
+    });
+    queueCacheWrite(c, responseCache?.put(cacheKey, response.clone()));
+    return response;
+  });
 
   app.on(["GET", "HEAD"], "/api/probes", async (c) => {
     if (c.req.method === "HEAD") {
@@ -155,6 +215,47 @@ function probesCacheKey(request: Request, env: WorkerEnv): Request {
     globalping: env.GLOBALPING_API_BASE || "default",
   }).toString();
   return new Request(url.toString(), { method: "GET" });
+}
+
+async function fetchBingBackground(): Promise<BingBackgroundImage | null> {
+  const response = await fetch(BING_BACKGROUND_ARCHIVE_URL, {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) return null;
+  const body = (await response.json().catch(() => null)) as { images?: unknown[] } | null;
+  const image = body?.images?.[0];
+  if (!isBingBackgroundImage(image)) return null;
+  return image;
+}
+
+function isBingBackgroundImage(value: unknown): value is BingBackgroundImage {
+  if (!value || typeof value !== "object") return false;
+  const image = value as Record<string, unknown>;
+  return (
+    isValidBingImagePath(image.url) &&
+    typeof image.title === "string" &&
+    typeof image.copyright === "string" &&
+    typeof image.copyrightlink === "string" &&
+    typeof image.startdate === "string" &&
+    typeof image.hsh === "string"
+  );
+}
+
+function isValidBingImagePath(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  if (!value.startsWith("/th?")) return false;
+  try {
+    const url = new URL(value, BING_ORIGIN);
+    return url.origin === BING_ORIGIN && url.pathname === "/th" && url.searchParams.has("id");
+  } catch {
+    return false;
+  }
+}
+
+function backgroundImageCacheKey(background: BingBackgroundImage): Request {
+  return new Request(
+    `https://globaltrace.local/cache/background/${encodeURIComponent(background.startdate)}/${encodeURIComponent(background.hsh)}`,
+  );
 }
 
 function probesCacheHeaders(): Headers {

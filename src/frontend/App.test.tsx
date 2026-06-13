@@ -98,6 +98,33 @@ describe("App", () => {
     expect(document.documentElement.dataset.theme).toBe("system");
   });
 
+  it("renders the Bing background layer and attribution when available", async () => {
+    mockApi({ backgroundImage: bingBackgroundImage() });
+
+    render(<App />);
+
+    expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
+    const backgroundLayer = document.querySelector(".ambient-background") as HTMLElement | null;
+    expect(backgroundLayer).not.toBeNull();
+    expect(backgroundLayer?.getAttribute("style")).toContain("--ambient-background-image: url(\"/api/background/image\")");
+    expect(screen.getByText(/背景：岁月的层峦/).closest("a")).toHaveAttribute(
+      "href",
+      "https://www.bing.com/search?q=%E6%81%B6%E5%9C%B0",
+    );
+  });
+
+  it("keeps the app usable when the background request fails", async () => {
+    mockApi({ backgroundStatus: 502 });
+
+    render(<App />);
+
+    expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
+    expect(document.querySelector(".ambient-background")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+  });
+
   it("keeps probe selection in 2D and persists the result map projection locally", async () => {
     mockApi();
 
@@ -869,6 +896,8 @@ describe("App", () => {
 
 function mockApi(
   options: {
+    backgroundImage?: unknown;
+    backgroundStatus?: number;
     traceStatus?: (polls: number) => TraceResultResponse["status"];
     legacyTurnstileSiteKey?: string;
     enrichmentStatus?: TraceResultResponse["enrichment"]["status"];
@@ -881,6 +910,11 @@ function mockApi(
   const mockProbes = options.probes || probes;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input);
+    if (path === "/api/background") {
+      if (options.backgroundStatus) return json({ error: { message: "background unavailable" } }, options.backgroundStatus);
+      if (options.backgroundImage) return json(options.backgroundImage);
+      return new Response(null, { status: 204 });
+    }
     if (path === "/api/config") {
       return json({ turnstileSiteKey: options.legacyTurnstileSiteKey || undefined, mapStyleUrl: "about:blank" });
     }
@@ -964,6 +998,16 @@ function nexttraceBatchCalls(fetchMock: ReturnType<typeof mockApi>) {
 
 function nexttraceBatchBodies(fetchMock: ReturnType<typeof mockApi>): Array<{ ips: string[] }> {
   return nexttraceBatchCalls(fetchMock).map(([, init]) => JSON.parse(String(init?.body)));
+}
+
+function bingBackgroundImage() {
+  return {
+    imageUrl: "/api/background/image",
+    title: "岁月的层峦",
+    copyright: "落日，恶地国家公园，南达科他州，美国 (© Troy Harrison/Getty Images)",
+    copyrightLink: "https://www.bing.com/search?q=%E6%81%B6%E5%9C%B0",
+    source: "bing",
+  };
 }
 
 function json(body: unknown, status = 200): Response {

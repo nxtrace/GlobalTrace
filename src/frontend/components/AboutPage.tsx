@@ -1,9 +1,11 @@
 import { ArrowLeft, ExternalLink, Globe2, Route, Scale } from "lucide-react";
+import type { BackgroundImage } from "../api";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 
 interface AboutPageProps {
+  backgroundImage?: BackgroundImage | null;
   onBack: () => void;
 }
 
@@ -20,7 +22,7 @@ const attributionLinks = [
   { label: "GPL-3.0-or-later", href: licenseHref },
 ];
 
-export function AboutPage({ onBack }: AboutPageProps) {
+export function AboutPage({ backgroundImage, onBack }: AboutPageProps) {
   return (
     <main className="about-shell">
       <LiquidGlassSurface variant="panel" fullWidth className="about-panel-surface">
@@ -88,6 +90,15 @@ export function AboutPage({ onBack }: AboutPageProps) {
               ))}
             </div>
           </Surface>
+
+          {backgroundImage && (
+            <Surface variant="flat" className="about-background-credit">
+              <a href={backgroundImage.copyrightLink} target="_blank" rel="noreferrer">
+                背景：{backgroundImage.title || "Bing 每日美景"} · {backgroundImage.copyright}
+                <ExternalLink size={14} />
+              </a>
+            </Surface>
+          )}
         </section>
       </LiquidGlassSurface>
     </main>

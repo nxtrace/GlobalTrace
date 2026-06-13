@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createTrace,
   enrichTrace,
+  fetchBackgroundImage,
   fetchCachedTrace,
   fetchConfig,
   fetchGlobalpingMeasurement,
@@ -23,6 +24,38 @@ describe("frontend api helpers", () => {
 
     await expect(fetchConfig()).resolves.toEqual({ mapStyleUrl: "about:blank" });
     expect(fetch).toHaveBeenCalledWith("/api/config", expect.objectContaining({ headers: expect.any(Object) }));
+  });
+
+  it("fetches optional background metadata", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            imageUrl: "/api/background/image",
+            title: "岁月的层峦",
+            copyright: "Bing image credit",
+            copyrightLink: "https://www.bing.com/search?q=test",
+            source: "bing",
+          }),
+        ),
+      ),
+    );
+
+    await expect(fetchBackgroundImage()).resolves.toEqual({
+      imageUrl: "/api/background/image",
+      title: "岁月的层峦",
+      copyright: "Bing image credit",
+      copyrightLink: "https://www.bing.com/search?q=test",
+      source: "bing",
+    });
+    expect(fetch).toHaveBeenCalledWith("/api/background", expect.objectContaining({ headers: expect.any(Object) }));
+  });
+
+  it("returns null when the optional background is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+
+    await expect(fetchBackgroundImage()).resolves.toBeNull();
   });
 
   it("creates traces directly through the Globalping API", async () => {

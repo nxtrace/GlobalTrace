@@ -873,6 +873,41 @@ summary:focus-visible {
   text-decoration: underline;
 }
 
+.background-credit {
+  display: block;
+  width: fit-content;
+  margin-top: 3px;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 650;
+  opacity: 0.86;
+}
+
+.background-credit:hover {
+  opacity: 1;
+}
+
+.about-background-credit {
+  padding: 10px 12px;
+}
+
+.about-background-credit a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.4;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.about-background-credit a:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
 .primary-action,
 .tool-button,
 .icon-button {
@@ -2723,6 +2758,10 @@ pre {
     linear-gradient(135deg, transparent 0 47%, rgba(37, 111, 134, 0.08) 47% calc(47% + 1px), transparent calc(47% + 1px) 100%),
     linear-gradient(35deg, transparent 0 66%, rgba(153, 105, 52, 0.07) 66% calc(66% + 1px), transparent calc(66% + 1px) 100%),
     repeating-linear-gradient(90deg, transparent 0 68px, var(--network-node) 68px 70px, transparent 70px 190px);
+  --ambient-photo-opacity: 0.72;
+  --ambient-background-overlay:
+    linear-gradient(135deg, rgba(245, 250, 248, 0.58), rgba(233, 247, 252, 0.46) 48%, rgba(241, 236, 255, 0.52)),
+    radial-gradient(circle at 20% 12%, rgba(255, 255, 255, 0.46), transparent 34%);
   --filter-panel-bg:
     linear-gradient(150deg, rgba(255, 255, 255, 0.68), rgba(239, 252, 255, 0.42) 50%, rgba(246, 240, 255, 0.36)),
     var(--glass-bg);
@@ -2809,6 +2848,10 @@ pre {
     linear-gradient(135deg, transparent 0 43%, rgba(92, 202, 234, 0.1) 43% calc(43% + 1px), transparent calc(43% + 1px) 100%),
     linear-gradient(35deg, transparent 0 68%, rgba(249, 161, 91, 0.08) 68% calc(68% + 1px), transparent calc(68% + 1px) 100%),
     repeating-linear-gradient(90deg, transparent 0 62px, var(--network-node) 62px 64px, transparent 64px 184px);
+  --ambient-photo-opacity: 0.66;
+  --ambient-background-overlay:
+    linear-gradient(135deg, rgba(3, 8, 12, 0.82), rgba(6, 14, 22, 0.76) 48%, rgba(12, 8, 24, 0.78)),
+    radial-gradient(circle at 22% 10%, rgba(61, 215, 255, 0.12), transparent 32%);
   --filter-panel-bg:
     linear-gradient(150deg, rgba(16, 31, 44, 0.62), rgba(10, 21, 32, 0.5) 52%, rgba(24, 16, 45, 0.42)),
     var(--glass-bg);
@@ -2897,6 +2940,10 @@ pre {
       linear-gradient(135deg, transparent 0 43%, rgba(92, 202, 234, 0.1) 43% calc(43% + 1px), transparent calc(43% + 1px) 100%),
       linear-gradient(35deg, transparent 0 68%, rgba(249, 161, 91, 0.08) 68% calc(68% + 1px), transparent calc(68% + 1px) 100%),
       repeating-linear-gradient(90deg, transparent 0 62px, var(--network-node) 62px 64px, transparent 64px 184px);
+    --ambient-photo-opacity: 0.66;
+    --ambient-background-overlay:
+      linear-gradient(135deg, rgba(3, 8, 12, 0.82), rgba(6, 14, 22, 0.76) 48%, rgba(12, 8, 24, 0.78)),
+      radial-gradient(circle at 22% 10%, rgba(61, 215, 255, 0.12), transparent 32%);
     --filter-panel-bg:
       linear-gradient(150deg, rgba(16, 31, 44, 0.62), rgba(10, 21, 32, 0.5) 52%, rgba(24, 16, 45, 0.42)),
       var(--glass-bg);
@@ -2945,6 +2992,36 @@ body::before {
   background: var(--body-texture);
   opacity: 0.42;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.18) 76%, transparent);
+}
+
+.ambient-background {
+  position: fixed;
+  inset: -36px;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ambient-background::before,
+.ambient-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.ambient-background::before {
+  background-image: var(--ambient-background-image);
+  background-position: center;
+  background-size: cover;
+  filter: blur(28px) saturate(1.08);
+  opacity: var(--ambient-photo-opacity);
+  transform: scale(1.04);
+}
+
+.ambient-background::after {
+  background:
+    var(--ambient-background-overlay),
+    var(--body-texture);
 }
 
 .app-shell,

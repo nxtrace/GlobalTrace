@@ -440,6 +440,7 @@ test("token save defaults to session storage", async ({ page }) => {
 test("about page exposes provider attribution links", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
+  await installBackgroundMock(page);
 
   await page.goto("/about");
 
@@ -621,6 +622,7 @@ test("liquid glass surfaces keep textured backgrounds and restrained shadows", a
   await expect(page.locator(".primary-controls-surface")).toBeVisible({ timeout: 8000 });
   await expect(page.locator('.filter-summary-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
   await expect(page.locator('.run-action-surface[data-liquid-glass-interactive="true"]')).toBeVisible();
+  await expect(page.getByText(/背景：岁月的层峦/)).toBeVisible();
   await expectLiquidGlassVisualStructure(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -650,6 +652,29 @@ interface MockOptions {
   traceResponse?: TraceResultResponse;
   beforeMeasurementResponse?: () => Promise<void>;
   probes?: GlobalpingProbe[];
+}
+
+async function installBackgroundMock(page: Page): Promise<void> {
+  await page.route("**/api/background", async (route) => {
+    await route.fulfill({
+      json: {
+        imageUrl: "/api/background/image",
+        title: "岁月的层峦",
+        copyright: "落日，恶地国家公园，南达科他州，美国 (© Troy Harrison/Getty Images)",
+        copyrightLink: "https://www.bing.com/search?q=%E6%81%B6%E5%9C%B0",
+        source: "bing",
+      },
+    });
+  });
+  await page.route("**/api/background/image", async (route) => {
+    await route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mPMqP9fDwAF9ALka6ocEgAAAABJRU5ErkJggg==",
+        "base64",
+      ),
+    });
+  });
 }
 
 async function installMocks(page: Page, options: MockOptions = {}): Promise<MockHandles> {
@@ -700,6 +725,7 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
   await page.route("**/api/config", async (route) => {
     await route.fulfill({ json: { mapStyleUrl: "/mock-style.json" } });
   });
+  await installBackgroundMock(page);
   await page.route("**/api/probes", async (route) => {
     await route.fulfill({ json: { probes: mockProbes, fetchedAt: "2026-06-09T00:00:00.000Z" } });
   });
@@ -960,6 +986,15 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
       };
     };
     return {
+      ambientBackground: (() => {
+        const element = document.querySelector(".ambient-background");
+        if (!element) return null;
+        const style = window.getComputedStyle(element, "::before");
+        return {
+          filter: style.filter,
+          backgroundImage: style.backgroundImage,
+        };
+      })(),
       bodyTextureOpacity: Number.parseFloat(window.getComputedStyle(document.body, "::before").opacity || "0") || 0,
       filterPanel: read(".filter-panel"),
       primaryControls: read(".primary-controls-surface"),
@@ -969,6 +1004,9 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
     };
   });
 
+  expect(state.ambientBackground?.filter).toContain("blur(28px)");
+  expect(state.ambientBackground?.filter).toContain("saturate(1.08)");
+  expect(state.ambientBackground?.backgroundImage).toContain("/api/background/image");
   expect(state.bodyTextureOpacity).toBeGreaterThan(0.2);
   expect(state.primaryControls?.backgroundAlpha).toBeLessThanOrEqual(0.32);
   expect(state.filterSummary?.backgroundAlpha).toBeLessThanOrEqual(0.32);

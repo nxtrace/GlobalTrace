@@ -35,6 +35,65 @@ describe("worker API", () => {
     expectSecurityHeaders(defaults.headers);
   });
 
+  it("returns Bing background metadata with a same-origin image URL", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(bingBackgroundResponse())));
+
+    const response = await createApp().fetch(new Request("https://globaltrace.test/api/background"), env);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      imageUrl: "/api/background/image",
+      title: "岁月的层峦",
+      copyright: "落日，恶地国家公园，南达科他州，美国 (© Troy Harrison/Getty Images)",
+      copyrightLink: "https://www.bing.com/search?q=%E6%81%B6%E5%9C%B0",
+      source: "bing",
+    });
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=1800");
+    expectSecurityHeaders(response.headers);
+  });
+
+  it("returns no background when Bing metadata is invalid", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(json(bingBackgroundResponse({ url: "https://example.com/not-bing.jpg" }))),
+    );
+
+    const response = await createApp().fetch(new Request("https://globaltrace.test/api/background"), env);
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("proxies and caches the Bing background image", async () => {
+    const cache = new MemoryCache();
+    const { ctx, promises } = createExecutionContext();
+    vi.stubGlobal("caches", { default: cache });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("https://www.bing.com/HPImageArchive.aspx")) {
+        return json(bingBackgroundResponse());
+      }
+      if (url.startsWith("https://www.bing.com/th?")) {
+        return new Response("jpeg-bytes", {
+          headers: { "Content-Type": "image/jpeg" },
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await createApp().fetch(new Request("https://globaltrace.test/api/background/image"), env, ctx);
+    await Promise.all(promises);
+    const second = await createApp().fetch(new Request("https://globaltrace.test/api/background/image"), env, ctx);
+
+    expect(first.status).toBe(200);
+    expect(first.headers.get("Content-Type")).toBe("image/jpeg");
+    expect(first.headers.get("Cache-Control")).toBe("public, max-age=86400");
+    await expect(first.text()).resolves.toBe("jpeg-bytes");
+    await expect(second.text()).resolves.toBe("jpeg-bytes");
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).startsWith("https://www.bing.com/th?"))).toHaveLength(1);
+  });
+
   it("rejects invalid JSON bodies", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -578,6 +637,31 @@ function expectSecurityHeaders(headers: Headers): void {
   for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
     expect(headers.get(key)).toBe(value);
   }
+}
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function bingBackgroundResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    images: [
+      {
+        startdate: "20260612",
+        fullstartdate: "202606121600",
+        enddate: "20260613",
+        url: "/th?id=OHR.BadSunset_ZH-CN9050997938_1920x1080.jpg&rf=LaDigue_1920x1080.jpg&pid=hp",
+        title: "岁月的层峦",
+        copyright: "落日，恶地国家公园，南达科他州，美国 (© Troy Harrison/Getty Images)",
+        copyrightlink: "https://www.bing.com/search?q=%E6%81%B6%E5%9C%B0",
+        hsh: "bf12af6a788b4374eb75b0a576f9b7a0",
+        ...overrides,
+      },
+    ],
+  };
 }
 
 function inProgressMeasurement(id = "m123") {

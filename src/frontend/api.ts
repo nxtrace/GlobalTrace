@@ -18,8 +18,26 @@ export interface AppConfig {
   mapStyleUrl: string;
 }
 
+export interface BackgroundImage {
+  imageUrl: string;
+  title: string;
+  copyright: string;
+  copyrightLink: string;
+  source: "bing";
+}
+
 export async function fetchConfig(): Promise<AppConfig> {
   return apiJson<AppConfig>("/api/config");
+}
+
+export async function fetchBackgroundImage(): Promise<BackgroundImage | null> {
+  const response = await fetch("/api/background", {
+    headers: { Accept: "application/json" },
+  }).catch(() => null);
+  if (!response || response.status === 204 || response.status === 404) return null;
+  const body = (await response.json().catch(() => null)) as unknown;
+  if (!response.ok || !isBackgroundImage(body)) return null;
+  return body;
 }
 
 export async function fetchProbes(): Promise<ProbeListResponse> {
@@ -127,4 +145,17 @@ function errorMessageFromBody(body: unknown): string {
   if (!body || typeof body !== "object") return "";
   const maybe = body as { error?: { message?: string }; message?: string };
   return maybe.error?.message || maybe.message || "";
+}
+
+function isBackgroundImage(value: unknown): value is BackgroundImage {
+  if (!value || typeof value !== "object") return false;
+  const background = value as Record<string, unknown>;
+  return (
+    background.source === "bing" &&
+    typeof background.imageUrl === "string" &&
+    background.imageUrl.startsWith("/api/background/image") &&
+    typeof background.title === "string" &&
+    typeof background.copyright === "string" &&
+    typeof background.copyrightLink === "string"
+  );
 }
