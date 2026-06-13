@@ -241,7 +241,11 @@ describe("ResultsView", () => {
     expect(screen.getByText("raw output")).toBeInTheDocument();
     expect(document.querySelector(".results-section-surface[data-liquid-glass]")).not.toBeNull();
     expect(screen.getByLabelText("trace summary").querySelectorAll(".metric-surface[data-liquid-glass]").length).toBeGreaterThan(0);
-    expect(document.querySelector(".probe-tabs-surface[data-liquid-glass]")).not.toBeNull();
+    const tabsSurface = document.querySelector(".probe-tabs-surface[data-liquid-glass]");
+    const tabs = document.querySelector(".probe-tabs");
+    expect(tabsSurface).not.toBeNull();
+    expect(tabs?.closest(".probe-tabs-surface")).toBe(tabsSurface);
+    expect(tabs).not.toHaveAttribute("data-liquid-glass");
     expect(document.querySelector(".hop-table-scroll[data-liquid-glass]")).toBeNull();
     expect(document.querySelector(".raw-output[data-liquid-glass]")).toBeNull();
   });

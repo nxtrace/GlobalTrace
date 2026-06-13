@@ -74,6 +74,7 @@ const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
 };
 const MAX_VISIBLE_SUGGESTIONS = 8;
 const MAGIC_PLACEHOLDER = "Los Angeles+US+AS7922+Comcast, Shanghai+CN+AS4134+China Telecom";
+const EXACT_FILTERS_DESKTOP_QUERY = "(min-width: 821px)";
 
 interface IndexedMagicToken {
   lower: string;
@@ -86,16 +87,44 @@ interface IndexedMagicOption {
   includesWorld: boolean;
 }
 
+function readExactFiltersDefaultOpen(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return true;
+  return window.matchMedia(EXACT_FILTERS_DESKTOP_QUERY).matches;
+}
+
 export function FilterPanel(props: FilterPanelProps) {
   const filterSuggestions = props.filterSuggestions ?? EMPTY_FILTER_SUGGESTIONS;
   const globalpingTokenStatusId = useId();
   const nexttraceTokenStatusId = useId();
   const [advancedParamsOpen, setAdvancedParamsOpen] = useState(false);
+  const exactFiltersTouchedRef = useRef(false);
+  const [exactFiltersOpen, setExactFiltersOpen] = useState(readExactFiltersDefaultOpen);
 
   const openAdvancedParams = () => {
     props.onOpenAdvancedParams?.();
     setAdvancedParamsOpen(true);
   };
+
+  const markExactFiltersTouched = () => {
+    exactFiltersTouchedRef.current = true;
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mediaQuery = window.matchMedia(EXACT_FILTERS_DESKTOP_QUERY);
+    const updateDefault = (matches: boolean) => {
+      if (!exactFiltersTouchedRef.current) setExactFiltersOpen(matches);
+    };
+    const onChange = (event: MediaQueryListEvent) => updateDefault(event.matches);
+
+    updateDefault(mediaQuery.matches);
+    mediaQuery.addEventListener?.("change", onChange);
+    mediaQuery.addListener?.(onChange);
+    return () => {
+      mediaQuery.removeEventListener?.("change", onChange);
+      mediaQuery.removeListener?.(onChange);
+    };
+  }, []);
 
   const setFilter = (key: keyof TraceFilters, value: string | boolean) => {
     const nextValue = cleanFilterValue(value);
@@ -253,8 +282,17 @@ export function FilterPanel(props: FilterPanelProps) {
           </LiquidGlassSurface>
 
           <Surface asChild variant="flat">
-            <details className="advanced-panel">
-              <summary>
+            <details
+              className="advanced-panel"
+              open={exactFiltersOpen}
+              onToggle={(event) => setExactFiltersOpen(event.currentTarget.open)}
+            >
+              <summary
+                onClick={markExactFiltersTouched}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") markExactFiltersTouched();
+                }}
+              >
                 <Filter size={16} />
                 精确筛选
               </summary>

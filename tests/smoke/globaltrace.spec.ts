@@ -29,6 +29,11 @@ for (const viewport of viewports) {
 
     await expect(page.getByRole("heading", { name: "GlobalTrace" })).toBeVisible();
     await expect(page.getByText("Globalping x NextTrace 的全球路由追踪")).toBeVisible();
+    if (viewport.width >= 821) {
+      await expect(page.getByLabel("国家/地区")).toBeVisible();
+    } else {
+      await expect(page.getByLabel("国家/地区")).toBeHidden();
+    }
     await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
     await page.getByRole("button", { name: "主题：System" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -82,7 +87,7 @@ for (const viewport of viewports) {
     await page.getByLabel("IP 版本").selectOption("6");
     await expect(page.getByLabel("IP 版本")).toHaveValue("6");
 
-    await page.getByText("精确筛选").click();
+    await ensureExactFiltersOpen(page);
     await page.getByLabel("国家/地区").fill("US");
     await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
     await expect(page.locator("datalist")).toHaveCount(0);
@@ -355,7 +360,7 @@ test("structured filters expand probes after explicit user filtering", async ({ 
 
   await expect(page.getByText("5 / 5 probes 匹配")).toBeVisible();
   await expect(page.getByLabel("probes")).toHaveValue("3");
-  await page.getByText("精确筛选").click();
+  await ensureExactFiltersOpen(page);
   await page.getByLabel("国家/地区").fill("CN");
   await expect(page.getByText("4 / 5 probes 匹配")).toBeVisible();
   await expect(page.getByLabel("probes")).toHaveValue("4");
@@ -382,7 +387,7 @@ test("generic magic and tag suggestions come from visible mock probes", async ({
 
   await page.getByRole("button", { name: "重置筛选" }).click();
   await expect(magicInput).toHaveValue("");
-  await page.getByText("精确筛选").click();
+  await ensureExactFiltersOpen(page);
   const tagInput = page.getByLabel("tag");
   await tagInput.fill("eye");
   await expect(page.getByText("3 / 4 probes 匹配")).toBeVisible();
@@ -580,7 +585,7 @@ test("mobile advanced panel starts trace without an auth dialog", async ({ page 
   await page.goto("/");
 
   await expect(page.getByText("Globalping credits 控制诊断创建")).toBeVisible();
-  await page.getByText("精确筛选").click();
+  await ensureExactFiltersOpen(page);
   await page.getByLabel("ASN").fill("7922");
   await expect(page.getByLabel("ASN")).toHaveValue("7922");
   await expect(page.getByLabel("network")).toBeVisible();
@@ -922,6 +927,8 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
     const firstButtonStyle = buttons[0] ? window.getComputedStyle(buttons[0]) : null;
     const styles = window.getComputedStyle(tabs);
     return {
+      backgroundColor: styles.backgroundColor,
+      borderTopWidth: styles.borderTopWidth,
       bottomGap: tabsRect.bottom - buttonBottom,
       buttonMinHeight: firstButtonStyle?.minHeight ?? "",
       buttonPaddingRight: firstButtonStyle?.paddingRight ?? "",
@@ -936,6 +943,8 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
     };
   });
   expect(state.flexWrap).toBe("nowrap");
+  expect(state.borderTopWidth).toBe("0px");
+  expect(state.backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(["auto", "scroll"]).toContain(state.overflowX);
   expect(state.scrollWidth).toBeGreaterThan(state.clientWidth);
   expect(state.paddingBottom).toBeGreaterThanOrEqual(8);
@@ -1071,6 +1080,7 @@ async function expectGlassOverlayStructure(page: Page, name: string): Promise<vo
     const overlayStyle = overlay ? window.getComputedStyle(overlay) : null;
     const panelStyle = panel ? window.getComputedStyle(panel) : null;
     const surfaceStyle = surface ? window.getComputedStyle(surface) : null;
+    const rect = panel?.getBoundingClientRect();
     const alphaOf = (value: string) => {
       const match = value.match(/rgba?\(([^)]+)\)/);
       if (!match) return 1;
@@ -1086,6 +1096,12 @@ async function expectGlassOverlayStructure(page: Page, name: string): Promise<vo
       panelBackdropFilter: panelStyle?.backdropFilter || panelStyle?.getPropertyValue("-webkit-backdrop-filter"),
       surfaceMaxHeight: surfaceStyle?.maxHeight,
       panelMaxHeight: panelStyle?.maxHeight,
+      panelCenterX: rect ? rect.left + rect.width / 2 : 0,
+      panelCenterY: rect ? rect.top + rect.height / 2 : 0,
+      viewportCenterX: window.innerWidth / 2,
+      viewportCenterY: window.innerHeight / 2,
+      panelWidth: rect?.width ?? 0,
+      viewportWidth: window.innerWidth,
     };
   });
   expect(state.overlayPosition).toBe("fixed");
@@ -1096,6 +1112,17 @@ async function expectGlassOverlayStructure(page: Page, name: string): Promise<vo
   expect(state.panelBackdropFilter).toContain("blur(34px)");
   expect(state.surfaceMaxHeight).not.toBe("none");
   expect(state.panelMaxHeight).not.toBe("none");
+  expect(Math.abs(state.panelCenterX - state.viewportCenterX)).toBeLessThanOrEqual(3);
+  expect(Math.abs(state.panelCenterY - state.viewportCenterY)).toBeLessThanOrEqual(Math.max(4, state.viewportCenterY * 0.08));
+  if (state.overlayClassName.includes("glass-overlay-compact") && state.viewportWidth <= 820) {
+    expect(state.panelWidth).toBeLessThanOrEqual(state.viewportWidth - 20);
+  }
+}
+
+async function ensureExactFiltersOpen(page: Page): Promise<void> {
+  const panel = page.locator("details.advanced-panel");
+  const isOpen = await panel.evaluate((node) => (node as HTMLDetailsElement).open);
+  if (!isOpen) await page.getByText("精确筛选").click();
 }
 
 async function expectBareResultOverlay(page: Page): Promise<void> {
@@ -1462,6 +1489,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const threeDimensionalButton = document.querySelector('[aria-label="切换结果地图到 3D"]') as HTMLElement | null;
     const copyButton = document.querySelector('[title="分享诊断链接"]') as HTMLElement | null;
     const closeButton = document.querySelector('.result-header-actions [aria-label="关闭结果"]') as HTMLElement | null;
+    const copySurface = copyButton?.closest(".result-command-surface")?.querySelector(".liquid-glass-content") as HTMLElement | null;
+    const closeSurface = closeButton?.closest(".result-command-surface")?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const map = document.querySelector(".result-map") as HTMLElement | null;
     const table = document.querySelector(".hop-table-scroll") as HTMLElement | null;
@@ -1484,6 +1513,13 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
         className: element.className,
         color: style.color,
         pressed: element.getAttribute("aria-pressed") || "",
+      };
+    };
+    const surfaceStyleFor = (element: HTMLElement | null) => {
+      const style = element ? window.getComputedStyle(element) : null;
+      return {
+        backgroundColor: style?.backgroundColor ?? "",
+        borderColor: style?.borderColor ?? "",
       };
     };
     const rectFor = (element: Element | null) => {
@@ -1570,6 +1606,10 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
         copy: buttonStyleFor(copyButton),
         close: buttonStyleFor(closeButton),
       },
+      actionSurfaceStyles: {
+        copy: surfaceStyleFor(copySurface),
+        close: surfaceStyleFor(closeSurface),
+      },
       viewButtonRects: [twoDimensionalButton, threeDimensionalButton].map((button) => ({
         label: button?.getAttribute("aria-label") || "",
         ...rectFor(button),
@@ -1623,6 +1663,9 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.actionButtonStyles.copy.backgroundColor).toBe(state.actionButtonStyles.close.backgroundColor);
   expect(state.actionButtonStyles.copy.borderColor).toBe(state.actionButtonStyles.close.borderColor);
   expect(state.actionButtonStyles.copy.color).toBe(state.actionButtonStyles.close.color);
+  expect(state.actionSurfaceStyles.copy.backgroundColor).toBe(state.actionSurfaceStyles.close.backgroundColor);
+  expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgb(255, 255, 255)");
+  expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgba(255, 255, 255, 0.9)");
   const viewButtonStyles = [
     state.actionButtonStyles.twoDimensional,
     state.actionButtonStyles.threeDimensional,

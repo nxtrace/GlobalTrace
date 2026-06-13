@@ -80,7 +80,8 @@ afterEach(() => {
 });
 
 const openExactFilters = () => {
-  fireEvent.click(screen.getByText("精确筛选"));
+  const panel = screen.getByText("精确筛选").closest("details") as HTMLDetailsElement | null;
+  if (!panel?.open) fireEvent.click(screen.getByText("精确筛选"));
 };
 
 const openAdvancedParams = () => {

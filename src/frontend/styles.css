@@ -392,6 +392,18 @@ button {
 .panel-action-surface .liquid-glass-fallback-content {
   display: grid;
   place-items: center;
+  border: 1px solid var(--liquid-control-border);
+  background: var(--liquid-control-bg);
+  box-shadow: var(--liquid-control-shadow);
+}
+
+.panel-action-surface .glass {
+  background: var(--liquid-control-bg);
+}
+
+.panel-action-surface:hover .liquid-glass-content,
+.panel-action-surface:hover .liquid-glass-fallback-content {
+  background: var(--liquid-control-hover-bg);
 }
 
 .panel-action-surface button {
@@ -1096,15 +1108,13 @@ summary:focus-visible {
 
 .map-toolbar-surface .liquid-glass-content,
 .map-toolbar-surface .liquid-glass-fallback-content {
-  border-color: var(--map-control-border);
-  background: var(--map-control-bg);
-  box-shadow: var(--map-control-shadow);
+  border-color: var(--liquid-control-border);
+  background: var(--liquid-control-bg);
+  box-shadow: var(--liquid-control-shadow);
 }
 
 .map-toolbar-surface .glass {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.14)),
-    var(--map-control-bg);
+  background: var(--liquid-control-bg);
 }
 
 .result-map-toolbar {
@@ -1134,17 +1144,15 @@ summary:focus-visible {
 .result-map-toolbar-surface .liquid-glass-content,
 .result-map-toolbar-surface .liquid-glass-fallback-content {
   box-sizing: border-box;
-  border: 1px solid var(--control-border);
-  background: var(--control-bg);
-  box-shadow: var(--shadow-control);
+  border: 1px solid var(--liquid-control-border);
+  background: var(--liquid-control-bg);
+  box-shadow: var(--liquid-control-shadow);
   overflow: hidden;
   border-radius: 999px;
 }
 
 .result-map-toolbar-surface .glass {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06) 42%, rgba(255, 255, 255, 0.12)),
-    var(--control-bg);
+  background: var(--liquid-control-bg);
 }
 
 .result-map-view-switch {
@@ -1213,11 +1221,23 @@ summary:focus-visible {
 .result-command-surface .liquid-glass-content,
 .result-command-surface .liquid-glass-fallback-content {
   display: block;
+  border: 1px solid var(--liquid-control-border);
+  background: var(--liquid-control-bg);
+  box-shadow: var(--liquid-control-shadow);
+}
+
+.result-command-surface .glass {
+  background: var(--liquid-control-bg);
 }
 
 .result-command-button:hover {
-  background: var(--control-bg-hover);
+  background: transparent;
   color: var(--ink);
+}
+
+.result-command-surface:hover .liquid-glass-content,
+.result-command-surface:hover .liquid-glass-fallback-content {
+  background: var(--liquid-control-hover-bg);
 }
 
 .result-view-button:disabled,
@@ -1723,7 +1743,7 @@ tbody tr:hover {
   border-radius: 12px;
   padding: 6px 9px;
   background: transparent;
-  color: var(--ink);
+  color: var(--probe-tab-text);
   text-align: left;
   cursor: pointer;
   transition:
@@ -1766,7 +1786,7 @@ tbody tr:hover {
 .probe-tab-meta {
   max-width: 100%;
   overflow: hidden;
-  color: var(--ink-muted);
+  color: var(--probe-tab-meta-color);
   font-size: 11px;
   line-height: 1.15;
   text-overflow: ellipsis;
@@ -1984,6 +2004,11 @@ tbody tr:hover {
   max-height: calc(100svh - 32px);
 }
 
+.glass-overlay-compact .glass-overlay-surface {
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(680px, calc(100svh - 32px));
+}
+
 .glass-overlay-bare-surface {
   width: min(560px, calc(100vw - 32px));
   max-height: calc(100svh - 32px);
@@ -2025,6 +2050,10 @@ tbody tr:hover {
   box-shadow: var(--shadow-panel);
   backdrop-filter: blur(34px);
   -webkit-backdrop-filter: blur(34px);
+}
+
+.glass-overlay-compact .glass-overlay-panel {
+  max-height: min(680px, calc(100svh - 32px));
 }
 
 .glass-overlay-header {
@@ -2519,11 +2548,20 @@ pre {
     max-height: calc(100svh - 20px);
   }
 
+  .glass-overlay-compact .glass-overlay-surface {
+    width: min(560px, calc(100vw - 24px));
+    max-height: min(680px, calc(100svh - 20px));
+  }
+
   .glass-overlay-surface .liquid-glass-package,
   .glass-overlay-surface .liquid-glass-content,
   .glass-overlay-surface .liquid-glass-fallback-content,
   .glass-overlay-panel {
     max-height: calc(100svh - 20px);
+  }
+
+  .glass-overlay-compact .glass-overlay-panel {
+    max-height: min(680px, calc(100svh - 20px));
   }
 
   .glass-overlay-panel {
@@ -3059,6 +3097,21 @@ pre {
   --liquid-toolbar-shadow:
     0 1px 0 rgba(255, 255, 255, 0.46) inset,
     0 8px 20px rgba(22, 43, 53, 0.08);
+  --liquid-control-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.26), rgba(35, 184, 255, 0.08) 52%, rgba(139, 92, 246, 0.1)),
+    rgba(255, 255, 255, 0.18);
+  --liquid-control-hover-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(35, 184, 255, 0.12) 52%, rgba(139, 92, 246, 0.14)),
+    rgba(255, 255, 255, 0.24);
+  --liquid-control-border: rgba(255, 255, 255, 0.54);
+  --liquid-control-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 8px 20px rgba(22, 43, 53, 0.08);
+  --probe-tab-text: var(--ink);
+  --probe-tab-meta-color: var(--ink-muted);
+  --probe-tab-active-bg:
+    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 18%, transparent), var(--accent-soft)),
+    var(--control-bg);
 }
 
 :root[data-theme="dark"] {
@@ -3157,6 +3210,22 @@ pre {
   --liquid-toolbar-shadow:
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
     0 8px 22px rgba(0, 0, 0, 0.24);
+  --liquid-control-bg:
+    linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.08) 50%, rgba(139, 92, 246, 0.1)),
+    rgba(9, 18, 28, 0.58);
+  --liquid-control-hover-bg:
+    linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.12) 50%, rgba(139, 92, 246, 0.14)),
+    rgba(14, 29, 43, 0.74);
+  --liquid-control-border: rgba(148, 226, 255, 0.28);
+  --liquid-control-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.12) inset,
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    0 0 18px rgba(53, 210, 255, 0.08);
+  --probe-tab-text: rgba(245, 251, 255, 0.96);
+  --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
+  --probe-tab-active-bg:
+    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 24%, rgba(8, 18, 28, 0.42)), rgba(53, 210, 255, 0.12)),
+    rgba(10, 22, 34, 0.76);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -3256,6 +3325,22 @@ pre {
     --liquid-toolbar-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
       0 8px 22px rgba(0, 0, 0, 0.24);
+    --liquid-control-bg:
+      linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.08) 50%, rgba(139, 92, 246, 0.1)),
+      rgba(9, 18, 28, 0.58);
+    --liquid-control-hover-bg:
+      linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.12) 50%, rgba(139, 92, 246, 0.14)),
+      rgba(14, 29, 43, 0.74);
+    --liquid-control-border: rgba(148, 226, 255, 0.28);
+    --liquid-control-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.12) inset,
+      0 8px 24px rgba(0, 0, 0, 0.3),
+      0 0 18px rgba(53, 210, 255, 0.08);
+    --probe-tab-text: rgba(245, 251, 255, 0.96);
+    --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
+    --probe-tab-active-bg:
+      linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 24%, rgba(8, 18, 28, 0.42)), rgba(53, 210, 255, 0.12)),
+      rgba(10, 22, 34, 0.76);
   }
 }
 
@@ -3501,11 +3586,29 @@ textarea:hover {
   background: var(--photo-liquid-toolbar-bg);
 }
 
+.map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.map-toolbar-surface[data-liquid-glass-mode="fallback"] .liquid-glass-fallback-content,
+.result-map-toolbar-surface[data-liquid-glass-mode="fallback"] .liquid-glass-fallback-content,
+.app-shell.ambient-photo-ready .map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.app-shell.ambient-photo-ready .result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+  border-color: var(--liquid-control-border);
+  background: var(--liquid-control-bg);
+  box-shadow: var(--liquid-control-shadow);
+}
+
 .status-surface .glass,
 .map-toolbar-surface .glass,
 .result-map-toolbar-surface .glass,
 .run-action-surface .glass {
   background: var(--status-glass-bg);
+}
+
+.map-toolbar-surface .glass,
+.result-map-toolbar-surface .glass,
+.panel-action-surface .glass,
+.result-command-surface .glass {
+  background: var(--liquid-control-bg);
 }
 
 .run-action-surface .liquid-glass-fallback-content {
@@ -3613,13 +3716,13 @@ textarea:hover {
 }
 
 .probe-tabs {
-  border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  padding: 5px 6px var(--probe-tabs-bottom-padding);
-  background: var(--glass-bg);
-  box-shadow: var(--shadow-inset);
-  backdrop-filter: blur(20px) saturate(1.16);
-  -webkit-backdrop-filter: blur(20px) saturate(1.16);
+  border: 0;
+  border-radius: 0;
+  padding: 0 0 var(--probe-tabs-bottom-padding);
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .probe-tabs-surface .liquid-glass-content,
@@ -3649,9 +3752,12 @@ textarea:hover {
 
 .probe-tabs button.active,
 .probe-tabs button[data-state="active"] {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 18%, transparent), var(--accent-soft)),
-    var(--control-bg);
+  background: var(--probe-tab-active-bg);
+}
+
+.probe-tabs button.active .probe-tab-meta,
+.probe-tabs button[data-state="active"] .probe-tab-meta {
+  color: color-mix(in srgb, var(--probe-tab-text) 82%, var(--probe-tab-meta-color));
 }
 
 .hop-card,

@@ -1,4 +1,5 @@
 import { useEffect, useId, type MouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Button } from "./ui/button";
@@ -44,7 +45,7 @@ export function GlassOverlay({
   const overlayClassName = `glass-overlay glass-overlay-${size} glass-overlay-${placement} glass-overlay-chrome-${chrome}`;
 
   if (chrome === "bare") {
-    return (
+    const overlay = (
       <div className={overlayClassName} onMouseDown={closeFromBackdrop}>
         <section
           className={`glass-overlay-bare-surface ${className}`.trim()}
@@ -56,9 +57,10 @@ export function GlassOverlay({
         </section>
       </div>
     );
+    return renderOverlay(overlay);
   }
 
-  return (
+  return renderOverlay(
     <div className={overlayClassName} onMouseDown={closeFromBackdrop}>
       <LiquidGlassSurface variant="floatingPanel" fullWidth className={`glass-overlay-surface ${className}`.trim()}>
         <section className="glass-overlay-panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
@@ -71,6 +73,11 @@ export function GlassOverlay({
           <div className="glass-overlay-body">{children}</div>
         </section>
       </LiquidGlassSurface>
-    </div>
+    </div>,
   );
+}
+
+function renderOverlay(overlay: ReactNode): ReactNode {
+  if (typeof document === "undefined") return overlay;
+  return createPortal(overlay, document.body);
 }

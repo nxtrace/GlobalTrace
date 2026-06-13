@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { filterChips } from "../../shared/filters";
 import { FilterPanel } from "./FilterPanel";
 import type { TraceFilters } from "../../shared/types";
@@ -33,8 +33,10 @@ const NETWORK_MAGIC_SUGGESTIONS = [
   "Los Angeles+US+AS7922+eyeball-network",
 ];
 
+const exactFiltersPanel = () => screen.getByText("精确筛选").closest("details") as HTMLDetailsElement;
+
 const openExactFilters = () => {
-  fireEvent.click(screen.getByText("精确筛选"));
+  if (!exactFiltersPanel().open) fireEvent.click(screen.getByText("精确筛选"));
 };
 
 const openAdvancedParams = () => {
@@ -42,6 +44,10 @@ const openAdvancedParams = () => {
 };
 
 describe("FilterPanel", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("shows active filters, advanced controls, and reset action", () => {
     const filters: TraceFilters = { country: "US", city: "Los Angeles", eyeball: true };
     const onReset = vi.fn();
@@ -115,8 +121,8 @@ describe("FilterPanel", () => {
     expect(screen.queryByRole("button", { name: "切换到 2D 视图" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "切换到 3D 视图" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toBeVisible();
-    expect(screen.getByLabelText("eyeball")).not.toBeVisible();
-    expect(screen.getByLabelText("datacenter")).not.toBeVisible();
+    expect(screen.getByLabelText("eyeball")).toBeVisible();
+    expect(screen.getByLabelText("datacenter")).toBeVisible();
     expect(screen.queryByLabelText("液态玻璃效果")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Globalping Token")).not.toBeInTheDocument();
     expect(screen.getByText(/Powered by/)).toBeInTheDocument();
@@ -171,6 +177,36 @@ describe("FilterPanel", () => {
 
     expect(onProtocolChange).toHaveBeenCalledWith("TCP");
     expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, eyeball: true });
+  });
+
+  it("defaults exact filters open on desktop and collapsed on mobile", () => {
+    mockExactFiltersViewport(true);
+    const desktop = renderPanel();
+
+    expect(exactFiltersPanel().open).toBe(true);
+    expect(screen.getByLabelText("国家/地区")).toBeVisible();
+
+    desktop.unmount();
+    mockExactFiltersViewport(false);
+    renderPanel();
+
+    expect(exactFiltersPanel().open).toBe(false);
+    expect(screen.getByLabelText("国家/地区")).not.toBeVisible();
+  });
+
+  it("syncs exact filters with the breakpoint until the user toggles them", () => {
+    const viewport = mockExactFiltersViewport(false);
+    renderPanel();
+
+    expect(exactFiltersPanel().open).toBe(false);
+    act(() => viewport.setMatches(true));
+    expect(exactFiltersPanel().open).toBe(true);
+
+    fireEvent.click(screen.getByText("精确筛选"));
+    expect(exactFiltersPanel().open).toBe(false);
+    act(() => viewport.setMatches(false));
+    act(() => viewport.setMatches(true));
+    expect(exactFiltersPanel().open).toBe(false);
   });
 
   it("keeps run controls in the footer when the magic summary is long", () => {
@@ -704,4 +740,34 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
 function expectSuggestionOptions(values: string[]) {
   const listbox = screen.getByRole("listbox", { name: "候选列表" });
   expect(within(listbox).getAllByRole("option").map((option) => option.textContent)).toEqual(values);
+}
+
+function mockExactFiltersViewport(initialMatches: boolean) {
+  let matches = initialMatches;
+  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+  const mediaQueryList = {
+    get matches() {
+      return matches;
+    },
+    media: "(min-width: 821px)",
+    onchange: null,
+    addEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
+      if (type === "change") listeners.add(listener);
+    }),
+    removeEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
+      if (type === "change") listeners.delete(listener);
+    }),
+    addListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => listeners.add(listener)),
+    removeListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener)),
+    dispatchEvent: vi.fn(),
+  } as unknown as MediaQueryList;
+
+  vi.stubGlobal("matchMedia", vi.fn(() => mediaQueryList));
+  return {
+    setMatches(nextMatches: boolean) {
+      matches = nextMatches;
+      const event = { matches, media: "(min-width: 821px)" } as MediaQueryListEvent;
+      listeners.forEach((listener) => listener(event));
+    },
+  };
 }

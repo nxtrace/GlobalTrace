@@ -204,7 +204,7 @@ function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["var
       aberrationIntensity: 1.95,
       elasticity: 0.22,
       cornerRadius: 999,
-      overLight: true,
+      overLight: false,
       mode: "standard" as const,
     };
   }
@@ -217,7 +217,7 @@ function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["var
       aberrationIntensity: 1.8,
       elasticity: 0.18,
       cornerRadius: 999,
-      overLight: true,
+      overLight: false,
       mode: "standard" as const,
     };
   }
