@@ -684,6 +684,10 @@ test("liquid glass surfaces keep textured backgrounds and restrained shadows", a
 
   await expect(page.locator(".primary-controls-surface")).toBeVisible({ timeout: 8000 });
   await expect(page.locator('.panel-action-surface[data-liquid-glass-mode="liquid"]').first()).toBeVisible();
+  await expect(page.locator('.panel-action-surface[data-liquid-glass-mode="liquid"]').first()).toHaveAttribute(
+    "data-liquid-glass-intensity",
+    "70",
+  );
   await expect(page.locator('.filter-summary-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
   await expect(page.locator('.run-action-surface[data-liquid-glass-interactive="true"]')).toBeVisible();
   await expect(page.getByText(/背景：岁月的层峦/)).toBeHidden();
@@ -961,12 +965,14 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
     const activeSurfaceContent = activeSurface?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const frameSurface = tabs.closest(".probe-tabs-frame-surface") as HTMLElement | null;
     const frameContent = frameSurface?.querySelector(".probe-tabs-frame") as HTMLElement | null;
+    const frameSurfaceContent = frameSurface?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const tabsRect = tabs.getBoundingClientRect();
     const buttonBottom = Math.max(...buttons.map((button) => button.getBoundingClientRect().bottom));
     const firstButtonStyle = buttons[0] ? window.getComputedStyle(buttons[0]) : null;
     const activeButtonStyle = activeButton ? window.getComputedStyle(activeButton) : null;
     const activeSurfaceContentStyle = activeSurfaceContent ? window.getComputedStyle(activeSurfaceContent) : null;
     const frameContentStyle = frameContent ? window.getComputedStyle(frameContent) : null;
+    const frameSurfaceContentStyle = frameSurfaceContent ? window.getComputedStyle(frameSurfaceContent) : null;
     const styles = window.getComputedStyle(tabs);
     const radiusValue = (value: string) => Number.parseFloat(value.split(" ")[0] || "0");
     return {
@@ -992,6 +998,12 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
       frameBorderTopWidth: frameContentStyle?.borderTopWidth ?? "",
       frameBoxShadow: frameContentStyle?.boxShadow ?? "",
       frameClassName: frameSurface?.className ?? "",
+      frameSurfaceMode: frameSurface?.getAttribute("data-liquid-glass-mode") ?? "",
+      frameSurfaceIntensity: frameSurface?.getAttribute("data-liquid-glass-intensity") ?? "",
+      frameSurfaceBackgroundColor: frameSurfaceContentStyle?.backgroundColor ?? "",
+      frameSurfaceBackgroundImage: frameSurfaceContentStyle?.backgroundImage ?? "",
+      frameSurfaceBorderTopWidth: frameSurfaceContentStyle?.borderTopWidth ?? "",
+      frameSurfaceBoxShadow: frameSurfaceContentStyle?.boxShadow ?? "",
       frameRadiusValue: radiusValue(frameContentStyle?.borderRadius ?? "0"),
       activeSurfaceRadiusValue: radiusValue(activeSurfaceContentStyle?.borderRadius ?? "0"),
       clientWidth: tabs.clientWidth,
@@ -1012,8 +1024,13 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.boxShadow).toBe("none");
   expect(state.probeTabsSurfaceCount).toBe(0);
-  expect(state.probeTabsFrameSurfaceCount).toBe(0);
+  expect(state.probeTabsFrameSurfaceCount).toBe(1);
   expect(state.frameClassName).toContain("probe-tabs-frame-surface");
+  expect(state.frameSurfaceMode).toMatch(/^(liquid|fallback)$/);
+  expect(state.frameSurfaceIntensity).toBe("70");
+  expect(state.frameSurfaceBackgroundImage).not.toBe("none");
+  expect(state.frameSurfaceBorderTopWidth).toBe("1px");
+  expect(state.frameSurfaceBoxShadow).not.toBe("none");
   expect(state.frameBackgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.frameBackgroundImage).toBe("none");
   expect(state.frameBorderTopWidth).toBe("0px");
@@ -1603,6 +1620,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const tabsFrame = tabs?.closest(".probe-tabs-frame-surface") as HTMLElement | null;
     const tabsFrameContent = tabsFrame?.querySelector(".probe-tabs-frame") as HTMLElement | null;
+    const tabsFrameSurfaceContent = tabsFrame?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const routeTabs = Array.from(document.querySelectorAll(".probe-tabs [role='tab']")) as HTMLElement[];
     const activeRouteTab = routeTabs.find((button) => button.getAttribute("aria-selected") === "true") ?? null;
     const activeRouteSurface = activeRouteTab?.closest(".probe-tab-surface") as HTMLElement | null;
@@ -1680,6 +1698,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const activeRouteTabStyle = activeRouteTab ? window.getComputedStyle(activeRouteTab) : null;
     const activeRouteSurfaceStyle = activeRouteSurfaceContent ? window.getComputedStyle(activeRouteSurfaceContent) : null;
     const tabsFrameStyle = tabsFrameContent ? window.getComputedStyle(tabsFrameContent) : null;
+    const tabsFrameSurfaceStyle = tabsFrameSurfaceContent ? window.getComputedStyle(tabsFrameSurfaceContent) : null;
     const radiusValue = (value: string) => Number.parseFloat(value.split(" ")[0] || "0");
     return {
       documentScroll: doc.scrollWidth,
@@ -1722,6 +1741,14 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
         boxShadow: tabsFrameStyle?.boxShadow ?? "",
         className: tabsFrame?.className ?? "",
         radiusValue: radiusValue(tabsFrameStyle?.borderRadius ?? "0"),
+      },
+      tabsFrameSurfaceStyle: {
+        backgroundColor: tabsFrameSurfaceStyle?.backgroundColor ?? "",
+        backgroundImage: tabsFrameSurfaceStyle?.backgroundImage ?? "",
+        borderTopWidth: tabsFrameSurfaceStyle?.borderTopWidth ?? "",
+        boxShadow: tabsFrameSurfaceStyle?.boxShadow ?? "",
+        mode: tabsFrame?.getAttribute("data-liquid-glass-mode") ?? "",
+        intensity: tabsFrame?.getAttribute("data-liquid-glass-intensity") ?? "",
       },
       probeTabsSurfaceCount: document.querySelectorAll(".probe-tabs-surface").length,
       probeTabsFrameSurfaceCount: document.querySelectorAll(".probe-tabs-frame-surface[data-liquid-glass]").length,
@@ -1817,12 +1844,17 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgb(255, 255, 255)");
   expect(state.actionSurfaceStyles.copy.backgroundColor).not.toBe("rgba(255, 255, 255, 0.9)");
   expect(state.probeTabsSurfaceCount).toBe(0);
-  expect(state.probeTabsFrameSurfaceCount).toBe(0);
+  expect(state.probeTabsFrameSurfaceCount).toBe(1);
   expect(state.routeTabSurfaceCount).toBe(state.routeTabCount);
   expect(state.tabsBackgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.tabsBorderTopWidth).toBe("0px");
   expect(state.tabsBoxShadow).toBe("none");
   expect(state.tabsFrameStyle.className).toContain("probe-tabs-frame-surface");
+  expect(state.tabsFrameSurfaceStyle.mode).toMatch(/^(liquid|fallback)$/);
+  expect(state.tabsFrameSurfaceStyle.intensity).toBe("70");
+  expect(state.tabsFrameSurfaceStyle.backgroundImage).not.toBe("none");
+  expect(state.tabsFrameSurfaceStyle.borderTopWidth).toBe("1px");
+  expect(state.tabsFrameSurfaceStyle.boxShadow).not.toBe("none");
   expect(state.tabsFrameStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.tabsFrameStyle.backgroundImage).toBe("none");
   expect(state.tabsFrameStyle.borderTopWidth).toBe("0px");

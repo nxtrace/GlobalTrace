@@ -1,5 +1,6 @@
 import { ArrowLeft, ExternalLink, Globe2, Route, Scale } from "lucide-react";
 import type { BackgroundImage } from "../api";
+import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 
@@ -23,7 +24,8 @@ const attributionLinks = [
 
 export function AboutPage({ backgroundImage, onBack }: AboutPageProps) {
   return (
-    <section className="about-panel">
+    <LiquidGlassSurface variant="floatingPanel" fullWidth className="about-panel-surface">
+      <section className="about-panel">
       <div className="about-header">
         <div className="about-copy">
           <h1>GlobalTrace</h1>
@@ -96,6 +98,7 @@ export function AboutPage({ backgroundImage, onBack }: AboutPageProps) {
           </a>
         </Surface>
       )}
-    </section>
+      </section>
+    </LiquidGlassSurface>
   );
 }

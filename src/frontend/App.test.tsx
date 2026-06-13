@@ -193,13 +193,22 @@ describe("App", () => {
     openAdvancedParams();
 
     const liquidGlassSwitch = screen.getByRole("switch", { name: "液态玻璃效果" });
+    const liquidGlassIntensity = screen.getByLabelText("液态玻璃强度") as HTMLInputElement;
     expect(liquidGlassSwitch).toBeChecked();
+    expect(liquidGlassIntensity).toHaveValue("70");
+
+    fireEvent.change(liquidGlassIntensity, { target: { value: "85" } });
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.liquidGlassIntensity")).toBe("85");
+    });
 
     fireEvent.click(liquidGlassSwitch);
     await waitFor(() => {
       expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe("disabled");
     });
     expect(screen.getByRole("switch", { name: "液态玻璃效果" })).not.toBeChecked();
+    expect(screen.getByLabelText("液态玻璃强度")).toBeDisabled();
+    expect(screen.getByLabelText("液态玻璃强度")).toHaveValue("85");
     expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
 
     fireEvent.click(screen.getByRole("switch", { name: "液态玻璃效果" }));
@@ -406,8 +415,9 @@ describe("App", () => {
     expect(document.querySelector(".glass-overlay-about .glass-overlay-header")).toBeNull();
     expect(document.querySelector(".glass-overlay-about .glass-overlay-body")).toBeNull();
     expect(document.querySelector(".glass-overlay-about .glass-overlay-panel")).toBeNull();
-    expect(aboutDialog.querySelector(".about-panel")).not.toBeNull();
     expect(await within(aboutDialog).findByRole("heading", { name: "GlobalTrace" })).toBeInTheDocument();
+    expect(aboutDialog.querySelector(".about-panel-surface[data-liquid-glass]")).not.toBeNull();
+    expect(aboutDialog.querySelector(".about-panel")).not.toBeNull();
     expect(
       within(aboutDialog).getByText(
         "GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。",

@@ -924,6 +924,47 @@ summary:focus-visible {
   font-size: 12px;
 }
 
+.liquid-intensity-control {
+  display: grid;
+  gap: 8px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.liquid-intensity-control > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.liquid-intensity-control output {
+  min-width: 3ch;
+  color: var(--ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.liquid-intensity-slider {
+  width: 100%;
+  height: 12px;
+  padding: 0;
+  cursor: pointer;
+  border: 0;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(45, 212, 191, 0.7), rgba(35, 184, 255, 0.58), rgba(139, 92, 246, 0.62)),
+    var(--control-bg);
+  box-shadow: var(--shadow-inset);
+  accent-color: var(--accent);
+}
+
+.liquid-intensity-slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .token-actions,
 .attribution-panel {
   display: flex;
@@ -1790,13 +1831,12 @@ tbody tr:hover {
 }
 
 .probe-tabs-frame-surface {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  width: 100%;
 }
 
 .probe-tabs-frame {
   display: block;
-  padding: 0;
+  padding: 6px;
   overflow: visible;
   border: 0;
   background: transparent;
@@ -1805,23 +1845,20 @@ tbody tr:hover {
   -webkit-backdrop-filter: none;
 }
 
-.probe-tabs-frame-surface > span[style],
-.probe-tabs-frame-surface > div[style]:not(.liquid-glass-package) {
-  display: none !important;
-}
-
 .probe-tabs-frame-surface .glass {
-  background: transparent !important;
+  background: var(--probe-tabs-frame-bg);
   box-shadow: none !important;
 }
 
 .probe-tabs-frame-surface .liquid-glass-content,
 .probe-tabs-frame-surface .liquid-glass-fallback-content {
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--probe-tabs-frame-border);
+  background: var(--probe-tabs-frame-bg);
+  box-shadow: var(--probe-tabs-frame-shadow);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
 }
 
 .probe-tabs {
@@ -3846,6 +3883,14 @@ textarea:hover {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.probe-tabs-frame-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+  border-color: var(--probe-tabs-frame-border);
+  background: var(--probe-tabs-frame-bg);
+  box-shadow: var(--probe-tabs-frame-shadow);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }

@@ -1,7 +1,12 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LiquidGlassSurface } from "./LiquidGlassSurface";
+import {
+  LiquidGlassPreferenceProvider,
+  LiquidGlassSurface,
+  readStoredLiquidGlassIntensity,
+  writeStoredLiquidGlassIntensity,
+} from "./LiquidGlassSurface";
 
 const liquidGlassCalls = vi.hoisted(() => [] as Array<Record<string, unknown>>);
 
@@ -176,50 +181,50 @@ describe("LiquidGlassSurface", () => {
     [
       "iconButton",
       {
-        displacementScale: 62,
-        blurAmount: 0.058,
-        saturation: 148,
-        aberrationIntensity: 1.95,
-        elasticity: 0.22,
+        displacementScale: 79,
+        blurAmount: 0.068,
+        saturation: 158.6,
+        aberrationIntensity: 2.57,
+        elasticity: 0.306,
         cornerRadius: 999,
         overLight: false,
-        mode: "standard",
+        mode: "prominent",
       },
     ],
     [
       "button",
       {
-        displacementScale: 56,
-        blurAmount: 0.052,
-        saturation: 142,
-        aberrationIntensity: 1.8,
-        elasticity: 0.18,
+        displacementScale: 75,
+        blurAmount: 0.065,
+        saturation: 156,
+        aberrationIntensity: 2.385,
+        elasticity: 0.283,
         cornerRadius: 999,
         overLight: false,
-        mode: "standard",
+        mode: "prominent",
       },
     ],
     [
       "tab",
       {
-        displacementScale: 42,
-        blurAmount: 0.046,
-        saturation: 144,
-        aberrationIntensity: 1.45,
-        elasticity: 0.12,
+        displacementScale: 65.8,
+        blurAmount: 0.06,
+        saturation: 155.2,
+        aberrationIntensity: 2.155,
+        elasticity: 0.243,
         cornerRadius: 999,
         overLight: false,
-        mode: "standard",
+        mode: "prominent",
       },
     ],
     [
       "toolbar",
       {
-        displacementScale: 38,
-        blurAmount: 0.044,
-        saturation: 142,
-        aberrationIntensity: 1.35,
-        elasticity: 0.1,
+        displacementScale: 59.6,
+        blurAmount: 0.058,
+        saturation: 153.2,
+        aberrationIntensity: 1.98,
+        elasticity: 0.198,
         cornerRadius: 18,
         overLight: false,
         mode: "standard",
@@ -228,11 +233,11 @@ describe("LiquidGlassSurface", () => {
     [
       "metric",
       {
-        displacementScale: 36,
-        blurAmount: 0.042,
-        saturation: 144,
-        aberrationIntensity: 1.3,
-        elasticity: 0.1,
+        displacementScale: 56.2,
+        blurAmount: 0.056,
+        saturation: 153.8,
+        aberrationIntensity: 1.93,
+        elasticity: 0.184,
         cornerRadius: 16,
         overLight: false,
         mode: "standard",
@@ -241,11 +246,11 @@ describe("LiquidGlassSurface", () => {
     [
       "floatingPanel",
       {
-        displacementScale: 34,
-        blurAmount: 0.048,
-        saturation: 144,
-        aberrationIntensity: 1.25,
-        elasticity: 0.09,
+        displacementScale: 54.2,
+        blurAmount: 0.062,
+        saturation: 155.2,
+        aberrationIntensity: 1.88,
+        elasticity: 0.174,
         cornerRadius: 24,
         overLight: false,
         mode: "standard",
@@ -254,11 +259,11 @@ describe("LiquidGlassSurface", () => {
     [
       "panel",
       {
-        displacementScale: 28,
-        blurAmount: 0.036,
-        saturation: 142,
-        aberrationIntensity: 1.05,
-        elasticity: 0.07,
+        displacementScale: 48.2,
+        blurAmount: 0.052,
+        saturation: 151.8,
+        aberrationIntensity: 1.73,
+        elasticity: 0.164,
         cornerRadius: 18,
         overLight: false,
         mode: "standard",
@@ -276,6 +281,60 @@ describe("LiquidGlassSurface", () => {
     await waitFor(() => expect(liquidGlassCalls).toHaveLength(1));
     expect(liquidGlassCalls[0]).toMatchObject(expectedProps);
     expect(liquidGlassCalls[0]).not.toHaveProperty("onClick");
+    expect(screen.getByText("Variant content").closest("[data-liquid-glass]")).toHaveAttribute(
+      "data-liquid-glass-intensity",
+      "70",
+    );
+  });
+
+  it("maps stored intensity into stronger liquid glass props", async () => {
+    setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+
+    const { rerender } = render(
+      <LiquidGlassPreferenceProvider enabled intensity={20}>
+        <LiquidGlassSurface variant="button">
+          <span>Intensity content</span>
+        </LiquidGlassSurface>
+      </LiquidGlassPreferenceProvider>,
+    );
+
+    await waitFor(() => expect(liquidGlassCalls).toHaveLength(1));
+    const lowIntensityProps = liquidGlassCalls[0];
+    expect(screen.getByText("Intensity content").closest("[data-liquid-glass]")).toHaveAttribute(
+      "data-liquid-glass-intensity",
+      "20",
+    );
+
+    rerender(
+      <LiquidGlassPreferenceProvider enabled intensity={90}>
+        <LiquidGlassSurface variant="button">
+          <span>Intensity content</span>
+        </LiquidGlassSurface>
+      </LiquidGlassPreferenceProvider>,
+    );
+
+    await waitFor(() => expect(liquidGlassCalls).toHaveLength(2));
+    const highIntensityProps = liquidGlassCalls[1];
+    expect(highIntensityProps.displacementScale as number).toBeGreaterThan(lowIntensityProps.displacementScale as number);
+    expect(highIntensityProps.aberrationIntensity as number).toBeGreaterThan(
+      lowIntensityProps.aberrationIntensity as number,
+    );
+    expect(highIntensityProps.elasticity as number).toBeGreaterThan(lowIntensityProps.elasticity as number);
+    expect(screen.getByText("Intensity content").closest("[data-liquid-glass]")).toHaveAttribute(
+      "data-liquid-glass-intensity",
+      "90",
+    );
+  });
+
+  it("persists liquid glass intensity with clamped defaults", () => {
+    expect(readStoredLiquidGlassIntensity()).toBe(70);
+    window.localStorage.setItem("globaltrace.liquidGlassIntensity", "not-a-number");
+    expect(readStoredLiquidGlassIntensity()).toBe(70);
+
+    writeStoredLiquidGlassIntensity(118);
+    expect(window.localStorage.getItem("globaltrace.liquidGlassIntensity")).toBe("100");
+    writeStoredLiquidGlassIntensity(-4);
+    expect(window.localStorage.getItem("globaltrace.liquidGlassIntensity")).toBe("0");
   });
 
   it("passes interactive click feedback only when enabled", async () => {

@@ -247,7 +247,8 @@ describe("ResultsView", () => {
     expect(document.querySelector(".probe-tabs-surface")).toBeNull();
     expect(tabs?.closest(".probe-tabs-surface")).toBeNull();
     expect(tabsFrame).not.toBeNull();
-    expect(tabsFrame).not.toHaveAttribute("data-liquid-glass");
+    expect(tabsFrame).toHaveAttribute("data-liquid-glass");
+    expect(tabsFrame).toHaveAttribute("data-liquid-glass-intensity", "70");
     expect(tabsFrame?.querySelector(".probe-tabs-frame")).not.toBeNull();
     expect(tabs?.closest(".probe-tabs-frame-surface")).toBe(tabsFrame);
     expect(tabsFrame?.parentElement).toHaveClass("probe-tabs-root");

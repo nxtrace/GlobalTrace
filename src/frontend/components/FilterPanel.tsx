@@ -40,6 +40,7 @@ interface FilterPanelProps {
   nexttraceTokenRemembered: boolean;
   themeMode: ThemeMode;
   liquidGlassEnabled: boolean;
+  liquidGlassIntensity: number;
   onTargetChange: (value: string) => void;
   onProtocolChange: (value: TraceProtocol) => void;
   onIpVersionChange: (value: IpVersionSelection) => void;
@@ -57,6 +58,7 @@ interface FilterPanelProps {
   onNexttraceTokenRememberedChange: (remembered: boolean) => void;
   onCycleThemeMode: () => void;
   onLiquidGlassEnabledChange: (enabled: boolean) => void;
+  onLiquidGlassIntensityChange: (intensity: number) => void;
   onOpenAdvancedParams?: () => void;
   onNavigateHome: () => void;
   onNavigateAbout: () => void;
@@ -453,6 +455,7 @@ function AdvancedParamsPanel({
   globalpingTokenStatusId: string;
   nexttraceTokenStatusId: string;
 }) {
+  const liquidGlassIntensityId = useId();
   return (
     <div className="advanced-params-panel">
       <div className="control-grid">
@@ -492,6 +495,26 @@ function AdvancedParamsPanel({
             aria-label="液态玻璃效果"
           />
         </label>
+        <div className="liquid-intensity-control">
+          <span>
+            <label htmlFor={liquidGlassIntensityId}>液态玻璃强度</label>
+            <output htmlFor={liquidGlassIntensityId} aria-hidden="true">
+              {props.liquidGlassIntensity}
+            </output>
+          </span>
+          <input
+            id={liquidGlassIntensityId}
+            className="liquid-intensity-slider"
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={props.liquidGlassIntensity}
+            disabled={!props.liquidGlassEnabled}
+            onChange={(event) => props.onLiquidGlassIntensityChange(Number(event.target.value))}
+            aria-label="液态玻璃强度"
+          />
+        </div>
       </div>
 
       <div className="token-section">

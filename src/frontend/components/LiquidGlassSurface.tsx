@@ -4,14 +4,25 @@ import { deferUntilIdle } from "../lib/defer";
 type LiquidGlassComponent = (typeof import("liquid-glass-react"))["default"];
 const LIQUID_GLASS_IDLE_TIMEOUT_MS = 4000;
 const LIQUID_GLASS_STORAGE_KEY = "globaltrace.liquidGlass";
+const LIQUID_GLASS_INTENSITY_STORAGE_KEY = "globaltrace.liquidGlassIntensity";
 const LIQUID_GLASS_ENABLED_VALUE = "enabled";
 const LIQUID_GLASS_DISABLED_VALUE = "disabled";
-const LiquidGlassPreferenceContext = createContext<boolean | null>(null);
+export const DEFAULT_LIQUID_GLASS_INTENSITY = 70;
+export const MIN_LIQUID_GLASS_INTENSITY = 0;
+export const MAX_LIQUID_GLASS_INTENSITY = 100;
+
+interface LiquidGlassPreference {
+  enabled: boolean;
+  intensity: number;
+}
+
+const LiquidGlassPreferenceContext = createContext<LiquidGlassPreference | null>(null);
 let fallbackClassReferences = 0;
 
 interface LiquidGlassPreferenceProviderProps {
   children: ReactNode;
   enabled: boolean;
+  intensity: number;
 }
 
 interface LiquidGlassSurfaceProps {
@@ -24,8 +35,15 @@ interface LiquidGlassSurfaceProps {
   disabled?: boolean;
 }
 
-export function LiquidGlassPreferenceProvider({ children, enabled }: LiquidGlassPreferenceProviderProps) {
-  return <LiquidGlassPreferenceContext.Provider value={enabled}>{children}</LiquidGlassPreferenceContext.Provider>;
+export function LiquidGlassPreferenceProvider({ children, enabled, intensity }: LiquidGlassPreferenceProviderProps) {
+  const value = useMemo(
+    () => ({
+      enabled,
+      intensity: clampLiquidGlassIntensity(intensity),
+    }),
+    [enabled, intensity],
+  );
+  return <LiquidGlassPreferenceContext.Provider value={value}>{children}</LiquidGlassPreferenceContext.Provider>;
 }
 
 export function LiquidGlassSurface({
@@ -37,8 +55,8 @@ export function LiquidGlassSurface({
   interactive = false,
   disabled = false,
 }: LiquidGlassSurfaceProps) {
-  const liquidGlassEnabled = useLiquidGlassEnabled();
-  const forceFallback = useForceFallback(liquidGlassEnabled);
+  const liquidGlassPreference = useLiquidGlassPreference();
+  const forceFallback = useForceFallback(liquidGlassPreference.enabled);
   const canUseLiquid = !forceFallback && supportsGlassEffects();
   const [LiquidGlass, setLiquidGlass] = useState<LiquidGlassComponent | null>(null);
   const canRenderLiquid = canUseLiquid && LiquidGlass;
@@ -60,7 +78,7 @@ export function LiquidGlassSurface({
     };
   }, [LiquidGlass, canUseLiquid]);
 
-  const glassProps = liquidPropsForVariant(variant);
+  const glassProps = liquidPropsForVariant(variant, liquidGlassPreference.intensity);
   const interactiveProps = interactive && !disabled ? { onClick: noop } : {};
   const classes = [
     "liquid-glass-surface",
@@ -77,6 +95,7 @@ export function LiquidGlassSurface({
       className={classes}
       data-liquid-glass
       data-liquid-glass-mode={mode}
+      data-liquid-glass-intensity={liquidGlassPreference.intensity}
       data-liquid-glass-interactive={interactive && !disabled ? "true" : undefined}
       style={style}
     >
@@ -129,6 +148,30 @@ export function writeStoredLiquidGlassEnabled(enabled: boolean): void {
   }
 }
 
+export function readStoredLiquidGlassIntensity(): number {
+  if (typeof window === "undefined") return DEFAULT_LIQUID_GLASS_INTENSITY;
+  try {
+    return clampLiquidGlassIntensity(window.localStorage.getItem(LIQUID_GLASS_INTENSITY_STORAGE_KEY));
+  } catch {
+    return DEFAULT_LIQUID_GLASS_INTENSITY;
+  }
+}
+
+export function writeStoredLiquidGlassIntensity(intensity: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LIQUID_GLASS_INTENSITY_STORAGE_KEY, String(clampLiquidGlassIntensity(intensity)));
+  } catch {
+    // Liquid glass preference is best-effort.
+  }
+}
+
+export function clampLiquidGlassIntensity(value: unknown): number {
+  const numeric = typeof value === "number" ? value : Number.parseFloat(String(value ?? ""));
+  if (!Number.isFinite(numeric)) return DEFAULT_LIQUID_GLASS_INTENSITY;
+  return Math.min(MAX_LIQUID_GLASS_INTENSITY, Math.max(MIN_LIQUID_GLASS_INTENSITY, Math.round(numeric)));
+}
+
 function deferUntilWindowLoadIdle(callback: () => void, timeoutMs: number): () => void {
   if (typeof window === "undefined") return () => undefined;
 
@@ -152,10 +195,11 @@ function deferUntilWindowLoadIdle(callback: () => void, timeoutMs: number): () =
   };
 }
 
-function useLiquidGlassEnabled(): boolean {
-  const contextEnabled = useContext(LiquidGlassPreferenceContext);
+function useLiquidGlassPreference(): LiquidGlassPreference {
+  const contextPreference = useContext(LiquidGlassPreferenceContext);
   const [defaultEnabled] = useState(readStoredLiquidGlassEnabled);
-  return contextEnabled ?? defaultEnabled;
+  const [defaultIntensity] = useState(readStoredLiquidGlassIntensity);
+  return contextPreference ?? { enabled: defaultEnabled, intensity: defaultIntensity };
 }
 
 function useForceFallback(liquidGlassEnabled: boolean): boolean {
@@ -198,106 +242,106 @@ function supportsGlassEffects(): boolean {
   return supportsBackdrop && supportsSvgFilter;
 }
 
-function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["variant"]>) {
-  if (variant === "iconButton") {
-    return {
-      displacementScale: 62,
-      blurAmount: 0.058,
-      saturation: 148,
-      aberrationIntensity: 1.95,
-      elasticity: 0.22,
+function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["variant"]>, intensity: number) {
+  const t = clampLiquidGlassIntensity(intensity) / MAX_LIQUID_GLASS_INTENSITY;
+  const specs = {
+    iconButton: {
+      displacementScale: [58, 88],
+      blurAmount: [0.054, 0.074],
+      saturation: [146, 164],
+      aberrationIntensity: [1.8, 2.9],
+      elasticity: [0.18, 0.36],
       cornerRadius: 999,
-      overLight: false,
-      mode: "standard" as const,
-    };
-  }
-
-  if (variant === "button") {
-    return {
-      displacementScale: 56,
-      blurAmount: 0.052,
-      saturation: 142,
-      aberrationIntensity: 1.8,
-      elasticity: 0.18,
+      mode: "prominent" as const,
+    },
+    button: {
+      displacementScale: [54, 84],
+      blurAmount: [0.05, 0.072],
+      saturation: [142, 162],
+      aberrationIntensity: [1.65, 2.7],
+      elasticity: [0.15, 0.34],
       cornerRadius: 999,
-      overLight: false,
-      mode: "standard" as const,
-    };
-  }
-
-  if (variant === "tab") {
-    return {
-      displacementScale: 42,
-      blurAmount: 0.046,
-      saturation: 144,
-      aberrationIntensity: 1.45,
-      elasticity: 0.12,
+      mode: "prominent" as const,
+    },
+    tab: {
+      displacementScale: [42, 76],
+      blurAmount: [0.046, 0.066],
+      saturation: [144, 160],
+      aberrationIntensity: [1.35, 2.5],
+      elasticity: [0.11, 0.3],
       cornerRadius: 999,
-      overLight: false,
-      mode: "standard" as const,
-    };
-  }
-
-  if (variant === "toolbar") {
-    return {
-      displacementScale: 38,
-      blurAmount: 0.044,
-      saturation: 142,
-      aberrationIntensity: 1.35,
-      elasticity: 0.1,
+      mode: "prominent" as const,
+    },
+    toolbar: {
+      displacementScale: [40, 68],
+      blurAmount: [0.044, 0.064],
+      saturation: [142, 158],
+      aberrationIntensity: [1.35, 2.25],
+      elasticity: [0.1, 0.24],
       cornerRadius: 18,
-      overLight: false,
       mode: "standard" as const,
-    };
-  }
-
-  if (variant === "metric") {
-    return {
-      displacementScale: 36,
-      blurAmount: 0.042,
-      saturation: 144,
-      aberrationIntensity: 1.3,
-      elasticity: 0.1,
+    },
+    metric: {
+      displacementScale: [38, 64],
+      blurAmount: [0.042, 0.062],
+      saturation: [144, 158],
+      aberrationIntensity: [1.3, 2.2],
+      elasticity: [0.1, 0.22],
       cornerRadius: 16,
-      overLight: false,
       mode: "standard" as const,
-    };
-  }
-
-  if (variant === "floatingPanel") {
-    return {
-      displacementScale: 34,
-      blurAmount: 0.048,
-      saturation: 144,
-      aberrationIntensity: 1.25,
-      elasticity: 0.09,
+    },
+    floatingPanel: {
+      displacementScale: [36, 62],
+      blurAmount: [0.048, 0.068],
+      saturation: [144, 160],
+      aberrationIntensity: [1.25, 2.15],
+      elasticity: [0.09, 0.21],
       cornerRadius: 24,
-      overLight: false,
       mode: "standard" as const,
-    };
-  }
-
-  if (variant === "panel") {
-    return {
-      displacementScale: 28,
-      blurAmount: 0.036,
-      saturation: 142,
-      aberrationIntensity: 1.05,
-      elasticity: 0.07,
+    },
+    panel: {
+      displacementScale: [30, 56],
+      blurAmount: [0.038, 0.058],
+      saturation: [142, 156],
+      aberrationIntensity: [1.1, 2],
+      elasticity: [0.08, 0.2],
       cornerRadius: 18,
-      overLight: false,
       mode: "standard" as const,
-    };
-  }
-
+    },
+    chip: {
+      displacementScale: [32, 58],
+      blurAmount: [0.036, 0.056],
+      saturation: [140, 154],
+      aberrationIntensity: [1.1, 1.95],
+      elasticity: [0.08, 0.19],
+      cornerRadius: 999,
+      mode: "standard" as const,
+    },
+  } satisfies Record<
+    NonNullable<LiquidGlassSurfaceProps["variant"]>,
+    {
+      displacementScale: [number, number];
+      blurAmount: [number, number];
+      saturation: [number, number];
+      aberrationIntensity: [number, number];
+      elasticity: [number, number];
+      cornerRadius: number;
+      mode: "standard" | "prominent";
+    }
+  >;
+  const spec = specs[variant];
   return {
-    displacementScale: 30,
-    blurAmount: 0.034,
-    saturation: 140,
-    aberrationIntensity: 1.05,
-    elasticity: 0.08,
-    cornerRadius: 999,
+    displacementScale: interpolate(spec.displacementScale, t),
+    blurAmount: interpolate(spec.blurAmount, t),
+    saturation: interpolate(spec.saturation, t),
+    aberrationIntensity: interpolate(spec.aberrationIntensity, t),
+    elasticity: interpolate(spec.elasticity, t),
+    cornerRadius: spec.cornerRadius,
     overLight: false,
-    mode: "standard" as const,
+    mode: spec.mode,
   };
+}
+
+function interpolate([min, max]: [number, number], t: number): number {
+  return Math.round((min + (max - min) * t) * 1000) / 1000;
 }

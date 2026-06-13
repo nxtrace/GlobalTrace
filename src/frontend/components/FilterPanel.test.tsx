@@ -78,6 +78,7 @@ describe("FilterPanel", () => {
         nexttraceTokenRemembered={false}
         themeMode="system"
         liquidGlassEnabled={true}
+        liquidGlassIntensity={70}
         onTargetChange={vi.fn()}
         onProtocolChange={vi.fn()}
         onIpVersionChange={vi.fn()}
@@ -95,6 +96,7 @@ describe("FilterPanel", () => {
         onNexttraceTokenRememberedChange={vi.fn()}
         onCycleThemeMode={vi.fn()}
         onLiquidGlassEnabledChange={vi.fn()}
+        onLiquidGlassIntensityChange={vi.fn()}
         onNavigateHome={vi.fn()}
         onNavigateAbout={vi.fn()}
         onReset={onReset}
@@ -164,6 +166,33 @@ describe("FilterPanel", () => {
     );
     fireEvent.change(screen.getByLabelText("magic string"), { target: { value: "DE+Hetzner" } });
     expect(onFiltersChange).toHaveBeenCalledWith({ magic: "DE+Hetzner" });
+  });
+
+  it("controls liquid glass intensity from the advanced dialog", () => {
+    const onLiquidGlassIntensityChange = vi.fn();
+    const { unmount } = renderPanel({
+      liquidGlassEnabled: true,
+      liquidGlassIntensity: 82,
+      onLiquidGlassIntensityChange,
+    });
+
+    openAdvancedParams();
+    const slider = screen.getByLabelText("液态玻璃强度") as HTMLInputElement;
+    expect(slider).toHaveValue("82");
+    expect(slider).not.toBeDisabled();
+    fireEvent.change(slider, { target: { value: "91" } });
+    expect(onLiquidGlassIntensityChange).toHaveBeenCalledWith(91);
+
+    unmount();
+    renderPanel({
+      liquidGlassEnabled: false,
+      liquidGlassIntensity: 42,
+      onLiquidGlassIntensityChange,
+    });
+    openAdvancedParams();
+    const disabledSlider = screen.getByLabelText("液态玻璃强度") as HTMLInputElement;
+    expect(disabledSlider).toHaveValue("42");
+    expect(disabledSlider).toBeDisabled();
   });
 
   it("updates network type filters and protocol controls", () => {
@@ -623,6 +652,7 @@ describe("FilterPanel", () => {
     const onNexttraceTokenRememberedChange = vi.fn();
     const onCycleThemeMode = vi.fn();
     const onLiquidGlassEnabledChange = vi.fn();
+    const onLiquidGlassIntensityChange = vi.fn();
     const onNavigateAbout = vi.fn();
     renderPanel({
       globalpingTokenDraft: "gp-token",
@@ -633,6 +663,7 @@ describe("FilterPanel", () => {
       nexttraceTokenRemembered: true,
       themeMode: "dark",
       liquidGlassEnabled: false,
+      liquidGlassIntensity: 70,
       onGlobalpingTokenDraftChange,
       onSaveGlobalpingToken,
       onClearGlobalpingToken,
@@ -643,6 +674,7 @@ describe("FilterPanel", () => {
       onNexttraceTokenRememberedChange,
       onCycleThemeMode,
       onLiquidGlassEnabledChange,
+      onLiquidGlassIntensityChange,
       onNavigateAbout,
     });
 
@@ -711,6 +743,7 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       nexttraceTokenRemembered={false}
       themeMode="system"
       liquidGlassEnabled={true}
+      liquidGlassIntensity={70}
       onTargetChange={vi.fn()}
       onProtocolChange={vi.fn()}
       onIpVersionChange={vi.fn()}
@@ -728,6 +761,7 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       onNexttraceTokenRememberedChange={vi.fn()}
       onCycleThemeMode={vi.fn()}
       onLiquidGlassEnabledChange={vi.fn()}
+      onLiquidGlassIntensityChange={vi.fn()}
       onNavigateHome={vi.fn()}
       onNavigateAbout={vi.fn()}
       onReset={vi.fn()}

@@ -17,7 +17,9 @@ import { GlassOverlay } from "./components/GlassOverlay";
 import {
   LiquidGlassPreferenceProvider,
   LiquidGlassSurface,
+  readStoredLiquidGlassIntensity,
   readStoredLiquidGlassEnabled,
+  writeStoredLiquidGlassIntensity,
   writeStoredLiquidGlassEnabled,
 } from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
@@ -82,6 +84,7 @@ export function App() {
   const [route, setRoute] = useState<AppRoute>(currentRoute);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
   const [liquidGlassEnabled, setLiquidGlassEnabled] = useState(readStoredLiquidGlassEnabled);
+  const [liquidGlassIntensity, setLiquidGlassIntensity] = useState(readStoredLiquidGlassIntensity);
   const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
   const [storedGlobalpingToken] = useState(readStoredGlobalpingToken);
@@ -541,6 +544,11 @@ export function App() {
     writeStoredLiquidGlassEnabled(enabled);
   }, []);
 
+  const updateLiquidGlassIntensity = useCallback((intensity: number) => {
+    setLiquidGlassIntensity(intensity);
+    writeStoredLiquidGlassIntensity(intensity);
+  }, []);
+
   const navigateAbout = useCallback(() => {
     window.history.pushState(null, "", "/about");
     setRoute("/about");
@@ -559,7 +567,7 @@ export function App() {
   }, []);
 
   return (
-    <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled}>
+    <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled} intensity={liquidGlassIntensity}>
       <BackgroundLayer backgroundImage={backgroundImage} />
       <main className={`app-shell${backgroundImage ? " ambient-photo-ready" : ""}${resultPriority ? " result-priority" : ""}`}>
         <FilterPanel
@@ -587,6 +595,7 @@ export function App() {
           nexttraceTokenRemembered={nexttraceTokenRemembered}
           themeMode={themeMode}
           liquidGlassEnabled={liquidGlassEnabled}
+          liquidGlassIntensity={liquidGlassIntensity}
           onTargetChange={setTarget}
           onProtocolChange={setProtocol}
           onIpVersionChange={setIpVersion}
@@ -604,6 +613,7 @@ export function App() {
           onNexttraceTokenRememberedChange={updateNexttraceTokenRemembered}
           onCycleThemeMode={cycleThemeMode}
           onLiquidGlassEnabledChange={updateLiquidGlassEnabled}
+          onLiquidGlassIntensityChange={updateLiquidGlassIntensity}
           onNavigateHome={navigateHome}
           onNavigateAbout={navigateAbout}
           onReset={reset}
@@ -619,10 +629,19 @@ export function App() {
               </div>
               <div className="status-actions">
                 {finalResult && workspaceMode === "select" && (
-                  <Button variant="glass" size="sm" type="button" onClick={showResult} aria-label="查看结果">
-                    <Eye size={16} />
-                    查看结果
-                  </Button>
+                  <LiquidGlassSurface variant="button" className="result-command-surface status-action-surface">
+                    <Button
+                      variant="glass"
+                      size="sm"
+                      type="button"
+                      className="result-command-button status-action-button"
+                      onClick={showResult}
+                      aria-label="查看结果"
+                    >
+                      <Eye size={16} />
+                      查看结果
+                    </Button>
+                  </LiquidGlassSurface>
                 )}
                 {limits && (
                   <Badge variant="accent" className="quota-chip">
