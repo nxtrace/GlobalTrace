@@ -1,7 +1,6 @@
 import type { NxtraceGeo, TraceHop } from "../../shared/types";
 
 const COORDINATE_EQUALITY_EPSILON = 1e-6;
-const EARTH_RADIUS_KM = 6371.0088;
 
 export type ResultRouteCoordinate = [number, number];
 
@@ -15,14 +14,14 @@ export interface ResultRouteNode extends RouteNode {
   ttlList: number[];
   label: string;
   primaryHop: TraceHop;
+  groupId: string;
+  groupLabel: string;
+  groupSize: number;
+  groupIndex: number;
 }
 
-interface BuildRouteNodesOptions {
-  mergeDistanceKm?: number;
-}
-
-export function buildRouteNodesForHops(hops: TraceHop[], options: BuildRouteNodesOptions = {}): ResultRouteNode[] {
-  return routeNodesForHops(hops, options).map((node, index) => routeNodeMetadata(node, index));
+export function buildRouteNodesForHops(hops: TraceHop[]): ResultRouteNode[] {
+  return routeNodeMetadata(routeNodesForHops(hops));
 }
 
 export function buildRouteNodeIdByTtl(routeNodes: ResultRouteNode[]): Map<number, string> {
@@ -50,33 +49,38 @@ export function nearestWorldCoordinate(coordinate: ResultRouteCoordinate, refere
   return [nearest, lat];
 }
 
-function routeNodesForHops(hops: TraceHop[], options: BuildRouteNodesOptions): RouteNode[] {
+function routeNodesForHops(hops: TraceHop[]): RouteNode[] {
   const nodes: RouteNode[] = [];
   for (const hop of hops) {
     if (!hopDrawableGeo(hop.geo)) continue;
     const previous = nodes.at(-1)?.coordinate;
     const coordinate = normalizeNextCoordinate([hop.geo.lng, hop.geo.lat], previous);
-    const last = nodes.at(-1);
-    if (last && shouldMergeRouteNode(last, hop, coordinate, options.mergeDistanceKm)) {
-      last.hops.push(hop);
-      continue;
-    }
     nodes.push({ coordinate, hops: [hop] });
   }
   return nodes;
 }
 
-function routeNodeMetadata(node: RouteNode, index: number): ResultRouteNode {
-  const ttlList = ttlListForHops(node.hops);
-  const label = routeNodeLabel(ttlList);
-  const primaryHop = node.hops[0];
-  return {
-    ...node,
-    nodeId: `route-node-${ttlList.join("-") || index}`,
-    ttlList,
-    label,
-    primaryHop,
-  };
+function routeNodeMetadata(nodes: RouteNode[]): ResultRouteNode[] {
+  const groups = routeNodeGroups(nodes);
+  return nodes.map((node, index) => {
+    const ttlList = ttlListForHops(node.hops);
+    const label = routeNodeLabel(ttlList);
+    const primaryHop = node.hops[0];
+    const group = groups.get(coordinateKey(node.coordinate));
+    const groupTtls = group?.flatMap((item) => ttlListForHops(item.hops)) || ttlList;
+    const groupIndex = group?.indexOf(node) ?? 0;
+    return {
+      ...node,
+      nodeId: `route-node-${ttlList.join("-") || index}`,
+      ttlList,
+      label,
+      primaryHop,
+      groupId: `route-node-group-${groupTtls.join("-") || index}`,
+      groupLabel: routeNodeLabel(groupTtls),
+      groupSize: group?.length || 1,
+      groupIndex,
+    };
+  });
 }
 
 function hopDrawableGeo(geo: NxtraceGeo | undefined): geo is NxtraceGeo & { lng: number; lat: number } {
@@ -104,43 +108,22 @@ function normalizeNextCoordinate(coordinate: ResultRouteCoordinate, previous: Re
   return [lng, lat];
 }
 
-function shouldMergeCoordinates(left: ResultRouteCoordinate, right: ResultRouteCoordinate, mergeDistanceKm: number | undefined): boolean {
-  if (sameCoordinate(left, right)) return true;
-  return typeof mergeDistanceKm === "number" && mergeDistanceKm > 0 && coordinateDistanceKm(left, right) <= mergeDistanceKm;
+function routeNodeGroups(nodes: RouteNode[]): Map<string, RouteNode[]> {
+  const groups = new Map<string, RouteNode[]>();
+  for (const node of nodes) {
+    const key = coordinateKey(node.coordinate);
+    const group = groups.get(key);
+    if (group) {
+      group.push(node);
+      continue;
+    }
+    groups.set(key, [node]);
+  }
+  return groups;
 }
 
-function shouldMergeRouteNode(
-  previous: RouteNode,
-  hop: TraceHop,
-  coordinate: ResultRouteCoordinate,
-  mergeDistanceKm: number | undefined,
-): boolean {
-  const previousHop = previous.hops.at(-1);
-  return Boolean(previousHop && hop.ttl === previousHop.ttl + 1 && shouldMergeCoordinates(previous.coordinate, coordinate, mergeDistanceKm));
-}
-
-function sameCoordinate(left: ResultRouteCoordinate, right: ResultRouteCoordinate): boolean {
-  return Math.abs(left[0] - right[0]) <= COORDINATE_EQUALITY_EPSILON && Math.abs(left[1] - right[1]) <= COORDINATE_EQUALITY_EPSILON;
-}
-
-function coordinateDistanceKm(left: ResultRouteCoordinate, right: ResultRouteCoordinate): number {
-  const leftLat = degreesToRadians(left[1]);
-  const rightLat = degreesToRadians(right[1]);
-  const deltaLat = degreesToRadians(right[1] - left[1]);
-  const deltaLng = degreesToRadians(shortLongitudeDelta(right[0] - left[0]));
-  const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(leftLat) * Math.cos(rightLat) * Math.sin(deltaLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function shortLongitudeDelta(delta: number): number {
-  let value = delta;
-  while (value > 180) value -= 360;
-  while (value <= -180) value += 360;
-  return value;
-}
-
-function degreesToRadians(value: number): number {
-  return (value * Math.PI) / 180;
+function coordinateKey(coordinate: ResultRouteCoordinate): string {
+  return coordinate.map((value) => String(Math.round(value / COORDINATE_EQUALITY_EPSILON))).join(",");
 }
 
 function ttlListForHops(hops: TraceHop[]): number[] {
@@ -150,6 +133,19 @@ function ttlListForHops(hops: TraceHop[]): number[] {
 function routeNodeLabel(ttls: number[]): string {
   if (ttls.length === 0) return "?";
   if (ttls.length === 1) return String(ttls[0]);
-  const contiguous = ttls.every((ttl, index) => index === 0 || ttl === ttls[index - 1] + 1);
-  return contiguous ? `${ttls[0]}-${ttls.at(-1)}` : `${ttls[0]}+`;
+  const sortedTtls = [...new Set(ttls)].sort((left, right) => left - right);
+  const ranges: string[] = [];
+  let start = sortedTtls[0];
+  let previous = start;
+  for (const ttl of sortedTtls.slice(1)) {
+    if (ttl === previous + 1) {
+      previous = ttl;
+      continue;
+    }
+    ranges.push(start === previous ? String(start) : `${start}-${previous}`);
+    start = ttl;
+    previous = ttl;
+  }
+  ranges.push(start === previous ? String(start) : `${start}-${previous}`);
+  return ranges.join("/");
 }

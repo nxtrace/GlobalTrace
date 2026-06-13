@@ -1,7 +1,7 @@
 import "./maplibre.css";
 import maplibregl, { type ExpressionSpecification, type GeoJSONSource } from "maplibre-gl";
 import { Clock3, ExternalLink, Globe2, Map as MapIcon, Route, Share2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { Feature, FeatureCollection } from "geojson";
 import type { TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
 import {
@@ -27,11 +27,15 @@ const RESULT_ROUTE_COLORS = ["#14b8a6", "#f97316", "#8b5cf6", "#22c55e", "#0ea5e
 const RESULT_PACKET_SPACING_KM = 1800;
 const RESULT_PACKET_SPEED_KM_PER_SECOND = 900;
 const RESULT_ROUTE_DISPLAY_SEGMENT_KM = 350;
+const RESULT_ROUTE_GROUP_OFFSET_PX = 15;
+const RESULT_ROUTE_FAN_RADIUS_PX = 31;
 const EARTH_RADIUS_KM = 6371.0088;
 const WEB_MERCATOR_MAX_LATITUDE = 85.05112878;
 
 type ResultMapCoordinate = ResultRouteCoordinate;
 type RouteEndpointRole = "start" | "end" | "single" | "middle";
+type ResultMarkerOffset = [number, number];
+type GroupStateSetter = Dispatch<SetStateAction<string | null>>;
 
 interface ResultMapData {
   featureCollection: FeatureCollection;
@@ -39,8 +43,10 @@ interface ResultMapData {
   fitCoordinates: ResultMapCoordinate[];
   routes: ResultMapRoute[];
   routeNodes: ResultRouteNode[];
+  routeGroups: ResultRouteGroup[];
   routeNodeById: Map<string, ResultRouteNode>;
   routeNodeIdByTtl: Map<number, string>;
+  routeGroupById: Map<string, ResultRouteGroup>;
   activeRouteIndex: number;
   activeRouteId: string | null;
 }
@@ -57,6 +63,7 @@ interface ResultMapRoute {
   pathLengthKm: number;
   fitCoordinates: ResultMapCoordinate[];
   routeNodes: ResultRouteNode[];
+  routeGroups: ResultRouteGroup[];
   routeNodeIdByTtl: Map<number, string>;
 }
 
@@ -74,8 +81,23 @@ interface ResultRouteNode extends SharedResultRouteNode {
   color: string;
   active: boolean;
   endpointRole: RouteEndpointRole;
+  routeOffset: ResultMarkerOffset;
   popupTitle: string;
   popupBody: string;
+}
+
+interface ResultRouteGroup {
+  groupId: string;
+  routeId: string;
+  resultId: string;
+  resultIndex: number;
+  color: string;
+  active: boolean;
+  coordinate: ResultMapCoordinate;
+  label: string;
+  nodeIds: string[];
+  nodes: ResultRouteNode[];
+  routeOffset: ResultMarkerOffset;
 }
 
 interface ResultMapDebugElement extends HTMLElement {
@@ -481,10 +503,24 @@ function ResultMap({
   const selectedRouteNodeIdRef = useRef(selectedRouteNodeId);
   const onSelectRouteNodeRef = useRef(onSelectRouteNode);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const routeMarkersRef = useRef<maplibregl.Marker[]>([]);
   const loadedRef = useRef(false);
+  const [pinnedGroupId, setPinnedGroupId] = useState<string | null>(null);
+  const expandedGroupId = pinnedGroupId;
   dataRef.current = data;
   selectedRouteNodeIdRef.current = selectedRouteNodeId;
   onSelectRouteNodeRef.current = onSelectRouteNode;
+
+  useEffect(() => {
+    if (!pinnedGroupId || data.routeGroupById.has(pinnedGroupId)) return;
+    setPinnedGroupId(null);
+  }, [data, pinnedGroupId]);
+
+  useEffect(() => {
+    const node = selectedRouteNodeId ? data.routeNodeById.get(selectedRouteNodeId) : undefined;
+    if (!node) return;
+    setPinnedGroupId(node.groupSize > 1 ? node.groupId : null);
+  }, [data, selectedRouteNodeId]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -547,18 +583,6 @@ function ResultMap({
         },
       });
       map.addLayer({
-        id: "result-selected-hop",
-        type: "circle",
-        source: "result",
-        filter: selectedHopFilter(selectedRouteNodeIdRef.current),
-        paint: {
-          "circle-radius": globeValue(mapProjection, 22, 19),
-          "circle-color": globeValue(mapProjection, "rgba(255, 236, 92, 0.24)", "rgba(88, 127, 120, 0.18)"),
-          "circle-stroke-color": routeColorExpression(),
-          "circle-stroke-width": 2.5,
-        },
-      });
-      map.addLayer({
         id: "result-probe-points",
         type: "circle",
         source: "result",
@@ -571,94 +595,7 @@ function ResultMap({
           "circle-opacity": activeNumberExpression(globeValue(mapProjection, 0.86, 1), globeValue(mapProjection, 0.36, 0.3)),
         },
       });
-      map.addLayer({
-        id: "result-endpoint-shadow",
-        type: "circle",
-        source: "result",
-        filter: endpointFilter(),
-        paint: {
-          "circle-radius": activeNumberExpression(globeValue(mapProjection, 19, 17), globeValue(mapProjection, 14, 12)),
-          "circle-color": "rgba(0, 0, 0, 0.42)",
-          "circle-opacity": activeNumberExpression(0.34, 0.14),
-          "circle-blur": 0.55,
-          "circle-translate": [0, 4],
-        },
-      });
-      map.addLayer({
-        id: "result-endpoint-halo",
-        type: "circle",
-        source: "result",
-        filter: endpointFilter(),
-        paint: {
-          "circle-radius": activeNumberExpression(globeValue(mapProjection, 18, 16), globeValue(mapProjection, 13, 11)),
-          "circle-color": routeColorExpression(),
-          "circle-opacity": activeNumberExpression(0.34, 0.15),
-          "circle-blur": 0.22,
-          "circle-stroke-color": "rgba(255, 255, 255, 0.72)",
-          "circle-stroke-width": activeNumberExpression(1.8, 0.8),
-        },
-      });
-      map.addLayer({
-        id: "result-points",
-        type: "circle",
-        source: "result",
-        filter: ["==", ["get", "kind"], "hop"],
-        paint: {
-          "circle-radius": activeNumberExpression(globeValue(mapProjection, 15, 14), globeValue(mapProjection, 11, 10)),
-          "circle-color": routeColorExpression(),
-          "circle-stroke-color": globeValue(mapProjection, "rgba(255, 255, 255, 0.92)", "#ffffff"),
-          "circle-stroke-width": 1.3,
-          "circle-opacity": activeNumberExpression(globeValue(mapProjection, 0.88, 1), globeValue(mapProjection, 0.34, 0.3)),
-        },
-      });
-      map.addLayer({
-        id: "result-endpoint-core",
-        type: "circle",
-        source: "result",
-        filter: endpointFilter(),
-        paint: {
-          "circle-radius": activeNumberExpression(globeValue(mapProjection, 9.5, 8.8), globeValue(mapProjection, 7.2, 6.8)),
-          "circle-color": routeColorExpression(),
-          "circle-opacity": activeNumberExpression(1, 0.58),
-          "circle-stroke-color": "rgba(255, 255, 255, 0.96)",
-          "circle-stroke-width": activeNumberExpression(2.2, 1.3),
-        },
-      });
-      map.addLayer({
-        id: "result-hop-labels",
-        type: "symbol",
-        source: "result",
-        filter: ["==", ["get", "kind"], "hop"],
-        layout: {
-          "text-field": ["get", "label"],
-          "text-size": 10.5,
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-        },
-        paint: {
-          "text-color": "#ffffff",
-          "text-halo-color": globeValue(mapProjection, "rgba(0, 12, 16, 0.92)", "rgba(31, 38, 45, 0.28)"),
-          "text-halo-width": globeValue(mapProjection, 1.3, 0.7),
-        },
-      });
-      const selectFeature = (event: maplibregl.MapLayerMouseEvent) => {
-        const feature = event.features?.find((item) => item.properties?.kind === "hop" && item.properties?.nodeId);
-        const nodeId = String(feature?.properties?.nodeId || "");
-        if (!nodeId) return;
-        const routeIndex = Number(feature?.properties?.routeIndex);
-        onSelectRouteNodeRef.current(nodeId, Number.isFinite(routeIndex) ? routeIndex : undefined);
-        const node = dataRef.current.routeNodeById.get(nodeId);
-        if (node) showRouteNodePopup(map, node, popupRef);
-      };
-      for (const layerId of ["result-points", "result-endpoint-halo", "result-endpoint-core", "result-hop-labels"]) {
-        map.on("click", layerId, selectFeature);
-        map.on("mouseenter", layerId, () => {
-          map.getCanvas().style.cursor = "pointer";
-        });
-        map.on("mouseleave", layerId, () => {
-          map.getCanvas().style.cursor = "";
-        });
-      }
+      map.on("click", () => setPinnedGroupId(null));
       if (animatePackets) {
         stopPackets = startPacketAnimation(map, dataRef);
       }
@@ -666,6 +603,16 @@ function ResultMap({
       if (import.meta.env.DEV && containerRef.current) {
         (containerRef.current as ResultMapDebugElement).__globalTraceResultMapReady = true;
       }
+      renderResultRouteMarkers({
+        map,
+        markersRef: routeMarkersRef,
+        data: dataRef.current,
+        selectedRouteNodeId: selectedRouteNodeIdRef.current,
+        expandedGroupId: null,
+        popupRef,
+        onSelectRouteNode: onSelectRouteNodeRef.current,
+        setPinnedGroupId,
+      });
       applySelectedRouteNode(map, selectedRouteNodeIdRef.current, dataRef.current, popupRef);
       fitResultMap(map, dataRef.current, mapProjection);
     });
@@ -687,6 +634,7 @@ function ResultMap({
     return () => {
       resizeObserver?.disconnect();
       stopPackets?.();
+      clearResultRouteMarkers(routeMarkersRef);
       popupRef.current?.remove();
       popupRef.current = null;
       loadedRef.current = false;
@@ -716,6 +664,21 @@ function ResultMap({
       applySelectedRouteNode(map, selectedRouteNodeIdRef.current, data, popupRef);
     }
   }, [data]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !loadedRef.current) return;
+    renderResultRouteMarkers({
+      map,
+      markersRef: routeMarkersRef,
+      data,
+      selectedRouteNodeId,
+      expandedGroupId,
+      popupRef,
+      onSelectRouteNode: onSelectRouteNodeRef.current,
+      setPinnedGroupId,
+    });
+  }, [data, expandedGroupId, selectedRouteNodeId]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -777,10 +740,9 @@ export function buildResultMapData(
         nodeCount: sharedRouteNodes.length,
       }),
     );
+    const routeGroups = buildRouteGroups(routeNodes);
     const routeCoordinates = routeNodes.map((node) => node.coordinate);
-    const pathSections = continuousRouteNodeSections(routeNodes)
-      .map((section) => resultDisplayRouteCoordinates(section.map((node) => node.coordinate)))
-      .filter((section) => section.length > 0);
+    const pathSections = routeCoordinates.length > 0 ? [resultDisplayRouteCoordinates(routeCoordinates)].filter((section) => section.length > 0) : [];
     const displayCoordinates = pathSections.flat();
     const pathSegments = pathSections.flatMap(resultRouteSegments);
     const pathLengthKm = pathSections.reduce((total, section) => total + routeSectionLengthKm(section), 0);
@@ -807,6 +769,9 @@ export function buildResultMapData(
           endpointRole: node.endpointRole,
           nodeId: node.nodeId,
           label: node.label,
+          groupId: node.groupId,
+          groupLabel: node.groupLabel,
+          groupSize: node.groupSize,
           ttl: node.primaryHop.ttl,
           ttlList: node.ttlList,
           popupTitle: node.popupTitle,
@@ -826,13 +791,17 @@ export function buildResultMapData(
       pathLengthKm,
       fitCoordinates: resultFitCoordinates(item, routeCoordinates),
       routeNodes,
+      routeGroups,
       routeNodeIdByTtl: buildRouteNodeIdByTtl(routeNodes),
     });
   }
 
+  const routeGroups = routes.flatMap((route) => route.routeGroups);
+  assignRouteGroupOffsets(routeGroups);
   const activeRoute = routes.find((route) => route.resultIndex === activeRouteIndex) || null;
   const allRouteNodes = routes.flatMap((route) => route.routeNodes);
   const routeNodeById = new Map(allRouteNodes.map((node) => [node.nodeId, node]));
+  const routeGroupById = new Map(routeGroups.map((group) => [group.groupId, group]));
 
   return {
     featureCollection: { type: "FeatureCollection", features },
@@ -840,8 +809,10 @@ export function buildResultMapData(
     fitCoordinates: activeRoute?.fitCoordinates || [],
     routes,
     routeNodes: activeRoute?.routeNodes || [],
+    routeGroups,
     routeNodeById,
     routeNodeIdByTtl: activeRoute?.routeNodeIdByTtl || new Map(),
+    routeGroupById,
     activeRouteIndex,
     activeRouteId: activeRoute?.routeId || null,
   };
@@ -863,15 +834,75 @@ function resultRouteNodeMetadata(
   return {
     ...node,
     nodeId: `${route.routeId}-node-${node.ttlList.join("-") || route.nodeIndex}`,
+    groupId: `${route.routeId}-${node.groupId}`,
     routeId: route.routeId,
     resultId: route.resultId,
     resultIndex: route.resultIndex,
     color: route.color,
     active: route.active,
     endpointRole,
+    routeOffset: [0, 0] as ResultMarkerOffset,
     popupTitle: `TTL ${node.label}`,
     popupBody: routeNodePopupBody(node.hops),
   };
+}
+
+function buildRouteGroups(nodes: ResultRouteNode[]): ResultRouteGroup[] {
+  const groups = new Map<string, ResultRouteNode[]>();
+  for (const node of nodes) {
+    const group = groups.get(node.groupId);
+    if (group) {
+      group.push(node);
+      continue;
+    }
+    groups.set(node.groupId, [node]);
+  }
+  return [...groups.entries()].map(([groupId, groupNodes]) => {
+    const first = groupNodes[0];
+    return {
+      groupId,
+      routeId: first.routeId,
+      resultId: first.resultId,
+      resultIndex: first.resultIndex,
+      color: first.color,
+      active: first.active,
+      coordinate: first.coordinate,
+      label: first.groupLabel,
+      nodeIds: groupNodes.map((node) => node.nodeId),
+      nodes: groupNodes,
+      routeOffset: [0, 0] as ResultMarkerOffset,
+    };
+  });
+}
+
+function assignRouteGroupOffsets(groups: ResultRouteGroup[]): void {
+  const groupsByCoordinate = new Map<string, ResultRouteGroup[]>();
+  for (const group of groups) {
+    const key = routeGroupCoordinateKey(group.coordinate);
+    const coordinateGroups = groupsByCoordinate.get(key);
+    if (coordinateGroups) {
+      coordinateGroups.push(group);
+      continue;
+    }
+    groupsByCoordinate.set(key, [group]);
+  }
+  for (const coordinateGroups of groupsByCoordinate.values()) {
+    const sortedGroups = coordinateGroups.sort((left, right) => left.resultIndex - right.resultIndex);
+    for (const [index, group] of sortedGroups.entries()) {
+      const offset: ResultMarkerOffset = sortedGroups.length <= 1 ? [0, 0] : routeGroupOffset(index, sortedGroups.length);
+      group.routeOffset = offset;
+      for (const node of group.nodes) node.routeOffset = offset;
+    }
+  }
+}
+
+function routeGroupOffset(index: number, count: number): ResultMarkerOffset {
+  const angle = -Math.PI / 2 + ((Math.PI * 2) / count) * index;
+  return [Math.round(Math.cos(angle) * RESULT_ROUTE_GROUP_OFFSET_PX), Math.round(Math.sin(angle) * RESULT_ROUTE_GROUP_OFFSET_PX)];
+}
+
+function routeGroupCoordinateKey(coordinate: ResultMapCoordinate): string {
+  return coordinate.map((value) => value.toFixed(6)).join(",");
 }
 
 function resultRouteId(index: number): string {
@@ -893,35 +924,6 @@ function resultEndpointRole(index: number, count: number): RouteEndpointRole {
   return "middle";
 }
 
-function continuousRouteNodeSections(nodes: ResultRouteNode[]): ResultRouteNode[][] {
-  const sections: ResultRouteNode[][] = [];
-  for (const node of nodes) {
-    const previous = sections.at(-1)?.at(-1);
-    if (!previous || firstTtl(node) !== lastTtl(previous) + 1) {
-      sections.push([node]);
-      continue;
-    }
-    sections.at(-1)?.push(node);
-  }
-  return sections;
-}
-
-function firstTtl(node: ResultRouteNode): number {
-  return node.ttlList[0] ?? node.primaryHop.ttl;
-}
-
-function lastTtl(node: ResultRouteNode): number {
-  return node.ttlList.at(-1) ?? node.primaryHop.ttl;
-}
-
-function selectedHopFilter(nodeId: string | null): maplibregl.FilterSpecification {
-  return ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], nodeId || "__none__"]] as maplibregl.FilterSpecification;
-}
-
-function endpointFilter(): maplibregl.FilterSpecification {
-  return ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "endpoint"], true]] as maplibregl.FilterSpecification;
-}
-
 function routeColorExpression(): ExpressionSpecification {
   return ["coalesce", ["get", "color"], "#587f78"] as ExpressionSpecification;
 }
@@ -930,13 +932,275 @@ function activeNumberExpression(active: number, inactive: number): ExpressionSpe
   return ["case", ["boolean", ["get", "active"], false], active, inactive] as ExpressionSpecification;
 }
 
+function renderResultRouteMarkers({
+  map,
+  markersRef,
+  data,
+  selectedRouteNodeId,
+  expandedGroupId,
+  popupRef,
+  onSelectRouteNode,
+  setPinnedGroupId,
+}: {
+  map: maplibregl.Map;
+  markersRef: MutableRefObject<maplibregl.Marker[]>;
+  data: ResultMapData;
+  selectedRouteNodeId: string | null;
+  expandedGroupId: string | null;
+  popupRef: MutableRefObject<maplibregl.Popup | null>;
+  onSelectRouteNode: (nodeId: string, routeIndex?: number) => void;
+  setPinnedGroupId: GroupStateSetter;
+}): void {
+  ensureResultRouteMarkerStyles();
+  clearResultRouteMarkers(markersRef);
+  for (const group of data.routeGroups) {
+    const expanded = expandedGroupId === group.groupId;
+    const element = createRouteGroupMarkerElement({
+      group,
+      selectedRouteNodeId,
+      expanded,
+      map,
+      popupRef,
+      onSelectRouteNode,
+      setPinnedGroupId,
+    });
+    const marker = new maplibregl.Marker({
+      element,
+      offset: group.routeOffset,
+      anchor: "center",
+      subpixelPositioning: true,
+    })
+      .setLngLat(group.coordinate)
+      .addTo(map);
+    markersRef.current.push(marker);
+  }
+}
+
+function clearResultRouteMarkers(markersRef: MutableRefObject<maplibregl.Marker[]>): void {
+  for (const marker of markersRef.current) marker.remove();
+  markersRef.current = [];
+}
+
+function ensureResultRouteMarkerStyles(): void {
+  if (document.getElementById("result-route-marker-styles")) return;
+  const style = document.createElement("style");
+  style.id = "result-route-marker-styles";
+  style.textContent = `
+    .result-route-marker .result-route-marker-button {
+      opacity: var(--result-route-marker-opacity, 1);
+      transition: opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+    }
+    .result-route-marker:not(.result-route-marker-single) .result-route-marker-node {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .result-route-marker:not(.result-route-marker-single):hover .result-route-marker-node,
+    .result-route-marker:not(.result-route-marker-single)[data-expanded="true"] .result-route-marker-node {
+      opacity: var(--result-route-marker-opacity, 1);
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .result-route-marker:hover .result-route-marker-group,
+    .result-route-marker[data-expanded="true"] .result-route-marker-group {
+      opacity: 0.66;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function createRouteGroupMarkerElement({
+  group,
+  selectedRouteNodeId,
+  expanded,
+  map,
+  popupRef,
+  onSelectRouteNode,
+  setPinnedGroupId,
+}: {
+  group: ResultRouteGroup;
+  selectedRouteNodeId: string | null;
+  expanded: boolean;
+  map: maplibregl.Map;
+  popupRef: MutableRefObject<maplibregl.Popup | null>;
+  onSelectRouteNode: (nodeId: string, routeIndex?: number) => void;
+  setPinnedGroupId: GroupStateSetter;
+}): HTMLElement {
+  const element = document.createElement("div");
+  element.className = "result-route-marker";
+  element.dataset.routeGroupId = group.groupId;
+  if (expanded) element.dataset.expanded = "true";
+  element.style.position = "relative";
+  element.style.width = "0";
+  element.style.height = "0";
+  element.style.zIndex = group.active ? (expanded ? "8" : "5") : "2";
+  element.style.pointerEvents = "auto";
+  element.addEventListener("click", (event) => event.stopPropagation());
+
+  if (group.nodes.length === 1) {
+    element.classList.add("result-route-marker-single");
+    const node = group.nodes[0];
+    element.appendChild(
+      createRouteNodeButton({
+        node,
+        label: node.label,
+        selected: selectedRouteNodeId === node.nodeId,
+        offset: [0, 0],
+        size: 28,
+        map,
+        popupRef,
+        onSelectRouteNode,
+        setPinnedGroupId,
+      }),
+    );
+    return element;
+  }
+
+  const selected = group.nodeIds.includes(selectedRouteNodeId || "");
+  const collapsedButton = createRouteGroupButton(group, selected);
+  collapsedButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setPinnedGroupId((value) => (value === group.groupId ? null : group.groupId));
+  });
+  element.appendChild(collapsedButton);
+
+  for (const [index, node] of group.nodes.entries()) {
+    element.appendChild(
+      createRouteNodeButton({
+        node,
+        label: node.label,
+        selected: selectedRouteNodeId === node.nodeId,
+        offset: fanMarkerOffset(index, group.nodes.length),
+        size: 25,
+        map,
+        popupRef,
+        onSelectRouteNode,
+        setPinnedGroupId,
+      }),
+    );
+  }
+
+  return element;
+}
+
+function createRouteGroupButton(group: ResultRouteGroup, selected: boolean): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "result-route-marker-button result-route-marker-group";
+  button.dataset.routeGroupId = group.groupId;
+  button.setAttribute("aria-label", `展开 TTL ${group.label}`);
+  button.textContent = group.label;
+  applyRouteMarkerButtonStyle(button, {
+    color: group.color,
+    active: group.active,
+    selected,
+    offset: [0, 0],
+    size: 32,
+  });
+  return button;
+}
+
+function createRouteNodeButton({
+  node,
+  label,
+  selected,
+  offset,
+  size,
+  map,
+  popupRef,
+  onSelectRouteNode,
+  setPinnedGroupId,
+}: {
+  node: ResultRouteNode;
+  label: string;
+  selected: boolean;
+  offset: ResultMarkerOffset;
+  size: number;
+  map: maplibregl.Map;
+  popupRef: MutableRefObject<maplibregl.Popup | null>;
+  onSelectRouteNode: (nodeId: string, routeIndex?: number) => void;
+  setPinnedGroupId: GroupStateSetter;
+}): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "result-route-marker-button result-route-marker-node";
+  button.dataset.routeNodeId = node.nodeId;
+  button.dataset.routeGroupId = node.groupId;
+  button.setAttribute("aria-label", `选择 TTL ${node.label}`);
+  button.textContent = label;
+  applyRouteMarkerButtonStyle(button, { color: node.color, active: node.active, selected, offset, size });
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setPinnedGroupId(node.groupSize > 1 ? node.groupId : null);
+    onSelectRouteNode(node.nodeId, node.resultIndex);
+    showRouteNodePopup(map, node, popupRef);
+  });
+  return button;
+}
+
+function applyRouteMarkerButtonStyle(
+  button: HTMLButtonElement,
+  {
+    color,
+    active,
+    selected,
+    offset,
+    size,
+  }: {
+    color: string;
+    active: boolean;
+    selected: boolean;
+    offset: ResultMarkerOffset;
+    size: number;
+  },
+): void {
+  button.style.position = "absolute";
+  button.style.left = "0";
+  button.style.top = "0";
+  button.style.transform = `translate(${offset[0]}px, ${offset[1]}px) translate(-50%, -50%)`;
+  button.style.minWidth = `${size}px`;
+  button.style.height = `${size}px`;
+  button.style.padding = "0 7px";
+  button.style.borderRadius = `${size}px`;
+  button.style.border = selected ? "2px solid #fde68a" : "1.5px solid rgba(255, 255, 255, 0.88)";
+  button.style.background = color;
+  button.style.color = "#ffffff";
+  button.style.font = "700 11px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+  button.style.textAlign = "center";
+  button.style.whiteSpace = "nowrap";
+  button.style.cursor = "pointer";
+  button.style.setProperty("--result-route-marker-opacity", active ? "1" : "0.48");
+  button.style.boxShadow = selected
+    ? `0 0 0 4px rgba(253, 230, 138, 0.28), 0 8px 18px rgba(0, 0, 0, 0.36)`
+    : `0 0 0 4px ${hexToRgba(color, active ? 0.24 : 0.12)}, 0 7px 16px rgba(0, 0, 0, 0.34)`;
+}
+
+function fanMarkerOffset(index: number, count: number): ResultMarkerOffset {
+  if (count <= 1) return [0, 0];
+  const spread = count === 2 ? 92 : Math.min(250, 58 * (count - 1));
+  const start = -90 - spread / 2;
+  const step = spread / Math.max(1, count - 1);
+  const angle = degreesToRadians(start + step * index);
+  return [Math.round(Math.cos(angle) * RESULT_ROUTE_FAN_RADIUS_PX), Math.round(Math.sin(angle) * RESULT_ROUTE_FAN_RADIUS_PX)];
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const value = hex.replace("#", "");
+  if (value.length !== 6) return `rgba(255, 255, 255, ${alpha})`;
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
 function applySelectedRouteNode(
   map: maplibregl.Map,
   selectedRouteNodeId: string | null,
   data: ResultMapData,
   popupRef: MutableRefObject<maplibregl.Popup | null>,
 ): void {
-  map.setFilter("result-selected-hop", selectedHopFilter(selectedRouteNodeId));
   const node = selectedRouteNodeId ? data.routeNodeById.get(selectedRouteNodeId) : undefined;
   if (!node) {
     popupRef.current?.remove();

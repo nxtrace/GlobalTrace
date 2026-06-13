@@ -516,15 +516,22 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect(page.getByLabel("trace result map")).toBeVisible();
   await expectMapCanvasPainted(page);
-  await expectResultRouteData(page, { labels: ["1-2", "5"], lineLength: 0, maxLineLngSpan: 140 });
-  await clickResultMapRouteNode(page, "route-0-node-1-2");
-  await expect(page.locator('.hop-table tr[data-ttl="1"]')).toHaveClass(/selected/);
+  await expectResultRouteData(page, { labels: ["1-2", "5"], minLineLength: 2, maxLineLngSpan: 140 });
+  await clickResultMapRouteNode(page, "route-0-node-2");
+  await expect(page.locator('.hop-table tr[data-ttl="1"]')).not.toHaveClass(/selected/);
   await expect(page.locator('.hop-table tr[data-ttl="2"]')).toHaveClass(/selected/);
-  await expectResultSelectedRouteNode(page, "route-0-node-1-2");
+  await expectResultSelectedRouteNode(page, "route-0-node-2");
   await clickVisibleHop(page, 5);
   await expect(page.locator('.hop-table tr[data-ttl="1"]')).not.toHaveClass(/selected/);
   await expect(page.locator('.hop-table tr[data-ttl="5"]')).toHaveClass(/selected/);
   await expectResultSelectedRouteNode(page, "route-0-node-5");
+  await page.getByRole("button", { name: "切换结果地图到 3D" }).click();
+  await expectResultMapProjection(page, "globe");
+  await expectResultRouteData(page, { labels: ["1-2", "5"], minLineLength: 2, maxLineLngSpan: 140 });
+  await clickResultMapRouteNode(page, "route-0-node-1");
+  await expect(page.locator('.hop-table tr[data-ttl="1"]')).toHaveClass(/selected/);
+  await expect(page.locator('.hop-table tr[data-ttl="2"]')).not.toHaveClass(/selected/);
+  await expectResultSelectedRouteNode(page, "route-0-node-1");
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -539,7 +546,7 @@ test("result route map normalizes antimeridian paths", async ({ page }) => {
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect(page.getByLabel("trace result map")).toBeVisible();
   await expectMapCanvasPainted(page);
-  await expectResultRouteData(page, { labels: ["1", "2", "4-5"], lineLength: 2, maxLineLngSpan: 3, maxFitLngSpan: 3 });
+  await expectResultRouteData(page, { labels: ["1", "2", "4-5"], minLineLength: 3, maxLineLngSpan: 3, maxFitLngSpan: 3 });
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -1619,6 +1626,7 @@ async function resultRouteState(page: Page): Promise<{ labels: string[]; lineLen
         __globalTraceResultData?: {
           featureCollection?: { features?: Array<{ geometry?: { coordinates?: number[][] }; properties?: Record<string, unknown> }> };
           fitCoordinates?: number[][];
+          routeGroups?: Array<{ label?: string; routeId?: string }>;
           activeRouteId?: string | null;
         };
       }
@@ -1629,9 +1637,9 @@ async function resultRouteState(page: Page): Promise<{ labels: string[]; lineLen
       return !activeRouteId || feature.properties?.routeId === activeRouteId;
     };
     const line = features.find((feature) => feature.properties?.kind === "path" && activeRouteFeature(feature))?.geometry?.coordinates || [];
-    const labels = features
-      .filter((feature) => feature.properties?.kind === "hop" && activeRouteFeature(feature))
-      .map((feature) => String(feature.properties?.label));
+    const labels = (data?.routeGroups || [])
+      .filter((group) => !activeRouteId || group.routeId === activeRouteId)
+      .map((group) => String(group.label));
     const span = (coordinates: number[][]) => {
       const lngs = coordinates.map((coordinate) => coordinate[0]);
       return lngs.length ? Math.max(...lngs) - Math.min(...lngs) : 0;
@@ -1672,14 +1680,20 @@ async function expectMapProjectsCoordinateInsideCanvas(page: Page, coordinate: [
 }
 
 async function clickResultMapRouteNode(page: Page, nodeId: string): Promise<void> {
-  const canvas = page.locator(".result-map .maplibregl-canvas");
-  await canvas.scrollIntoViewIfNeeded();
+  const resultMap = page.locator(".result-map");
+  await resultMap.scrollIntoViewIfNeeded();
+  const nodeButton = resultMap.locator(`button[data-route-node-id="${nodeId}"]`);
+  if (!(await nodeButton.isVisible())) {
+    const groupId = await resultMapRouteNodeGroupId(page, nodeId);
+    if (!groupId) throw new Error(`route node ${nodeId} is not present in result map data`);
+    const groupButton = resultMap.locator(`button[data-route-group-id="${groupId}"]`).first();
+    await groupButton.hover();
+    if (!(await nodeButton.isVisible())) await groupButton.click();
+    await expect(nodeButton).toBeVisible();
+  }
   await expect
     .poll(async () => {
-      const point = await resultMapRouteNodeCanvasPoint(page, nodeId);
-      const box = await canvas.boundingBox();
-      if (!point || !box) return null;
-      await page.mouse.click(box.x + point.x, box.y + point.y);
+      await nodeButton.click();
       return page.locator(".result-map").evaluate((node) => {
         return (node as HTMLElement & { __globalTraceSelectedRouteNodeId?: string | null }).__globalTraceSelectedRouteNodeId || null;
       });
@@ -1697,47 +1711,14 @@ async function clickMapCoordinate(page: Page, coordinate: [number, number]): Pro
   }
 }
 
-async function resultMapRouteNodeCanvasPoint(page: Page, nodeId: string): Promise<{ x: number; y: number } | null> {
+async function resultMapRouteNodeGroupId(page: Page, nodeId: string): Promise<string | null> {
   return page.locator(".result-map").evaluate((node, nextNodeId) => {
-    const map = (node as HTMLElement & { __globalTraceResultMap?: DebugMap }).__globalTraceResultMap;
     const data = (
       node as HTMLElement & {
-        __globalTraceResultData?: { routeNodes?: Array<{ nodeId?: string; coordinate?: [number, number] }> };
+        __globalTraceResultData?: { routeNodes?: Array<{ nodeId?: string; groupId?: string }> };
       }
     ).__globalTraceResultData;
-    if (!map) return null;
-    const routeNode = data?.routeNodes?.find((item) => item.nodeId === nextNodeId);
-    const coordinate = routeNode?.coordinate;
-    if (!coordinate) return null;
-    const rect = map.getCanvas().getBoundingClientRect();
-    const [lng, lat] = coordinate;
-    const projections = [lng - 360, lng, lng + 360].map((nextLng) => map.project([nextLng, lat]));
-    const offsets = [
-      [0, 0],
-      [-8, 0],
-      [8, 0],
-      [0, -8],
-      [0, 8],
-      [-8, -8],
-      [8, -8],
-      [-8, 8],
-      [8, 8],
-    ];
-    for (const projected of projections) {
-      if (projected.x < 0 || projected.x > rect.width || projected.y < 0 || projected.y > rect.height) continue;
-      for (const [xOffset, yOffset] of offsets) {
-        const point = { x: projected.x + xOffset, y: projected.y + yOffset };
-        if (point.x < 0 || point.x > rect.width || point.y < 0 || point.y > rect.height) continue;
-        const features =
-          map.queryRenderedFeatures?.([point.x, point.y], {
-            layers: ["result-points", "result-endpoint-halo", "result-endpoint-core", "result-hop-labels"],
-          }) || [];
-        if (features.some((feature) => feature.properties?.nodeId === nextNodeId)) {
-          return point;
-        }
-      }
-    }
-    return null;
+    return data?.routeNodes?.find((item) => item.nodeId === nextNodeId)?.groupId || null;
   }, nodeId);
 }
 

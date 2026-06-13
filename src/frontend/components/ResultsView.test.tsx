@@ -30,14 +30,19 @@ const maplibreMock = vi.hoisted(() => {
     readonly setProjectionCalls: unknown[] = [];
     readonly options: Record<string, unknown>;
     readonly canvas: HTMLElement;
+    readonly canvasContainer: HTMLElement;
 
     constructor(options: { container: HTMLElement } & Record<string, unknown>) {
       FakeMap.instances.push(this);
       this.options = options;
+      const canvasContainer = document.createElement("div");
+      canvasContainer.className = "maplibregl-canvas-container";
       const canvas = document.createElement("div");
       canvas.className = "maplibregl-canvas";
-      options.container.appendChild(canvas);
+      canvasContainer.appendChild(canvas);
+      options.container.appendChild(canvasContainer);
       this.canvas = canvas;
+      this.canvasContainer = canvasContainer;
     }
 
     on(event: string, layerOrHandler: string | (() => void), handler?: (event: { features?: Array<{ properties?: Record<string, unknown> }> }) => void) {
@@ -46,6 +51,15 @@ const maplibreMock = vi.hoisted(() => {
         return this;
       }
       this.eventHandlers.set(event, layerOrHandler);
+      return this;
+    }
+
+    off(event: string, layerOrHandler: string | (() => void)) {
+      if (typeof layerOrHandler === "string") {
+        this.layerEventHandlers.delete(`${event}:${layerOrHandler}`);
+        return this;
+      }
+      this.eventHandlers.delete(event);
       return this;
     }
 
@@ -92,6 +106,10 @@ const maplibreMock = vi.hoisted(() => {
       return this.canvas;
     }
 
+    getCanvasContainer() {
+      return this.canvasContainer;
+    }
+
     remove() {
       this.removeCalls.push(true);
     }
@@ -102,6 +120,35 @@ const maplibreMock = vi.hoisted(() => {
 
     triggerLayerClick(layer: string, properties: Record<string, unknown>) {
       this.layerEventHandlers.get(`click:${layer}`)?.({ features: [{ properties }] });
+    }
+  }
+
+  class FakeMarker {
+    static instances: FakeMarker[] = [];
+
+    readonly removeCalls: boolean[] = [];
+    lngLat: unknown = null;
+    map: FakeMap | null = null;
+
+    constructor(readonly options: { element: HTMLElement; offset?: unknown }) {
+      FakeMarker.instances.push(this);
+    }
+
+    setLngLat(lngLat: unknown) {
+      this.lngLat = lngLat;
+      return this;
+    }
+
+    addTo(map: FakeMap) {
+      this.map = map;
+      map.getCanvasContainer().appendChild(this.options.element);
+      return this;
+    }
+
+    remove() {
+      this.removeCalls.push(true);
+      this.options.element.remove();
+      return this;
     }
   }
 
@@ -138,21 +185,24 @@ const maplibreMock = vi.hoisted(() => {
     }
   }
 
-  return { FakeMap, FakePopup };
+  return { FakeMap, FakeMarker, FakePopup };
 });
 
 vi.mock("maplibre-gl", () => ({
   default: {
     Map: maplibreMock.FakeMap,
+    Marker: maplibreMock.FakeMarker,
     Popup: maplibreMock.FakePopup,
   },
   Map: maplibreMock.FakeMap,
+  Marker: maplibreMock.FakeMarker,
   Popup: maplibreMock.FakePopup,
 }));
 
 afterEach(() => {
   cleanup();
   maplibreMock.FakeMap.instances = [];
+  maplibreMock.FakeMarker.instances = [];
   maplibreMock.FakePopup.instances = [];
   vi.restoreAllMocks();
 });
@@ -416,8 +466,8 @@ describe("ResultsView", () => {
 
     act(() => map.triggerLoad());
 
-    expect(map.layers.map((layer) => layer.id)).toContain("result-hop-labels");
-    expect(map.layers.map((layer) => layer.id)).toEqual(expect.arrayContaining(["result-packets", "result-endpoint-shadow", "result-endpoint-halo", "result-endpoint-core"]));
+    expect(map.layers.map((layer) => layer.id)).toEqual(expect.arrayContaining(["result-line", "result-packets", "result-probe-points"]));
+    expect(screen.getByRole("button", { name: "选择 TTL 1" })).toBeInTheDocument();
     expect(map.sources.get("result-packets")?.data).toMatchObject({ type: "FeatureCollection" });
     expect(map.layers.find((layer) => layer.id === "result-line")?.layout).toMatchObject({
       "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
@@ -431,11 +481,6 @@ describe("ResultsView", () => {
       "circle-radius": ["case", ["boolean", ["get", "active"], false], 3, 2],
       "circle-stroke-width": ["case", ["boolean", ["get", "active"], false], 0.8, 0.4],
     });
-    expect(map.layers.find((layer) => layer.id === "result-points")?.paint).toMatchObject({
-      "circle-radius": ["case", ["boolean", ["get", "active"], false], 14, 10],
-      "circle-color": ["coalesce", ["get", "color"], "#587f78"],
-    });
-    expect(map.layers.find((layer) => layer.id === "result-selected-hop")?.paint).toMatchObject({ "circle-radius": 19 });
     expect(screen.getByLabelText("trace result map")).toHaveAttribute("data-map-projection", "mercator");
     expect(screen.getByLabelText("trace result map")).not.toHaveClass("result-map-globe");
     expect(map.fitBoundsCalls.at(-1)).toEqual([
@@ -489,10 +534,7 @@ describe("ResultsView", () => {
       "line-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.2],
       "line-blur": 0.4,
     });
-    expect(map.layers.find((layer) => layer.id === "result-endpoint-core")?.paint).toMatchObject({
-      "circle-color": ["coalesce", ["get", "color"], "#587f78"],
-      "circle-opacity": ["case", ["boolean", ["get", "active"], false], 1, 0.58],
-    });
+    expect(screen.getByRole("button", { name: "选择 TTL 1" })).toBeInTheDocument();
   });
 
   it("updates globe result map data and view without rebuilding when active probe changes", async () => {
@@ -515,34 +557,46 @@ describe("ResultsView", () => {
     });
   });
 
-  it("selects merged table rows in globe mode when a map hop or label is clicked", async () => {
+  it("expands a grouped globe marker and selects an individual TTL", async () => {
     const scrollIntoView = mockScrollIntoView();
     render(<ResultsView result={routeQualityResult} mapStyleUrl="about:blank" mapProjection="globe" />);
     const map = await latestMap();
     act(() => map.triggerLoad());
 
-    act(() => map.triggerLayerClick("result-points", { kind: "hop", nodeId: "route-0-node-1-2", routeIndex: 0 }));
+    fireEvent.click(screen.getByRole("button", { name: "展开 TTL 1-2" }));
+    fireEvent.click(screen.getByRole("button", { name: "选择 TTL 2" }));
 
     const row1 = rowForText("203.0.113.1");
     const row2 = rowForText("203.0.113.2");
     const row5 = rowForText("203.0.113.5");
-    await waitFor(() => expect(row1).toHaveClass("selected"));
-    expect(row2).toHaveClass("selected");
+    await waitFor(() => expect(row2).toHaveClass("selected"));
+    expect(row1).not.toHaveClass("selected");
     expect(row5).not.toHaveClass("selected");
     expect(scrollIntoView).toHaveBeenCalled();
-    expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-0-node-1-2"]]]);
-    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1-2");
+    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 2");
 
-    act(() => map.triggerLayerClick("result-hop-labels", { kind: "hop", nodeId: "route-0-node-5", routeIndex: 0 }));
+    fireEvent.click(screen.getByRole("button", { name: "选择 TTL 5" }));
 
     await waitFor(() => expect(row5).toHaveClass("selected"));
     expect(row1).not.toHaveClass("selected");
     expect(row2).not.toHaveClass("selected");
-    expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-0-node-5"]]]);
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 5");
   });
 
-  it("selects the merged globe map point and pans when a linked table row is clicked", async () => {
+  it("pins and unpins a grouped marker without selecting a TTL", async () => {
+    render(<ResultsView result={routeQualityResult} mapStyleUrl="about:blank" mapProjection="globe" />);
+    const map = await latestMap();
+    act(() => map.triggerLoad());
+
+    fireEvent.click(screen.getByRole("button", { name: "展开 TTL 1-2" }));
+
+    expect(screen.getByRole("button", { name: "选择 TTL 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "选择 TTL 2" })).toBeInTheDocument();
+    expect(rowForText("203.0.113.1")).not.toHaveClass("selected");
+    expect(rowForText("203.0.113.2")).not.toHaveClass("selected");
+  });
+
+  it("selects the individual globe map point and pans when a linked table row is clicked", async () => {
     mockScrollIntoView();
     render(<ResultsView result={routeQualityResult} mapStyleUrl="about:blank" mapProjection="globe" />);
     const map = await latestMap();
@@ -553,12 +607,13 @@ describe("ResultsView", () => {
     const row1 = rowForText("203.0.113.1");
     const row2 = rowForText("203.0.113.2");
     await waitFor(() => expect(row2).toHaveClass("selected"));
-    expect(row1).toHaveClass("selected");
+    expect(row1).not.toHaveClass("selected");
+    expect(screen.getByRole("button", { name: "选择 TTL 2" })).toBeInTheDocument();
     expect(map.easeToCalls.at(-1)).toMatchObject({
       center: [-122.08, 37.39],
       duration: 420,
     });
-    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1-2");
+    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 2");
   });
 
   it("does not pan the map for table rows without drawable GeoIP", async () => {
@@ -589,7 +644,7 @@ describe("ResultsView", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Tokyo/ }));
 
     await waitFor(() => {
-      expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "__none__"]]]);
+      expect(screen.getByLabelText("trace result map")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
     });
   });
 
@@ -601,21 +656,23 @@ describe("ResultsView", () => {
     const route1Packets = packetFeatures(data.packetFeatureCollection, "route-1");
 
     expect(data.routes).toHaveLength(2);
-    expect(paths).toHaveLength(1);
-    expect(paths[0]?.properties).toMatchObject({ routeId: "route-1", color: "#f97316", active: false });
+    expect(paths).toHaveLength(2);
+    expect(paths.find((feature) => feature.properties?.routeId === "route-1")?.properties).toMatchObject({ routeId: "route-1", color: "#f97316", active: false });
     expect(hops.map((feature) => feature.properties?.nodeId)).toEqual([
-      "route-0-node-1-2",
+      "route-0-node-1",
+      "route-0-node-2",
       "route-0-node-5",
       "route-1-node-1",
       "route-1-node-2",
     ]);
     expect(hops.filter((feature) => feature.properties?.endpoint).map((feature) => feature.properties?.endpointRole)).toEqual(["start", "end", "start", "end"]);
-    expect(route0Packets).toHaveLength(0);
+    expect(routeGroupLabels(data)).toEqual(["1-2", "5", "1", "2"]);
+    expect(route0Packets.length).toBeGreaterThan(0);
     expect(route1Packets).toHaveLength(1);
     packetDistances(route1Packets).forEach((distance, index, distances) => {
       if (index > 0) expect(distance - distances[index - 1]).toBeCloseTo(1800, 6);
     });
-    expect(data.packetFeatureCollection.features[0]?.properties).toMatchObject({ kind: "packet", routeId: "route-1", color: "#f97316", active: false });
+    expect(route1Packets[0]?.properties).toMatchObject({ kind: "packet", routeId: "route-1", color: "#f97316", active: false });
     expect(data.routeNodeById.get("route-1-node-2")).toMatchObject({ resultIndex: 1, color: "#f97316" });
   });
 
@@ -650,36 +707,58 @@ describe("ResultsView", () => {
     const map = await latestMap();
     act(() => map.triggerLoad());
 
-    act(() => map.triggerLayerClick("result-points", { kind: "hop", nodeId: "route-1-node-1", routeIndex: 1 }));
+    fireEvent.click(screen.getByRole("button", { name: "选择 TTL 1" }));
 
     await waitFor(() => expect(screen.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "true"));
     const row = rowForText("198.51.100.10");
     expect(row).toHaveClass("selected");
     expect(scrollIntoView).toHaveBeenCalled();
-    expect(map.setFilterCalls.at(-1)).toEqual(["result-selected-hop", ["all", ["==", ["get", "kind"], "hop"], ["==", ["get", "nodeId"], "route-1-node-1"]]]);
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1");
   });
 
-  it("builds route map data with filtered, merged, and numbered hop points", () => {
+  it("builds route map data with filtered, grouped, and numbered hop points", () => {
     const active = routeQualityResult.results[0];
     const data = buildResultMapData(active, routeQualityResult.results);
     const paths = pathFeatures(data.featureCollection);
     const labels = hopLabels(data.featureCollection);
 
-    expect(labels).toEqual(["1-2", "5"]);
-    expect(data.routeNodes[0]).toMatchObject({ nodeId: "route-0-node-1-2", ttlList: [1, 2], label: "1-2" });
-    expect(data.routeNodeIdByTtl.get(2)).toBe("route-0-node-1-2");
-    expect(paths).toHaveLength(0);
+    expect(labels).toEqual(["1", "2", "5"]);
+    expect(routeGroupLabels(data)).toEqual(["1-2", "5"]);
+    expect(data.routeNodes[0]).toMatchObject({ nodeId: "route-0-node-1", ttlList: [1], label: "1", groupLabel: "1-2", groupSize: 2 });
+    expect(data.routeNodeIdByTtl.get(2)).toBe("route-0-node-2");
+    expect(paths).toHaveLength(1);
+    expect(packetFeatures(data.packetFeatureCollection, "route-0").length).toBeGreaterThan(0);
     expect(data.fitCoordinates).toContainEqual([-118.24, 34.05]);
   });
 
-  it("does not connect drawable hops across missing TTL gaps", () => {
+  it("assigns different collapsed marker offsets to overlapping route groups", () => {
+    const result: TraceResultResponse = {
+      ...multiRouteResult,
+      results: [
+        routeQualityResult.results[0],
+        {
+          ...multiRouteResult.results[1],
+          hops: [hopWithGeo(1, "198.51.100.10", 37.39, -122.08, { country_en: "United States", city_en: "Mountain View" })],
+        },
+      ],
+    };
+    const data = buildResultMapData(result.results[0], result.results);
+    const overlappingGroups = data.routeGroups.filter((group) => group.coordinate[0] === -122.08 && group.coordinate[1] === 37.39);
+
+    expect(overlappingGroups).toHaveLength(2);
+    expect(overlappingGroups.map((group) => group.routeOffset)).toEqual([
+      [0, -15],
+      [0, 15],
+    ]);
+  });
+
+  it("connects drawable hops across missing TTL gaps", () => {
     const active = gappedRouteResult.results[0];
     const data = buildResultMapData(active, gappedRouteResult.results);
 
     expect(hopLabels(data.featureCollection)).toEqual(["6", "15"]);
-    expect(pathFeatures(data.featureCollection)).toHaveLength(0);
-    expect(packetFeatures(data.packetFeatureCollection, "route-0")).toHaveLength(0);
+    expect(pathFeatures(data.featureCollection)).toHaveLength(1);
+    expect(packetFeatures(data.packetFeatureCollection, "route-0").length).toBeGreaterThan(0);
   });
 
   it("does not build route paths for failed probes without hops", () => {
@@ -698,11 +777,12 @@ describe("ResultsView", () => {
     const paths = pathFeatures(data.featureCollection);
     const line = lineCoordinates(data.featureCollection);
 
-    expect(hopLabels(data.featureCollection)).toEqual(["1", "2", "4-5"]);
+    expect(hopLabels(data.featureCollection)).toEqual(["1", "2", "4", "5"]);
+    expect(routeGroupLabels(data)).toEqual(["1", "2", "4-5"]);
     expect(paths).toHaveLength(1);
-    expect(line).toHaveLength(2);
+    expect(line.length).toBeGreaterThanOrEqual(3);
     expect(line[0]).toEqual([179.4, 10]);
-    expect(line.at(-1)).toEqual([180.7, 11]);
+    expect(line.at(-1)).toEqual([181.1, 12]);
     expect(lngSpan(line)).toBeLessThan(3);
     expect(lngSpan(data.fitCoordinates)).toBeLessThan(3);
   });
@@ -753,6 +833,10 @@ function hopLabels(collection: ReturnType<typeof buildResultMapData>["featureCol
   return collection.features
     .filter((feature) => feature.properties?.kind === "hop")
     .map((feature) => String(feature.properties?.label));
+}
+
+function routeGroupLabels(data: ReturnType<typeof buildResultMapData>): string[] {
+  return data.routeGroups.map((group) => group.label);
 }
 
 function lineCoordinates(collection: ReturnType<typeof buildResultMapData>["featureCollection"]): number[][] {
