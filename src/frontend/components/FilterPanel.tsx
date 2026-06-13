@@ -38,6 +38,7 @@ interface FilterPanelProps {
   nexttraceTokenSaved: boolean;
   nexttraceTokenRemembered: boolean;
   themeMode: ThemeMode;
+  liquidGlassEnabled: boolean;
   onTargetChange: (value: string) => void;
   onProtocolChange: (value: TraceProtocol) => void;
   onIpVersionChange: (value: IpVersionSelection) => void;
@@ -54,6 +55,7 @@ interface FilterPanelProps {
   onClearNexttraceToken: () => void;
   onNexttraceTokenRememberedChange: (remembered: boolean) => void;
   onCycleThemeMode: () => void;
+  onLiquidGlassEnabledChange: (enabled: boolean) => void;
   onNavigateHome: () => void;
   onNavigateAbout: () => void;
   onReset: () => void;
@@ -315,6 +317,21 @@ export function FilterPanel(props: FilterPanelProps) {
                     onChange={(value) => setFilter("tag", value)}
                   />
                 </label>
+
+                <div className="token-section">
+                  <div className="summary-title">
+                    <Monitor size={16} />
+                    <span>界面效果</span>
+                  </div>
+                  <label className="token-remember">
+                    <span>液态玻璃效果</span>
+                    <Switch
+                      checked={props.liquidGlassEnabled}
+                      onCheckedChange={(checked) => props.onLiquidGlassEnabledChange(Boolean(checked))}
+                      aria-label="液态玻璃效果"
+                    />
+                  </label>
+                </div>
 
                 <div className="token-section">
                   <div className="summary-title">

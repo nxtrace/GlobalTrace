@@ -1,8 +1,18 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { deferUntilIdle } from "../lib/defer";
 
 type LiquidGlassComponent = (typeof import("liquid-glass-react"))["default"];
 const LIQUID_GLASS_IDLE_TIMEOUT_MS = 4000;
+const LIQUID_GLASS_STORAGE_KEY = "globaltrace.liquidGlass";
+const LIQUID_GLASS_ENABLED_VALUE = "enabled";
+const LIQUID_GLASS_DISABLED_VALUE = "disabled";
+const LiquidGlassPreferenceContext = createContext<boolean | null>(null);
+let fallbackClassReferences = 0;
+
+interface LiquidGlassPreferenceProviderProps {
+  children: ReactNode;
+  enabled: boolean;
+}
 
 interface LiquidGlassSurfaceProps {
   children: ReactNode;
@@ -11,22 +21,24 @@ interface LiquidGlassSurfaceProps {
   fullWidth?: boolean;
 }
 
+export function LiquidGlassPreferenceProvider({ children, enabled }: LiquidGlassPreferenceProviderProps) {
+  return <LiquidGlassPreferenceContext.Provider value={enabled}>{children}</LiquidGlassPreferenceContext.Provider>;
+}
+
 export function LiquidGlassSurface({
   children,
   className = "",
   variant = "chip",
   fullWidth = false,
 }: LiquidGlassSurfaceProps) {
-  const forceFallback = useForceFallback();
+  const liquidGlassEnabled = useLiquidGlassEnabled();
+  const forceFallback = useForceFallback(liquidGlassEnabled);
   const canUseLiquid = !forceFallback && supportsGlassEffects();
   const [LiquidGlass, setLiquidGlass] = useState<LiquidGlassComponent | null>(null);
   const canRenderLiquid = canUseLiquid && LiquidGlass;
   const mode = canRenderLiquid ? "liquid" : "fallback";
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("liquid-glass-force-fallback", forceFallback);
-    return () => document.documentElement.classList.remove("liquid-glass-force-fallback");
-  }, [forceFallback]);
+  useDocumentFallbackClass(forceFallback);
 
   useEffect(() => {
     if (!canUseLiquid || LiquidGlass) return;
@@ -65,6 +77,30 @@ export function LiquidGlassSurface({
   );
 }
 
+export function readStoredLiquidGlassEnabled(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const stored = window.localStorage.getItem(LIQUID_GLASS_STORAGE_KEY);
+    if (stored === LIQUID_GLASS_ENABLED_VALUE) return true;
+    if (stored === LIQUID_GLASS_DISABLED_VALUE) return false;
+  } catch {
+    // Liquid glass preference is best-effort.
+  }
+  return !isAndroidDevice();
+}
+
+export function writeStoredLiquidGlassEnabled(enabled: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      LIQUID_GLASS_STORAGE_KEY,
+      enabled ? LIQUID_GLASS_ENABLED_VALUE : LIQUID_GLASS_DISABLED_VALUE,
+    );
+  } catch {
+    // Liquid glass preference is best-effort.
+  }
+}
+
 function deferUntilWindowLoadIdle(callback: () => void, timeoutMs: number): () => void {
   if (typeof window === "undefined") return () => undefined;
 
@@ -88,14 +124,41 @@ function deferUntilWindowLoadIdle(callback: () => void, timeoutMs: number): () =
   };
 }
 
-function useForceFallback(): boolean {
+function useLiquidGlassEnabled(): boolean {
+  const contextEnabled = useContext(LiquidGlassPreferenceContext);
+  const [defaultEnabled] = useState(readStoredLiquidGlassEnabled);
+  return contextEnabled ?? defaultEnabled;
+}
+
+function useForceFallback(liquidGlassEnabled: boolean): boolean {
   return useMemo(() => {
+    if (!liquidGlassEnabled) return true;
     if (typeof window === "undefined") return false;
     const params = new URLSearchParams(window.location.search);
-    if (params.has("forceGlassFallback")) return true;
-    const hardwareConcurrency = window.navigator.hardwareConcurrency;
-    return typeof hardwareConcurrency === "number" && hardwareConcurrency > 0 && hardwareConcurrency <= 2;
-  }, []);
+    return params.has("forceGlassFallback");
+  }, [liquidGlassEnabled]);
+}
+
+function useDocumentFallbackClass(forceFallback: boolean): void {
+  useEffect(() => {
+    if (!forceFallback || typeof document === "undefined") return;
+    fallbackClassReferences += 1;
+    document.documentElement.classList.add("liquid-glass-force-fallback");
+    return () => {
+      fallbackClassReferences = Math.max(0, fallbackClassReferences - 1);
+      if (fallbackClassReferences === 0) {
+        document.documentElement.classList.remove("liquid-glass-force-fallback");
+      }
+    };
+  }, [forceFallback]);
+}
+
+export function isAndroidDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const navigatorWithUaData = navigator as Navigator & { userAgentData?: { platform?: string } };
+  return [navigator.userAgent, navigator.platform, navigatorWithUaData.userAgentData?.platform].some((value) =>
+    /android/i.test(value || ""),
+  );
 }
 
 function supportsGlassEffects(): boolean {

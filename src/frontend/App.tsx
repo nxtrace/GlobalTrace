@@ -11,7 +11,12 @@ import {
   type AppConfig,
 } from "./api";
 import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
-import { LiquidGlassSurface } from "./components/LiquidGlassSurface";
+import {
+  LiquidGlassPreferenceProvider,
+  LiquidGlassSurface,
+  readStoredLiquidGlassEnabled,
+  writeStoredLiquidGlassEnabled,
+} from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
@@ -68,6 +73,7 @@ const ResultsView = lazy(() => import("./components/ResultsView").then((module) 
 export function App() {
   const [route, setRoute] = useState<AppRoute>(currentRoute);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
+  const [liquidGlassEnabled, setLiquidGlassEnabled] = useState(readStoredLiquidGlassEnabled);
   const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
   const [storedGlobalpingToken] = useState(readStoredGlobalpingToken);
   const [globalpingToken, setGlobalpingToken] = useState(storedGlobalpingToken.token);
@@ -486,6 +492,11 @@ export function App() {
     setThemeMode((current) => nextThemeMode(current));
   }, []);
 
+  const updateLiquidGlassEnabled = useCallback((enabled: boolean) => {
+    setLiquidGlassEnabled(enabled);
+    writeStoredLiquidGlassEnabled(enabled);
+  }, []);
+
   const navigateAbout = useCallback(() => {
     window.history.pushState(null, "", "/about");
     setRoute("/about");
@@ -505,14 +516,17 @@ export function App() {
 
   if (route === "/about") {
     return (
-      <Suspense fallback={<AboutPageFallback />}>
-        <AboutPage onBack={navigateHome} />
-      </Suspense>
+      <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled}>
+        <Suspense fallback={<AboutPageFallback />}>
+          <AboutPage onBack={navigateHome} />
+        </Suspense>
+      </LiquidGlassPreferenceProvider>
     );
   }
 
   return (
-    <main className={`app-shell${resultPriority ? " result-priority" : ""}`}>
+    <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled}>
+      <main className={`app-shell${resultPriority ? " result-priority" : ""}`}>
         <FilterPanel
           target={target}
           protocol={protocol}
@@ -537,6 +551,7 @@ export function App() {
           nexttraceTokenSaved={Boolean(nexttraceToken)}
           nexttraceTokenRemembered={nexttraceTokenRemembered}
           themeMode={themeMode}
+          liquidGlassEnabled={liquidGlassEnabled}
           onTargetChange={setTarget}
           onProtocolChange={setProtocol}
           onIpVersionChange={setIpVersion}
@@ -553,6 +568,7 @@ export function App() {
           onClearNexttraceToken={clearNexttraceToken}
           onNexttraceTokenRememberedChange={updateNexttraceTokenRemembered}
           onCycleThemeMode={cycleThemeMode}
+          onLiquidGlassEnabledChange={updateLiquidGlassEnabled}
           onNavigateHome={navigateHome}
           onNavigateAbout={navigateAbout}
           onReset={reset}
@@ -635,7 +651,8 @@ export function App() {
             )}
           </div>
         </div>
-    </main>
+      </main>
+    </LiquidGlassPreferenceProvider>
   );
 }
 

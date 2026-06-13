@@ -74,6 +74,7 @@ afterEach(() => {
   window.localStorage?.clear();
   window.sessionStorage?.clear();
   document.documentElement.removeAttribute("data-theme");
+  document.documentElement.classList.remove("liquid-glass-force-fallback");
   window.history.replaceState(null, "", "/");
 });
 
@@ -137,6 +138,31 @@ describe("App", () => {
     await waitFor(() => {
       expect(document.documentElement.dataset.theme).toBe("dark");
     });
+  });
+
+  it("persists liquid glass preference locally", async () => {
+    mockApi();
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByText("高级参数与精确筛选"));
+
+    const liquidGlassSwitch = screen.getByRole("switch", { name: "液态玻璃效果" });
+    expect(liquidGlassSwitch).toBeChecked();
+
+    fireEvent.click(liquidGlassSwitch);
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe("disabled");
+    });
+    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).not.toBeChecked();
+    expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
+
+    fireEvent.click(screen.getByRole("switch", { name: "液态玻璃效果" }));
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe("enabled");
+    });
+    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
   });
 
   it("saves a Globalping token for the current session and sends it only to Globalping", async () => {

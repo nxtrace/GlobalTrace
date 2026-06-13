@@ -63,6 +63,7 @@ describe("FilterPanel", () => {
         nexttraceTokenSaved={false}
         nexttraceTokenRemembered={false}
         themeMode="system"
+        liquidGlassEnabled={true}
         onTargetChange={vi.fn()}
         onProtocolChange={vi.fn()}
         onIpVersionChange={vi.fn()}
@@ -79,6 +80,7 @@ describe("FilterPanel", () => {
         onClearNexttraceToken={vi.fn()}
         onNexttraceTokenRememberedChange={vi.fn()}
         onCycleThemeMode={vi.fn()}
+        onLiquidGlassEnabledChange={vi.fn()}
         onNavigateHome={vi.fn()}
         onNavigateAbout={vi.fn()}
         onReset={onReset}
@@ -100,6 +102,7 @@ describe("FilterPanel", () => {
     expect(screen.getByLabelText("magic string")).toBeVisible();
     expect(screen.getByLabelText("eyeball")).not.toBeVisible();
     expect(screen.getByLabelText("datacenter")).not.toBeVisible();
+    expect(screen.getByLabelText("液态玻璃效果")).not.toBeVisible();
     expect(screen.getByLabelText("Globalping Token")).not.toBeVisible();
     expect(screen.getByText(/Powered by/)).toBeInTheDocument();
     expect(screen.getByText("×")).toBeInTheDocument();
@@ -117,6 +120,7 @@ describe("FilterPanel", () => {
     expect(screen.getByLabelText("tag")).toBeVisible();
     expect(screen.getByLabelText("eyeball")).toBeVisible();
     expect(screen.getByLabelText("datacenter")).toBeVisible();
+    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
     const advancedPanel = screen.getByText("高级参数与精确筛选").closest("details") as HTMLElement;
     expect(within(advancedPanel).queryByLabelText("magic string")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Globalping Token")).toBeVisible();
@@ -554,6 +558,7 @@ describe("FilterPanel", () => {
     const onClearNexttraceToken = vi.fn();
     const onNexttraceTokenRememberedChange = vi.fn();
     const onCycleThemeMode = vi.fn();
+    const onLiquidGlassEnabledChange = vi.fn();
     const onNavigateAbout = vi.fn();
     renderPanel({
       globalpingTokenDraft: "gp-token",
@@ -563,6 +568,7 @@ describe("FilterPanel", () => {
       nexttraceTokenSaved: true,
       nexttraceTokenRemembered: true,
       themeMode: "dark",
+      liquidGlassEnabled: false,
       onGlobalpingTokenDraftChange,
       onSaveGlobalpingToken,
       onClearGlobalpingToken,
@@ -572,6 +578,7 @@ describe("FilterPanel", () => {
       onClearNexttraceToken,
       onNexttraceTokenRememberedChange,
       onCycleThemeMode,
+      onLiquidGlassEnabledChange,
       onNavigateAbout,
     });
 
@@ -584,6 +591,7 @@ describe("FilterPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
     fireEvent.click(screen.getByRole("button", { name: "清除 NextTrace" }));
     fireEvent.click(screen.getByLabelText("记住 NextTrace 到本机"));
+    fireEvent.click(screen.getByLabelText("液态玻璃效果"));
     fireEvent.click(screen.getByRole("button", { name: "主题：Dark" }));
     fireEvent.click(screen.getByRole("button", { name: "关于 GlobalTrace" }));
 
@@ -597,6 +605,7 @@ describe("FilterPanel", () => {
     expect(onSaveNexttraceToken).toHaveBeenCalledTimes(1);
     expect(onClearNexttraceToken).toHaveBeenCalledTimes(1);
     expect(onNexttraceTokenRememberedChange).toHaveBeenCalledWith(false);
+    expect(onLiquidGlassEnabledChange).toHaveBeenCalledWith(true);
     expect(onCycleThemeMode).toHaveBeenCalledTimes(1);
     expect(onNavigateAbout).toHaveBeenCalledTimes(1);
   });
@@ -637,6 +646,7 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       nexttraceTokenSaved={false}
       nexttraceTokenRemembered={false}
       themeMode="system"
+      liquidGlassEnabled={true}
       onTargetChange={vi.fn()}
       onProtocolChange={vi.fn()}
       onIpVersionChange={vi.fn()}
@@ -653,6 +663,7 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
       onClearNexttraceToken={vi.fn()}
       onNexttraceTokenRememberedChange={vi.fn()}
       onCycleThemeMode={vi.fn()}
+      onLiquidGlassEnabledChange={vi.fn()}
       onNavigateHome={vi.fn()}
       onNavigateAbout={vi.fn()}
       onReset={vi.fn()}
