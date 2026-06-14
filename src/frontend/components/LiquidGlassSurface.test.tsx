@@ -46,6 +46,7 @@ afterEach(() => {
 describe("LiquidGlassSurface", () => {
   it("renders fallback first and loads liquid glass after window load and idle", async () => {
     setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
     vi.spyOn(document, "readyState", "get").mockReturnValue("loading");
 
     render(
@@ -71,19 +72,24 @@ describe("LiquidGlassSurface", () => {
     ["iPad", "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)", "iPad", 0, undefined],
     ["iPadOS desktop mode", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", "MacIntel", 5, undefined],
     ["userAgentData macOS", "GlobalTrace Test Agent", "", 0, "macOS"],
-  ])("loads liquid glass by default on %s", async (_label, userAgent, platform, maxTouchPoints, userAgentDataPlatform) => {
-    setNavigatorDevice({ userAgent, platform, maxTouchPoints, userAgentDataPlatform });
+  ])(
+    "uses fallback by default on Apple-like %s without loading liquid glass",
+    (_label, userAgent, platform, maxTouchPoints, userAgentDataPlatform) => {
+      setNavigatorDevice({ userAgent, platform, maxTouchPoints, userAgentDataPlatform });
 
-    render(
-      <LiquidGlassSurface>
-        <span>Apple content</span>
-      </LiquidGlassSurface>,
-    );
-    const surface = screen.getByText("Apple content").closest("[data-liquid-glass]");
+      render(
+        <LiquidGlassSurface>
+          <span>Apple content</span>
+        </LiquidGlassSurface>,
+      );
+      const surface = screen.getByText("Apple content").closest("[data-liquid-glass]");
 
-    await waitFor(() => expect(surface).toHaveAttribute("data-liquid-glass-mode", "liquid"));
-    expect(screen.getByTestId("liquid-glass-mock")).toBeInTheDocument();
-  });
+      expect(surface).toHaveAttribute("data-liquid-glass-mode", "fallback");
+      expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
+      expect(window.requestIdleCallback).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("liquid-glass-mock")).not.toBeInTheDocument();
+    },
+  );
 
   it.each([
     ["Android", "Mozilla/5.0 (Linux; Android 14)", "Linux armv8l"],
@@ -106,7 +112,7 @@ describe("LiquidGlassSurface", () => {
     expect(screen.queryByTestId("liquid-glass-mock")).not.toBeInTheDocument();
   });
 
-  it("allows stored enabled preference to override the non-Apple default", async () => {
+  it("allows stored enabled preference to override the default", async () => {
     setNavigatorDevice({ userAgent: "Mozilla/5.0 (Linux; Android 14)", platform: "Linux armv8l" });
     window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
 
@@ -284,6 +290,7 @@ describe("LiquidGlassSurface", () => {
     ],
   ] as const)("passes stronger reference-oriented liquid glass props for the %s variant", async (variant, expectedProps) => {
     setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
 
     render(
       <LiquidGlassSurface variant={variant}>
@@ -387,6 +394,7 @@ describe("LiquidGlassSurface", () => {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
       platform: "MacIntel",
     });
+    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
 
     const { rerender } = render(
       <LiquidGlassSurface variant="button">
@@ -425,6 +433,7 @@ describe("LiquidGlassSurface", () => {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
       platform: "MacIntel",
     });
+    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
 
     render(
       <LiquidGlassSurface variant="button">
@@ -450,6 +459,7 @@ describe("LiquidGlassSurface", () => {
 
   it("passes interactive click feedback only when enabled", async () => {
     setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
     const { rerender } = render(
       <LiquidGlassSurface variant="button" interactive>
         <span>Run</span>
@@ -479,6 +489,7 @@ describe("LiquidGlassSurface", () => {
 
   it("handles explicit click surfaces from the accessible root", async () => {
     setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
     const onClick = vi.fn();
 
     render(

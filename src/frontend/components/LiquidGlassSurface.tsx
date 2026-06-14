@@ -143,7 +143,7 @@ function noop(): void {
 }
 
 export function readStoredLiquidGlassEnabled(): boolean {
-  if (typeof window === "undefined") return true;
+  if (typeof window === "undefined") return false;
   try {
     const stored = window.localStorage.getItem(LIQUID_GLASS_STORAGE_KEY);
     if (stored === LIQUID_GLASS_ENABLED_VALUE) return true;
@@ -151,7 +151,7 @@ export function readStoredLiquidGlassEnabled(): boolean {
   } catch {
     // Liquid glass preference is best-effort.
   }
-  return isAppleDevice();
+  return false;
 }
 
 export function writeStoredLiquidGlassEnabled(enabled: boolean): void {

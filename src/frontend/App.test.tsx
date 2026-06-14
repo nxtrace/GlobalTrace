@@ -194,8 +194,17 @@ describe("App", () => {
 
     const liquidGlassSwitch = screen.getByRole("switch", { name: "液态玻璃效果" });
     const liquidGlassIntensity = screen.getByLabelText("液态玻璃强度") as HTMLInputElement;
-    expect(liquidGlassSwitch).toBeChecked();
+    expect(liquidGlassSwitch).not.toBeChecked();
     expect(liquidGlassIntensity).toHaveValue("70");
+    expect(liquidGlassIntensity).toBeDisabled();
+    expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
+
+    fireEvent.click(liquidGlassSwitch);
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe("enabled");
+    });
+    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
+    expect(screen.getByLabelText("液态玻璃强度")).not.toBeDisabled();
 
     fireEvent.change(liquidGlassIntensity, { target: { value: "85" } });
     await waitFor(() => {
