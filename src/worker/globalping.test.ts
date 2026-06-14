@@ -52,7 +52,7 @@ describe("Globalping client and validation", () => {
       inProgressUpdates: true,
       measurementOptions: {
         protocol: "ICMP",
-        packets: 3,
+        packets: 5,
       },
     });
   });

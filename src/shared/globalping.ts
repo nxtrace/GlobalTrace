@@ -1,7 +1,10 @@
 import { buildMagicFromFilters } from "./filters";
 import {
   DEFAULT_PROBE_LIMIT,
+  DEFAULT_TRACE_PACKETS,
+  MAX_TRACE_PACKETS,
   MAX_TRACE_PROBES,
+  MIN_TRACE_PACKETS,
   type TraceCreateRequest,
   type TraceProtocol,
 } from "./types";
@@ -87,9 +90,9 @@ export function validateTraceCreate(input: TraceCreateRequest): ValidatedTraceCr
     throw new Error("port must be within range 0-65535");
   }
 
-  const packets = input.packets ?? 3;
-  if (!Number.isInteger(packets) || packets < 1 || packets > 16) {
-    throw new Error("packets must be within range 1-16");
+  const packets = input.packets ?? DEFAULT_TRACE_PACKETS;
+  if (!Number.isInteger(packets) || packets < MIN_TRACE_PACKETS || packets > MAX_TRACE_PACKETS) {
+    throw new Error(`packets must be within range ${MIN_TRACE_PACKETS}-${MAX_TRACE_PACKETS}`);
   }
 
   const ipVersion = input.ipVersion;

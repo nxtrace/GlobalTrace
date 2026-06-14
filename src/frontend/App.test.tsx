@@ -183,6 +183,51 @@ describe("App", () => {
     });
   });
 
+  it("restores and persists advanced trace port and packets locally", async () => {
+    window.localStorage.setItem("globaltrace.tracePort", "443");
+    window.localStorage.setItem("globaltrace.tracePackets", "9");
+    const fetchMock = mockApi();
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    openAdvancedParams();
+    expect(screen.getByLabelText("端口")).toHaveValue("443");
+    expect(screen.getByLabelText("包数")).toHaveValue(9);
+
+    fireEvent.change(screen.getByLabelText("端口"), { target: { value: "8443" } });
+    fireEvent.change(screen.getByLabelText("包数"), { target: { value: "7" } });
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.tracePort")).toBe("8443");
+      expect(window.localStorage.getItem("globaltrace.tracePackets")).toBe("7");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(traceCreateBodies(fetchMock)[0].measurementOptions).toMatchObject({ port: 8443, packets: 7 });
+  });
+
+  it("falls back from invalid stored packets and reset clears stored trace parameters", async () => {
+    window.localStorage.setItem("globaltrace.tracePort", "443");
+    window.localStorage.setItem("globaltrace.tracePackets", "99");
+    mockApi();
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    openAdvancedParams();
+    expect(screen.getByLabelText("端口")).toHaveValue("443");
+    expect(screen.getByLabelText("包数")).toHaveValue(5);
+
+    fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
+
+    expect(screen.getByLabelText("端口")).toHaveValue("");
+    expect(screen.getByLabelText("包数")).toHaveValue(5);
+    expect(window.localStorage.getItem("globaltrace.tracePort")).toBeNull();
+    expect(window.localStorage.getItem("globaltrace.tracePackets")).toBeNull();
+  });
+
   it("persists liquid glass preference locally", async () => {
     mockApi();
     setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
@@ -695,6 +740,7 @@ describe("App", () => {
     expect(window.location.search).toBe("?measurement=m123");
     expect(fetchMock).toHaveBeenCalledWith("https://api.globalping.io/v1/measurements", expect.objectContaining({ method: "POST" }));
     expect(traceCreateBodies(fetchMock)[0].measurementOptions).not.toHaveProperty("ipVersion");
+    expect(traceCreateBodies(fetchMock)[0].measurementOptions).toMatchObject({ packets: 5 });
   });
 
   it("keeps the share URL contract when switching the result map to 3D", async () => {
@@ -1122,7 +1168,7 @@ function mockApi(
 function traceCreateBodies(fetchMock: ReturnType<typeof mockApi>): Array<{
   locations: Array<{ magic: string }>;
   limit: number;
-  measurementOptions: { ipVersion?: 4 | 6 };
+  measurementOptions: { ipVersion?: 4 | 6; packets?: number; port?: number };
 }> {
   return fetchMock.mock.calls
     .filter(([path, init]) => path === "https://api.globalping.io/v1/measurements" && init?.method === "POST")

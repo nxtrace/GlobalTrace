@@ -42,7 +42,10 @@ import type { GlobalpingMeasurement } from "../shared/globalping";
 import {
   DEFAULT_MAP_STYLE_URL,
   DEFAULT_PROBE_LIMIT,
+  DEFAULT_TRACE_PACKETS,
+  MAX_TRACE_PACKETS,
   MAX_TRACE_PROBES,
+  MIN_TRACE_PACKETS,
   type GlobalpingLimitResponse,
   type GlobalpingProbe,
   type TraceFilters,
@@ -60,6 +63,8 @@ const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
 const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
+const TRACE_PORT_STORAGE_KEY = "globaltrace.tracePort";
+const TRACE_PACKETS_STORAGE_KEY = "globaltrace.tracePackets";
 
 type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
@@ -101,8 +106,8 @@ export function App() {
   const [target, setTarget] = useState("globalping.io");
   const [protocol, setProtocol] = useState<TraceProtocol>("ICMP");
   const [ipVersion, setIpVersion] = useState<IpVersionSelection>("");
-  const [port, setPort] = useState("");
-  const [packets, setPackets] = useState(3);
+  const [port, setPort] = useState(readStoredTracePort);
+  const [packets, setPackets] = useState(readStoredTracePackets);
   const [limit, setLimit] = useState(DEFAULT_PROBE_LIMIT);
   const [filters, setFilters] = useState<TraceFilters>({ magic: "world" });
   const [configReady, setConfigReady] = useState(false);
@@ -445,7 +450,9 @@ export function App() {
     setMeasurementLoading(null);
     setLimit(DEFAULT_PROBE_LIMIT);
     setPort("");
-    setPackets(3);
+    writeStoredTracePort("");
+    setPackets(DEFAULT_TRACE_PACKETS);
+    writeStoredTracePackets(DEFAULT_TRACE_PACKETS);
     setProtocol("ICMP");
     setIpVersion("");
     setSelectionNotice("");
@@ -467,6 +474,16 @@ export function App() {
     }
     setLimit(nextLimit);
   }, [mapSelectionActive]);
+
+  const handlePortChange = useCallback((nextPort: string) => {
+    setPort(nextPort);
+    writeStoredTracePort(nextPort);
+  }, []);
+
+  const handlePacketsChange = useCallback((nextPackets: number) => {
+    setPackets(nextPackets);
+    writeStoredTracePackets(nextPackets);
+  }, []);
 
   const showResult = useCallback(() => {
     if (finalResult) setWorkspaceMode("result");
@@ -599,8 +616,8 @@ export function App() {
           onTargetChange={setTarget}
           onProtocolChange={setProtocol}
           onIpVersionChange={setIpVersion}
-          onPortChange={setPort}
-          onPacketsChange={setPackets}
+          onPortChange={handlePortChange}
+          onPacketsChange={handlePacketsChange}
           onLimitChange={handleLimitChange}
           onFiltersChange={handleFiltersChange}
           onGlobalpingTokenDraftChange={setGlobalpingTokenDraft}
@@ -874,6 +891,54 @@ function clearStoredToken(key: string): void {
     window.sessionStorage.removeItem(key);
   } catch {
     // Ignore storage failures; the token still works for the current tab.
+  }
+}
+
+function readStoredTracePort(): string {
+  try {
+    return window.localStorage.getItem(TRACE_PORT_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeStoredTracePort(port: string): void {
+  try {
+    if (port === "") {
+      window.localStorage.removeItem(TRACE_PORT_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(TRACE_PORT_STORAGE_KEY, port);
+  } catch {
+    // Trace parameter persistence is best-effort.
+  }
+}
+
+function readStoredTracePackets(): number {
+  try {
+    const stored = Number(window.localStorage.getItem(TRACE_PACKETS_STORAGE_KEY));
+    if (Number.isInteger(stored) && stored >= MIN_TRACE_PACKETS && stored <= MAX_TRACE_PACKETS) {
+      return stored;
+    }
+  } catch {
+    // Trace parameter persistence is best-effort.
+  }
+  return DEFAULT_TRACE_PACKETS;
+}
+
+function writeStoredTracePackets(packets: number): void {
+  try {
+    if (packets === DEFAULT_TRACE_PACKETS) {
+      window.localStorage.removeItem(TRACE_PACKETS_STORAGE_KEY);
+      return;
+    }
+    if (!Number.isInteger(packets) || packets < MIN_TRACE_PACKETS || packets > MAX_TRACE_PACKETS) {
+      window.localStorage.removeItem(TRACE_PACKETS_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(TRACE_PACKETS_STORAGE_KEY, String(packets));
+  } catch {
+    // Trace parameter persistence is best-effort.
   }
 }
 

@@ -1937,9 +1937,9 @@ tbody tr:hover {
 }
 
 .probe-tab-surface {
-  flex: 1 0 min(180px, 70vw);
-  min-width: 160px;
-  min-height: 42px;
+  flex: 1 0 min(230px, 82vw);
+  min-width: 210px;
+  min-height: 74px;
   isolation: isolate;
 }
 
@@ -2002,16 +2002,16 @@ tbody tr:hover {
 .probe-tab-button {
   width: 100%;
   min-width: 0;
-  min-height: 42px;
+  min-height: 74px;
   height: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
+  align-items: start;
   gap: 7px;
   justify-items: stretch;
   border: 0;
   border-radius: var(--probe-tab-radius);
-  padding: 7px 11px;
+  padding: 8px 11px;
   background: transparent;
   box-shadow: none;
   color: var(--probe-tab-text);
@@ -2035,10 +2035,16 @@ tbody tr:hover {
 .probe-tab-copy {
   min-width: 0;
   display: grid;
+  gap: 6px;
+}
+
+.probe-tab-heading {
+  min-width: 0;
+  display: grid;
   gap: 2px;
 }
 
-.probe-tab-copy strong {
+.probe-tab-heading strong {
   max-width: 100%;
   overflow: hidden;
   line-height: 1.15;
@@ -2058,7 +2064,7 @@ tbody tr:hover {
   outline-offset: -4px;
 }
 
-.probe-tab-surface.is-active .probe-tab-copy strong {
+.probe-tab-surface.is-active .probe-tab-heading strong {
   color: var(--probe-tab-active-title-color, var(--probe-tab-text));
 }
 
@@ -2070,6 +2076,60 @@ tbody tr:hover {
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.probe-tab-targets {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.probe-tab-target {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.probe-tab-target > span {
+  color: var(--probe-tab-meta-color);
+  font-size: 10px;
+  font-weight: 720;
+  line-height: 1.05;
+}
+
+.probe-tab-target > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--probe-tab-text);
+  font-size: 12px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.probe-tab-packets {
+  min-width: 0;
+  height: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.probe-tab-packet-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 999px;
+  background: var(--packet-color, var(--accent));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--packet-color, var(--accent)) 42%, transparent);
+}
+
+.probe-tab-packet-dot.is-lost {
+  border: 1px solid color-mix(in srgb, var(--danger) 64%, var(--probe-tab-meta-color));
+  background: color-mix(in srgb, var(--danger) 28%, var(--probe-tab-meta-color));
+  box-shadow: none;
+  opacity: 0.72;
 }
 
 .probe-tab-surface.is-active .probe-tab-route-dot {
@@ -2091,7 +2151,7 @@ tbody tr:hover {
 
 .result-metrics {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
 }
 

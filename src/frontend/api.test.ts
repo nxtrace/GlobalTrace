@@ -80,7 +80,7 @@ describe("frontend api helpers", () => {
       type: "mtr",
       target: "example.com",
       limit: 1,
-      measurementOptions: { protocol: "ICMP", packets: 3 },
+      measurementOptions: { protocol: "ICMP", packets: 5 },
     });
   });
 

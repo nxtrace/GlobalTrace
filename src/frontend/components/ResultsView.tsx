@@ -3,7 +3,7 @@ import maplibregl, { type ExpressionSpecification, type GeoJSONSource } from "ma
 import { Clock3, ExternalLink, Globe2, Map as MapIcon, Route, Share2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { Feature, FeatureCollection } from "geojson";
-import type { TraceHop, TraceProbeResult, TraceResultResponse } from "../../shared/types";
+import { MAX_TRACE_PACKETS, type TraceHop, type TraceProbeResult, type TraceResultResponse } from "../../shared/types";
 import {
   buildRouteNodeIdByTtl,
   buildRouteNodesForHops,
@@ -116,6 +116,20 @@ interface ResultsViewProps {
   onClose?: () => void;
 }
 
+interface TargetPacketDot {
+  key: string;
+  color: string | null;
+  lost: boolean;
+  label: string;
+}
+
+interface TargetRouteMetrics {
+  latency: string;
+  loss: string;
+  dots: TargetPacketDot[];
+  packetLabel: string;
+}
+
 export function ResultsView({
   result,
   mapStyleUrl,
@@ -223,25 +237,53 @@ export function ResultsView({
           <LiquidGlassSurface variant="toolbar" fullWidth className="probe-tabs-frame-surface">
             <div className="probe-tabs-frame">
               <TabsList unstyled className="probe-tabs" aria-label="probe results">
-                {result.results.map((item, index) => (
-                  <LiquidGlassSurface
-                    variant="tab"
-                    className={`probe-tab-surface${index === activeIndex ? " is-active" : ""}`}
-                    style={routeTabStyle(index)}
-                    interactive
-                    onClick={() => selectProbe(index)}
-                    actionRole="none"
-                    key={item.id}
-                  >
-                    <TabsTrigger unstyled className="probe-tab-button" value={String(index)}>
-                      <span className="probe-tab-route-dot" aria-hidden="true" />
-                      <span className="probe-tab-copy">
-                        <strong>{item.probe.city || item.probe.country}</strong>
-                        <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
-                      </span>
-                    </TabsTrigger>
-                  </LiquidGlassSurface>
-                ))}
+                {result.results.map((item, index) => {
+                  const targetMetrics = routeTargetMetrics(item);
+                  return (
+                    <LiquidGlassSurface
+                      variant="tab"
+                      className={`probe-tab-surface${index === activeIndex ? " is-active" : ""}`}
+                      style={routeTabStyle(index)}
+                      interactive
+                      onClick={() => selectProbe(index)}
+                      actionRole="none"
+                      key={item.id}
+                    >
+                      <TabsTrigger unstyled className="probe-tab-button" value={String(index)}>
+                        <span className="probe-tab-route-dot" aria-hidden="true" />
+                        <span className="probe-tab-copy">
+                          <span className="probe-tab-heading">
+                            <strong>{item.probe.city || item.probe.country}</strong>
+                            <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
+                          </span>
+                          <span className="probe-tab-targets">
+                            <span className="probe-tab-target" aria-label="目标延迟">
+                              <span>延迟</span>
+                              <strong>{targetMetrics.latency}</strong>
+                            </span>
+                            <span className="probe-tab-target" aria-label="目标丢包">
+                              <span>丢包</span>
+                              <strong>{targetMetrics.loss}</strong>
+                            </span>
+                          </span>
+                          {targetMetrics.dots.length > 0 && (
+                            <span className="probe-tab-packets" aria-label={targetMetrics.packetLabel}>
+                              {targetMetrics.dots.map((dot) => (
+                                <span
+                                  className={`probe-tab-packet-dot${dot.lost ? " is-lost" : ""}`}
+                                  style={dot.color ? ({ "--packet-color": dot.color } as CSSProperties) : undefined}
+                                  title={dot.label}
+                                  aria-hidden="true"
+                                  key={dot.key}
+                                />
+                              ))}
+                            </span>
+                          )}
+                        </span>
+                      </TabsTrigger>
+                    </LiquidGlassSurface>
+                  );
+                })}
               </TabsList>
             </div>
           </LiquidGlassSurface>
@@ -1016,6 +1058,53 @@ function routeTabStyle(index: number): CSSProperties {
   return { "--route-color": resultRouteColor(index) } as CSSProperties;
 }
 
+function routeTargetMetrics(result: TraceProbeResult): TargetRouteMetrics {
+  const targetHop = findTargetHop(result);
+  if (!targetHop) {
+    return { latency: "N/A", loss: "N/A", dots: [], packetLabel: "目标包状态不可用" };
+  }
+
+  const latency =
+    targetHop.stats && targetHop.stats.loss < 100 && typeof targetHop.stats.avg === "number"
+      ? formatMs(targetHop.stats.avg)
+      : "N/A";
+  const loss = targetHop.stats ? formatPercent(targetHop.stats.loss) : "N/A";
+  const total = targetHop.stats?.total;
+  const packetTotal = typeof total === "number" && Number.isInteger(total) && total > 0 ? total : targetHop.timingsMs.length;
+  const dotCount = Math.min(
+    MAX_TRACE_PACKETS,
+    Math.max(0, packetTotal),
+  );
+  const receivedCount = Math.min(
+    dotCount,
+    Math.max(0, targetHop.stats ? targetHop.stats.rcv : targetHop.timingsMs.length),
+  );
+  const dots: TargetPacketDot[] = [];
+  for (let index = 0; index < dotCount; index += 1) {
+    const rtt = index < receivedCount ? targetHop.timingsMs[index] : undefined;
+    const hasRtt = typeof rtt === "number" && Number.isFinite(rtt);
+    dots.push({
+      key: `${targetHop.ttl}-${index}`,
+      color: hasRtt ? targetPacketColor(rtt) : null,
+      lost: !hasRtt,
+      label: hasRtt ? `packet ${index + 1}: ${formatMs(rtt)}` : `packet ${index + 1}: lost`,
+    });
+  }
+
+  return {
+    latency,
+    loss,
+    dots,
+    packetLabel: `目标包状态 ${dotCount} 个，丢包 ${loss}`,
+  };
+}
+
+function targetPacketColor(rtt: number): string {
+  if (rtt <= 60) return "#3b82f6";
+  if (rtt <= 150) return "var(--warning)";
+  return "var(--danger)";
+}
+
 function resultEndpointRole(index: number, count: number): RouteEndpointRole {
   if (count <= 1) return "single";
   if (index === 0) return "start";
@@ -1660,19 +1749,10 @@ function resultSummary(result: TraceResultResponse, active: TraceProbeResult | n
   const finished = result.results.filter((item) => item.status === "finished").length;
   const failed = result.results.filter((item) => item.status === "failed" || item.status === "error").length;
   const hopCount = active?.hops.length || 0;
-  const targetHop = findTargetHop(active);
-  const targetLoss = targetHop?.stats ? formatPercent(targetHop.stats.loss) : "N/A";
-  const targetLatency =
-    targetHop?.stats && targetHop.stats.loss < 100 && typeof targetHop.stats.avg === "number"
-      ? formatMs(targetHop.stats.avg)
-      : "N/A";
-
   const summary = [
     { label: "status", value: result.status },
     { label: "probes", value: `${finished}/${result.probesCount}` },
     { label: "hops", value: String(hopCount) },
-    { label: "目标延迟", value: targetLatency },
-    { label: "目标丢包", value: targetLoss },
   ];
   if (failed > 0) {
     summary.splice(2, 0, { label: "失败 probes", value: String(failed) });

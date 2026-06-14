@@ -264,12 +264,18 @@ describe("ResultsView", () => {
     expect(document.querySelector(".raw-output[data-liquid-glass]")).toBeNull();
   });
 
-  it("renders target metrics from the active resolved destination hop", () => {
+  it("renders target metrics inside route tabs instead of the summary cards", () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
 
     const summary = screen.getByLabelText("trace summary");
-    expectSummaryMetric("目标延迟", "1.2 ms");
-    expectSummaryMetric("目标丢包", "0.0%");
+    expect(within(summary).queryByText("目标延迟")).not.toBeInTheDocument();
+    expect(within(summary).queryByText("目标丢包")).not.toBeInTheDocument();
+    expectRouteTabTarget(screen.getByRole("tab", { name: /Los Angeles/ }), {
+      latency: "1.2 ms",
+      loss: "0.0%",
+      dots: 1,
+      lost: 0,
+    });
     expect(within(summary).queryByText("public IP")).not.toBeInTheDocument();
     expect(within(summary).queryByText("avg loss")).not.toBeInTheDocument();
   });
@@ -357,38 +363,62 @@ describe("ResultsView", () => {
     expect(within(table).getByText("AS64500")).toBeInTheDocument();
   });
 
-  it("updates target metrics when the active probe changes", () => {
+  it("renders target metrics and packet dots for each route", () => {
     render(<ResultsView result={multiProbeResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    expectSummaryMetric("目标延迟", "1.2 ms");
-    expectSummaryMetric("目标丢包", "0.0%");
+    expectRouteTabTarget(screen.getByRole("tab", { name: /Los Angeles/ }), {
+      latency: "1.2 ms",
+      loss: "0.0%",
+      dots: 1,
+      lost: 0,
+    });
+    expectRouteTabTarget(screen.getByRole("tab", { name: /Tokyo/ }), {
+      latency: "8.0 ms",
+      loss: "12.5%",
+      dots: 8,
+      lost: 1,
+    });
 
     fireEvent.click(screen.getByRole("tab", { name: /Tokyo/ }));
-
-    expectSummaryMetric("目标延迟", "8.0 ms");
-    expectSummaryMetric("目标丢包", "12.5%");
+    expect(screen.getByRole("tab", { name: /Tokyo/ }).closest(".probe-tab-surface")).toHaveClass("is-active");
   });
 
   it("renders N/A target latency when the destination is fully lost", () => {
     render(<ResultsView result={targetLossResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    expectSummaryMetric("目标延迟", "N/A");
-    expectSummaryMetric("目标丢包", "100.0%");
+    expectRouteTabTarget(screen.getByRole("tab", { name: /Los Angeles/ }), {
+      latency: "N/A",
+      loss: "100.0%",
+      dots: 3,
+      lost: 3,
+    });
   });
 
   it("renders N/A target metrics without a usable destination hop", () => {
     render(<ResultsView result={targetMetricFallbackResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    expectSummaryMetric("目标延迟", "N/A");
-    expectSummaryMetric("目标丢包", "N/A");
+    expectRouteTabTarget(screen.getByRole("tab", { name: /No resolved/ }), {
+      latency: "N/A",
+      loss: "N/A",
+      dots: 0,
+      lost: 0,
+    });
 
     fireEvent.click(screen.getByRole("tab", { name: /No match/ }));
-    expectSummaryMetric("目标延迟", "N/A");
-    expectSummaryMetric("目标丢包", "N/A");
+    expectRouteTabTarget(screen.getByRole("tab", { name: /No match/ }), {
+      latency: "N/A",
+      loss: "N/A",
+      dots: 0,
+      lost: 0,
+    });
 
     fireEvent.click(screen.getByRole("tab", { name: /No stats/ }));
-    expectSummaryMetric("目标延迟", "N/A");
-    expectSummaryMetric("目标丢包", "N/A");
+    expectRouteTabTarget(screen.getByRole("tab", { name: /No stats/ }), {
+      latency: "N/A",
+      loss: "N/A",
+      dots: 1,
+      lost: 0,
+    });
   });
 
   it("renders raw and whois detail payloads", () => {
@@ -863,6 +893,20 @@ function expectSummaryMetric(label: string, value: string) {
   expect(within(metric as HTMLElement).getByText(value)).toBeInTheDocument();
 }
 
+function expectRouteTabTarget(
+  tab: HTMLElement,
+  expected: { latency: string; loss: string; dots: number; lost: number },
+) {
+  const latency = tab.querySelector('[aria-label="目标延迟"]');
+  const loss = tab.querySelector('[aria-label="目标丢包"]');
+  expect(latency).not.toBeNull();
+  expect(loss).not.toBeNull();
+  expect(within(latency as HTMLElement).getByText(expected.latency)).toBeInTheDocument();
+  expect(within(loss as HTMLElement).getByText(expected.loss)).toBeInTheDocument();
+  expect(tab.querySelectorAll(".probe-tab-packet-dot")).toHaveLength(expected.dots);
+  expect(tab.querySelectorAll(".probe-tab-packet-dot.is-lost")).toHaveLength(expected.lost);
+}
+
 function expectGeoIpMetric(status: string, detail: string) {
   const summary = screen.getByLabelText("trace summary");
   const metric = within(summary).getByLabelText("GeoIP enrichment status");
@@ -1321,7 +1365,7 @@ const multiProbeResult: TraceResultResponse = {
           ip: "203.0.113.9",
           hostname: "edge.example",
           asn: [64500],
-          timingsMs: [8],
+          timingsMs: [8, 8.4, 8.1, 7.9, 8.2, 8.3, 8.5],
           stats: { min: 7, avg: 8, max: 9, total: 8, rcv: 7, drop: 1, loss: 12.5 },
         },
       ],
