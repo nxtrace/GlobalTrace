@@ -256,29 +256,25 @@ export function ResultsView({
                             <strong>{item.probe.city || item.probe.country}</strong>
                             <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
                           </span>
-                          <span className="probe-tab-targets">
-                            <span className="probe-tab-target" aria-label="目标延迟">
-                              <span>延迟</span>
-                              <strong>{targetMetrics.latency}</strong>
-                            </span>
-                            <span className="probe-tab-target" aria-label="目标丢包">
-                              <span>丢包</span>
-                              <strong>{targetMetrics.loss}</strong>
-                            </span>
+                          <span
+                            className="probe-tab-targets"
+                            aria-label={`目标延迟 ${targetMetrics.latency}，目标丢包 ${targetMetrics.loss}`}
+                          >
+                            <strong className="probe-tab-target-latency">{targetMetrics.latency}</strong>
+                            {targetMetrics.dots.length > 0 && (
+                              <span className="probe-tab-packets" aria-label={targetMetrics.packetLabel}>
+                                {targetMetrics.dots.map((dot) => (
+                                  <span
+                                    className={`probe-tab-packet-dot${dot.lost ? " is-lost" : ""}`}
+                                    style={dot.color ? ({ "--packet-color": dot.color } as CSSProperties) : undefined}
+                                    title={dot.label}
+                                    aria-hidden="true"
+                                    key={dot.key}
+                                  />
+                                ))}
+                              </span>
+                            )}
                           </span>
-                          {targetMetrics.dots.length > 0 && (
-                            <span className="probe-tab-packets" aria-label={targetMetrics.packetLabel}>
-                              {targetMetrics.dots.map((dot) => (
-                                <span
-                                  className={`probe-tab-packet-dot${dot.lost ? " is-lost" : ""}`}
-                                  style={dot.color ? ({ "--packet-color": dot.color } as CSSProperties) : undefined}
-                                  title={dot.label}
-                                  aria-hidden="true"
-                                  key={dot.key}
-                                />
-                              ))}
-                            </span>
-                          )}
                         </span>
                       </TabsTrigger>
                     </LiquidGlassSurface>

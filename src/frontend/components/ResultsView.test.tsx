@@ -276,6 +276,8 @@ describe("ResultsView", () => {
       dots: 1,
       lost: 0,
     });
+    expect(screen.queryByText("延迟")).not.toBeInTheDocument();
+    expect(screen.queryByText("丢包")).not.toBeInTheDocument();
     expect(within(summary).queryByText("public IP")).not.toBeInTheDocument();
     expect(within(summary).queryByText("avg loss")).not.toBeInTheDocument();
   });
@@ -897,12 +899,14 @@ function expectRouteTabTarget(
   tab: HTMLElement,
   expected: { latency: string; loss: string; dots: number; lost: number },
 ) {
-  const latency = tab.querySelector('[aria-label="目标延迟"]');
-  const loss = tab.querySelector('[aria-label="目标丢包"]');
-  expect(latency).not.toBeNull();
-  expect(loss).not.toBeNull();
-  expect(within(latency as HTMLElement).getByText(expected.latency)).toBeInTheDocument();
-  expect(within(loss as HTMLElement).getByText(expected.loss)).toBeInTheDocument();
+  const targets = tab.querySelector(".probe-tab-targets");
+  expect(targets).not.toBeNull();
+  expect(targets).toHaveAccessibleName(expect.stringContaining(expected.latency));
+  expect(targets).toHaveAccessibleName(expect.stringContaining(expected.loss));
+  expect(within(targets as HTMLElement).getByText(expected.latency)).toBeInTheDocument();
+  if (expected.loss !== expected.latency) {
+    expect(within(targets as HTMLElement).queryByText(expected.loss)).not.toBeInTheDocument();
+  }
   expect(tab.querySelectorAll(".probe-tab-packet-dot")).toHaveLength(expected.dots);
   expect(tab.querySelectorAll(".probe-tab-packet-dot.is-lost")).toHaveLength(expected.lost);
 }

@@ -1893,7 +1893,7 @@ tbody tr:hover {
 
 .probe-tabs-frame {
   display: block;
-  padding: 6px;
+  padding: 4px;
   overflow: visible;
   border: 0;
   background: transparent;
@@ -1925,7 +1925,7 @@ tbody tr:hover {
   max-width: 100%;
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: 6px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1939,7 +1939,7 @@ tbody tr:hover {
 .probe-tab-surface {
   flex: 1 0 min(230px, 82vw);
   min-width: 210px;
-  min-height: 74px;
+  min-height: 52px;
   isolation: isolate;
 }
 
@@ -2002,16 +2002,16 @@ tbody tr:hover {
 .probe-tab-button {
   width: 100%;
   min-width: 0;
-  min-height: 74px;
+  min-height: 52px;
   height: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
+  align-items: center;
   gap: 7px;
   justify-items: stretch;
   border: 0;
   border-radius: var(--probe-tab-radius);
-  padding: 8px 11px;
+  padding: 6px 10px;
   background: transparent;
   box-shadow: none;
   color: var(--probe-tab-text);
@@ -2023,8 +2023,8 @@ tbody tr:hover {
 }
 
 .probe-tab-route-dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: var(--route-color, var(--accent));
   box-shadow:
@@ -2035,7 +2035,9 @@ tbody tr:hover {
 .probe-tab-copy {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
 }
 
 .probe-tab-heading {
@@ -2079,50 +2081,40 @@ tbody tr:hover {
 }
 
 .probe-tab-targets {
-  min-width: 0;
+  min-width: max-content;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  align-content: center;
+  justify-self: end;
+  gap: 3px;
+  justify-items: start;
 }
 
-.probe-tab-target {
-  min-width: 0;
-  display: grid;
-  gap: 1px;
-}
-
-.probe-tab-target > span {
-  color: var(--probe-tab-meta-color);
-  font-size: 10px;
-  font-weight: 720;
-  line-height: 1.05;
-}
-
-.probe-tab-target > strong {
+.probe-tab-target-latency {
   min-width: 0;
   overflow: hidden;
   color: var(--probe-tab-text);
   font-size: 12px;
+  font-weight: 800;
   line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .probe-tab-packets {
-  min-width: 0;
-  height: 8px;
+  min-width: max-content;
+  height: 6px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .probe-tab-packet-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
   border-radius: 999px;
   background: var(--packet-color, var(--accent));
-  box-shadow: 0 0 8px color-mix(in srgb, var(--packet-color, var(--accent)) 42%, transparent);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--packet-color, var(--accent)) 42%, transparent);
 }
 
 .probe-tab-packet-dot.is-lost {

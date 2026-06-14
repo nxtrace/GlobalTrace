@@ -1093,9 +1093,9 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.scrollWidth).toBeGreaterThan(state.clientWidth);
   expect(state.paddingBottom).toBeLessThanOrEqual(1);
   expect(state.bottomGap).toBeLessThanOrEqual(2);
-  expect(state.buttonMinHeight).toBe("74px");
-  expect(state.buttonPaddingTop).toBe("8px");
-  expect(state.buttonPaddingRight).toBe("11px");
+  expect(state.buttonMinHeight).toBe("52px");
+  expect(state.buttonPaddingTop).toBe("6px");
+  expect(state.buttonPaddingRight).toBe("10px");
   expect(state.scrollbarWidth).toBe("none");
 }
 
