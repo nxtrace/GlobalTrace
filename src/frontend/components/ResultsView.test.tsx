@@ -324,7 +324,8 @@ describe("ResultsView", () => {
   it("renders peer.as links for table IPs without selecting the hop", () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    const link = screen.getByRole("link", { name: "在 peer.as 查看 8.8.8.8" });
+    const table = screen.getByRole("table");
+    const link = within(table).getByRole("link", { name: "在 peer.as 查看 8.8.8.8" });
     expect(link).toHaveAttribute("href", "https://peer.as/?q=8.8.8.8");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
@@ -334,6 +335,36 @@ describe("ResultsView", () => {
     fireEvent.keyDown(link, { key: "Enter" });
 
     expect(row).not.toHaveClass("selected");
+  });
+
+  it("renders peer.as links for mobile hop cards without selecting the hop", () => {
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    const card = cardForTtl(1);
+    const link = within(card).getByRole("link", { name: "在 peer.as 查看 8.8.8.8" });
+    expect(link).toHaveAttribute("href", "https://peer.as/?q=8.8.8.8");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+
+    fireEvent.click(link);
+    fireEvent.keyDown(link, { key: "Enter" });
+
+    expect(card).not.toHaveClass("selected");
+    expect(within(card).getByRole("button", { name: "定位 TTL 1" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("renders capped hop packet dots inside mobile cards", () => {
+    render(<ResultsView result={hopPacketDotsResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    const card = cardForTtl(1);
+    const dots = card.querySelectorAll(".hop-card-packet-dot");
+
+    expect(dots).toHaveLength(16);
+    expect(card.querySelectorAll(".hop-card-packet-dot.is-lost")).toHaveLength(1);
+    expect((dots[0] as HTMLElement | undefined)?.style.getPropertyValue("--packet-color")).toBe("#3b82f6");
+    expect((dots[1] as HTMLElement | undefined)?.style.getPropertyValue("--packet-color")).toBe("var(--warning)");
+    expect((dots[2] as HTMLElement | undefined)?.style.getPropertyValue("--packet-color")).toBe("var(--danger)");
+    expect(within(card).queryByText(/packet/i)).not.toBeInTheDocument();
   });
 
   it("falls back to English GeoIP fields when Chinese fields are absent", () => {
@@ -477,9 +508,9 @@ describe("ResultsView", () => {
   it("keeps mobile hop cards wired to hop selection", async () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    const card = screen.getByText("TTL 1").closest("button");
-    expect(card).not.toBeNull();
-    fireEvent.click(card!);
+    const card = cardForTtl(1);
+    const cardButton = within(card).getByRole("button", { name: "定位 TTL 1" });
+    fireEvent.click(cardButton);
 
     await waitFor(() => expect(card).toHaveClass("selected"));
     expect(screen.getByLabelText("hop details")).toContainElement(card);
@@ -955,6 +986,12 @@ function rowForText(text: string): HTMLTableRowElement {
   return row as HTMLTableRowElement;
 }
 
+function cardForTtl(ttl: number): HTMLElement {
+  const card = document.querySelector(`.hop-card[data-ttl="${ttl}"]`);
+  if (!card) throw new Error(`card not found for TTL ${ttl}`);
+  return card as HTMLElement;
+}
+
 function mockScrollIntoView() {
   const scrollIntoView = vi.fn();
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
@@ -1220,6 +1257,25 @@ const targetLossResult: TraceResultResponse = {
         {
           ...hopWithGeo(2, "198.51.100.2", 37.7, -122.4),
           stats: { min: null, avg: null, max: null, total: 3, rcv: 0, drop: 3, loss: 100 },
+        },
+      ],
+    },
+  ],
+};
+
+const hopPacketDotsResult: TraceResultResponse = {
+  ...sampleResult,
+  measurementId: "m-hop-packets",
+  results: [
+    {
+      ...sampleResult.results[0],
+      hops: [
+        {
+          ...hopWithGeo(1, "8.8.4.4", 37.7, -122.4),
+          hostname: "dns.google",
+          asn: [15169],
+          timingsMs: [20, 80, 180, 40, 50, 55, 60, 61, 90, 120, 151, 200, 5, 6, 7],
+          stats: { min: 5, avg: 83, max: 200, total: 18, rcv: 15, drop: 3, loss: 16.7 },
         },
       ],
     },

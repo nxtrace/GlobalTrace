@@ -117,7 +117,7 @@ interface ResultsViewProps {
   onClose?: () => void;
 }
 
-interface TargetPacketDot {
+interface PacketDot {
   key: string;
   color: string | null;
   lost: boolean;
@@ -127,7 +127,7 @@ interface TargetPacketDot {
 interface TargetRouteMetrics {
   latency: string;
   loss: string;
-  dots: TargetPacketDot[];
+  dots: PacketDot[];
   packetLabel: string;
 }
 
@@ -287,19 +287,11 @@ export function ResultsView({
                             aria-label={`目标延迟 ${targetMetrics.latency}，目标丢包 ${targetMetrics.loss}`}
                           >
                             <strong className="probe-tab-target-latency">{targetMetrics.latency}</strong>
-                            {targetMetrics.dots.length > 0 && (
-                              <span className="probe-tab-packets" aria-label={targetMetrics.packetLabel}>
-                                {targetMetrics.dots.map((dot) => (
-                                  <span
-                                    className={`probe-tab-packet-dot${dot.lost ? " is-lost" : ""}`}
-                                    style={dot.color ? ({ "--packet-color": dot.color } as CSSProperties) : undefined}
-                                    title={dot.label}
-                                    aria-hidden="true"
-                                    key={dot.key}
-                                  />
-                                ))}
-                              </span>
-                            )}
+                            {renderPacketDots(targetMetrics.dots, {
+                              containerClassName: "probe-tab-packets",
+                              dotClassName: "probe-tab-packet-dot",
+                              label: targetMetrics.packetLabel,
+                            })}
                           </span>
                         </span>
                       </TabsTrigger>
@@ -448,7 +440,7 @@ function HopTable({
   onSelectHop: (ttl: number) => void;
 }) {
   const rowRefs = useRef<Record<number, HTMLTableRowElement | null>>({});
-  const cardRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const cardRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const selectedTtls = selectedRouteNodeId ? (mapData.routeNodeById.get(selectedRouteNodeId)?.ttlList ?? []) : [];
 
@@ -534,22 +526,30 @@ function HopTable({
           const routeNodeId = mapData.routeNodeIdByTtl.get(hop.ttl) || null;
           const selected = selectedTtls.includes(hop.ttl);
           const linked = Boolean(routeNodeId);
+          const dots = packetDotsForHop(hop);
           return (
-            <button
+            <div
               key={`${hop.ttl}-${hop.ip || "empty"}-card`}
               ref={(node) => {
                 cardRefs.current[hop.ttl] = node;
               }}
               className={`hop-card${linked ? " map-linked" : ""}${selected ? " selected" : ""}`}
-              type="button"
               data-ttl={hop.ttl}
               data-route-node-id={routeNodeId || undefined}
-              aria-pressed={selected}
               title={linked ? `定位 TTL ${hop.ttl}` : `TTL ${hop.ttl} 没有可定位 GeoIP`}
-              onClick={() => onSelectHop(hop.ttl)}
             >
+              <button
+                className="hop-card-button"
+                type="button"
+                data-ttl={hop.ttl}
+                data-route-node-id={routeNodeId || undefined}
+                aria-label={linked ? `定位 TTL ${hop.ttl}` : `TTL ${hop.ttl} 没有可定位 GeoIP`}
+                aria-pressed={selected}
+                title={linked ? `定位 TTL ${hop.ttl}` : `TTL ${hop.ttl} 没有可定位 GeoIP`}
+                onClick={() => onSelectHop(hop.ttl)}
+              />
               <span className="hop-card-ttl">TTL {hop.ttl}</span>
-              <span className="hop-card-endpoint">{renderEndpoint(hop)}</span>
+              <span className="hop-card-endpoint">{renderEndpoint(hop, { showPeerLink: true })}</span>
               <span className="hop-card-stat">
                 <span>loss</span>
                 <strong>{formatPercent(hop.stats?.loss)}</strong>
@@ -564,7 +564,12 @@ function HopTable({
               <span className="hop-card-timing">
                 min {formatMs(hop.stats?.min)} · max {formatMs(hop.stats?.max)}
               </span>
-            </button>
+              {renderPacketDots(dots, {
+                containerClassName: "hop-card-packets",
+                dotClassName: "hop-card-packet-dot",
+                label: `TTL ${hop.ttl} 包状态 ${dots.length} 个，丢包 ${formatPercent(hop.stats?.loss)}`,
+              })}
+            </div>
           );
         })}
       </div>
@@ -1088,34 +1093,56 @@ function routeTargetMetrics(result: TraceProbeResult): TargetRouteMetrics {
       ? formatMs(targetHop.stats.avg)
       : "N/A";
   const loss = targetHop.stats ? formatPercent(targetHop.stats.loss) : "N/A";
-  const total = targetHop.stats?.total;
-  const packetTotal = typeof total === "number" && Number.isInteger(total) && total > 0 ? total : targetHop.timingsMs.length;
-  const dotCount = Math.min(
-    MAX_TRACE_PACKETS,
-    Math.max(0, packetTotal),
-  );
-  const receivedCount = Math.min(
-    dotCount,
-    Math.max(0, targetHop.stats ? targetHop.stats.rcv : targetHop.timingsMs.length),
-  );
-  const dots: TargetPacketDot[] = [];
-  for (let index = 0; index < dotCount; index += 1) {
-    const rtt = index < receivedCount ? targetHop.timingsMs[index] : undefined;
-    const hasRtt = typeof rtt === "number" && Number.isFinite(rtt);
-    dots.push({
-      key: `${targetHop.ttl}-${index}`,
-      color: hasRtt ? targetPacketColor(rtt) : null,
-      lost: !hasRtt,
-      label: hasRtt ? `packet ${index + 1}: ${formatMs(rtt)}` : `packet ${index + 1}: lost`,
-    });
-  }
+  const dots = packetDotsForHop(targetHop);
 
   return {
     latency,
     loss,
     dots,
-    packetLabel: `目标包状态 ${dotCount} 个，丢包 ${loss}`,
+    packetLabel: `目标包状态 ${dots.length} 个，丢包 ${loss}`,
   };
+}
+
+function packetDotsForHop(hop: TraceHop): PacketDot[] {
+  const total = hop.stats?.total;
+  const packetTotal = typeof total === "number" && Number.isInteger(total) && total > 0 ? total : hop.timingsMs.length;
+  const dotCount = Math.min(MAX_TRACE_PACKETS, Math.max(0, packetTotal));
+  const receivedCount = Math.min(
+    dotCount,
+    Math.max(0, hop.stats ? hop.stats.rcv : hop.timingsMs.length),
+  );
+  const dots: PacketDot[] = [];
+  for (let index = 0; index < dotCount; index += 1) {
+    const rtt = index < receivedCount ? hop.timingsMs[index] : undefined;
+    const hasRtt = typeof rtt === "number" && Number.isFinite(rtt);
+    dots.push({
+      key: `${hop.ttl}-${index}`,
+      color: hasRtt ? targetPacketColor(rtt) : null,
+      lost: !hasRtt,
+      label: hasRtt ? `packet ${index + 1}: ${formatMs(rtt)}` : `packet ${index + 1}: lost`,
+    });
+  }
+  return dots;
+}
+
+function renderPacketDots(
+  dots: PacketDot[],
+  options: { containerClassName: string; dotClassName: string; label: string },
+) {
+  if (!dots.length) return null;
+  return (
+    <span className={options.containerClassName} aria-label={options.label}>
+      {dots.map((dot) => (
+        <span
+          className={`${options.dotClassName}${dot.lost ? " is-lost" : ""}`}
+          style={dot.color ? ({ "--packet-color": dot.color } as CSSProperties) : undefined}
+          title={dot.label}
+          aria-hidden="true"
+          key={dot.key}
+        />
+      ))}
+    </span>
+  );
 }
 
 function targetPacketColor(rtt: number): string {
@@ -1728,23 +1755,27 @@ function renderEndpoint(hop: TraceHop, options: { showPeerLink?: boolean } = {})
     <div className="endpoint-stack">
       <span className="endpoint-address-row">
         <span className="mono-cell">{ip}</span>
-        {options.showPeerLink && hop.ip && (
-          <a
-            aria-label={`在 peer.as 查看 ${hop.ip}`}
-            className="peer-link"
-            href={peerAsUrl(hop.ip)}
-            rel="noopener noreferrer"
-            target="_blank"
-            title={`在 peer.as 查看 ${hop.ip}`}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
-          >
-            <ExternalLink aria-hidden="true" />
-          </a>
-        )}
+        {options.showPeerLink && hop.ip && renderPeerLink(hop.ip)}
       </span>
       {hostname && <span className="endpoint-hostname">{hostname}</span>}
     </div>
+  );
+}
+
+function renderPeerLink(ip: string, className = "peer-link") {
+  return (
+    <a
+      aria-label={`在 peer.as 查看 ${ip}`}
+      className={className}
+      href={peerAsUrl(ip)}
+      rel="noopener noreferrer"
+      target="_blank"
+      title={`在 peer.as 查看 ${ip}`}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      <ExternalLink aria-hidden="true" />
+    </a>
   );
 }
 

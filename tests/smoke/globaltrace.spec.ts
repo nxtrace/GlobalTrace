@@ -2840,9 +2840,32 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const copyButtonRect = copyButton?.getBoundingClientRect();
     const closeButtonRect = closeButton?.getBoundingClientRect();
     const mapRect = map?.getBoundingClientRect();
-    const cardRects = Array.from(
+    const cardElements = Array.from(
       cards?.querySelectorAll(".hop-card") || [],
-    ).map(rectFor);
+    ) as HTMLElement[];
+    const cardRects = cardElements.map(rectFor);
+    const cardPeerLinks = cardElements.map((card) => {
+      const link = card.querySelector(".peer-link") as HTMLAnchorElement | null;
+      return {
+        href: link?.getAttribute("href") ?? "",
+        target: link?.getAttribute("target") ?? "",
+        rel: link?.getAttribute("rel") ?? "",
+        ...rectFor(link),
+      };
+    });
+    const cardPacketGroups = cardElements.map((card) => {
+      const group = card.querySelector(".hop-card-packets") as HTMLElement | null;
+      const style = group ? window.getComputedStyle(group) : null;
+      return {
+        dotCount: group?.querySelectorAll(".hop-card-packet-dot").length ?? 0,
+        lostCount:
+          group?.querySelectorAll(".hop-card-packet-dot.is-lost").length ?? 0,
+        pointerEvents: style?.pointerEvents ?? "",
+        position: style?.position ?? "",
+        text: group?.textContent ?? "",
+        ...rectFor(group),
+      };
+    });
     const actionStyle = headerActions
       ? window.getComputedStyle(headerActions)
       : null;
@@ -2945,6 +2968,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       tableClientWidth: table?.clientWidth ?? 0,
       cardListDisplay: cards ? window.getComputedStyle(cards).display : "",
       cardRects,
+      cardPeerLinks,
+      cardPacketGroups,
       rawMaxHeights: rawBlocks.map(
         (raw) => window.getComputedStyle(raw).maxHeight,
       ),
@@ -3119,11 +3144,30 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.tableDisplay).toBe("none");
   expect(state.cardListDisplay).toBe("grid");
   expect(state.cardRects.length).toBeGreaterThan(0);
-  for (const rect of state.cardRects) {
+  for (const [index, rect] of state.cardRects.entries()) {
     expect(rect.left).toBeGreaterThanOrEqual(state.resultLeft);
     expect(rect.right).toBeLessThanOrEqual(state.resultRight);
     expect(rect.width).toBeGreaterThan(0);
     expect(rect.height).toBeGreaterThan(44);
+
+    const peerLink = state.cardPeerLinks[index];
+    expect(peerLink.href).toContain("https://peer.as/?q=");
+    expect(peerLink.target).toBe("_blank");
+    expect(peerLink.rel).toContain("noopener");
+    expect(peerLink.rel).toContain("noreferrer");
+    expect(peerLink.width).toBeGreaterThan(0);
+    expect(peerLink.height).toBeGreaterThan(0);
+    expect(peerLink.left).toBeGreaterThanOrEqual(rect.left);
+    expect(peerLink.right).toBeLessThanOrEqual(rect.right);
+
+    const packetGroup = state.cardPacketGroups[index];
+    expect(packetGroup.dotCount).toBeGreaterThan(0);
+    expect(packetGroup.lostCount).toBeGreaterThanOrEqual(0);
+    expect(packetGroup.pointerEvents).toBe("none");
+    expect(packetGroup.position).toBe("absolute");
+    expect(packetGroup.text).toBe("");
+    expect(packetGroup.right).toBeLessThanOrEqual(rect.right);
+    expect(packetGroup.bottom).toBeLessThanOrEqual(rect.bottom);
   }
   expect(state.rawMaxHeights).toHaveLength(2);
   for (const maxHeight of state.rawMaxHeights) {
@@ -3218,7 +3262,7 @@ async function expectVisibleHopText(page: Page, text: string): Promise<void> {
 async function clickVisibleHop(page: Page, ttl: number): Promise<void> {
   const card = page.locator(`.hop-card[data-ttl="${ttl}"]:visible`);
   if (await card.count()) {
-    await card.click();
+    await card.locator(".hop-card-button").click();
     return;
   }
   await page.locator(`.hop-table tr[data-ttl="${ttl}"]`).click();
