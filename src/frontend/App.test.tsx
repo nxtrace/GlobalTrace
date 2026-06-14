@@ -535,7 +535,7 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("button", { name: "pick first probe" }));
 
     await waitFor(() => {
-      expect(screen.getAllByText("已选择 Los Angeles · AS7922").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("已添加 Los Angeles · AS7922").length).toBeGreaterThan(0);
     });
     expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
     expect(screen.getByText("map-probe-count:2")).toBeInTheDocument();
@@ -545,10 +545,34 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "pick second probe" }));
     await waitFor(() => {
-      expect(screen.getAllByText("已选择 Falkenstein · AS24940").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("已添加 Falkenstein · AS24940").length).toBeGreaterThan(0);
     });
+    expect(screen.getByText("2 / 2 probes 匹配")).toBeInTheDocument();
     expect(screen.getByText("map-probe-count:2")).toBeInTheDocument();
+    expect(chips).toHaveTextContent("Los Angeles+US+AS7922");
     expect(chips).toHaveTextContent("Falkenstein+DE+AS24940");
+  });
+
+  it("converts structured filters to magic before appending a map probe", async () => {
+    mockApi();
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    openExactFilters();
+    fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "US" } });
+    await waitFor(() => {
+      expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "pick second probe" }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("已添加 Falkenstein · AS24940").length).toBeGreaterThan(0);
+    });
+    expect(screen.getByText("2 / 2 probes 匹配")).toBeInTheDocument();
+    const chips = screen.getByTestId("filter-chips");
+    expect(chips).toHaveTextContent("US, Falkenstein+DE+AS24940");
+    expect(within(chips).queryByText("国家/地区")).not.toBeInTheDocument();
   });
 
   it("narrows field suggestions with other structured filters", async () => {
@@ -747,7 +771,7 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("button", { name: "box many probes" }));
 
     await waitFor(() => {
-      expect(screen.getAllByText("框选 12 个 probes，已按上限取前 10 个").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("已添加框选 12 个 probes，保留最近 10 个").length).toBeGreaterThan(0);
     });
     expect(screen.getByLabelText("Limit")).toHaveTextContent("10");
 

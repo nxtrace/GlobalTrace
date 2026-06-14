@@ -31,6 +31,7 @@ import type { ProbeMapAsnSelection } from "./components/ProbeMap";
 import { deferUntilIdle } from "./lib/defer";
 import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
 import {
+  appendMagicFilters,
   filterChips,
   filterProbes,
   magicFromSelectedProbes,
@@ -408,23 +409,26 @@ export function App() {
     }
   }, [limit, probes]);
 
-  const pickProbe = useCallback((probe: GlobalpingProbe) => {
-    if (!mapSelectionActive) resetMapSelectionLimitTracking();
-    const nextFilters = { magic: probeToMagic(probe) };
+  const appendSelectionFilters = useCallback((additions: string | string[]) => {
+    const nextFilters = appendMagicFilters(filters, additions, MAX_TRACE_PROBES);
     setFilters(nextFilters);
     expandLimitForExplicitFilters(nextFilters);
+    return nextFilters;
+  }, [expandLimitForExplicitFilters, filters]);
+
+  const pickProbe = useCallback((probe: GlobalpingProbe) => {
+    if (!mapSelectionActive) resetMapSelectionLimitTracking();
+    appendSelectionFilters(probeToMagic(probe));
     setMapSelectionActive(true);
-    setSelectionNotice(`已选择 ${probe.location.city || probe.location.country} · AS${probe.location.asn}`);
-  }, [expandLimitForExplicitFilters, mapSelectionActive, resetMapSelectionLimitTracking]);
+    setSelectionNotice(`已添加 ${probe.location.city || probe.location.country} · AS${probe.location.asn}`);
+  }, [appendSelectionFilters, mapSelectionActive, resetMapSelectionLimitTracking]);
 
   const pickMapAsn = useCallback((selection: ProbeMapAsnSelection) => {
     if (!mapSelectionActive) resetMapSelectionLimitTracking();
-    const nextFilters = { magic: selection.magic };
-    setFilters(nextFilters);
-    expandLimitForExplicitFilters(nextFilters);
+    appendSelectionFilters(selection.magic);
     setMapSelectionActive(true);
-    setSelectionNotice(`已选择 ${selection.city || selection.country} · ${selection.asn}`);
-  }, [expandLimitForExplicitFilters, mapSelectionActive, resetMapSelectionLimitTracking]);
+    setSelectionNotice(`已添加 ${selection.city || selection.country} · ${selection.asn}`);
+  }, [appendSelectionFilters, mapSelectionActive, resetMapSelectionLimitTracking]);
 
   const boxSelect = useCallback((selected: GlobalpingProbe[]) => {
     if (!selected.length) {
@@ -432,20 +436,19 @@ export function App() {
       return;
     }
     const selection = magicFromSelectedProbes(selected, 10);
-    const nextLimit = Math.max(1, selection.selectedCount);
     if (!mapSelectionActive || mapSelectionLimitManuallyChangedRef.current || mapSelectionLimitBeforeRef.current === null) {
       mapSelectionLimitBeforeRef.current = limit;
     }
     mapSelectionLimitManuallyChangedRef.current = false;
-    setFilters({ magic: selection.magic });
-    setLimit(nextLimit);
+    appendSelectionFilters(selection.magic);
+    setLimit(Math.max(1, selection.selectedCount));
     setMapSelectionActive(true);
     setSelectionNotice(
       selection.capped
-        ? `框选 ${selected.length} 个 probes，已按上限取前 10 个`
-        : `框选 ${selection.selectedCount} 个 probes`,
+        ? `已添加框选 ${selected.length} 个 probes，保留最近 10 个`
+        : `已添加框选 ${selection.selectedCount} 个 probes`,
     );
-  }, [limit, mapSelectionActive]);
+  }, [appendSelectionFilters, limit, mapSelectionActive]);
 
   const clearMapSelection = useCallback(() => {
     setFilters({ magic: "world" });

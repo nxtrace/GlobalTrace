@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendMagicFilters,
   buildMagicFromFilters,
   filterChips,
   filterProbes,
@@ -78,6 +79,53 @@ describe("shared filters", () => {
       "US+Comcast",
       "DE+Hetzner",
     ]);
+  });
+
+  it("appends probe magic to current magic filters", () => {
+    expect(appendMagicFilters({ magic: "DE+AS24940" }, "Los Angeles+US+AS7922", 10)).toEqual({
+      magic: "DE+AS24940, Los Angeles+US+AS7922",
+    });
+    expect(appendMagicFilters({ magic: "world" }, "Los Angeles+US+AS7922", 10)).toEqual({
+      magic: "Los Angeles+US+AS7922",
+    });
+  });
+
+  it("converts structured filters to magic before appending probe magic", () => {
+    expect(
+      appendMagicFilters(
+        { country: "US", asn: "7922", eyeball: true },
+        "Falkenstein+DE+AS24940+datacenter-network",
+        10,
+      ),
+    ).toEqual({
+      magic: "US+AS7922+eyeball-network, Falkenstein+DE+AS24940+datacenter-network",
+    });
+  });
+
+  it("deduplicates appended magic and keeps the most recent capped selections", () => {
+    const locations = Array.from({ length: 11 }, (_, index) => `City ${index}+US+AS${65000 + index}`);
+
+    expect(appendMagicFilters({ magic: "A, B" }, "A", 10)).toEqual({ magic: "B, A" });
+    expect(
+      appendMagicFilters(
+        { magic: locations.slice(0, 9).join(", ") },
+        [locations[4], locations[9], locations[10]],
+        10,
+      ),
+    ).toEqual({
+      magic: [
+        locations[1],
+        locations[2],
+        locations[3],
+        locations[5],
+        locations[6],
+        locations[7],
+        locations[8],
+        locations[4],
+        locations[9],
+        locations[10],
+      ].join(", "),
+    });
   });
 
   it("filters probes by country, network kind, and ASN", () => {

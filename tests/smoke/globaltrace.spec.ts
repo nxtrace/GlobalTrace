@@ -240,8 +240,8 @@ for (const viewport of viewports) {
 
     if (viewport.name === "1440x1000") {
       await boxSelectLosAngelesWithOutsideRelease(page);
-      await expect(page.getByText("框选 1 个 probes")).toBeVisible();
-      await expect(page.getByLabel("probe map").getByText("框选 1 个 probes")).toHaveCount(0);
+      await expect(page.getByText("已添加框选 1 个 probes")).toBeVisible();
+      await expect(page.getByLabel("probe map").getByText("已添加框选 1 个 probes")).toHaveCount(0);
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toBeVisible();
@@ -261,8 +261,8 @@ for (const viewport of viewports) {
         [-118.24, 34.05],
         "Comcast AS7922 ×1",
       );
-      await expect(page.getByText("已选择 Los Angeles · AS7922")).toBeVisible();
-      await expect(page.getByLabel("probe map").getByText("已选择 Los Angeles · AS7922")).toHaveCount(0);
+      await expect(page.getByText("已添加 Los Angeles · AS7922")).toBeVisible();
+      await expect(page.getByLabel("probe map").getByText("已添加 Los Angeles · AS7922")).toHaveCount(0);
       await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
       await expect(page.getByTestId("filter-chips")).not.toContainText(
         "Comcast",
@@ -482,19 +482,20 @@ test("map ASN picker groups same-city probes by ASN and submits ASN-only magic",
   await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
   await expectMapContainsCoordinate(page, [-121.89, 37.34]);
   await selectMapAsnAtCoordinate(page, [-121.89, 37.34], "Oracle AS31898 ×2");
-  await expect(page.getByText("已选择 San Jose · AS31898")).toBeVisible();
-  await expect(page.getByLabel("probe map").getByText("已选择 San Jose · AS31898")).toHaveCount(0);
+  await expect(page.getByText("已添加 San Jose · AS31898")).toBeVisible();
+  await expect(page.getByLabel("probe map").getByText("已添加 San Jose · AS31898")).toHaveCount(0);
   await expect(page.getByText("2 / 4 probes 匹配")).toBeVisible();
   await expect(page.getByTestId("filter-chips")).not.toContainText("Oracle");
   await selectMapAsnAtCoordinate(page, [-121.89, 37.34], "LeaseWeb AS7203 ×1");
-  await expect(page.getByText("已选择 San Jose · AS7203")).toBeVisible();
-  await expect(page.getByLabel("probe map").getByText("已选择 San Jose · AS7203")).toHaveCount(0);
-  await expect(page.getByText("1 / 4 probes 匹配")).toBeVisible();
+  await expect(page.getByText("已添加 San Jose · AS7203")).toBeVisible();
+  await expect(page.getByLabel("probe map").getByText("已添加 San Jose · AS7203")).toHaveCount(0);
+  await expect(page.getByText("3 / 4 probes 匹配")).toBeVisible();
   await expect(page.getByTestId("filter-chips")).not.toContainText("LeaseWeb");
 
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
   await expect.poll(() => mocks.traceRequests().length).toBe(1);
   expect(mocks.traceRequests()[0]?.locations).toEqual([
+    { magic: "San Jose+US+AS31898" },
     { magic: "San Jose+US+AS7203" },
   ]);
 });

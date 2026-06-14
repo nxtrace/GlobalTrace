@@ -43,12 +43,38 @@ export function buildMagicFromFilters(filters: TraceFilters | undefined): string
   return [parts.join("+")];
 }
 
+export function appendMagicFilters(
+  filters: TraceFilters | undefined,
+  additions: string | string[],
+  maxLocations: number,
+): TraceFilters {
+  const nextMagic: string[] = [];
+  for (const magic of [
+    ...buildMagicFromFilters(filters),
+    ...normalizeMagicAdditions(additions),
+  ]) {
+    if (magic.toLowerCase() === WORLD_MAGIC) continue;
+    const existingIndex = nextMagic.indexOf(magic);
+    if (existingIndex >= 0) nextMagic.splice(existingIndex, 1);
+    nextMagic.push(magic);
+  }
+  const selected = nextMagic.slice(-maxLocations);
+  return { magic: selected.join(", ") || WORLD_MAGIC };
+}
+
 export function splitMagicList(value: string): string[] {
   const locations = value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
   return locations.length ? locations : ["world"];
+}
+
+function normalizeMagicAdditions(additions: string | string[]): string[] {
+  return (Array.isArray(additions) ? additions : [additions])
+    .flatMap(splitMagicList)
+    .map(compactText)
+    .filter(Boolean);
 }
 
 export function magicStringMatchesQuery(value: string, query: string): boolean {
