@@ -796,6 +796,36 @@ describe("ResultsView", () => {
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("198.51.100.10");
   });
 
+  it("switches route when an inactive collapsed route group is clicked", async () => {
+    const scrollIntoView = mockScrollIntoView();
+    const result: TraceResultResponse = {
+      ...multiRouteResult,
+      results: [
+        multiRouteResult.results[1],
+        {
+          ...routeQualityResult.results[0],
+          id: "probe-grouped",
+          probe: { ...routeQualityResult.results[0].probe, city: "Grouped LA" },
+        },
+      ],
+    };
+    render(<ResultsView result={result} mapStyleUrl="about:blank" mapProjection="globe" />);
+    const map = await latestMap();
+    act(() => map.triggerLoad());
+
+    fireEvent.click(screen.getByRole("button", { name: "展开 TTL 1-2" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "false");
+      expect(screen.getByRole("tab", { name: /Grouped LA/ })).toHaveAttribute("aria-selected", "true");
+    });
+    expect(document.querySelector(".hop-table tr.selected")).toBeNull();
+    expect(screen.getByLabelText("trace result map")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1");
+    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("203.0.113.1");
+  });
+
   it("builds route map data with filtered, grouped, and numbered hop points", () => {
     const active = routeQualityResult.results[0];
     const data = buildResultMapData(active, routeQualityResult.results);

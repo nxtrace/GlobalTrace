@@ -1234,7 +1234,32 @@ function createRouteGroupMarkerElement({
   element.style.height = "0";
   element.style.zIndex = group.active ? (expanded ? "8" : "5") : "2";
   element.style.pointerEvents = "auto";
-  element.addEventListener("click", (event) => event.stopPropagation());
+
+  const previewGroupRoute = () => {
+    if (!group.active && group.nodes[0]) {
+      onPreviewRouteNode(group.nodes[0]);
+      showRouteNodePopup(map, group.nodes[0], popupRef);
+    }
+  };
+  const toggleGroup = () => {
+    previewGroupRoute();
+    setPinnedGroupId((value) => (value === group.groupId ? null : group.groupId));
+  };
+  const activateSingleNode = (node: ResultRouteNode) => {
+    setPinnedGroupId(null);
+    onPreviewRouteNode(node);
+    showRouteNodePopup(map, node, popupRef);
+  };
+
+  element.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if ((event.target as HTMLElement | null)?.closest(".result-route-marker-button")) return;
+    if (group.nodes.length === 1 && group.nodes[0]) {
+      activateSingleNode(group.nodes[0]);
+      return;
+    }
+    toggleGroup();
+  });
 
   if (group.nodes.length === 1) {
     element.classList.add("result-route-marker-single");
@@ -1260,7 +1285,7 @@ function createRouteGroupMarkerElement({
   collapsedButton.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    setPinnedGroupId((value) => (value === group.groupId ? null : group.groupId));
+    toggleGroup();
   });
   element.appendChild(collapsedButton);
 

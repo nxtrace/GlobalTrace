@@ -610,11 +610,11 @@ test("result route map switches route when an inactive route marker is clicked",
   await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "false");
 
-  await clickResultMapRouteNode(page, "route-1-node-1");
+  await clickResultMapRouteGroup(page, "route-1", "1-2");
 
   await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "false");
   await expect(page.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "true");
-  await expectResultRouteData(page, { labels: ["1", "2"], minLineLength: 2, maxLineLngSpan: 140 });
+  await expectResultRouteData(page, { labels: ["1-2", "3"], minLineLength: 2, maxLineLngSpan: 140 });
   await expect(page.locator('.hop-table tr[data-ttl="1"]')).not.toHaveClass(/selected/);
   await expectResultSelectedRouteNode(page, null);
   await expectResultMapPopup(page, "TTL 1");
@@ -2363,6 +2363,33 @@ async function clickResultMapRouteNode(page: Page, nodeId: string): Promise<void
     .toBeGreaterThan(0);
 }
 
+async function clickResultMapRouteGroup(page: Page, routeId: string, label: string): Promise<void> {
+  const resultMap = page.locator(".result-map");
+  await resultMap.scrollIntoViewIfNeeded();
+  await expect
+    .poll(async () => {
+      const point = await resultMap.evaluate((node, group) => {
+        const data = (
+          node as HTMLElement & {
+            __globalTraceResultData?: { routeGroups?: Array<{ groupId?: string; routeId?: string; label?: string }> };
+          }
+        ).__globalTraceResultData;
+        const routeGroup = data?.routeGroups?.find((item) => item.routeId === group.routeId && item.label === group.label);
+        if (!routeGroup?.groupId) return null;
+        const button = node.querySelector(`button.result-route-marker-group[data-route-group-id="${routeGroup.groupId}"]`) as HTMLButtonElement | null;
+        if (!button) return null;
+        const rect = button.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return null;
+        if (rect.right < 0 || rect.bottom < 0 || rect.left > innerWidth || rect.top > innerHeight) return null;
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      }, { routeId, label });
+      if (!point) return 0;
+      await page.mouse.click(point.x, point.y);
+      return page.locator(".result-map-popup").count();
+    })
+    .toBeGreaterThan(0);
+}
+
 async function clickMapCoordinate(page: Page, coordinate: [number, number]): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await expectMapProjectsCoordinateInsideCanvas(page, coordinate);
@@ -2763,8 +2790,9 @@ function multiRouteTraceResult(): TraceResultResponse {
       resolvedHostname: "edge.example",
       rawOutput: "tokyo raw",
       hops: [
-        traceHop(1, "198.51.100.10", 35.68, 139.76, { country_en: "Japan", city_en: "Tokyo" }),
-        traceHop(2, "198.51.100.11", 22.31, 114.17, { country_en: "Hong Kong", city_en: "Hong Kong" }),
+        traceHop(1, "198.51.100.10", 37.39, -122.08, { country_en: "United States", city_en: "Mountain View" }),
+        traceHop(2, "198.51.100.11", 37.39, -122.08, { country_en: "United States", city_en: "Mountain View" }),
+        traceHop(3, "198.51.100.12", 51.5, -0.12, { country_en: "United Kingdom", city_en: "London" }),
       ],
     },
   ];
