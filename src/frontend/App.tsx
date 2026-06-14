@@ -858,7 +858,7 @@ function ResultContentOrderDialog({
   return (
     <GlassOverlay
       open={open}
-      title="选择结果页显示顺序"
+      title="结果页面显示顺序"
       size="compact"
       placement="center"
       dismissible={false}
@@ -867,9 +867,9 @@ function ResultContentOrderDialog({
       surfaceCornerRadius={18}
       onClose={() => undefined}
     >
-      <section className="result-layout-choice" aria-label="选择结果页显示顺序">
+      <section className="result-layout-choice" aria-label="结果页面显示顺序">
         <p>后续如果还想改，可以在高级参数中修改。</p>
-        <div className="result-layout-choice-actions" aria-label="结果页显示顺序">
+        <div className="result-layout-choice-actions" aria-label="结果页面显示顺序">
           <LiquidGlassSurface variant="button" interactive actionRole="none" cornerRadius={14} className="result-layout-choice-surface">
             <Button variant="glass" type="button" className="result-layout-choice-button" onClick={() => onSelect("map-first")}>
               <MapIcon size={16} aria-hidden="true" />

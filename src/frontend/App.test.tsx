@@ -222,19 +222,19 @@ describe("App", () => {
 
     render(<App />);
 
-    const dialog = screen.getByRole("dialog", { name: "选择结果页显示顺序" });
+    const dialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
     expect(within(dialog).getByText("后续如果还想改，可以在高级参数中修改。")).toBeInTheDocument();
     expect(dialog.closest(".glass-overlay-blocking")).not.toBeNull();
-    expect(screen.queryByRole("button", { name: "关闭选择结果页显示顺序" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "关闭结果页面显示顺序" })).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.getByRole("dialog", { name: "选择结果页显示顺序" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "结果页面显示顺序" })).toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "表格优先" }));
     await waitFor(() => {
       expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("table-first");
     });
-    expect(screen.queryByRole("dialog", { name: "选择结果页显示顺序" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "结果页面显示顺序" })).not.toBeInTheDocument();
   });
 
   it("keeps first-time result order choice above shared result links", async () => {
@@ -244,13 +244,13 @@ describe("App", () => {
 
     render(<App />);
 
-    const initialChoiceDialog = screen.getByRole("dialog", { name: "选择结果页显示顺序" });
+    const initialChoiceDialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
     fireEvent.keyDown(window, { key: "Escape" });
     expect(initialChoiceDialog).toBeInTheDocument();
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     const resultDialog = screen.getByRole("dialog", { name: "诊断结果" });
-    const choiceDialog = screen.getByRole("dialog", { name: "选择结果页显示顺序" });
+    const choiceDialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
     expect(resultDialog.closest(".glass-overlay-result")).not.toBeNull();
     expect(choiceDialog.closest(".glass-overlay-blocking")).not.toBeNull();
     expect(screen.getByText("layout:map-first")).toBeInTheDocument();
@@ -260,7 +260,7 @@ describe("App", () => {
       expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("map-first");
     });
     expect(screen.getByText("result:finished:m123")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "选择结果页显示顺序" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "结果页面显示顺序" })).not.toBeInTheDocument();
   });
 
   it("uses first-time map-first selection for the result page", async () => {
@@ -269,7 +269,7 @@ describe("App", () => {
 
     render(<App />);
 
-    const dialog = screen.getByRole("dialog", { name: "选择结果页显示顺序" });
+    const dialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
     fireEvent.click(within(dialog).getByRole("button", { name: "地图优先" }));
     await waitFor(() => {
       expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("map-first");
@@ -290,7 +290,7 @@ describe("App", () => {
       render(<App />);
 
       await screen.findByText("2 / 2 probes 匹配");
-      expect(screen.queryByRole("dialog", { name: "选择结果页显示顺序" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "结果页面显示顺序" })).not.toBeInTheDocument();
     },
   );
 

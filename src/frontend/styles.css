@@ -974,6 +974,18 @@ summary:focus-visible {
   line-height: 1.2;
 }
 
+.result-layout-control .result-layout-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.result-layout-control .result-layout-option-label svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
 .summary-title {
   justify-content: flex-start;
   color: var(--ink-soft);

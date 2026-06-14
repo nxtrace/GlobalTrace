@@ -214,13 +214,19 @@ describe("FilterPanel", () => {
     expect(
       within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" }),
     ).toBeChecked();
-    expect(within(advancedDialog).getByText("结果页显示顺序：")).toBeVisible();
+    expect(within(advancedDialog).getByText("结果页面显示顺序：")).toBeVisible();
     const layoutGroup = within(advancedDialog).getByRole("radiogroup", {
-      name: "结果页显示顺序",
+      name: "结果页面显示顺序",
     });
     const layoutOptions = within(layoutGroup).getAllByRole("radio");
     expect(layoutOptions[0]).toHaveAccessibleName("地图优先");
     expect(layoutOptions[1]).toHaveAccessibleName("表格优先");
+    expect(
+      within(layoutGroup).getByText("地图优先").closest("label")?.querySelector("svg"),
+    ).not.toBeNull();
+    expect(
+      within(layoutGroup).getByText("表格优先").closest("label")?.querySelector("svg"),
+    ).not.toBeNull();
     expect(
       within(layoutGroup).getByRole("radio", { name: "表格优先" }),
     ).toBeChecked();

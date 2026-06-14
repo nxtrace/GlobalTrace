@@ -335,13 +335,13 @@ test("first-time result layout dialog stays above shared result links", async ({
 
   await page.goto("/?measurement=m-smoke");
 
-  const dialog = page.getByRole("dialog", { name: "选择结果页显示顺序" });
+  const dialog = page.getByRole("dialog", { name: "结果页面显示顺序" });
   await expect(dialog).toBeVisible();
   await expect(
     dialog.getByText("后续如果还想改，可以在高级参数中修改。"),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "关闭选择结果页显示顺序" }),
+    page.getByRole("button", { name: "关闭结果页面显示顺序" }),
   ).toHaveCount(0);
 
   await page.keyboard.press("Escape");

@@ -11,12 +11,14 @@ import {
   Filter,
   Info,
   KeyRound,
+  Map as MapIcon,
   Monitor,
   Moon,
   Play,
   RotateCcw,
   Settings,
   Sun,
+  Table2,
 } from "lucide-react";
 import {
   compactText,
@@ -643,10 +645,13 @@ function AdvancedParamsPanel({
           />
         </div>
         <div className="result-layout-setting">
-          <span>结果页显示顺序：</span>
-          <div className="segmented result-layout-control" role="radiogroup" aria-label="结果页显示顺序">
+          <span>结果页面显示顺序：</span>
+          <div className="segmented result-layout-control" role="radiogroup" aria-label="结果页面显示顺序">
             <label className={props.resultContentOrder === "map-first" ? "selected" : ""}>
-              <span>地图优先</span>
+              <span className="result-layout-option-label">
+                <MapIcon size={16} aria-hidden="true" />
+                <span>地图优先</span>
+              </span>
               <input
                 type="radio"
                 name="result-content-order"
@@ -655,7 +660,10 @@ function AdvancedParamsPanel({
               />
             </label>
             <label className={props.resultContentOrder === "table-first" ? "selected" : ""}>
-              <span>表格优先</span>
+              <span className="result-layout-option-label">
+                <Table2 size={16} aria-hidden="true" />
+                <span>表格优先</span>
+              </span>
               <input
                 type="radio"
                 name="result-content-order"
