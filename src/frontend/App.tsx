@@ -26,7 +26,7 @@ import { ProbeTable } from "./components/ProbeTable";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
-import type { MapProjection } from "./components/mapProjection";
+import type { MapProjection, ResultContentOrder } from "./components/mapProjection";
 import type { ProbeMapAsnSelection } from "./components/ProbeMap";
 import { deferUntilIdle } from "./lib/defer";
 import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
@@ -65,6 +65,7 @@ const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
 const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
+const RESULT_CONTENT_ORDER_STORAGE_KEY = "globaltrace.resultLayout";
 const TRACE_PORT_STORAGE_KEY = "globaltrace.tracePort";
 const TRACE_PACKETS_STORAGE_KEY = "globaltrace.tracePackets";
 
@@ -93,6 +94,7 @@ export function App() {
   const [liquidGlassEnabled, setLiquidGlassEnabled] = useState(readStoredLiquidGlassEnabled);
   const [liquidGlassIntensity, setLiquidGlassIntensity] = useState(readStoredLiquidGlassIntensity);
   const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
+  const [resultContentOrder, setResultContentOrder] = useState<ResultContentOrder>(readStoredResultContentOrder);
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
   const [storedGlobalpingToken] = useState(readStoredGlobalpingToken);
   const [globalpingToken, setGlobalpingToken] = useState(storedGlobalpingToken.token);
@@ -182,6 +184,10 @@ export function App() {
   useEffect(() => {
     writeStoredResultMapProjection(resultMapProjection);
   }, [resultMapProjection]);
+
+  useEffect(() => {
+    writeStoredResultContentOrder(resultContentOrder);
+  }, [resultContentOrder]);
 
   useEffect(() => {
     if (bootstrappedRef.current) return;
@@ -628,6 +634,7 @@ export function App() {
           themeMode={themeMode}
           liquidGlassEnabled={liquidGlassEnabled}
           liquidGlassIntensity={liquidGlassIntensity}
+          resultContentOrder={resultContentOrder}
           onTargetChange={setTarget}
           onProtocolChange={setProtocol}
           onIpVersionChange={setIpVersion}
@@ -646,6 +653,7 @@ export function App() {
           onCycleThemeMode={cycleThemeMode}
           onLiquidGlassEnabledChange={updateLiquidGlassEnabled}
           onLiquidGlassIntensityChange={updateLiquidGlassIntensity}
+          onResultContentOrderChange={setResultContentOrder}
           onNavigateHome={navigateHome}
           onNavigateAbout={navigateAbout}
           onReset={reset}
@@ -747,6 +755,7 @@ export function App() {
               mapStyleUrl={config.mapStyleUrl}
               mapProjection={resultMapProjection}
               onMapProjectionChange={setResultMapProjection}
+              resultContentOrder={resultContentOrder}
               onClose={closeResult}
             />
           </Suspense>
@@ -983,6 +992,26 @@ function writeStoredResultMapProjection(projection: MapProjection): void {
     window.localStorage.setItem(RESULT_MAP_PROJECTION_STORAGE_KEY, projection === "globe" ? "3d" : "2d");
   } catch {
     // Result map projection persistence is best-effort.
+  }
+}
+
+function readStoredResultContentOrder(): ResultContentOrder {
+  try {
+    return window.localStorage.getItem(RESULT_CONTENT_ORDER_STORAGE_KEY) === "map-first" ? "map-first" : "table-first";
+  } catch {
+    return "table-first";
+  }
+}
+
+function writeStoredResultContentOrder(order: ResultContentOrder): void {
+  try {
+    if (order === "map-first") {
+      window.localStorage.setItem(RESULT_CONTENT_ORDER_STORAGE_KEY, order);
+      return;
+    }
+    window.localStorage.removeItem(RESULT_CONTENT_ORDER_STORAGE_KEY);
+  } catch {
+    // Result layout persistence is best-effort.
   }
 }
 

@@ -17,7 +17,7 @@ import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import type { MapProjection } from "./mapProjection";
+import type { MapProjection, ResultContentOrder } from "./mapProjection";
 
 const RESULT_MAP_DEFAULT_CENTER: [number, number] = [8, 25];
 const RESULT_MAP_DEFAULT_ZOOM = 1.4;
@@ -112,6 +112,7 @@ interface ResultsViewProps {
   mapStyleUrl: string;
   mapProjection?: MapProjection;
   onMapProjectionChange?: (value: MapProjection) => void;
+  resultContentOrder?: ResultContentOrder;
   renderMap?: boolean;
   onClose?: () => void;
 }
@@ -135,6 +136,7 @@ export function ResultsView({
   mapStyleUrl,
   mapProjection = "mercator",
   onMapProjectionChange,
+  resultContentOrder = "table-first",
   renderMap = true,
   onClose,
 }: ResultsViewProps) {
@@ -197,6 +199,27 @@ export function ResultsView({
       </LiquidGlassSurface>
     );
   }
+
+  const resultMap = renderMap ? (
+    <ResultMap
+      data={mapData}
+      mapStyleUrl={mapStyleUrl}
+      mapProjection={mapProjection}
+      selectedRouteNodeId={selectedRouteNodeId}
+      mapFocusRequest={mapFocusRequest}
+      onSelectRoute={selectProbe}
+    />
+  ) : null;
+  const hopContent = active ? (
+    <HopTable
+      active={active}
+      mapData={mapData}
+      selectedRouteNodeId={selectedRouteNodeId}
+      onSelectHop={selectHop}
+    />
+  ) : (
+    <p className="muted">暂无 probe result。</p>
+  );
 
   return (
     <LiquidGlassSurface variant="floatingPanel" fullWidth className="results-section-surface">
@@ -287,17 +310,6 @@ export function ResultsView({
             </div>
           </LiquidGlassSurface>
           <TabsContent value={String(activeIndex)} className="probe-tab-content">
-            {renderMap && (
-              <ResultMap
-                data={mapData}
-                mapStyleUrl={mapStyleUrl}
-                mapProjection={mapProjection}
-                selectedRouteNodeId={selectedRouteNodeId}
-                mapFocusRequest={mapFocusRequest}
-                onSelectRoute={selectProbe}
-              />
-            )}
-
             {result.status === "in-progress" && (
               <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage polling-state-surface">
                 <Surface variant="flat" className="polling-state">
@@ -307,16 +319,18 @@ export function ResultsView({
               </LiquidGlassSurface>
             )}
 
-            {active ? (
-              <HopTable
-                active={active}
-                mapData={mapData}
-                selectedRouteNodeId={selectedRouteNodeId}
-                onSelectHop={selectHop}
-              />
+            {resultContentOrder === "map-first" ? (
+              <>
+                {resultMap}
+                {hopContent}
+              </>
             ) : (
-              <p className="muted">暂无 probe result。</p>
+              <>
+                {hopContent}
+                {resultMap}
+              </>
             )}
+            {active && active.hops.length > 0 && <HopRawDetails active={active} />}
           </TabsContent>
         </Tabs>
       </section>
@@ -555,6 +569,13 @@ function HopTable({
         })}
       </div>
 
+    </div>
+  );
+}
+
+function HopRawDetails({ active }: { active: TraceProbeResult }) {
+  return (
+    <>
       <details className="raw-output">
         <summary>raw output</summary>
         <pre>{active.rawOutput || "no raw output"}</pre>
@@ -564,7 +585,7 @@ function HopTable({
         <summary>whois / source details</summary>
         <pre>{JSON.stringify(active.hops.map(compactHopDetails), null, 2)}</pre>
       </details>
-    </div>
+    </>
   );
 }
 

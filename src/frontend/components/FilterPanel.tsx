@@ -25,6 +25,7 @@ import {
   type ProbeFilterSuggestions,
 } from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
+import type { ResultContentOrder } from "./mapProjection";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { GlassOverlay } from "./GlassOverlay";
@@ -63,6 +64,7 @@ interface FilterPanelProps {
   themeMode: ThemeMode;
   liquidGlassEnabled: boolean;
   liquidGlassIntensity: number;
+  resultContentOrder: ResultContentOrder;
   onTargetChange: (value: string) => void;
   onProtocolChange: (value: TraceProtocol) => void;
   onIpVersionChange: (value: IpVersionSelection) => void;
@@ -81,6 +83,7 @@ interface FilterPanelProps {
   onCycleThemeMode: () => void;
   onLiquidGlassEnabledChange: (enabled: boolean) => void;
   onLiquidGlassIntensityChange: (intensity: number) => void;
+  onResultContentOrderChange: (value: ResultContentOrder) => void;
   onOpenAdvancedParams?: () => void;
   onNavigateHome: () => void;
   onNavigateAbout: () => void;
@@ -638,6 +641,26 @@ function AdvancedParamsPanel({
             }
             aria-label="液态玻璃强度"
           />
+        </div>
+        <div className="segmented result-layout-control" role="radiogroup" aria-label="结果页布局">
+          <label className={props.resultContentOrder === "table-first" ? "selected" : ""}>
+            <span>表格在上</span>
+            <input
+              type="radio"
+              name="result-content-order"
+              checked={props.resultContentOrder === "table-first"}
+              onChange={() => props.onResultContentOrderChange("table-first")}
+            />
+          </label>
+          <label className={props.resultContentOrder === "map-first" ? "selected" : ""}>
+            <span>地图在上</span>
+            <input
+              type="radio"
+              name="result-content-order"
+              checked={props.resultContentOrder === "map-first"}
+              onChange={() => props.onResultContentOrderChange("map-first")}
+            />
+          </label>
         </div>
       </div>
 

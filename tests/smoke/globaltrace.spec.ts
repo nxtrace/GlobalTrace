@@ -2118,12 +2118,26 @@ async function expectResultHopTableWheelChaining(page: Page): Promise<void> {
   const moveMouseToTable = async () => {
     const point = await table.evaluate((node) => {
       const rect = node.getBoundingClientRect();
+      const dialog = node.closest(
+        ".glass-overlay-bare-surface",
+      ) as HTMLElement | null;
+      const dialogRect = dialog?.getBoundingClientRect();
+      const visibleTop = Math.max(rect.top, dialogRect?.top ?? rect.top);
+      const visibleBottom = Math.min(
+        rect.bottom,
+        dialogRect?.bottom ?? rect.bottom,
+      );
+      const safeTop = visibleTop + 24;
+      const safeBottom = visibleBottom - 24;
       return {
         x: rect.left + Math.min(rect.width / 2, rect.width - 24),
-        y: Math.min(
-          rect.bottom - 24,
-          Math.max(rect.top + 44, rect.top + rect.height / 2),
-        ),
+        y:
+          safeBottom >= safeTop
+            ? Math.min(
+                safeBottom,
+                Math.max(safeTop, visibleTop + (visibleBottom - visibleTop) / 2),
+              )
+            : Math.min(rect.bottom - 1, Math.max(rect.top + 1, rect.top + 44)),
       };
     });
     await page.mouse.move(point.x, point.y);
@@ -2171,6 +2185,7 @@ async function expectResultHopTableWheelChaining(page: Page): Promise<void> {
   await table.evaluate((node) => {
     (node as HTMLElement).scrollTop = 0;
   });
+  await moveMouseToTable();
   const beforeUpChain = await readState();
   expect(beforeUpChain.dialogScrollTop).toBeGreaterThan(20);
   await page.mouse.wheel(0, -360);

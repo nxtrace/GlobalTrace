@@ -47,16 +47,19 @@ vi.mock("./components/ResultsView", () => ({
     result,
     mapProjection,
     onMapProjectionChange,
+    resultContentOrder,
     onClose,
   }: {
     result: TraceResultResponse | null;
     mapProjection?: "mercator" | "globe";
     onMapProjectionChange?: (value: "mercator" | "globe") => void;
+    resultContentOrder?: "table-first" | "map-first";
     onClose?: () => void;
   }) => (
     <section aria-label="mock results">
       {result ? `result:${result.status}:${result.measurementId}` : "no result"}
       <span>{`projection:${mapProjection || "mercator"}`}</span>
+      <span>{`layout:${resultContentOrder || "table-first"}`}</span>
       <button type="button" aria-pressed={mapProjection === "mercator"} onClick={() => onMapProjectionChange?.("mercator")}>
         切换结果地图到 2D
       </button>
@@ -175,6 +178,7 @@ describe("App", () => {
     expect(document.querySelector(".glass-overlay-result .glass-overlay-body")).toBeNull();
     expect(document.querySelector(".glass-overlay-result .glass-overlay-panel")).toBeNull();
     expect(screen.getByText("projection:mercator")).toBeInTheDocument();
+    expect(screen.getByText("layout:table-first")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 3D" }));
     expect(screen.getByText("projection:globe")).toBeInTheDocument();
@@ -184,6 +188,31 @@ describe("App", () => {
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(screen.getByText("probe-projection:mercator")).toBeInTheDocument();
     expect(screen.getByText("box:on")).toBeInTheDocument();
+  });
+
+  it("restores and persists result content order locally", async () => {
+    window.localStorage.setItem("globaltrace.resultLayout", "map-first");
+    mockApi();
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    openAdvancedParams();
+    expect(screen.getByRole("radio", { name: "地图在上" })).toBeChecked();
+
+    fireEvent.click(screen.getByRole("radio", { name: "表格在上" }));
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "地图在上" }));
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("map-first");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(screen.getByText("layout:map-first")).toBeInTheDocument();
   });
 
   it("persists theme mode locally", async () => {

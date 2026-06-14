@@ -271,6 +271,38 @@ describe("ResultsView", () => {
     expect(document.querySelector(".raw-output[data-liquid-glass]")).toBeNull();
   });
 
+  it("defaults to table before map while keeping raw details after both", () => {
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" />);
+
+    const tabs = document.querySelector(".probe-tabs-frame-surface") as HTMLElement;
+    const table = screen.getByRole("table");
+    const map = screen.getByLabelText("trace result map");
+    const rawOutput = screen.getByText("raw output");
+
+    expectBefore(tabs, table);
+    expectBefore(table, map);
+    expectBefore(map, rawOutput);
+  });
+
+  it("can render map before table while keeping raw details after both", () => {
+    render(
+      <ResultsView
+        result={sampleResult}
+        mapStyleUrl="about:blank"
+        resultContentOrder="map-first"
+      />,
+    );
+
+    const tabs = document.querySelector(".probe-tabs-frame-surface") as HTMLElement;
+    const table = screen.getByRole("table");
+    const map = screen.getByLabelText("trace result map");
+    const rawOutput = screen.getByText("raw output");
+
+    expectBefore(tabs, map);
+    expectBefore(map, table);
+    expectBefore(table, rawOutput);
+  });
+
   it("renders target metrics inside route tabs instead of the summary cards", () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
 
@@ -911,6 +943,10 @@ async function latestMap(): Promise<InstanceType<typeof maplibreMock.FakeMap>> {
   const map = maplibreMock.FakeMap.instances.at(-1);
   if (!map) throw new Error("map was not created");
   return map;
+}
+
+function expectBefore(left: Element, right: Element) {
+  expect(Boolean(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
 }
 
 function rowForText(text: string): HTMLTableRowElement {

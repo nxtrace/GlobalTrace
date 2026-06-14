@@ -956,6 +956,13 @@ summary:focus-visible {
   accent-color: var(--accent);
 }
 
+.result-layout-control span {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.2;
+}
+
 .summary-title {
   justify-content: flex-start;
   color: var(--ink-soft);

@@ -83,6 +83,7 @@ describe("FilterPanel", () => {
         themeMode="system"
         liquidGlassEnabled={true}
         liquidGlassIntensity={70}
+        resultContentOrder="table-first"
         onTargetChange={vi.fn()}
         onProtocolChange={vi.fn()}
         onIpVersionChange={vi.fn()}
@@ -101,6 +102,7 @@ describe("FilterPanel", () => {
         onCycleThemeMode={vi.fn()}
         onLiquidGlassEnabledChange={vi.fn()}
         onLiquidGlassIntensityChange={vi.fn()}
+        onResultContentOrderChange={vi.fn()}
         onNavigateHome={vi.fn()}
         onNavigateAbout={vi.fn()}
         onReset={onReset}
@@ -212,6 +214,15 @@ describe("FilterPanel", () => {
     expect(
       within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" }),
     ).toBeChecked();
+    const layoutGroup = within(advancedDialog).getByRole("radiogroup", {
+      name: "结果页布局",
+    });
+    expect(
+      within(layoutGroup).getByRole("radio", { name: "表格在上" }),
+    ).toBeChecked();
+    expect(
+      within(layoutGroup).getByRole("radio", { name: "地图在上" }),
+    ).not.toBeChecked();
     expect(
       within(advancedDialog).queryByLabelText("端口"),
     ).not.toBeInTheDocument();
@@ -301,6 +312,19 @@ describe("FilterPanel", () => {
     ) as HTMLInputElement;
     expect(disabledSlider).toHaveValue("42");
     expect(disabledSlider).toBeDisabled();
+  });
+
+  it("updates result layout from the advanced dialog", () => {
+    const onResultContentOrderChange = vi.fn();
+    renderPanel({
+      resultContentOrder: "table-first",
+      onResultContentOrderChange,
+    });
+
+    openAdvancedParams();
+    fireEvent.click(screen.getByRole("radio", { name: "地图在上" }));
+
+    expect(onResultContentOrderChange).toHaveBeenCalledWith("map-first");
   });
 
   it("updates network type filters and protocol controls", () => {
@@ -983,6 +1007,7 @@ function renderPanel(
       themeMode="system"
       liquidGlassEnabled={true}
       liquidGlassIntensity={70}
+      resultContentOrder="table-first"
       onTargetChange={vi.fn()}
       onProtocolChange={vi.fn()}
       onIpVersionChange={vi.fn()}
@@ -1001,6 +1026,7 @@ function renderPanel(
       onCycleThemeMode={vi.fn()}
       onLiquidGlassEnabledChange={vi.fn()}
       onLiquidGlassIntensityChange={vi.fn()}
+      onResultContentOrderChange={vi.fn()}
       onNavigateHome={vi.fn()}
       onNavigateAbout={vi.fn()}
       onReset={vi.fn()}
