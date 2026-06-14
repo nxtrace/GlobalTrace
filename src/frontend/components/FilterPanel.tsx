@@ -301,8 +301,8 @@ export function FilterPanel(props: FilterPanelProps) {
                 </LiquidGlassSurface>
               </div>
 
-              <div className="trace-options-row">
-                <label className="compact-field protocol-field">
+              <div className="parameter-pill-grid">
+                <label className="parameter-pill protocol-pill">
                   <NativeSelect
                     value={props.protocol}
                     onChange={(event) =>
@@ -317,9 +317,10 @@ export function FilterPanel(props: FilterPanelProps) {
                     <option value="UDP">UDP</option>
                   </NativeSelect>
                 </label>
-                <label className="compact-field port-field">
-                  <span>端口</span>
+                <label className="parameter-pill port-pill">
+                  <span className="parameter-pill-label">端口</span>
                   <Input
+                    className="parameter-pill-input"
                     value={props.port}
                     onChange={(event) => props.onPortChange(event.target.value)}
                     inputMode="numeric"
@@ -327,9 +328,10 @@ export function FilterPanel(props: FilterPanelProps) {
                     aria-label="端口"
                   />
                 </label>
-                <label className="compact-field packets-field">
-                  <span>Packets</span>
+                <label className="parameter-pill packets-pill">
+                  <span className="parameter-pill-label">Packets</span>
                   <Input
+                    className="parameter-pill-input"
                     type="number"
                     min={1}
                     max={16}
@@ -340,20 +342,11 @@ export function FilterPanel(props: FilterPanelProps) {
                     aria-label="Packets"
                   />
                 </label>
-              </div>
 
-              <div className="magic-limit-row">
-                <label className="field-label magic-field">
-                  <span>magic string</span>
-                  <MagicSuggestionTextarea
-                    value={visibleMagicValue(props.filters.magic)}
-                    options={filterSuggestions.magicStrings}
-                    onChange={(value) => setFilter("magic", value)}
-                  />
-                </label>
-                <label className="compact-field limit-field">
-                  <span>Limit</span>
+                <label className="parameter-pill limit-pill">
+                  <span className="parameter-pill-label">Limit</span>
                   <Input
+                    className="parameter-pill-input"
                     type="number"
                     min={1}
                     max={10}
@@ -362,6 +355,13 @@ export function FilterPanel(props: FilterPanelProps) {
                       props.onLimitChange(Number(event.target.value))
                     }
                     aria-label="Limit"
+                  />
+                </label>
+                <label className="parameter-pill magic-pill">
+                  <MagicSuggestionTextarea
+                    value={visibleMagicValue(props.filters.magic)}
+                    options={filterSuggestions.magicStrings}
+                    onChange={(value) => setFilter("magic", value)}
                   />
                 </label>
               </div>

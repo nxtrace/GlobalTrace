@@ -133,6 +133,11 @@ describe("FilterPanel", () => {
     );
     expect(within(baseControls).queryByText("目标")).not.toBeInTheDocument();
     expect(within(baseControls).queryByText("协议")).not.toBeInTheDocument();
+    expect(
+      within(baseControls).queryByText("magic string"),
+    ).not.toBeInTheDocument();
+    expect(baseControls.querySelector(".parameter-pill-grid")).not.toBeNull();
+    expect(baseControls.querySelector(".trace-options-row")).toBeNull();
     expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
     expect(screen.getByLabelText("Limit")).toHaveValue(3);
     expect(within(baseControls).getByLabelText("端口")).toHaveValue("");
@@ -211,9 +216,15 @@ describe("FilterPanel", () => {
     expect(
       within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" }),
     ).toBeChecked();
-    expect(within(advancedDialog).queryByLabelText("端口")).not.toBeInTheDocument();
-    expect(within(advancedDialog).queryByLabelText("Packets")).not.toBeInTheDocument();
-    expect(within(advancedDialog).queryByLabelText("包数")).not.toBeInTheDocument();
+    expect(
+      within(advancedDialog).queryByLabelText("端口"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(advancedDialog).queryByLabelText("Packets"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(advancedDialog).queryByLabelText("包数"),
+    ).not.toBeInTheDocument();
     expect(
       within(advancedDialog).getByLabelText("Globalping Token"),
     ).toBeVisible();

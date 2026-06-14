@@ -83,10 +83,23 @@ for (const viewport of viewports) {
       "placeholder",
       "目标 IP 或域名，如 1.1.1.1、github.com",
     );
+    await expect(page.locator(".parameter-pill-grid")).toBeVisible();
+    await expect(page.locator(".trace-options-row")).toHaveCount(0);
     await expect(page.getByLabel("端口")).toHaveValue("");
     await expect(page.getByLabel("Packets")).toHaveValue("5");
     await expect(page.getByText("目标", { exact: true })).toHaveCount(0);
     await expect(page.getByText("协议", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("magic string", { exact: true })).toHaveCount(0);
+    const parameterPillsTop = await Promise.all(
+      [".protocol-pill", ".port-pill", ".packets-pill", ".limit-pill"].map(
+        async (selector) =>
+          (await page.locator(selector).boundingBox())?.y ?? Number.NaN,
+      ),
+    );
+    const firstParameterPillTop = parameterPillsTop[0];
+    for (const pillTop of parameterPillsTop) {
+      expect(Math.abs(pillTop - firstParameterPillTop)).toBeLessThanOrEqual(1);
+    }
     const magicInput = page.getByLabel("magic string");
     await expect(magicInput).toHaveValue("");
     await magicInput.click();
