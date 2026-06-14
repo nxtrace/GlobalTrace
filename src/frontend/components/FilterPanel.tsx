@@ -16,7 +16,6 @@ import {
   Play,
   RotateCcw,
   Settings,
-  ShieldCheck,
   Sun,
 } from "lucide-react";
 import {
@@ -52,7 +51,6 @@ interface FilterPanelProps {
   visibleProbes: number;
   totalProbes: number;
   probesStatus: "loading" | "ready" | "error";
-  quotaLabel: string;
   selectionNotice: string;
   loading: boolean;
   canSubmit: boolean;
@@ -542,24 +540,6 @@ export function FilterPanel(props: FilterPanelProps) {
         </div>
 
         <div className="filter-panel-footer" data-testid="filter-panel-footer">
-          <LiquidGlassSurface
-            variant="panel"
-            fullWidth
-            className="run-state-surface"
-          >
-            <div className="run-state" aria-live="polite">
-              <ShieldCheck size={16} />
-              <div>
-                <strong>
-                  {props.nexttraceTokenSaved
-                    ? "NextTrace API Token 直连已启用"
-                    : "Globalping credits 控制诊断创建"}
-                </strong>
-                <span>{props.quotaLabel}</span>
-              </div>
-            </div>
-          </LiquidGlassSurface>
-
           <LiquidGlassSurface
             variant="panel"
             fullWidth

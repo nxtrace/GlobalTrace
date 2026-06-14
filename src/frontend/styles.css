@@ -591,7 +591,6 @@ summary:focus-visible {
 .control-section,
 .filter-summary,
 .advanced-panel,
-.run-state,
 .map-section,
 .probe-table-section,
 .results-section,
@@ -607,8 +606,7 @@ summary:focus-visible {
 }
 
 .control-section,
-.filter-summary,
-.run-state {
+.filter-summary {
   padding: 13px;
 }
 
@@ -1141,28 +1139,6 @@ summary:focus-visible {
 .advanced-params-panel {
   display: grid;
   gap: 14px;
-}
-
-.run-state {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  color: var(--ink-soft);
-}
-
-.run-state div {
-  display: grid;
-  gap: 2px;
-}
-
-.run-state strong {
-  font-size: 13px;
-  font-weight: 720;
-}
-
-.run-state span {
-  color: var(--ink-muted);
-  font-size: 12px;
 }
 
 .token-section {
@@ -1799,9 +1775,12 @@ summary:focus-visible {
 
 .quota-chip {
   min-width: 80px;
+  max-width: 100%;
   padding: 7px 11px;
+  line-height: 1.2;
   text-align: center;
   font-weight: 760;
+  white-space: normal;
 }
 
 .workspace-content {
@@ -3294,7 +3273,7 @@ pre {
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
     padding: 14px;
@@ -3404,7 +3383,6 @@ pre {
   .control-section,
   .filter-summary,
   .advanced-panel,
-  .run-state,
   .map-section,
   .probe-table-section,
   .results-section,
@@ -3577,7 +3555,6 @@ pre {
 
   .control-section,
   .filter-summary,
-  .run-state,
   .probe-table-section,
   .results-section,
   .shared-result-loading,
@@ -4409,7 +4386,6 @@ html.ambient-photo-ready body::before {
 .control-section,
 .filter-summary,
 .advanced-panel,
-.run-state,
 .map-section,
 .probe-table-section,
 .results-section,
@@ -4479,7 +4455,6 @@ textarea:hover {
 
 .filter-summary-surface,
 .primary-controls-surface,
-.run-state-surface,
 .attribution-glass-surface,
 .about-panel-surface {
   width: 100%;
@@ -4499,7 +4474,6 @@ textarea:hover {
 }
 
 .filter-summary-surface .liquid-glass-content,
-.run-state-surface .liquid-glass-content,
 .attribution-glass-surface .liquid-glass-content,
 .about-panel-surface .liquid-glass-content {
   display: block;
@@ -4524,7 +4498,6 @@ textarea:hover {
 }
 
 .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
-.run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
 .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel {
   border-color: var(--liquid-inner-border);
   background: var(--liquid-inner-bg);
@@ -4591,7 +4564,6 @@ textarea:hover {
 }
 
 .app-shell.ambient-photo-ready .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
-.app-shell.ambient-photo-ready .run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
 .about-shell.ambient-photo-ready .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel {
   background: var(--photo-liquid-panel-bg);
   backdrop-filter: blur(24px);
@@ -5099,7 +5071,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 }
 
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .filter-summary,
-.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .run-state,
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .attribution-panel,
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .about-panel,
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .metric,
@@ -5256,7 +5227,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 }
 
 .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
-.run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
 .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel,
 .metric-surface[data-liquid-glass-mode="liquid"] .metric,
 .results-section-surface[data-liquid-glass-mode="liquid"] .results-section,
@@ -5272,7 +5242,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .app-shell.ambient-photo-ready .map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .app-shell.ambient-photo-ready .result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .app-shell.ambient-photo-ready .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
-.app-shell.ambient-photo-ready .run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
 .about-shell.ambient-photo-ready .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel,
 .app-shell.ambient-photo-ready .metric-surface[data-liquid-glass-mode="liquid"] .metric,
 .app-shell.ambient-photo-ready .results-section-surface[data-liquid-glass-mode="liquid"] .results-section {

@@ -77,8 +77,15 @@ for (const viewport of viewports) {
     await page.getByRole("button", { name: "关闭高级参数" }).click();
     await page.getByRole("button", { name: "主题：Light" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(
+      page.getByText(
+        "Globalping credits 控制诊断创建 · 可创建诊断 249/250（当前 IP）",
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByText("从全球探针发起 MTR，展示跳点延迟、丢包与地理信息"),
+    ).toHaveCount(0);
     await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
-    await expect(page.getByText("可创建诊断 249/250（当前 IP）")).toBeVisible();
     await expect(page.getByLabel("目标")).toHaveAttribute(
       "placeholder",
       "目标 IP 或域名，如 1.1.1.1、github.com",
@@ -639,7 +646,11 @@ test("saved NextTrace token sends browser batch request", async ({ page }) => {
 
   await page.goto("/");
 
-  await expect(page.getByText("NextTrace API Token 直连已启用")).toBeVisible();
+  await expect(
+    page.getByText(
+      "NextTrace API Token 直连已启用 · 可创建诊断 249/250（当前 IP）",
+    ),
+  ).toBeVisible();
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();

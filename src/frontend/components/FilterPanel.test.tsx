@@ -71,7 +71,6 @@ describe("FilterPanel", () => {
         visibleProbes={12}
         totalProbes={120}
         probesStatus="ready"
-        quotaLabel="quota 9 / 10"
         selectionNotice="已从地图选择 US+Los Angeles+AS7922"
         loading={false}
         canSubmit={true}
@@ -117,9 +116,6 @@ describe("FilterPanel", () => {
     expect(screen.getByText("12 / 120 probes 匹配")).toBeInTheDocument();
     expect(
       screen.getByText("已从地图选择 US+Los Angeles+AS7922"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Globalping credits 控制诊断创建"),
     ).toBeInTheDocument();
     const baseControls = screen.getByRole("region", { name: "基础参数" });
     expect(baseControls).toHaveClass(
@@ -847,7 +843,6 @@ describe("FilterPanel", () => {
     renderPanel({
       loading: true,
       probesStatus: "error",
-      quotaLabel: "诊断额度暂不可用",
     });
 
     expect(
@@ -859,15 +854,11 @@ describe("FilterPanel", () => {
         .closest("[data-liquid-glass]"),
     ).not.toHaveAttribute("data-liquid-glass-interactive");
     expect(screen.getByText("probes 读取失败")).toBeInTheDocument();
-    expect(screen.getByText("诊断额度暂不可用")).toBeInTheDocument();
   });
 
   it("keeps the run action available when config is ready", () => {
     const first = renderPanel({ canSubmit: true });
 
-    expect(
-      screen.getByText("Globalping credits 控制诊断创建"),
-    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "开始网络路径诊断" }),
     ).not.toHaveAttribute("aria-disabled");
@@ -980,7 +971,6 @@ function renderPanel(
       visibleProbes={12}
       totalProbes={120}
       probesStatus="ready"
-      quotaLabel="quota 9 / 10"
       selectionNotice=""
       loading={false}
       canSubmit={true}

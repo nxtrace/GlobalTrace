@@ -163,6 +163,10 @@ export function App() {
     if (limitsStatus === "error" || !limits) return "诊断额度暂不可用";
     return `可创建诊断 ${limits.measurements.create.remaining}/${limits.measurements.create.limit}（${globalpingToken ? "Globalping Token" : "当前 IP"}）`;
   }, [globalpingToken, limits, limitsStatus]);
+  const diagnosisControlLabel = nexttraceToken
+    ? "NextTrace API Token 直连已启用"
+    : "Globalping credits 控制诊断创建";
+  const quotaBadgeLabel = `${diagnosisControlLabel} · ${quotaLabel}`;
 
   useEffect(() => {
     const onPopState = () => setRoute(currentRoute());
@@ -610,7 +614,6 @@ export function App() {
           visibleProbes={filteredProbes.length}
           totalProbes={probes.length}
           probesStatus={probesStatus}
-          quotaLabel={quotaLabel}
           selectionNotice={selectionNotice}
           loading={loading}
           canSubmit={canSubmit}
@@ -652,7 +655,6 @@ export function App() {
             <header className="status-bar">
               <div>
                 <strong>网络路径诊断</strong>
-                <span>从全球探针发起 MTR，展示跳点延迟、丢包与地理信息</span>
               </div>
               <div className="status-actions">
                 {finalResult && workspaceMode === "select" && (
@@ -671,11 +673,9 @@ export function App() {
                     </Button>
                   </LiquidGlassSurface>
                 )}
-                {limits && (
-                  <Badge variant="accent" className="quota-chip">
-                    {limits.measurements.create.remaining}/{limits.measurements.create.limit}
-                  </Badge>
-                )}
+                <Badge variant="accent" className="quota-chip">
+                  {quotaBadgeLabel}
+                </Badge>
               </div>
             </header>
           </LiquidGlassSurface>

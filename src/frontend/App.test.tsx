@@ -126,8 +126,11 @@ describe("App", () => {
     expect(screen.getByText("box:on")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "切换到 3D 视图" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
-    expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
-    expect(screen.getByText("249/250")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Globalping credits 控制诊断创建 · 可创建诊断 249/250（当前 IP）",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toHaveValue("");
     expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
     expect(document.documentElement.dataset.theme).toBe("system");
@@ -400,7 +403,11 @@ describe("App", () => {
       expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBeNull();
     });
     expect(screen.getByText("NextTrace Token 仅当前会话可用")).toBeInTheDocument();
-    expect(screen.getByText("NextTrace API Token 直连已启用")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "NextTrace API Token 直连已启用 · 可创建诊断 249/250（当前 IP）",
+      ),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
@@ -1089,7 +1096,11 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("probes down")).toBeInTheDocument();
-    expect(await screen.findByText("诊断额度暂不可用")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Globalping credits 控制诊断创建 · 诊断额度暂不可用",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("turns upstream parameter validation failures into actionable copy", async () => {
