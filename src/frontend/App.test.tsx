@@ -108,6 +108,12 @@ const openAdvancedParams = () => {
   fireEvent.click(screen.getByRole("button", { name: "打开高级参数" }));
 };
 
+const editTextControl = (label: string, value: string) => {
+  const control = screen.getByLabelText(label);
+  control.textContent = value;
+  fireEvent.input(control);
+};
+
 describe("App", () => {
   it("loads config, probes, and anonymous quota on startup", async () => {
     mockApi();
@@ -123,7 +129,7 @@ describe("App", () => {
     expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
     expect(screen.getByText("249/250")).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toHaveValue("");
-    expect(screen.getByLabelText("Limit")).toHaveValue(3);
+    expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
     expect(document.documentElement.dataset.theme).toBe("system");
   });
 
@@ -212,11 +218,11 @@ describe("App", () => {
 
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
-    expect(screen.getByLabelText("端口")).toHaveValue("443");
-    expect(screen.getByLabelText("Packets")).toHaveValue(9);
+    expect(screen.getByLabelText("端口")).toHaveTextContent("443");
+    expect(screen.getByLabelText("Packets")).toHaveTextContent("9");
 
-    fireEvent.change(screen.getByLabelText("端口"), { target: { value: "8443" } });
-    fireEvent.change(screen.getByLabelText("Packets"), { target: { value: "7" } });
+    editTextControl("端口", "8443");
+    editTextControl("Packets", "7");
 
     await waitFor(() => {
       expect(window.localStorage.getItem("globaltrace.tracePort")).toBe("8443");
@@ -237,13 +243,13 @@ describe("App", () => {
 
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
-    expect(screen.getByLabelText("端口")).toHaveValue("443");
-    expect(screen.getByLabelText("Packets")).toHaveValue(5);
+    expect(screen.getByLabelText("端口")).toHaveTextContent("443");
+    expect(screen.getByLabelText("Packets")).toHaveTextContent("5");
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
 
-    expect(screen.getByLabelText("端口")).toHaveValue("");
-    expect(screen.getByLabelText("Packets")).toHaveValue(5);
+    expect(screen.getByLabelText("端口")).toHaveTextContent("");
+    expect(screen.getByLabelText("Packets")).toHaveTextContent("5");
     expect(window.localStorage.getItem("globaltrace.tracePort")).toBeNull();
     expect(window.localStorage.getItem("globaltrace.tracePackets")).toBeNull();
   });
@@ -653,7 +659,7 @@ describe("App", () => {
     fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "CN+AS4134" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Limit")).toHaveValue(4);
+      expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
     });
     expect(magicInput).toHaveValue("CN+AS4134");
   });
@@ -685,13 +691,13 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("5 / 5 probes 匹配");
-    expect(screen.getByLabelText("Limit")).toHaveValue(3);
+    expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
 
     openExactFilters();
     fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Limit")).toHaveValue(4);
+      expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
     });
 
     fireEvent.change(screen.getByLabelText("城市"), { target: { value: "Shenzhen" } });
@@ -699,7 +705,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByText("1 / 5 probes 匹配")).toBeInTheDocument();
     });
-    expect(screen.getByLabelText("Limit")).toHaveValue(4);
+    expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
   });
 
   it("caps explicit filter probe expansion at ten", async () => {
@@ -711,7 +717,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Limit")).toHaveValue(10);
+      expect(screen.getByLabelText("Limit")).toHaveTextContent("10");
     });
   });
 
@@ -723,7 +729,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("magic string"), { target: { value: "AS4134+CN" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Limit")).toHaveValue(4);
+      expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
     });
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
@@ -748,7 +754,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getAllByText("框选 12 个 probes，已按上限取前 10 个").length).toBeGreaterThan(0);
     });
-    expect(screen.getByLabelText("Limit")).toHaveValue(10);
+    expect(screen.getByLabelText("Limit")).toHaveTextContent("10");
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     await screen.findByText("result:finished:m123");
@@ -1007,7 +1013,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Limit")).toHaveValue(3);
+    expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     await waitFor(() => {

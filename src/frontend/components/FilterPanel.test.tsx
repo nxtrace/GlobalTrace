@@ -139,9 +139,9 @@ describe("FilterPanel", () => {
     expect(baseControls.querySelector(".parameter-pill-grid")).not.toBeNull();
     expect(baseControls.querySelector(".trace-options-row")).toBeNull();
     expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Limit")).toHaveValue(3);
-    expect(within(baseControls).getByLabelText("端口")).toHaveValue("");
-    expect(within(baseControls).getByLabelText("Packets")).toHaveValue(5);
+    expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
+    expect(within(baseControls).getByLabelText("端口")).toHaveTextContent("");
+    expect(within(baseControls).getByLabelText("Packets")).toHaveTextContent("5");
     expect(screen.queryByLabelText("probes")).not.toBeInTheDocument();
     expect(
       screen
@@ -312,9 +312,7 @@ describe("FilterPanel", () => {
     const onProtocolChange = vi.fn();
     renderPanel({ onFiltersChange, onProtocolChange });
 
-    fireEvent.change(screen.getByLabelText("协议"), {
-      target: { value: "TCP" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "TCP" }));
     openExactFilters();
     fireEvent.click(screen.getByLabelText("eyeball"));
 

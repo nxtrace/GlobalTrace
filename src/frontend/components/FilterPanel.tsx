@@ -31,7 +31,7 @@ import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { GlassOverlay } from "./GlassOverlay";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Input, NativeSelect, Textarea } from "./ui/input";
+import { Input, Textarea } from "./ui/input";
 import { Surface } from "./ui/surface";
 import { Switch } from "./ui/switch";
 
@@ -273,7 +273,7 @@ export function FilterPanel(props: FilterPanelProps) {
                   {props.ipVersion === 4 ? "IPv4" : "IPv6"}
                 </Button>
                 <Input
-                  className="target-command-input"
+                  className="target-command-input border-0 bg-transparent shadow-none backdrop-blur-none hover:bg-transparent focus-visible:ring-0"
                   value={props.target}
                   onChange={(event) => props.onTargetChange(event.target.value)}
                   placeholder="目标 IP 或域名，如 1.1.1.1、github.com"
@@ -302,60 +302,83 @@ export function FilterPanel(props: FilterPanelProps) {
               </div>
 
               <div className="parameter-pill-grid">
-                <label className="parameter-pill protocol-pill">
-                  <NativeSelect
-                    value={props.protocol}
-                    onChange={(event) =>
-                      props.onProtocolChange(
-                        event.target.value as TraceProtocol,
-                      )
-                    }
-                    aria-label="协议"
-                  >
-                    <option value="ICMP">ICMP</option>
-                    <option value="TCP">TCP</option>
-                    <option value="UDP">UDP</option>
-                  </NativeSelect>
-                </label>
+                <div className="parameter-pill protocol-pill" aria-label="协议">
+                  {(["ICMP", "TCP", "UDP"] as TraceProtocol[]).map(
+                    (protocol) => (
+                      <button
+                        key={protocol}
+                        type="button"
+                        className={
+                          props.protocol === protocol
+                            ? "protocol-pill-option is-active"
+                            : "protocol-pill-option"
+                        }
+                        onClick={() => props.onProtocolChange(protocol)}
+                        aria-pressed={props.protocol === protocol}
+                      >
+                        {protocol}
+                      </button>
+                    ),
+                  )}
+                </div>
                 <label className="parameter-pill port-pill">
                   <span className="parameter-pill-label">端口</span>
-                  <Input
-                    className="parameter-pill-input"
-                    value={props.port}
-                    onChange={(event) => props.onPortChange(event.target.value)}
+                  <span
+                    className="parameter-pill-editable port-pill-value"
+                    role="textbox"
+                    contentEditable
+                    suppressContentEditableWarning
                     inputMode="numeric"
-                    placeholder="自动"
+                    data-placeholder="自动"
                     aria-label="端口"
-                  />
+                    onInput={(event) =>
+                      props.onPortChange(
+                        sanitizeEditableDigits(event.currentTarget),
+                      )
+                    }
+                    onKeyDown={commitEditableOnEnter}
+                  >
+                    {props.port}
+                  </span>
                 </label>
                 <label className="parameter-pill packets-pill">
                   <span className="parameter-pill-label">Packets</span>
-                  <Input
-                    className="parameter-pill-input"
-                    type="number"
-                    min={1}
-                    max={16}
-                    value={props.packets}
-                    onChange={(event) =>
-                      props.onPacketsChange(Number(event.target.value))
-                    }
+                  <span
+                    className="parameter-pill-editable numeric-pill-value"
+                    role="textbox"
+                    contentEditable
+                    suppressContentEditableWarning
+                    inputMode="numeric"
                     aria-label="Packets"
-                  />
+                    onInput={(event) =>
+                      props.onPacketsChange(
+                        clampEditableNumber(event.currentTarget, 1, 16),
+                      )
+                    }
+                    onKeyDown={commitEditableOnEnter}
+                  >
+                    {props.packets}
+                  </span>
                 </label>
 
                 <label className="parameter-pill limit-pill">
                   <span className="parameter-pill-label">Limit</span>
-                  <Input
-                    className="parameter-pill-input"
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={props.limit}
-                    onChange={(event) =>
-                      props.onLimitChange(Number(event.target.value))
-                    }
+                  <span
+                    className="parameter-pill-editable numeric-pill-value"
+                    role="textbox"
+                    contentEditable
+                    suppressContentEditableWarning
+                    inputMode="numeric"
                     aria-label="Limit"
-                  />
+                    onInput={(event) =>
+                      props.onLimitChange(
+                        clampEditableNumber(event.currentTarget, 1, 10),
+                      )
+                    }
+                    onKeyDown={commitEditableOnEnter}
+                  >
+                    {props.limit}
+                  </span>
                 </label>
                 <label className="parameter-pill magic-pill">
                   <MagicSuggestionTextarea
@@ -804,6 +827,30 @@ function AdvancedParamsPanel({
   );
 }
 
+function sanitizeEditableDigits(element: HTMLElement): string {
+  const digits = (element.textContent || "").replace(/\D/g, "");
+  if (element.textContent !== digits) {
+    element.textContent = digits;
+  }
+  return digits;
+}
+
+function clampEditableNumber(
+  element: HTMLElement,
+  min: number,
+  max: number,
+): number {
+  const digits = sanitizeEditableDigits(element);
+  if (!digits) return min;
+  return Math.min(max, Math.max(min, Number(digits)));
+}
+
+function commitEditableOnEnter(event: KeyboardEvent<HTMLElement>): void {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  event.currentTarget.blur();
+}
+
 function MagicSuggestionTextarea({
   value,
   options,
@@ -922,6 +969,7 @@ function MagicSuggestionTextarea({
         onKeyUp={(event) => updateCursorPosition(event.currentTarget)}
         onSelect={(event) => updateCursorPosition(event.currentTarget)}
         onKeyDown={handleKeyDown}
+        className="border-0 bg-transparent shadow-none backdrop-blur-none hover:bg-transparent focus-visible:ring-0"
         rows={3}
         placeholder={MAGIC_PLACEHOLDER}
         role="combobox"

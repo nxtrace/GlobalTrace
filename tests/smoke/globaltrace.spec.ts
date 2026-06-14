@@ -85,11 +85,28 @@ for (const viewport of viewports) {
     );
     await expect(page.locator(".parameter-pill-grid")).toBeVisible();
     await expect(page.locator(".trace-options-row")).toHaveCount(0);
-    await expect(page.getByLabel("端口")).toHaveValue("");
-    await expect(page.getByLabel("Packets")).toHaveValue("5");
+    await expect(page.getByLabel("端口")).toHaveText("");
+    await expect(page.getByLabel("Packets")).toHaveText("5");
+    await expect(page.getByLabel("Limit")).toHaveText("3");
     await expect(page.getByText("目标", { exact: true })).toHaveCount(0);
     await expect(page.getByText("协议", { exact: true })).toHaveCount(0);
     await expect(page.getByText("magic string", { exact: true })).toHaveCount(0);
+    for (const label of ["目标", "端口", "Packets", "Limit", "magic string"]) {
+      await expect(page.getByLabel(label)).toHaveCSS(
+        "background-color",
+        "rgba(0, 0, 0, 0)",
+      );
+      await expect(page.getByLabel(label)).toHaveCSS("box-shadow", "none");
+    }
+    await expect(
+      page.getByRole("button", { name: "ICMP", exact: true }),
+    ).toHaveCSS("box-shadow", "none");
+    const attributionPanel = page.locator(".attribution-panel");
+    await expect(attributionPanel).toHaveCSS(
+      "background-color",
+      "rgba(0, 0, 0, 0)",
+    );
+    await expect(attributionPanel).toHaveCSS("box-shadow", "none");
     const parameterPillsTop = await Promise.all(
       [".protocol-pill", ".port-pill", ".packets-pill", ".limit-pill"].map(
         async (selector) =>
@@ -99,6 +116,25 @@ for (const viewport of viewports) {
     const firstParameterPillTop = parameterPillsTop[0];
     for (const pillTop of parameterPillsTop) {
       expect(Math.abs(pillTop - firstParameterPillTop)).toBeLessThanOrEqual(1);
+    }
+    const parameterValueRightGaps = await page.evaluate(() =>
+      [
+        [".port-pill", ".port-pill-value"],
+        [".packets-pill", ".packets-pill .numeric-pill-value"],
+        [".limit-pill", ".limit-pill .numeric-pill-value"],
+      ].map(([pillSelector, valueSelector]) => {
+        const pill = document.querySelector(pillSelector);
+        const value = document.querySelector(valueSelector);
+        if (!pill || !value) {
+          return Number.NaN;
+        }
+        const pillBox = pill.getBoundingClientRect();
+        const valueBox = value.getBoundingClientRect();
+        return pillBox.right - valueBox.right;
+      }),
+    );
+    for (const rightGap of parameterValueRightGaps) {
+      expect(rightGap).toBeGreaterThanOrEqual(8);
     }
     const magicInput = page.getByLabel("magic string");
     await expect(magicInput).toHaveValue("");
@@ -176,7 +212,7 @@ for (const viewport of viewports) {
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toBeVisible();
-      await expect(page.getByLabel("Limit")).toHaveValue("1");
+      await expect(page.getByLabel("Limit")).toHaveText("1");
       await page.getByRole("button", { name: "取消地图筛选" }).click();
       await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
       await expect(page.getByTestId("filter-chips")).toContainText("world");
@@ -186,7 +222,7 @@ for (const viewport of viewports) {
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toHaveCount(0);
-      await expect(page.getByLabel("Limit")).toHaveValue("3");
+      await expect(page.getByLabel("Limit")).toHaveText("3");
       await selectMapAsnAtCoordinate(
         page,
         [-118.24, 34.05],
@@ -487,10 +523,10 @@ test("reversed magic expands probes and normalizes measurement locations", async
   await page.goto("/");
 
   await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("Limit")).toHaveValue("3");
+  await expect(page.getByLabel("Limit")).toHaveText("3");
   await page.getByLabel("magic string").fill("AS4134+CN");
   await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("Limit")).toHaveValue("4");
+  await expect(page.getByLabel("Limit")).toHaveText("4");
   const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
   await expect(
     magicSuggestions.getByRole("option", {
@@ -523,11 +559,11 @@ test("structured filters expand probes after explicit user filtering", async ({
   await page.goto("/");
 
   await expect(page.getByText("5 / 5 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("Limit")).toHaveValue("3");
+  await expect(page.getByLabel("Limit")).toHaveText("3");
   await ensureExactFiltersOpen(page);
   await page.getByLabel("国家/地区").fill("CN");
   await expect(page.getByText("4 / 5 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("Limit")).toHaveValue("4");
+  await expect(page.getByLabel("Limit")).toHaveText("4");
   expect(consoleErrors).toEqual([]);
 });
 

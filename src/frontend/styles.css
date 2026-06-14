@@ -707,8 +707,8 @@ summary:focus-visible {
 
 .parameter-pill-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.74fr) minmax(0, 0.96fr) minmax(0, 1.12fr) minmax(0, 0.82fr);
-  gap: 8px;
+  grid-template-columns: minmax(86px, 1.08fr) minmax(64px, 0.78fr) minmax(76px, 0.92fr) minmax(60px, 0.72fr);
+  gap: 5px;
   align-items: stretch;
   min-width: 0;
 }
@@ -717,10 +717,10 @@ summary:focus-visible {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   min-width: 0;
   min-height: 40px;
-  padding: 5px 8px;
+  padding: 5px 7px;
   border: 1px solid var(--control-border);
   border-radius: 999px;
   background: color-mix(in srgb, var(--control-bg) 72%, transparent);
@@ -730,13 +730,14 @@ summary:focus-visible {
 
 .parameter-pill-label {
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 760;
   line-height: 1;
   white-space: nowrap;
 }
 
 .parameter-pill-input {
+  width: auto;
   min-width: 0;
   min-height: 30px;
   height: 30px;
@@ -750,6 +751,15 @@ summary:focus-visible {
   text-align: right;
 }
 
+.port-pill .parameter-pill-input {
+  width: 4ch !important;
+}
+
+.packets-pill .parameter-pill-input,
+.limit-pill .parameter-pill-input {
+  width: 2.4ch !important;
+}
+
 .parameter-pill-input:hover,
 .parameter-pill-input:focus {
   background: transparent;
@@ -761,34 +771,86 @@ summary:focus-visible {
   font-style: normal;
 }
 
-.protocol-pill {
-  grid-template-columns: minmax(0, 1fr);
-  padding-inline: 10px;
-}
-
-.protocol-pill .native-select-control,
-.protocol-pill select {
-  width: 100%;
-}
-
-.protocol-pill select {
-  min-height: 30px;
-  height: 30px;
-  padding: 0 26px 0 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+.parameter-pill-editable {
+  min-width: 0;
   color: var(--ink);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
+  outline: none;
+}
+
+.parameter-pill-editable:empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-muted);
+}
+
+.parameter-pill-editable:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.port-pill-value {
+  flex: 0 0 3.5ch;
+}
+
+.numeric-pill-value {
+  flex: 0 0 2ch;
+}
+
+.port-pill .parameter-pill-label,
+.packets-pill .parameter-pill-label,
+.limit-pill .parameter-pill-label {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.protocol-pill {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  padding: 4px;
+}
+
+.protocol-pill-option {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 3px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 9px;
   font-weight: 780;
+  line-height: 1;
+  cursor: pointer;
 }
 
-.port-pill {
-  grid-template-columns: auto minmax(0, 1fr);
+.protocol-pill-option.is-active {
+  background: color-mix(in srgb, var(--accent-soft) 68%, transparent);
+  color: var(--ink);
 }
 
-.packets-pill {
-  grid-template-columns: auto minmax(0, 1fr);
+.protocol-pill-option:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.parameter-pill.port-pill {
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  padding-inline: 8px;
+}
+
+.parameter-pill.packets-pill {
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  padding-inline: 8px;
 }
 
 .magic-pill {
@@ -824,8 +886,11 @@ summary:focus-visible {
   box-shadow: none;
 }
 
-.limit-pill {
-  grid-template-columns: auto minmax(0, 1fr);
+.parameter-pill.limit-pill {
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  padding-inline: 8px;
 }
 
 .segmented {
@@ -2226,8 +2291,8 @@ tbody tr:hover {
   border: 0;
   background: transparent;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .probe-tabs-frame-surface .glass {
@@ -3441,25 +3506,35 @@ pre {
   }
 
   .parameter-pill-grid {
-    grid-template-columns: minmax(0, 0.72fr) minmax(0, 0.92fr) minmax(0, 1.08fr) minmax(0, 0.8fr);
-    gap: 6px;
+    grid-template-columns: minmax(86px, 1.08fr) minmax(64px, 0.78fr) minmax(76px, 0.92fr) minmax(60px, 0.72fr);
+    gap: 5px;
   }
 
   .parameter-pill {
     gap: 5px;
     min-height: 38px;
-    padding-inline: 7px;
+    padding-inline: 6px;
+  }
+
+  .parameter-pill.port-pill,
+  .parameter-pill.packets-pill,
+  .parameter-pill.limit-pill {
+    padding-inline: 8px;
   }
 
   .parameter-pill-label {
     font-size: 10px;
   }
 
-  .parameter-pill-input,
-  .protocol-pill select {
+  .parameter-pill-input {
     min-height: 28px;
     height: 28px;
     font-size: 11px;
+  }
+
+  .protocol-pill-option {
+    min-height: 28px;
+    font-size: 9px;
   }
 
   .magic-pill {
@@ -4328,7 +4403,6 @@ html.ambient-photo-ready body::before {
 .filter-summary,
 .advanced-panel,
 .run-state,
-.attribution-panel,
 .map-section,
 .probe-table-section,
 .results-section,
@@ -4357,6 +4431,43 @@ select:hover,
 textarea:hover {
   border-color: var(--input-border-hover);
   background: var(--input-bg-hover);
+}
+
+.target-command-input,
+.target-command-input:hover,
+.target-command-input:focus,
+.target-command-input:focus-visible,
+.target-command-input:active,
+.parameter-pill-input,
+.parameter-pill-input:hover,
+.parameter-pill-input:focus,
+.parameter-pill-input:focus-visible,
+.protocol-pill-option,
+.protocol-pill-option:hover,
+.protocol-pill-option:focus,
+.protocol-pill-option:focus-visible,
+.magic-pill textarea,
+.magic-pill textarea:hover,
+.magic-pill textarea:focus,
+.magic-pill textarea:focus-visible,
+.magic-pill textarea:active {
+  border-color: transparent !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.target-command-input,
+.magic-pill textarea {
+  background-color: transparent !important;
+}
+
+.protocol-pill-option.is-active {
+  background: color-mix(in srgb, var(--accent-soft) 68%, transparent) !important;
 }
 
 .filter-summary-surface,
@@ -4407,7 +4518,6 @@ textarea:hover {
 
 .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
 .run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
-.attribution-glass-surface[data-liquid-glass-mode="liquid"] .attribution-panel,
 .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel {
   border-color: var(--liquid-inner-border);
   background: var(--liquid-inner-bg);
@@ -4475,7 +4585,6 @@ textarea:hover {
 
 .app-shell.ambient-photo-ready .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
 .app-shell.ambient-photo-ready .run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
-.app-shell.ambient-photo-ready .attribution-glass-surface[data-liquid-glass-mode="liquid"] .attribution-panel,
 .about-shell.ambient-photo-ready .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel {
   background: var(--photo-liquid-panel-bg);
   backdrop-filter: blur(24px);
@@ -4698,7 +4807,7 @@ textarea:hover {
   }
 
   .parameter-pill-grid {
-    grid-template-columns: minmax(0, 0.7fr) minmax(0, 0.9fr) minmax(0, 1.08fr) minmax(0, 0.78fr);
+    grid-template-columns: minmax(82px, 1.05fr) minmax(60px, 0.76fr) minmax(72px, 0.9fr) minmax(58px, 0.7fr);
     gap: 4px;
   }
 
@@ -4707,17 +4816,28 @@ textarea:hover {
     padding-inline: 5px;
   }
 
+  .parameter-pill.port-pill,
+  .parameter-pill.packets-pill,
+  .parameter-pill.limit-pill {
+    padding-inline: 6px;
+  }
+
   .parameter-pill-label {
     font-size: 9px;
   }
 
-  .parameter-pill-input,
-  .protocol-pill select {
+  .parameter-pill-input {
     font-size: 10px;
   }
 
   .protocol-pill {
-    padding-inline: 7px;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .protocol-pill-option {
+    padding-inline: 2px;
+    font-size: 8px;
   }
 }
 
@@ -5130,7 +5250,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 
 .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
 .run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
-.attribution-glass-surface[data-liquid-glass-mode="liquid"] .attribution-panel,
 .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel,
 .metric-surface[data-liquid-glass-mode="liquid"] .metric,
 .results-section-surface[data-liquid-glass-mode="liquid"] .results-section,
@@ -5147,7 +5266,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .app-shell.ambient-photo-ready .result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .app-shell.ambient-photo-ready .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
 .app-shell.ambient-photo-ready .run-state-surface[data-liquid-glass-mode="liquid"] .run-state,
-.app-shell.ambient-photo-ready .attribution-glass-surface[data-liquid-glass-mode="liquid"] .attribution-panel,
 .about-shell.ambient-photo-ready .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel,
 .app-shell.ambient-photo-ready .metric-surface[data-liquid-glass-mode="liquid"] .metric,
 .app-shell.ambient-photo-ready .results-section-surface[data-liquid-glass-mode="liquid"] .results-section {
