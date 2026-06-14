@@ -132,6 +132,7 @@ describe("FilterPanel", () => {
     expect(screen.getByRole("link", { name: "Globalping" })).toHaveAttribute("href", "https://globalping.io/");
     expect(screen.getByRole("link", { name: "NextTrace" })).toHaveAttribute("href", "https://www.nxtrace.org/");
     expect(screen.queryByRole("link", { name: "GlobalTrace GitHub" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "关于 GlobalTrace" }).closest(".attribution-action-surface[data-liquid-glass]")).not.toBeNull();
     const advancedParamsButton = screen.getByRole("button", { name: "打开高级参数" });
     expect(advancedParamsButton.closest(".panel-title-actions")).not.toBeNull();
     expect(advancedParamsButton.closest("[data-liquid-glass]")).toHaveClass("liquid-glass-iconButton");
@@ -158,6 +159,15 @@ describe("FilterPanel", () => {
     expect(within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
     expect(within(advancedDialog).getByLabelText("Globalping Token")).toBeVisible();
     expect(within(advancedDialog).getByText("未使用 Globalping Token")).toBeVisible();
+    expect(within(advancedDialog).getByRole("button", { name: "保存 Globalping" }).closest(".token-action-surface[data-liquid-glass]")).not.toBeNull();
+    expect(within(advancedDialog).getByRole("button", { name: "清除 Globalping" }).closest(".token-action-surface[data-liquid-glass]")).not.toBeNull();
+    expect(within(advancedDialog).getByRole("button", { name: "保存 NextTrace" }).closest(".token-action-surface[data-liquid-glass]")).not.toBeNull();
+    expect(within(advancedDialog).getByRole("button", { name: "清除 NextTrace" }).closest(".token-action-surface[data-liquid-glass]")).not.toBeNull();
+    expect(within(advancedDialog).getByRole("link", { name: "获取 NextTrace API Token" })).toHaveAttribute(
+      "href",
+      "https://api.nxtrace.org/v4/api-tokens",
+    );
+    expect(within(advancedDialog).getByRole("link", { name: "获取 NextTrace API Token" }).closest(".token-help-surface[data-liquid-glass]")).not.toBeNull();
     expect(within(advancedDialog).getByLabelText("NextTrace API Token")).toBeVisible();
     expect(within(advancedDialog).getByText("未使用 NextTrace Token")).toBeVisible();
     expect(within(advancedDialog).getByRole("link", { name: "获取 NextTrace API Token" })).toHaveAttribute(

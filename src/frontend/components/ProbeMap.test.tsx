@@ -219,6 +219,15 @@ afterEach(() => {
 });
 
 describe("ProbeMap", () => {
+  it("adds liquid surfaces to status states without wrapping the map canvas", () => {
+    renderMap({ probes: [], totalProbes: 3, status: "ready" });
+
+    expect(document.querySelector(".map-status-surface[data-liquid-glass]")).not.toBeNull();
+    expect(screen.getByText("没有匹配的在线 probe").closest(".map-empty-surface[data-liquid-glass]")).not.toBeNull();
+    expect(document.querySelector(".map-container[data-liquid-glass]")).toBeNull();
+    expect(document.querySelector(".maplibregl-canvas[data-liquid-glass]")).toBeNull();
+  });
+
   it("fits multiple probes and clusters the source after load", () => {
     renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
     const map = latestMap();

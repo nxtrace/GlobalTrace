@@ -167,17 +167,19 @@ export function ResultsView({
 
   if (!result) {
     return (
-      <Surface asChild className="result-empty">
-        <section>
-        <div className="empty-hero">
-          <Route size={20} />
-          <div>
-            <h2>等待网络路径诊断</h2>
-            <p>创建 measurement 后，这里显示 probe、route summary、hop 明细和原始输出。</p>
+      <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage result-empty-surface">
+        <Surface asChild className="result-empty">
+          <section>
+          <div className="empty-hero">
+            <Route size={20} />
+            <div>
+              <h2>等待网络路径诊断</h2>
+              <p>创建 measurement 后，这里显示 probe、route summary、hop 明细和原始输出。</p>
+            </div>
           </div>
-        </div>
-        </section>
-      </Surface>
+          </section>
+        </Surface>
+      </LiquidGlassSurface>
     );
   }
 
@@ -295,23 +297,25 @@ export function ResultsView({
               />
             )}
 
-          {result.status === "in-progress" && (
-            <Surface variant="flat" className="polling-state">
-              <Clock3 size={16} />
-              measurement 正在运行，轮询完成后会补齐 hop 和 GeoIP。
-            </Surface>
-          )}
+            {result.status === "in-progress" && (
+              <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage polling-state-surface">
+                <Surface variant="flat" className="polling-state">
+                  <Clock3 size={16} />
+                  measurement 正在运行，轮询完成后会补齐 hop 和 GeoIP。
+                </Surface>
+              </LiquidGlassSurface>
+            )}
 
-          {active ? (
-            <HopTable
-              active={active}
-              mapData={mapData}
-              selectedRouteNodeId={selectedRouteNodeId}
-              onSelectHop={selectHop}
-            />
-          ) : (
-            <p className="muted">暂无 probe result。</p>
-          )}
+            {active ? (
+              <HopTable
+                active={active}
+                mapData={mapData}
+                selectedRouteNodeId={selectedRouteNodeId}
+                onSelectHop={selectHop}
+              />
+            ) : (
+              <p className="muted">暂无 probe result。</p>
+            )}
           </TabsContent>
         </Tabs>
       </section>

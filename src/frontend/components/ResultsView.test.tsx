@@ -212,6 +212,7 @@ describe("ResultsView", () => {
     render(<ResultsView result={null} mapStyleUrl="about:blank" renderMap={false} />);
 
     expect(screen.getByText("等待网络路径诊断")).toBeInTheDocument();
+    expect(document.querySelector(".result-empty-surface[data-liquid-glass]")).not.toBeNull();
   });
 
   it("renders MTR hop rows with enriched GeoIP fields and raw output", () => {
@@ -450,8 +451,10 @@ describe("ResultsView", () => {
     render(<ResultsView result={inProgressResult} mapStyleUrl="about:blank" renderMap={false} />);
 
     expect(screen.getByText("measurement 正在运行，轮询完成后会补齐 hop 和 GeoIP。")).toBeInTheDocument();
+    expect(screen.getByText("measurement 正在运行，轮询完成后会补齐 hop 和 GeoIP。").closest(".polling-state-surface[data-liquid-glass]")).not.toBeNull();
     expectGeoIpMetric("跳过", "cache 0 · fetch 0");
     expect(screen.getByText("该 probe 还没有 hop 数据。")).toBeInTheDocument();
+    expect(document.querySelector(".table-empty[data-liquid-glass]")).toBeNull();
   });
 
   it("surfaces partial enrichment batch errors", () => {

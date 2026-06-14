@@ -682,14 +682,16 @@ test("mobile advanced panel starts trace without an auth dialog", async ({ page 
 test("shared result opens directly from measurement ID", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const consoleErrors = collectConsoleErrors(page);
-  const mocks = await installMocks(page);
+  const measurementId = "2gwGqgLrSOC3guE0c00120ZWu";
+  const mocks = await installMocks(page, { measurementId });
 
-  await page.goto("/?measurement=m-smoke");
+  await page.goto(`/?measurement=${measurementId}`);
 
-  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await expect(page.getByText(`finished · 1 probes · ${measurementId}`)).toBeVisible();
   await expect.poll(mocks.enrichRequests).toBe(1);
   await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
   await expectBareResultOverlay(page);
+  await expectNoLiquidTableRows(page);
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -703,6 +705,7 @@ test("forced Liquid Glass fallback remains usable", async ({ page }) => {
   await expect(page.locator("html.liquid-glass-force-fallback")).toHaveCount(1);
   await expect(page.locator('[data-liquid-glass][data-liquid-glass-mode="fallback"]').first()).toBeVisible();
   await expect(page.getByRole("button", { name: "开始网络路径诊断" })).toBeVisible();
+  await expectFallbackCoverageNeutral(page);
 
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
@@ -712,6 +715,22 @@ test("forced Liquid Glass fallback remains usable", async ({ page }) => {
     path: `/tmp/${screenshotPrefix}-fallback-390x844.png`,
     fullPage: true,
   });
+});
+
+test("default liquid glass off keeps coverage wrappers visually neutral", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page);
+  await page.addInitScript(() => {
+    window.localStorage.setItem("globaltrace.liquidGlass", "disabled");
+  });
+
+  await page.goto("/");
+
+  await expect(page.locator("html.liquid-glass-force-fallback")).toHaveCount(1);
+  await expect(page.locator('[data-liquid-glass][data-liquid-glass-mode="fallback"]').first()).toBeVisible();
+  await expectFallbackCoverageNeutral(page);
+  expect(consoleErrors).toEqual([]);
 });
 
 test("liquid glass surfaces expose reference-strength optics at max intensity", async ({ page }) => {
@@ -733,6 +752,41 @@ test("liquid glass surfaces expose reference-strength optics at max intensity", 
   );
   await expect(page.locator('.filter-summary-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
   await expect(page.locator('.run-action-surface[data-liquid-glass-interactive="true"]')).toBeVisible();
+  await expect(page.locator('.map-status-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
+  await expect(
+    page.locator('.attribution-action-surface[data-liquid-glass-mode="liquid"]').filter({
+      has: page.getByRole("button", { name: "关于 GlobalTrace" }),
+    }),
+  ).toBeVisible();
+  await ensureExactFiltersOpen(page);
+  await page.getByLabel("国家/地区").fill("ZZ");
+  await expect(page.locator('.map-empty-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
+  await page.getByLabel("国家/地区").fill("");
+  await page.getByRole("button", { name: "打开高级参数" }).click();
+  await expect(page.locator('.overlay-close-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
+  await expect(
+    page.locator('.token-action-surface[data-liquid-glass-mode="liquid"]').filter({
+      has: page.getByRole("button", { name: "保存 Globalping" }),
+    }),
+  ).toBeVisible();
+  await expect(
+    page.locator('.token-action-surface[data-liquid-glass-mode="liquid"]').filter({
+      has: page.getByRole("button", { name: "清除 NextTrace" }),
+    }),
+  ).toBeVisible();
+  await expect(
+    page.locator('.token-help-surface[data-liquid-glass-mode="liquid"]').filter({
+      has: page.getByRole("link", { name: "获取 NextTrace API Token" }),
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "关闭高级参数" }).click();
+  await page.getByRole("button", { name: "关于 GlobalTrace" }).click();
+  await expect(page.getByRole("dialog", { name: "关于 GlobalTrace" })).toBeVisible();
+  await expect(page.locator('.about-action-surface[data-liquid-glass-mode="liquid"]').first()).toBeVisible();
+  await expect(page.locator('.about-card-surface[data-liquid-glass-mode="liquid"]')).toHaveCount(3);
+  await expect(page.locator('.about-link-surface[data-liquid-glass-mode="liquid"]').first()).toBeVisible();
+  await expect(page.locator('.about-background-credit-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
+  await page.getByRole("button", { name: "返回诊断" }).click();
   await expect(page.getByText(/背景：岁月的层峦/)).toBeHidden();
   await expectLiquidGlassVisualStructure(page);
   expect(consoleErrors).toEqual([]);
@@ -777,6 +831,56 @@ function collectConsoleErrors(page: Page): string[] {
   return errors;
 }
 
+async function expectFallbackCoverageNeutral(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "打开高级参数" }).click();
+  const state = await page.evaluate(() => {
+    const alphaOf = (value: string) => {
+      const match = value.match(/rgba?\(([^)]+)\)/);
+      if (!match) return 1;
+      const parts = match[1].split(",").map((part) => part.trim());
+      return parts.length === 4 ? Number.parseFloat(parts[3]) : 1;
+    };
+    const read = (surfaceSelector: string, controlSelector: string) => {
+      const surface = document.querySelector(surfaceSelector) as HTMLElement | null;
+      const content = surface?.querySelector(".liquid-glass-fallback-content") as HTMLElement | null;
+      const control = document.querySelector(controlSelector) as HTMLElement | null;
+      const surfaceRect = surface?.getBoundingClientRect();
+      const controlRect = control?.getBoundingClientRect();
+      const contentStyle = content ? window.getComputedStyle(content) : null;
+      const controlStyle = control ? window.getComputedStyle(control) : null;
+      return {
+        mode: surface?.getAttribute("data-liquid-glass-mode") ?? "",
+        contentBackgroundAlpha: alphaOf(contentStyle?.backgroundColor ?? ""),
+        contentBorderTopWidth: contentStyle?.borderTopWidth ?? "",
+        controlBackgroundAlpha: alphaOf(controlStyle?.backgroundColor ?? ""),
+        sameWidth: surfaceRect && controlRect ? Math.abs(surfaceRect.width - controlRect.width) <= 2 : false,
+        sameHeight: surfaceRect && controlRect ? Math.abs(surfaceRect.height - controlRect.height) <= 2 : false,
+      };
+    };
+    return {
+      close: read(".overlay-close-surface", 'button[aria-label="关闭高级参数"]'),
+      saveToken: read(".token-action-surface", 'button[aria-label="保存 Globalping"]'),
+      tokenHelp: read(".token-help-surface", 'a[aria-label="获取 NextTrace API Token"]'),
+    };
+  });
+
+  for (const item of [state.close, state.saveToken, state.tokenHelp]) {
+    expect(item.mode).toBe("fallback");
+    expect(item.contentBackgroundAlpha).toBeLessThanOrEqual(0.01);
+    expect(item.contentBorderTopWidth).toBe("0px");
+    expect(item.sameWidth).toBe(true);
+    expect(item.sameHeight).toBe(true);
+  }
+  expect(state.saveToken.controlBackgroundAlpha).toBeGreaterThan(0.02);
+  await page.getByRole("button", { name: "关闭高级参数" }).click();
+}
+
+async function expectNoLiquidTableRows(page: Page): Promise<void> {
+  await expect(page.locator("tbody tr[data-liquid-glass]")).toHaveCount(0);
+  await expect(page.locator(".hop-table-scroll[data-liquid-glass]")).toHaveCount(0);
+  await expect(page.locator(".raw-output[data-liquid-glass]")).toHaveCount(0);
+}
+
 interface MockHandles {
   styleRequests: () => number;
   enrichRequests: () => number;
@@ -786,6 +890,7 @@ interface MockHandles {
 
 interface MockOptions {
   expectedIpVersion?: 4 | 6;
+  measurementId?: string;
   traceResponse?: TraceResultResponse;
   beforeMeasurementResponse?: () => Promise<void>;
   probes?: GlobalpingProbe[];
@@ -829,6 +934,7 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
   let enrichRequests = 0;
   let nexttraceBatchRequests = 0;
   let enriched = false;
+  const measurementId = options.measurementId || "m-smoke";
   const mockProbes = options.probes || probes;
   const traceRequests: GlobalpingMeasurementRequest[] = [];
   await page.route("**/mock-style.json", async (route) => {
@@ -890,9 +996,9 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
     const body = (await route.request().postDataJSON()) as GlobalpingMeasurementRequest;
     traceRequests.push(body);
     validateTraceRequest(body, options.expectedIpVersion);
-    await route.fulfill({ status: 202, headers: globalpingCorsHeaders, json: { id: "m-smoke", probesCount: 1 } });
+    await route.fulfill({ status: 202, headers: globalpingCorsHeaders, json: { id: measurementId, probesCount: 1 } });
   });
-  await page.route("https://api.globalping.io/v1/measurements/m-smoke", async (route) => {
+  await page.route(`https://api.globalping.io/v1/measurements/${measurementId}`, async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ status: 200, headers: globalpingCorsHeaders });
       return;
@@ -900,7 +1006,7 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
     await options.beforeMeasurementResponse?.();
     pollCount += 1;
     const status = pollCount === 1 ? "in-progress" : "finished";
-    await route.fulfill({ headers: globalpingCorsHeaders, json: globalpingMeasurement(status) });
+    await route.fulfill({ headers: globalpingCorsHeaders, json: globalpingMeasurement(status, measurementId) });
   });
   await page.route("https://api.nxtrace.org/v4/ipGeo/batch", async (route) => {
     if (route.request().method() === "OPTIONS") {
@@ -942,9 +1048,9 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
       },
     });
   });
-  await page.route("**/api/trace/m-smoke", async (route) => {
+  await page.route(`**/api/trace/${measurementId}`, async (route) => {
     if (options.traceResponse || enriched) {
-      await route.fulfill({ json: options.traceResponse || traceResult("finished") });
+      await route.fulfill({ json: options.traceResponse || traceResult("finished", measurementId) });
       return;
     }
     await route.fulfill({ status: 204 });
@@ -952,8 +1058,8 @@ async function installMocks(page: Page, options: MockOptions = {}): Promise<Mock
   await page.route("**/api/trace/enrich", async (route) => {
     enrichRequests += 1;
     enriched = true;
-    expect(await route.request().postDataJSON()).toEqual({ measurementId: "m-smoke" });
-    await route.fulfill({ json: options.traceResponse || traceResult("finished") });
+    expect(await route.request().postDataJSON()).toEqual({ measurementId });
+    await route.fulfill({ json: options.traceResponse || traceResult("finished", measurementId) });
   });
   return {
     styleRequests: () => styleRequests,
@@ -2587,9 +2693,9 @@ const globalpingCorsHeaders = {
   "Access-Control-Expose-Headers": "Location, Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset",
 };
 
-function globalpingMeasurement(status: "in-progress" | "finished") {
+function globalpingMeasurement(status: "in-progress" | "finished", measurementId = "m-smoke") {
   return {
-    id: "m-smoke",
+    id: measurementId,
     type: "mtr",
     target: "globalping.io",
     status,
@@ -2631,9 +2737,9 @@ function globalpingMeasurement(status: "in-progress" | "finished") {
   };
 }
 
-function traceResult(status: TraceResultResponse["status"]): TraceResultResponse {
+function traceResult(status: TraceResultResponse["status"], measurementId = "m-smoke"): TraceResultResponse {
   return {
-    measurementId: "m-smoke",
+    measurementId,
     type: "mtr",
     target: "globalping.io",
     status,

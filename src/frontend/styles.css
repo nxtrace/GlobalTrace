@@ -4762,3 +4762,163 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
   padding: 0;
   border-radius: 999px;
 }
+
+.liquid-glass-surface.liquid-glass-coverage .liquid-glass-fallback-content {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.overlay-close-surface,
+.liquid-glass-surface.liquid-glass-coverage.overlay-close-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.overlay-close-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.overlay-close-surface button {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.overlay-close-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.overlay-close-surface .liquid-glass-fallback-content {
+  display: grid;
+  place-items: center;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.about-action-surface,
+.liquid-glass-surface.liquid-glass-coverage.attribution-action-surface,
+.liquid-glass-surface.liquid-glass-coverage.token-action-surface,
+.liquid-glass-surface.liquid-glass-coverage.token-help-surface {
+  border-radius: 999px;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.about-action-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.about-action-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.attribution-action-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.attribution-action-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.token-action-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.token-action-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.token-help-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.token-help-surface .liquid-glass-fallback-content {
+  display: block;
+  border-radius: 999px;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.attribution-action-surface {
+  flex: none;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.token-help-surface {
+  margin-left: auto;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.token-help-surface .token-help-link {
+  margin-left: 0;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.token-action-surface button,
+.liquid-glass-surface.liquid-glass-coverage.attribution-action-surface button {
+  width: 100%;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface .liquid-glass-package,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface .about-card {
+  height: 100%;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.about-links-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.about-links-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.about-link-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.about-link-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.about-background-credit-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.about-background-credit-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.result-empty-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.result-empty-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.polling-state-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.polling-state-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.map-status-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.map-status-surface .liquid-glass-fallback-content,
+.liquid-glass-surface.liquid-glass-coverage.map-empty-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.map-empty-surface .liquid-glass-fallback-content {
+  display: block;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.about-link-surface {
+  width: 100%;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.map-status-surface,
+.liquid-glass-surface.liquid-glass-coverage.map-status-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.map-status-surface .liquid-glass-fallback-content {
+  width: 100%;
+  border-radius: 0;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.map-empty-surface {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 48%;
+  width: min(320px, calc(100% - 32px));
+  transform: translate(-50%, -50%);
+  border-radius: 18px;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.map-empty-surface,
+.liquid-glass-surface.liquid-glass-coverage.map-empty-surface .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.map-empty-surface .liquid-glass-fallback-content {
+  border-radius: 18px;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.map-empty-surface .map-empty {
+  position: static;
+  width: 100%;
+  transform: none;
+}
+
+.token-help-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+  padding: 5px 9px;
+}
+
+.overlay-close-surface[data-liquid-glass-mode="liquid"] button,
+.about-action-surface[data-liquid-glass-mode="liquid"] .about-action-button,
+.attribution-action-surface[data-liquid-glass-mode="liquid"] button,
+.token-action-surface[data-liquid-glass-mode="liquid"] button,
+.token-help-surface[data-liquid-glass-mode="liquid"] .token-help-link {
+  border-color: transparent;
+  background: transparent !important;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.about-card-surface[data-liquid-glass-mode="liquid"] .about-card,
+.about-links-surface[data-liquid-glass-mode="liquid"] .about-links,
+.about-link-surface[data-liquid-glass-mode="liquid"] a,
+.about-background-credit-surface[data-liquid-glass-mode="liquid"] .about-background-credit,
+.result-empty-surface[data-liquid-glass-mode="liquid"] .result-empty,
+.polling-state-surface[data-liquid-glass-mode="liquid"] .polling-state,
+.map-status-surface[data-liquid-glass-mode="liquid"] .map-status,
+.map-empty-surface[data-liquid-glass-mode="liquid"] .map-empty {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+@media (max-width: 560px) {
+  .liquid-glass-surface.liquid-glass-coverage.token-action-surface {
+    flex: 1;
+  }
+
+  .liquid-glass-surface.liquid-glass-coverage.token-action-surface button {
+    width: 100%;
+  }
+}

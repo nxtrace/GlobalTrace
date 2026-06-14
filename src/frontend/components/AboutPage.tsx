@@ -35,68 +35,100 @@ export function AboutPage({ backgroundImage, onBack }: AboutPageProps) {
           </p>
         </div>
         <div className="about-header-actions">
-          <Button asChild variant="glass" size="sm">
-            <a href="https://github.com/nxtrace/GlobalTrace" target="_blank" rel="noreferrer">
-              <ExternalLink size={16} />
-              源码
-            </a>
-          </Button>
-          <Button variant="glass" size="sm" type="button" onClick={onBack} aria-label="返回诊断">
-            <ArrowLeft size={16} />
-            返回诊断
-          </Button>
+          <LiquidGlassSurface
+            variant="button"
+            actionRole="none"
+            className="liquid-glass-coverage about-action-surface"
+          >
+            <Button asChild variant="glass" size="sm" className="about-action-button">
+              <a href="https://github.com/nxtrace/GlobalTrace" target="_blank" rel="noreferrer">
+                <ExternalLink size={16} />
+                源码
+              </a>
+            </Button>
+          </LiquidGlassSurface>
+          <LiquidGlassSurface
+            variant="button"
+            interactive
+            actionRole="none"
+            onClick={onBack}
+            className="liquid-glass-coverage about-action-surface"
+          >
+            <Button variant="glass" size="sm" type="button" className="about-action-button" aria-label="返回诊断">
+              <ArrowLeft size={16} />
+              返回诊断
+            </Button>
+          </LiquidGlassSurface>
         </div>
       </div>
 
       <div className="about-grid">
-        <Surface variant="flat" className="about-card">
-          <span className="about-card-icon">
-            <Globe2 size={20} />
-          </span>
-          <div>
-            <h2>Globalping</h2>
-            <p>使用 Globalping 的全球 Probe 网络，从不同地区发起 MTR measurement。</p>
-          </div>
-        </Surface>
-        <Surface variant="flat" className="about-card">
-          <span className="about-card-icon">
-            <Route size={20} />
-          </span>
-          <div>
-            <h2>NextTrace</h2>
-            <p>Worker 只按 Globalping measurement ID 拉取结果，并使用 NextTrace / NTrace 数据补充 hop。</p>
-          </div>
-        </Surface>
-        <Surface variant="flat" className="about-card">
-          <span className="about-card-icon">
-            <Scale size={20} />
-          </span>
-          <div>
-            <h2>开源协议</h2>
-            <p>GlobalTrace 以 GPL-3.0-or-later 开源发布。</p>
-          </div>
-        </Surface>
+        <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage about-card-surface">
+          <Surface variant="flat" className="about-card">
+            <span className="about-card-icon">
+              <Globe2 size={20} />
+            </span>
+            <div>
+              <h2>Globalping</h2>
+              <p>使用 Globalping 的全球 Probe 网络，从不同地区发起 MTR measurement。</p>
+            </div>
+          </Surface>
+        </LiquidGlassSurface>
+        <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage about-card-surface">
+          <Surface variant="flat" className="about-card">
+            <span className="about-card-icon">
+              <Route size={20} />
+            </span>
+            <div>
+              <h2>NextTrace</h2>
+              <p>Worker 只按 Globalping measurement ID 拉取结果，并使用 NextTrace / NTrace 数据补充 hop。</p>
+            </div>
+          </Surface>
+        </LiquidGlassSurface>
+        <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage about-card-surface">
+          <Surface variant="flat" className="about-card">
+            <span className="about-card-icon">
+              <Scale size={20} />
+            </span>
+            <div>
+              <h2>开源协议</h2>
+              <p>GlobalTrace 以 GPL-3.0-or-later 开源发布。</p>
+            </div>
+          </Surface>
+        </LiquidGlassSurface>
       </div>
 
-      <Surface variant="flat" className="about-links">
-        <h2>相关链接</h2>
-        <div>
-          {attributionLinks.map((link) => (
-            <a key={link.href} href={link.href} target="_blank" rel="noreferrer">
-              {link.label}
-              <ExternalLink size={14} />
-            </a>
-          ))}
-        </div>
-      </Surface>
+      <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage about-links-surface">
+        <Surface variant="flat" className="about-links">
+          <h2>相关链接</h2>
+          <div>
+            {attributionLinks.map((link) => (
+              <LiquidGlassSurface
+                variant="button"
+                fullWidth
+                actionRole="none"
+                className="liquid-glass-coverage about-link-surface"
+                key={link.href}
+              >
+                <a href={link.href} target="_blank" rel="noreferrer">
+                  {link.label}
+                  <ExternalLink size={14} />
+                </a>
+              </LiquidGlassSurface>
+            ))}
+          </div>
+        </Surface>
+      </LiquidGlassSurface>
 
       {backgroundImage && (
-        <Surface variant="flat" className="about-background-credit">
-          <a href={backgroundImage.copyrightLink} target="_blank" rel="noreferrer">
-            背景：{backgroundImage.title || "Bing 每日美景"} · {backgroundImage.copyright}
-            <ExternalLink size={14} />
-          </a>
-        </Surface>
+        <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage about-background-credit-surface">
+          <Surface variant="flat" className="about-background-credit">
+            <a href={backgroundImage.copyrightLink} target="_blank" rel="noreferrer">
+              背景：{backgroundImage.title || "Bing 每日美景"} · {backgroundImage.copyright}
+              <ExternalLink size={14} />
+            </a>
+          </Surface>
+        </LiquidGlassSurface>
       )}
       </section>
     </LiquidGlassSurface>

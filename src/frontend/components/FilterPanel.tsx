@@ -420,10 +420,18 @@ export function FilterPanel(props: FilterPanelProps) {
                   </a>
                 </span>
               </span>
-              <Button variant="ghost" size="sm" type="button" onClick={props.onNavigateAbout} aria-label="关于 GlobalTrace">
-                <Info size={15} />
-                关于
-              </Button>
+              <LiquidGlassSurface
+                variant="button"
+                interactive
+                actionRole="none"
+                onClick={props.onNavigateAbout}
+                className="liquid-glass-coverage attribution-action-surface"
+              >
+                <Button variant="ghost" size="sm" type="button" aria-label="关于 GlobalTrace">
+                  <Info size={15} />
+                  关于
+                </Button>
+              </LiquidGlassSurface>
             </div>
           </LiquidGlassSurface>
 
@@ -553,12 +561,28 @@ function AdvancedParamsPanel({
               : "未使用 Globalping Token"}
           </span>
           <div>
-            <Button variant="glass" size="sm" type="button" onClick={props.onSaveGlobalpingToken} aria-label="保存 Globalping">
-              保存
-            </Button>
-            <Button variant="ghost" size="sm" type="button" onClick={props.onClearGlobalpingToken} aria-label="清除 Globalping">
-              清除
-            </Button>
+            <LiquidGlassSurface
+              variant="button"
+              interactive
+              actionRole="none"
+              onClick={props.onSaveGlobalpingToken}
+              className="liquid-glass-coverage token-action-surface"
+            >
+              <Button variant="glass" size="sm" type="button" aria-label="保存 Globalping">
+                保存
+              </Button>
+            </LiquidGlassSurface>
+            <LiquidGlassSurface
+              variant="button"
+              interactive
+              actionRole="none"
+              onClick={props.onClearGlobalpingToken}
+              className="liquid-glass-coverage token-action-surface"
+            >
+              <Button variant="ghost" size="sm" type="button" aria-label="清除 Globalping">
+                清除
+              </Button>
+            </LiquidGlassSurface>
           </div>
         </div>
       </div>
@@ -567,15 +591,21 @@ function AdvancedParamsPanel({
         <div className="summary-title">
           <KeyRound size={16} />
           <span>NextTrace API Token</span>
-          <a
-            className="token-help-link"
-            href={NEXTTRACE_API_TOKEN_URL}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="获取 NextTrace API Token"
+          <LiquidGlassSurface
+            variant="button"
+            actionRole="none"
+            className="liquid-glass-coverage token-help-surface"
           >
-            获取 Token
-          </a>
+            <a
+              className="token-help-link"
+              href={NEXTTRACE_API_TOKEN_URL}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="获取 NextTrace API Token"
+            >
+              获取 Token
+            </a>
+          </LiquidGlassSurface>
         </div>
         <label className="field-label">
           <span>Token</span>
@@ -606,12 +636,28 @@ function AdvancedParamsPanel({
               : "未使用 NextTrace Token"}
           </span>
           <div>
-            <Button variant="glass" size="sm" type="button" onClick={props.onSaveNexttraceToken} aria-label="保存 NextTrace">
-              保存
-            </Button>
-            <Button variant="ghost" size="sm" type="button" onClick={props.onClearNexttraceToken} aria-label="清除 NextTrace">
-              清除
-            </Button>
+            <LiquidGlassSurface
+              variant="button"
+              interactive
+              actionRole="none"
+              onClick={props.onSaveNexttraceToken}
+              className="liquid-glass-coverage token-action-surface"
+            >
+              <Button variant="glass" size="sm" type="button" aria-label="保存 NextTrace">
+                保存
+              </Button>
+            </LiquidGlassSurface>
+            <LiquidGlassSurface
+              variant="button"
+              interactive
+              actionRole="none"
+              onClick={props.onClearNexttraceToken}
+              className="liquid-glass-coverage token-action-surface"
+            >
+              <Button variant="ghost" size="sm" type="button" aria-label="清除 NextTrace">
+                清除
+              </Button>
+            </LiquidGlassSurface>
           </div>
         </div>
       </div>

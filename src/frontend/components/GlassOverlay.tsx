@@ -66,9 +66,17 @@ export function GlassOverlay({
         <section className="glass-overlay-panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <header className="glass-overlay-header">
             <h2 id={titleId}>{title}</h2>
-            <Button variant="ghost" size="icon" type="button" onClick={onClose} aria-label={`关闭${title}`}>
-              <X size={18} />
-            </Button>
+            <LiquidGlassSurface
+              variant="iconButton"
+              interactive
+              actionRole="none"
+              onClick={onClose}
+              className="liquid-glass-coverage overlay-close-surface"
+            >
+              <Button variant="ghost" size="icon" type="button" aria-label={`关闭${title}`}>
+                <X size={18} />
+              </Button>
+            </LiquidGlassSurface>
           </header>
           <div className="glass-overlay-body">{children}</div>
         </section>

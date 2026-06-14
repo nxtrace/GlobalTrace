@@ -361,21 +361,25 @@ export function ProbeMap({
           </LiquidGlassSurface>
         </div>
         <div className="map-container" ref={containerRef} />
-        <div className="map-status" aria-live="polite">
-          <div>
-            <strong>{mapStatusText(status, probes.length, totalProbes)}</strong>
-            <span>{selectionNotice || "点选地图选择筛选条件"}</span>
+        <LiquidGlassSurface variant="toolbar" fullWidth className="liquid-glass-coverage map-status-surface">
+          <div className="map-status" aria-live="polite">
+            <div>
+              <strong>{mapStatusText(status, probes.length, totalProbes)}</strong>
+              <span>{selectionNotice || "点选地图选择筛选条件"}</span>
+            </div>
+            <div className="map-legend" aria-label="probe 类型图例">
+              <Badge variant="accent"><i className="legend-dot eyeball" /> eyeball</Badge>
+              <Badge variant="warn"><i className="legend-dot datacenter" /> datacenter</Badge>
+            </div>
           </div>
-          <div className="map-legend" aria-label="probe 类型图例">
-            <Badge variant="accent"><i className="legend-dot eyeball" /> eyeball</Badge>
-            <Badge variant="warn"><i className="legend-dot datacenter" /> datacenter</Badge>
-          </div>
-        </div>
+        </LiquidGlassSurface>
         {status === "ready" && probes.length === 0 && (
-          <div className="map-empty">
-            <strong>没有匹配的在线 probe</strong>
-            <span>放宽国家/地区、城市、ASN、network 或 tag 条件。</span>
-          </div>
+          <LiquidGlassSurface variant="panel" className="liquid-glass-coverage map-empty-surface">
+            <div className="map-empty">
+              <strong>没有匹配的在线 probe</strong>
+              <span>放宽国家/地区、城市、ASN、network 或 tag 条件。</span>
+            </div>
+          </LiquidGlassSurface>
         )}
         <div className="selection-box" ref={boxRef} />
       </section>
