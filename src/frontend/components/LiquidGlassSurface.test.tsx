@@ -11,9 +11,13 @@ import {
 const liquidGlassCalls = vi.hoisted(() => [] as Array<Record<string, unknown>>);
 
 vi.mock("liquid-glass-react", () => ({
-  default: (props: { children: ReactNode }) => {
+  default: (props: { children: ReactNode; onClick?: () => void }) => {
     liquidGlassCalls.push(props as unknown as Record<string, unknown>);
-    return <div data-testid="liquid-glass-mock">{props.children}</div>;
+    return (
+      <div data-testid="liquid-glass-mock" onClick={props.onClick}>
+        {props.children}
+      </div>
+    );
   },
 }));
 
@@ -499,14 +503,16 @@ describe("LiquidGlassSurface", () => {
     );
 
     await waitFor(() => expect(liquidGlassCalls).toHaveLength(1));
-    expect(liquidGlassCalls[0]?.onClick).toEqual(expect.any(Function));
-    expect(liquidGlassCalls[0]?.onClick).not.toBe(onClick);
+    expect(liquidGlassCalls[0]?.onClick).toBe(onClick);
     const surface = screen.getByText("Open result").closest("[data-liquid-glass]");
-    expect(surface).not.toHaveAttribute("role", "button");
-    fireEvent.click(surface as Element);
+    expect(surface).toHaveAttribute("role", "button");
+    fireEvent.keyDown(surface as Element, { key: "Enter" });
     expect(onClick).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Open result").closest("[data-liquid-glass]")).not.toHaveAttribute(
+    fireEvent.click(screen.getByTestId("liquid-glass-mock"));
+    expect(onClick).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("Open result").closest("[data-liquid-glass]")).toHaveAttribute(
       "data-liquid-glass-interactive",
+      "true",
     );
   });
 });

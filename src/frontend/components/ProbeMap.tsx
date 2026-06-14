@@ -308,41 +308,55 @@ export function ProbeMap({
       <section>
         <div className="map-toolbar">
           <LiquidGlassSurface variant="toolbar" className="map-toolbar-surface">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={boxMode ? "primary" : "ghost"}
-                  size="sm"
-                  className={boxMode ? "tool-button active" : "tool-button"}
-                  type="button"
-                  onClick={() => setBoxMode((value) => !value)}
-                  title="框选 probes"
-                  aria-pressed={boxMode}
-                >
-                  {boxMode ? <MousePointer2 size={17} /> : <BoxSelect size={17} />}
-                  {boxMode ? "拖拽选择" : "框选"}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>拖拽地图区域生成 magic probe 筛选</TooltipContent>
-            </Tooltip>
-            {selectionActive && (
+            <LiquidGlassSurface
+              variant="button"
+              interactive
+              className="map-tool-surface"
+              onClick={() => setBoxMode((value) => !value)}
+              actionRole="none"
+            >
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="ghost"
+                    variant={boxMode ? "primary" : "ghost"}
                     size="sm"
-                    className="tool-button"
+                    className={boxMode ? "tool-button active" : "tool-button"}
                     type="button"
-                    onClick={onClearSelection}
-                    title="取消地图筛选"
-                    aria-label="取消地图筛选"
+                    title="框选 probes"
+                    aria-pressed={boxMode}
                   >
-                    <X size={17} />
-                    取消
+                    {boxMode ? <MousePointer2 size={17} /> : <BoxSelect size={17} />}
+                    {boxMode ? "拖拽选择" : "框选"}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>清除地图点选或框选生成的 probe 筛选</TooltipContent>
+                <TooltipContent>拖拽地图区域生成 magic probe 筛选</TooltipContent>
               </Tooltip>
+            </LiquidGlassSurface>
+            {selectionActive && (
+              <LiquidGlassSurface
+                variant="button"
+                interactive
+                className="map-tool-surface"
+                onClick={onClearSelection}
+                actionRole="none"
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="tool-button"
+                      type="button"
+                      title="取消地图筛选"
+                      aria-label="取消地图筛选"
+                    >
+                      <X size={17} />
+                      取消
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>清除地图点选或框选生成的 probe 筛选</TooltipContent>
+                </Tooltip>
+              </LiquidGlassSurface>
             )}
           </LiquidGlassSurface>
         </div>

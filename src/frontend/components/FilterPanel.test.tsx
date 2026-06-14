@@ -620,7 +620,7 @@ describe("FilterPanel", () => {
   it("disables the run action and shows loading/error statuses", () => {
     renderPanel({ loading: true, probesStatus: "error", quotaLabel: "诊断额度暂不可用" });
 
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toHaveAttribute("aria-disabled", "true");
     expect(screen.getByRole("button", { name: "开始网络路径诊断" }).closest("[data-liquid-glass]")).not.toHaveAttribute(
       "data-liquid-glass-interactive",
     );
@@ -633,12 +633,12 @@ describe("FilterPanel", () => {
     const first = renderPanel({ canSubmit: true });
 
     expect(screen.getByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).not.toHaveAttribute("aria-disabled");
 
     first.unmount();
     renderPanel({ canSubmit: false });
 
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("updates token controls, theme, and about actions", () => {

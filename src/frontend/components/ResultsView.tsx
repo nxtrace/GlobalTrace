@@ -183,18 +183,24 @@ export function ResultsView({
             {renderMap && <ResultMapToolbar mapProjection={mapProjection} onMapProjectionChange={onMapProjectionChange} />}
             <ShareButton measurementId={result.measurementId} />
             {onClose && (
-              <LiquidGlassSurface variant="button" interactive className="result-command-surface">
+              <LiquidGlassSurface
+                variant="button"
+                interactive
+                className="result-command-surface"
+                onClick={onClose}
+                title="关闭结果"
+                ariaLabel="关闭结果"
+              >
                 <Button
                   variant="glass"
                   size="sm"
                   className="result-command-button"
-                  type="button"
-                  onClick={onClose}
-                  title="关闭结果"
-                  aria-label="关闭结果"
+                  asChild
                 >
-                  <X size={16} />
-                  关闭结果
+                  <span>
+                    <X size={16} />
+                    关闭结果
+                  </span>
                 </Button>
               </LiquidGlassSurface>
             )}
@@ -222,14 +228,12 @@ export function ResultsView({
                     variant="tab"
                     className={`probe-tab-surface${index === activeIndex ? " is-active" : ""}`}
                     style={routeTabStyle(index)}
+                    interactive
+                    onClick={() => selectProbe(index)}
+                    actionRole="none"
                     key={item.id}
                   >
-                    <TabsTrigger
-                      unstyled
-                      className="probe-tab-button"
-                      value={String(index)}
-                      onClick={() => selectProbe(index)}
-                    >
+                    <TabsTrigger unstyled className="probe-tab-button" value={String(index)}>
                       <span className="probe-tab-route-dot" aria-hidden="true" />
                       <span className="probe-tab-copy">
                         <strong>{item.probe.city || item.probe.country}</strong>
@@ -287,32 +291,48 @@ function ResultMapToolbar({
     <div className="result-map-toolbar" role="group" aria-label="结果地图视图">
       <LiquidGlassSurface variant="toolbar" className="result-map-toolbar-surface">
         <div className="result-map-view-switch">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="result-view-button"
-            type="button"
-            onClick={() => onMapProjectionChange?.("mercator")}
-            aria-pressed={mapProjection === "mercator"}
-            aria-label="切换结果地图到 2D"
+          <LiquidGlassSurface
+            variant="tab"
+            interactive
             disabled={!onMapProjectionChange && mapProjection !== "mercator"}
+            className={`result-view-surface${mapProjection === "mercator" ? " is-active" : ""}`}
+            onClick={() => onMapProjectionChange?.("mercator")}
+            actionRole="none"
           >
-            <MapIcon size={16} />
-            2D
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="result-view-button"
-            type="button"
-            onClick={() => onMapProjectionChange?.("globe")}
-            aria-pressed={mapProjection === "globe"}
-            aria-label="切换结果地图到 3D"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="result-view-button"
+              type="button"
+              aria-pressed={mapProjection === "mercator"}
+              aria-label="切换结果地图到 2D"
+              disabled={!onMapProjectionChange && mapProjection !== "mercator"}
+            >
+              <MapIcon size={16} />
+              2D
+            </Button>
+          </LiquidGlassSurface>
+          <LiquidGlassSurface
+            variant="tab"
+            interactive
             disabled={!onMapProjectionChange && mapProjection !== "globe"}
+            className={`result-view-surface${mapProjection === "globe" ? " is-active" : ""}`}
+            onClick={() => onMapProjectionChange?.("globe")}
+            actionRole="none"
           >
-            <Globe2 size={16} />
-            3D
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="result-view-button"
+              type="button"
+              aria-pressed={mapProjection === "globe"}
+              aria-label="切换结果地图到 3D"
+              disabled={!onMapProjectionChange && mapProjection !== "globe"}
+            >
+              <Globe2 size={16} />
+              3D
+            </Button>
+          </LiquidGlassSurface>
         </div>
       </LiquidGlassSurface>
     </div>
@@ -334,17 +354,25 @@ function ShareButton({ measurementId }: { measurementId: string }) {
   };
 
   return (
-    <LiquidGlassSurface variant="button" interactive className="result-command-surface">
+    <LiquidGlassSurface
+      variant="button"
+      interactive
+      className="result-command-surface"
+      onClick={() => {
+        void copy();
+      }}
+      title="分享诊断链接"
+    >
       <Button
         variant="glass"
         size="sm"
         className="result-command-button"
-        type="button"
-        onClick={copy}
-        title="分享诊断链接"
+        asChild
       >
-        <Share2 size={16} />
-        {copied ? "已复制" : "分享"}
+        <span>
+          <Share2 size={16} />
+          {copied ? "已复制" : "分享"}
+        </span>
       </Button>
     </LiquidGlassSurface>
   );

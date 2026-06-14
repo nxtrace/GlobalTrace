@@ -477,8 +477,10 @@ describe("ResultsView", () => {
     expect(headerActions.children[2]).toHaveClass("result-command-surface");
     expect(copyButton.closest("[data-liquid-glass]")).toHaveClass("liquid-glass-button");
     expect(closeButton.closest("[data-liquid-glass]")).toHaveClass("liquid-glass-button");
-    expect(copyButton).toHaveClass("result-command-button");
-    expect(closeButton).toHaveClass("result-command-button");
+    expect(copyButton).toHaveClass("result-command-surface");
+    expect(closeButton).toHaveClass("result-command-surface");
+    expect(copyButton.querySelector(".result-command-button")).not.toBeNull();
+    expect(closeButton.querySelector(".result-command-button")).not.toBeNull();
     expect(twoDimensionalButton).toHaveClass("result-view-button");
     expect(threeDimensionalButton).toHaveClass("result-view-button");
     expect(twoDimensionalButton).not.toHaveClass("result-command-button");

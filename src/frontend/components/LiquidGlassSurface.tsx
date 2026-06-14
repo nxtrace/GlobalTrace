@@ -1,6 +1,7 @@
 import {
   createContext,
   type CSSProperties,
+  type KeyboardEvent,
   type ReactNode,
   useContext,
   useEffect,
@@ -42,6 +43,9 @@ interface LiquidGlassSurfaceProps {
   interactive?: boolean;
   disabled?: boolean;
   onClick?: () => void;
+  ariaLabel?: string;
+  title?: string;
+  actionRole?: "button" | "none";
 }
 
 export function LiquidGlassPreferenceProvider({ children, enabled, intensity }: LiquidGlassPreferenceProviderProps) {
@@ -64,6 +68,9 @@ export function LiquidGlassSurface({
   interactive = false,
   disabled = false,
   onClick,
+  ariaLabel,
+  title,
+  actionRole = "button",
 }: LiquidGlassSurfaceProps) {
   const liquidGlassPreference = useLiquidGlassPreference();
   const forceFallback = useForceFallback(liquidGlassPreference.enabled);
@@ -91,7 +98,25 @@ export function LiquidGlassSurface({
   }, [LiquidGlass, canUseLiquid]);
 
   const glassProps = liquidPropsForVariant(variant, liquidGlassPreference.intensity);
-  const interactiveProps = !disabled && (interactive || onClick) ? { onClick: noop } : {};
+  const actionClick = !disabled ? onClick : undefined;
+  const feedbackClick = !disabled && (interactive || onClick) ? (onClick ?? noop) : undefined;
+  const liquidInteractionProps = feedbackClick ? { onClick: feedbackClick } : {};
+  const actionRootProps =
+    onClick && actionRole !== "none"
+      ? {
+          role: "button",
+          tabIndex: disabled ? -1 : 0,
+          "aria-label": ariaLabel,
+          "aria-disabled": disabled || undefined,
+          title,
+          onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+            if (disabled) return;
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            onClick();
+          },
+        }
+      : { title };
   const classes = [
     "liquid-glass-surface",
     `liquid-glass-${variant}`,
@@ -106,7 +131,7 @@ export function LiquidGlassSurface({
   const content = canRenderLiquid ? (
     <LiquidGlass
       {...glassProps}
-      {...interactiveProps}
+      {...liquidInteractionProps}
       className="liquid-glass-package"
       padding="0"
       style={{ width: "100%" }}
@@ -125,9 +150,10 @@ export function LiquidGlassSurface({
       data-liquid-glass-intensity={liquidGlassPreference.intensity}
       data-liquid-glass-partial-displacement={partialDisplacement ? "true" : undefined}
       data-liquid-glass-demo-intensity={demoIntensity ? "true" : undefined}
-      data-liquid-glass-interactive={interactive && !disabled ? "true" : undefined}
+      data-liquid-glass-interactive={!disabled && (interactive || onClick) ? "true" : undefined}
       style={style}
-      onClickCapture={onClick && !disabled ? onClick : undefined}
+      onClick={canRenderLiquid ? undefined : actionClick}
+      {...actionRootProps}
     >
       {content}
     </div>

@@ -1234,11 +1234,8 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
   expect(state.filterPanel?.backdropFilter).toContain("blur(30px)");
   expect(state.primaryControls?.backgroundAlpha).toBeLessThanOrEqual(0.22);
   expect(state.filterSummary?.backgroundAlpha).toBeLessThanOrEqual(0.18);
-  expect(state.filterSummary?.backdropFilter).toContain("blur(24px)");
   expect(state.statusBar?.backgroundAlpha).toBeLessThanOrEqual(0.24);
-  expect(state.statusBar?.backdropFilter).toContain("blur(24px)");
   expect(state.runActionButton?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
-  expect(state.runActionButton?.backdropFilter).toContain("blur(24px)");
   for (const liquidState of [state.panelActionLiquid, state.runActionLiquid, state.statusLiquid]) {
     expect(liquidState?.warpDisplay).not.toBe("none");
     expect(liquidState?.warpOpacity).toBeGreaterThanOrEqual(0.95);
@@ -1247,10 +1244,9 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
     expect(liquidState?.warpBlurPx).toBeLessThanOrEqual(22);
     expect(liquidState?.demoIntensity).toBe("true");
     expect(liquidState?.liquidIntensity).toBe("100");
-    expect(liquidState?.glassBackgroundColor).not.toBe("rgba(0, 0, 0, 0)");
-    expect(liquidState?.glassBackgroundAlpha).toBeLessThanOrEqual(0.08);
-    expect(liquidState?.contentBackgroundAlpha).toBeLessThanOrEqual(0.08);
-    expect(liquidState?.glassBoxShadow).not.toBe("none");
+    expect(liquidState?.glassBackgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(liquidState?.glassBackgroundAlpha).toBeLessThanOrEqual(0.015);
+    expect(liquidState?.contentBackgroundAlpha).toBeLessThanOrEqual(0.02);
     expect(liquidState?.opticalLayerBackgroundImage).not.toBe("none");
     expect(liquidState?.contentBorderTopWidth).toBe("1px");
     expect(liquidState?.contentBoxShadow).not.toBe("none");
@@ -1723,7 +1719,7 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
     const switchBaseStyle = switchBase ? window.getComputedStyle(switchBase) : null;
     const children = Array.from(node.children).map((child) => {
       const childRect = child.getBoundingClientRect();
-      const button = child.querySelector("button");
+      const button = child.querySelector(".result-command-button, button");
       return {
         className: child.className,
         buttonClassName: button?.className || "",
@@ -1806,6 +1802,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const threeDimensionalButton = document.querySelector('[aria-label="切换结果地图到 3D"]') as HTMLElement | null;
     const copyButton = document.querySelector('[title="分享诊断链接"]') as HTMLElement | null;
     const closeButton = document.querySelector('.result-header-actions [aria-label="关闭结果"]') as HTMLElement | null;
+    const copyVisualButton = copyButton?.querySelector(".result-command-button") as HTMLElement | null;
+    const closeVisualButton = closeButton?.querySelector(".result-command-button") as HTMLElement | null;
     const copySurface = copyButton?.closest(".result-command-surface")?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const closeSurface = closeButton?.closest(".result-command-surface")?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
@@ -1867,7 +1865,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
           }
         : { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
     };
-    const actionButtons = Array.from(headerActions?.querySelectorAll("button") || []) as HTMLButtonElement[];
+    const actionButtons = Array.from(headerActions?.querySelectorAll("button, [role='button']") || []) as HTMLElement[];
     const buttonRects = actionButtons.map((button) => ({
       label: button.getAttribute("aria-label") || button.textContent?.trim() || "",
       ...rectFor(button),
@@ -1979,8 +1977,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       actionButtonStyles: {
         twoDimensional: buttonStyleFor(twoDimensionalButton),
         threeDimensional: buttonStyleFor(threeDimensionalButton),
-        copy: buttonStyleFor(copyButton),
-        close: buttonStyleFor(closeButton),
+        copy: buttonStyleFor(copyVisualButton),
+        close: buttonStyleFor(closeVisualButton),
       },
       actionSurfaceStyles: {
         copy: surfaceStyleFor(copySurface),

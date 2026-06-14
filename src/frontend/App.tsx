@@ -24,6 +24,7 @@ import {
 } from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
 import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
 import type { MapProjection } from "./components/mapProjection";
 import { deferUntilIdle } from "./lib/defer";
@@ -628,24 +629,20 @@ export function App() {
               </div>
               <div className="status-actions">
                 {finalResult && workspaceMode === "select" && (
-                  <div className="status-action-wrapper">
-                    <LiquidGlassSurface
-                      variant="button"
-                      interactive
-                      className="result-command-surface status-action-surface"
-                    >
-                      <span className="status-action-glass-fill" aria-hidden="true" />
-                    </LiquidGlassSurface>
-                    <button
-                      type="button"
-                      className="result-command-button status-action-button"
-                      onClick={showResult}
-                      aria-label="查看结果"
-                    >
-                      <Eye size={16} />
-                      查看结果
-                    </button>
-                  </div>
+                  <LiquidGlassSurface
+                    variant="button"
+                    interactive
+                    className="result-command-surface status-action-surface"
+                    onClick={showResult}
+                    ariaLabel="查看结果"
+                  >
+                    <Button variant="glass" size="sm" className="result-command-button status-action-button" asChild>
+                      <span>
+                        <Eye size={16} />
+                        查看结果
+                      </span>
+                    </Button>
+                  </LiquidGlassSurface>
                 )}
                 {limits && (
                   <Badge variant="accent" className="quota-chip">

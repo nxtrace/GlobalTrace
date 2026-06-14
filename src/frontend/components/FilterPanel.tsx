@@ -155,40 +155,46 @@ export function FilterPanel(props: FilterPanelProps) {
               <p>Globalping x NextTrace 的全球路由追踪</p>
             </a>
             <div className="panel-title-actions">
-              <LiquidGlassSurface variant="iconButton" interactive className="panel-action-surface">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  type="button"
-                  onClick={props.onCycleThemeMode}
-                  title={`主题：${themeModeLabel(props.themeMode)}`}
-                  aria-label={`主题：${themeModeLabel(props.themeMode)}`}
-                >
-                  <ThemeIcon mode={props.themeMode} />
+              <LiquidGlassSurface
+                variant="iconButton"
+                interactive
+                className="panel-action-surface"
+                onClick={props.onCycleThemeMode}
+                title={`主题：${themeModeLabel(props.themeMode)}`}
+                ariaLabel={`主题：${themeModeLabel(props.themeMode)}`}
+              >
+                <Button variant="ghost" size="icon" className="panel-action-button" asChild>
+                  <span>
+                    <ThemeIcon mode={props.themeMode} />
+                  </span>
                 </Button>
               </LiquidGlassSurface>
-              <LiquidGlassSurface variant="iconButton" interactive className="panel-action-surface">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  type="button"
-                  onClick={openAdvancedParams}
-                  title="高级参数"
-                  aria-label="打开高级参数"
-                >
-                  <Settings size={18} />
+              <LiquidGlassSurface
+                variant="iconButton"
+                interactive
+                className="panel-action-surface"
+                onClick={openAdvancedParams}
+                title="高级参数"
+                ariaLabel="打开高级参数"
+              >
+                <Button variant="ghost" size="icon" className="panel-action-button" asChild>
+                  <span>
+                    <Settings size={18} />
+                  </span>
                 </Button>
               </LiquidGlassSurface>
-              <LiquidGlassSurface variant="iconButton" interactive className="panel-action-surface">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  type="button"
-                  onClick={props.onReset}
-                  title="重置筛选"
-                  aria-label="重置筛选"
-                >
-                  <RotateCcw size={18} />
+              <LiquidGlassSurface
+                variant="iconButton"
+                interactive
+                className="panel-action-surface"
+                onClick={props.onReset}
+                title="重置筛选"
+                ariaLabel="重置筛选"
+              >
+                <Button variant="ghost" size="icon" className="panel-action-button" asChild>
+                  <span>
+                    <RotateCcw size={18} />
+                  </span>
                 </Button>
               </LiquidGlassSurface>
             </div>
@@ -427,18 +433,14 @@ export function FilterPanel(props: FilterPanelProps) {
             interactive
             disabled={props.loading || !props.canSubmit}
             className="run-action-surface"
+            onClick={props.onSubmit}
+            ariaLabel="开始网络路径诊断"
           >
-            <Button
-              variant="primary"
-              size="lg"
-              className="primary-action"
-              type="button"
-              disabled={props.loading || !props.canSubmit}
-              onClick={props.onSubmit}
-              aria-label="开始网络路径诊断"
-            >
-              <Play size={18} />
-              {props.loading ? "运行中" : "开始诊断"}
+            <Button variant="primary" size="lg" className="primary-action" asChild>
+              <span>
+                <Play size={18} />
+                {props.loading ? "运行中" : "开始诊断"}
+              </span>
             </Button>
           </LiquidGlassSurface>
         </div>
