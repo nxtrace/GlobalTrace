@@ -115,9 +115,10 @@ for (const viewport of viewports) {
       /^(liquid|fallback)$/,
     );
     await expect.poll(mocks.styleRequests).toBe(1);
-    await expect(page.getByLabel("IP 版本")).toHaveValue("");
-    await page.getByLabel("IP 版本").selectOption("6");
-    await expect(page.getByLabel("IP 版本")).toHaveValue("6");
+    const ipVersionSwitch = page.getByRole("switch", { name: "IPv4 IPv6" });
+    await expect(ipVersionSwitch).not.toBeChecked();
+    await ipVersionSwitch.click();
+    await expect(ipVersionSwitch).toBeChecked();
 
     await ensureExactFiltersOpen(page);
     await page.getByLabel("国家/地区").fill("US");
@@ -149,7 +150,7 @@ for (const viewport of viewports) {
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toBeVisible();
-      await expect(page.getByLabel("probes")).toHaveValue("1");
+      await expect(page.getByLabel("Limit")).toHaveValue("1");
       await page.getByRole("button", { name: "取消地图筛选" }).click();
       await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
       await expect(page.getByTestId("filter-chips")).toContainText("world");
@@ -159,7 +160,7 @@ for (const viewport of viewports) {
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toHaveCount(0);
-      await expect(page.getByLabel("probes")).toHaveValue("3");
+      await expect(page.getByLabel("Limit")).toHaveValue("3");
       await selectMapAsnAtCoordinate(
         page,
         [-118.24, 34.05],
@@ -460,10 +461,10 @@ test("reversed magic expands probes and normalizes measurement locations", async
   await page.goto("/");
 
   await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("probes")).toHaveValue("3");
+  await expect(page.getByLabel("Limit")).toHaveValue("3");
   await page.getByLabel("magic string").fill("AS4134+CN");
   await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("probes")).toHaveValue("4");
+  await expect(page.getByLabel("Limit")).toHaveValue("4");
   const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
   await expect(
     magicSuggestions.getByRole("option", {
@@ -496,11 +497,11 @@ test("structured filters expand probes after explicit user filtering", async ({
   await page.goto("/");
 
   await expect(page.getByText("5 / 5 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("probes")).toHaveValue("3");
+  await expect(page.getByLabel("Limit")).toHaveValue("3");
   await ensureExactFiltersOpen(page);
   await page.getByLabel("国家/地区").fill("CN");
   await expect(page.getByText("4 / 5 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("probes")).toHaveValue("4");
+  await expect(page.getByLabel("Limit")).toHaveValue("4");
   expect(consoleErrors).toEqual([]);
 });
 
@@ -1461,13 +1462,9 @@ interface GlobalpingMeasurementRequest {
 
 function validateTraceRequest(
   body: GlobalpingMeasurementRequest,
-  expectedIpVersion?: 4 | 6,
+  expectedIpVersion: 4 | 6 = 4,
 ): void {
-  if (expectedIpVersion === undefined) {
-    expect(body.measurementOptions).not.toHaveProperty("ipVersion");
-  } else {
-    expect(body.measurementOptions?.ipVersion).toBe(expectedIpVersion);
-  }
+  expect(body.measurementOptions?.ipVersion).toBe(expectedIpVersion);
   const magic = (body.locations || [])
     .map((location) => location.magic || "")
     .join(",");

@@ -123,7 +123,7 @@ describe("App", () => {
     expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
     expect(screen.getByText("249/250")).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toHaveValue("");
-    expect(screen.getByLabelText("probes")).toHaveValue(3);
+    expect(screen.getByLabelText("Limit")).toHaveValue(3);
     expect(document.documentElement.dataset.theme).toBe("system");
   });
 
@@ -213,10 +213,10 @@ describe("App", () => {
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
     expect(screen.getByLabelText("端口")).toHaveValue("443");
-    expect(screen.getByLabelText("包数")).toHaveValue(9);
+    expect(screen.getByLabelText("Packets")).toHaveValue(9);
 
     fireEvent.change(screen.getByLabelText("端口"), { target: { value: "8443" } });
-    fireEvent.change(screen.getByLabelText("包数"), { target: { value: "7" } });
+    fireEvent.change(screen.getByLabelText("Packets"), { target: { value: "7" } });
 
     await waitFor(() => {
       expect(window.localStorage.getItem("globaltrace.tracePort")).toBe("8443");
@@ -238,12 +238,12 @@ describe("App", () => {
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
     expect(screen.getByLabelText("端口")).toHaveValue("443");
-    expect(screen.getByLabelText("包数")).toHaveValue(5);
+    expect(screen.getByLabelText("Packets")).toHaveValue(5);
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
 
     expect(screen.getByLabelText("端口")).toHaveValue("");
-    expect(screen.getByLabelText("包数")).toHaveValue(5);
+    expect(screen.getByLabelText("Packets")).toHaveValue(5);
     expect(window.localStorage.getItem("globaltrace.tracePort")).toBeNull();
     expect(window.localStorage.getItem("globaltrace.tracePackets")).toBeNull();
   });
@@ -653,7 +653,7 @@ describe("App", () => {
     fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "CN+AS4134" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText("probes")).toHaveValue(4);
+      expect(screen.getByLabelText("Limit")).toHaveValue(4);
     });
     expect(magicInput).toHaveValue("CN+AS4134");
   });
@@ -685,13 +685,13 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("5 / 5 probes 匹配");
-    expect(screen.getByLabelText("probes")).toHaveValue(3);
+    expect(screen.getByLabelText("Limit")).toHaveValue(3);
 
     openExactFilters();
     fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("probes")).toHaveValue(4);
+      expect(screen.getByLabelText("Limit")).toHaveValue(4);
     });
 
     fireEvent.change(screen.getByLabelText("城市"), { target: { value: "Shenzhen" } });
@@ -699,7 +699,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByText("1 / 5 probes 匹配")).toBeInTheDocument();
     });
-    expect(screen.getByLabelText("probes")).toHaveValue(4);
+    expect(screen.getByLabelText("Limit")).toHaveValue(4);
   });
 
   it("caps explicit filter probe expansion at ten", async () => {
@@ -711,7 +711,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("probes")).toHaveValue(10);
+      expect(screen.getByLabelText("Limit")).toHaveValue(10);
     });
   });
 
@@ -723,7 +723,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("magic string"), { target: { value: "AS4134+CN" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("probes")).toHaveValue(4);
+      expect(screen.getByLabelText("Limit")).toHaveValue(4);
     });
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
@@ -748,7 +748,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getAllByText("框选 12 个 probes，已按上限取前 10 个").length).toBeGreaterThan(0);
     });
-    expect(screen.getByLabelText("probes")).toHaveValue(10);
+    expect(screen.getByLabelText("Limit")).toHaveValue(10);
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     await screen.findByText("result:finished:m123");
@@ -769,7 +769,7 @@ describe("App", () => {
     expect(screen.getByRole("dialog", { name: "诊断结果" })).toBeInTheDocument();
     expect(window.location.search).toBe("?measurement=m123");
     expect(fetchMock).toHaveBeenCalledWith("https://api.globalping.io/v1/measurements", expect.objectContaining({ method: "POST" }));
-    expect(traceCreateBodies(fetchMock)[0].measurementOptions).not.toHaveProperty("ipVersion");
+    expect(traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion).toBe(4);
     expect(traceCreateBodies(fetchMock)[0].measurementOptions).toMatchObject({ packets: 5 });
   });
 
@@ -992,26 +992,28 @@ describe("App", () => {
     });
   });
 
-  it("submits selected IP version and reset restores automatic mode", async () => {
+  it("submits selected IP version and reset restores IPv4", async () => {
     const fetchMock = mockApi();
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.change(screen.getByLabelText("IP 版本"), { target: { value: "6" } });
-    expect(screen.getByLabelText("IP 版本")).toHaveValue("6");
+    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).not.toBeChecked();
+    fireEvent.click(screen.getByRole("switch", { name: "IPv4 IPv6" }));
+    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).toBeChecked();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion).toBe(6);
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
-    expect(screen.getByLabelText("IP 版本")).toHaveValue("");
+    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).not.toBeChecked();
+    expect(screen.getByLabelText("Limit")).toHaveValue(3);
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     await waitFor(() => {
       expect(traceCreateBodies(fetchMock)).toHaveLength(2);
     });
-    expect(traceCreateBodies(fetchMock)[1].measurementOptions).not.toHaveProperty("ipVersion");
+    expect(traceCreateBodies(fetchMock)[1].measurementOptions.ipVersion).toBe(4);
   });
 
   it("keeps probe selection visible while polling, then lets users close and reopen results", async () => {

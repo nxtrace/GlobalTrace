@@ -37,7 +37,7 @@ import { Switch } from "./ui/switch";
 
 const NEXTTRACE_API_TOKEN_URL = "https://api.nxtrace.org/v4/api-tokens";
 
-export type IpVersionSelection = "" | 4 | 6;
+export type IpVersionSelection = 4 | 6;
 
 interface FilterPanelProps {
   target: string;
@@ -270,8 +270,8 @@ export function FilterPanel(props: FilterPanelProps) {
                 />
               </label>
 
-              <div className="control-grid compact">
-                <label className="field-label">
+              <div className="trace-options-row">
+                <label className="compact-field">
                   <span>协议</span>
                   <NativeSelect
                     value={props.protocol}
@@ -287,24 +287,23 @@ export function FilterPanel(props: FilterPanelProps) {
                     <option value="UDP">UDP</option>
                   </NativeSelect>
                 </label>
-                <label className="field-label">
-                  <span>IP 版本</span>
-                  <NativeSelect
-                    value={props.ipVersion}
-                    onChange={(event) =>
-                      props.onIpVersionChange(
-                        parseIpVersionSelection(event.target.value),
-                      )
+                <div className="ip-version-toggle" aria-label="IPv4 IPv6">
+                  <span className={props.ipVersion === 4 ? "active" : ""}>
+                    IPv4
+                  </span>
+                  <Switch
+                    checked={props.ipVersion === 6}
+                    onCheckedChange={(checked) =>
+                      props.onIpVersionChange(checked ? 6 : 4)
                     }
-                    aria-label="IP 版本"
-                  >
-                    <option value="">自动</option>
-                    <option value="4">IPv4</option>
-                    <option value="6">IPv6</option>
-                  </NativeSelect>
-                </label>
-                <label className="field-label">
-                  <span>probes</span>
+                    aria-label="IPv4 IPv6"
+                  />
+                  <span className={props.ipVersion === 6 ? "active" : ""}>
+                    IPv6
+                  </span>
+                </div>
+                <label className="compact-field limit-field">
+                  <span>Limit</span>
                   <Input
                     type="number"
                     min={1}
@@ -313,7 +312,7 @@ export function FilterPanel(props: FilterPanelProps) {
                     onChange={(event) =>
                       props.onLimitChange(Number(event.target.value))
                     }
-                    aria-label="probes"
+                    aria-label="Limit"
                   />
                 </label>
               </div>
@@ -594,7 +593,7 @@ function AdvancedParamsPanel({
           />
         </label>
         <label className="field-label">
-          <span>包数</span>
+          <span>Packets</span>
           <Input
             type="number"
             min={1}
@@ -603,7 +602,7 @@ function AdvancedParamsPanel({
             onChange={(event) =>
               props.onPacketsChange(Number(event.target.value))
             }
-            aria-label="包数"
+            aria-label="Packets"
           />
         </label>
       </div>
@@ -1172,12 +1171,6 @@ function replaceMagicSegment(
     ? (segment.match(/\s*$/)?.[0] ?? "")
     : "";
   return `${value.slice(0, start)}${leadingWhitespace}${option}${trailingWhitespace}${value.slice(end)}`;
-}
-
-function parseIpVersionSelection(value: string): IpVersionSelection {
-  if (value === "4") return 4;
-  if (value === "6") return 6;
-  return "";
 }
 
 function probeStatusText(

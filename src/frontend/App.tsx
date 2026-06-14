@@ -106,7 +106,7 @@ export function App() {
   });
   const [target, setTarget] = useState("globalping.io");
   const [protocol, setProtocol] = useState<TraceProtocol>("ICMP");
-  const [ipVersion, setIpVersion] = useState<IpVersionSelection>("");
+  const [ipVersion, setIpVersion] = useState<IpVersionSelection>(4);
   const [port, setPort] = useState(readStoredTracePort);
   const [packets, setPackets] = useState(readStoredTracePackets);
   const [limit, setLimit] = useState(DEFAULT_PROBE_LIMIT);
@@ -348,7 +348,7 @@ export function App() {
         {
           target,
           protocol,
-          ipVersion: ipVersion || undefined,
+          ipVersion,
           port: port.trim() ? Number(port) : undefined,
           packets,
           limit,
@@ -464,7 +464,7 @@ export function App() {
     setPackets(DEFAULT_TRACE_PACKETS);
     writeStoredTracePackets(DEFAULT_TRACE_PACKETS);
     setProtocol("ICMP");
-    setIpVersion("");
+    setIpVersion(4);
     setSelectionNotice("");
     setMapSelectionActive(false);
     resetMapSelectionLimitTracking();

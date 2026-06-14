@@ -62,7 +62,7 @@ describe("FilterPanel", () => {
       <FilterPanel
         target="globalping.io"
         protocol="ICMP"
-        ipVersion=""
+        ipVersion={4}
         port=""
         packets={5}
         limit={3}
@@ -127,6 +127,8 @@ describe("FilterPanel", () => {
       "primary-controls",
     );
     expect(baseControls.closest("[data-liquid-glass]")).toBeNull();
+    expect(screen.getByLabelText("Limit")).toHaveValue(3);
+    expect(screen.queryByLabelText("probes")).not.toBeInTheDocument();
     expect(
       screen
         .getByRole("button", { name: "开始网络路径诊断" })
@@ -200,6 +202,8 @@ describe("FilterPanel", () => {
     expect(
       within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" }),
     ).toBeChecked();
+    expect(within(advancedDialog).getByLabelText("Packets")).toHaveValue(5);
+    expect(within(advancedDialog).queryByLabelText("包数")).not.toBeInTheDocument();
     expect(
       within(advancedDialog).getByLabelText("Globalping Token"),
     ).toBeVisible();
@@ -357,21 +361,21 @@ describe("FilterPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("updates IP version selection", () => {
+  it("updates IP version switch", () => {
     const onIpVersionChange = vi.fn();
-    renderPanel({ ipVersion: "", onIpVersionChange });
+    const first = renderPanel({ ipVersion: 4, onIpVersionChange });
 
-    expect(screen.getByLabelText("IP 版本")).toHaveValue("");
+    expect(screen.queryByLabelText("IP 版本")).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).not.toBeChecked();
 
-    fireEvent.change(screen.getByLabelText("IP 版本"), {
-      target: { value: "6" },
-    });
-    fireEvent.change(screen.getByLabelText("IP 版本"), {
-      target: { value: "" },
-    });
+    fireEvent.click(screen.getByRole("switch", { name: "IPv4 IPv6" }));
+    first.unmount();
+    renderPanel({ ipVersion: 6, onIpVersionChange });
+    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).toBeChecked();
+    fireEvent.click(screen.getByRole("switch", { name: "IPv4 IPv6" }));
 
     expect(onIpVersionChange).toHaveBeenNthCalledWith(1, 6);
-    expect(onIpVersionChange).toHaveBeenNthCalledWith(2, "");
+    expect(onIpVersionChange).toHaveBeenNthCalledWith(2, 4);
   });
 
   it("shows the example placeholder instead of default world magic", () => {
@@ -949,7 +953,7 @@ function renderPanel(
     <FilterPanel
       target="globalping.io"
       protocol="ICMP"
-      ipVersion=""
+      ipVersion={4}
       port=""
       packets={5}
       limit={3}
