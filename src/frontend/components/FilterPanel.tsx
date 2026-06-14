@@ -259,20 +259,50 @@ export function FilterPanel(props: FilterPanelProps) {
               className="control-section primary-controls"
               aria-label="基础参数"
             >
-              <label className="field-label">
-                <span>目标</span>
+              <div className="target-command-row">
+                <Button
+                  variant="glass"
+                  size="sm"
+                  type="button"
+                  className="target-ip-button"
+                  onClick={() =>
+                    props.onIpVersionChange(props.ipVersion === 4 ? 6 : 4)
+                  }
+                  title="切换 IPv4 / IPv6"
+                >
+                  {props.ipVersion === 4 ? "IPv4" : "IPv6"}
+                </Button>
                 <Input
+                  className="target-command-input"
                   value={props.target}
                   onChange={(event) => props.onTargetChange(event.target.value)}
-                  placeholder="globalping.io"
+                  placeholder="目标 IP 或域名，如 1.1.1.1、github.com"
                   maxLength={253}
                   aria-label="目标"
                 />
-              </label>
+                <LiquidGlassSurface
+                  variant="button"
+                  interactive
+                  disabled={props.loading || !props.canSubmit}
+                  className="run-action-surface target-run-surface"
+                  onClick={props.onSubmit}
+                  ariaLabel="开始网络路径诊断"
+                >
+                  <Button
+                    variant="primary"
+                    size="icon"
+                    className="primary-action target-submit-button"
+                    asChild
+                  >
+                    <span>
+                      <Play size={18} />
+                    </span>
+                  </Button>
+                </LiquidGlassSurface>
+              </div>
 
               <div className="trace-options-row">
-                <label className="compact-field">
-                  <span>协议</span>
+                <label className="compact-field protocol-field">
                   <NativeSelect
                     value={props.protocol}
                     onChange={(event) =>
@@ -287,21 +317,6 @@ export function FilterPanel(props: FilterPanelProps) {
                     <option value="UDP">UDP</option>
                   </NativeSelect>
                 </label>
-                <div className="ip-version-toggle" aria-label="IPv4 IPv6">
-                  <span className={props.ipVersion === 4 ? "active" : ""}>
-                    IPv4
-                  </span>
-                  <Switch
-                    checked={props.ipVersion === 6}
-                    onCheckedChange={(checked) =>
-                      props.onIpVersionChange(checked ? 6 : 4)
-                    }
-                    aria-label="IPv4 IPv6"
-                  />
-                  <span className={props.ipVersion === 6 ? "active" : ""}>
-                    IPv6
-                  </span>
-                </div>
                 <label className="compact-field limit-field">
                   <span>Limit</span>
                   <Input
@@ -541,28 +556,6 @@ export function FilterPanel(props: FilterPanelProps) {
                 </Button>
               </LiquidGlassSurface>
             </div>
-          </LiquidGlassSurface>
-
-          <LiquidGlassSurface
-            variant="button"
-            fullWidth
-            interactive
-            disabled={props.loading || !props.canSubmit}
-            className="run-action-surface"
-            onClick={props.onSubmit}
-            ariaLabel="开始网络路径诊断"
-          >
-            <Button
-              variant="primary"
-              size="lg"
-              className="primary-action"
-              asChild
-            >
-              <span>
-                <Play size={18} />
-                {props.loading ? "运行中" : "开始诊断"}
-              </span>
-            </Button>
           </LiquidGlassSurface>
         </div>
       </aside>

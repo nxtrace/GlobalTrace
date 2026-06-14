@@ -625,9 +625,78 @@ summary:focus-visible {
   gap: 10px;
 }
 
+.target-command-row {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr) 66px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 84px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--control-bg-solid);
+  box-shadow: var(--shadow-inset);
+}
+
+.target-command-input {
+  min-height: 58px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 680;
+}
+
+.target-command-input:hover,
+.target-command-input:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+.target-command-input::placeholder {
+  color: var(--ink-muted);
+  font-style: normal;
+  font-weight: 680;
+}
+
+.target-ip-button {
+  width: 100%;
+  min-height: 58px;
+  padding: 0;
+  border-radius: 16px;
+  color: var(--accent-strong);
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.target-run-surface {
+  width: 100%;
+  height: 58px;
+  margin-top: 0;
+  border-radius: 16px;
+}
+
+.target-run-surface .liquid-glass-package,
+.target-run-surface .liquid-glass-content,
+.target-run-surface .liquid-glass-fallback-content {
+  height: 100%;
+  border-radius: 16px;
+}
+
+.target-submit-button {
+  width: 100%;
+  height: 100%;
+  min-height: 58px;
+  border-radius: 16px;
+}
+
 .trace-options-row {
   display: grid;
-  grid-template-columns: minmax(116px, 1fr) auto 94px;
+  grid-template-columns: minmax(0, 1fr) 94px;
   gap: 8px;
   align-items: center;
 }
@@ -648,30 +717,8 @@ summary:focus-visible {
   grid-template-columns: auto minmax(48px, 1fr);
 }
 
-.ip-version-toggle {
-  display: flex;
-  min-width: 0;
-  min-height: 40px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 5px 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--control-bg-solid);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-}
-
-.ip-version-toggle span {
-  color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 720;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.ip-version-toggle span.active {
-  color: var(--accent-strong);
+.protocol-field {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .segmented {
@@ -3254,8 +3301,42 @@ pre {
     grid-template-columns: 1fr;
   }
 
+  .target-command-row {
+    grid-template-columns: 62px minmax(0, 1fr) 54px;
+    gap: 8px;
+    min-height: 74px;
+    padding: 8px;
+    border-radius: 18px;
+  }
+
+  .target-command-input {
+    min-height: 52px;
+    font-size: 15px;
+  }
+
+  .target-ip-button,
+  .target-submit-button {
+    min-height: 52px;
+    border-radius: 14px;
+  }
+
+  .target-ip-button {
+    font-size: 13px;
+  }
+
+  .target-run-surface {
+    height: 52px;
+    border-radius: 14px;
+  }
+
+  .target-run-surface .liquid-glass-package,
+  .target-run-surface .liquid-glass-content,
+  .target-run-surface .liquid-glass-fallback-content {
+    border-radius: 14px;
+  }
+
   .trace-options-row {
-    grid-template-columns: minmax(86px, 1fr) auto 76px;
+    grid-template-columns: minmax(0, 1fr) 76px;
     gap: 6px;
   }
 
@@ -3263,13 +3344,7 @@ pre {
     gap: 5px;
   }
 
-  .ip-version-toggle {
-    gap: 5px;
-    padding: 5px 6px;
-  }
-
-  .compact-field > span,
-  .ip-version-toggle span {
+  .compact-field > span {
     font-size: 11px;
   }
 
@@ -4484,13 +4559,22 @@ textarea:hover {
 }
 
 @media (max-width: 360px) {
-  .trace-options-row {
-    grid-template-columns: minmax(0, 1fr) 74px;
+  .target-command-row {
+    grid-template-columns: 54px minmax(0, 1fr) 48px;
+    gap: 6px;
+    padding: 6px;
   }
 
-  .ip-version-toggle {
-    grid-column: 1 / -1;
-    grid-row: 2;
+  .target-command-input {
+    font-size: 13px;
+  }
+
+  .target-ip-button {
+    font-size: 12px;
+  }
+
+  .trace-options-row {
+    grid-template-columns: minmax(0, 1fr) 70px;
   }
 }
 

@@ -73,6 +73,12 @@ for (const viewport of viewports) {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
     await expect(page.getByText("可创建诊断 249/250（当前 IP）")).toBeVisible();
+    await expect(page.getByLabel("目标")).toHaveAttribute(
+      "placeholder",
+      "目标 IP 或域名，如 1.1.1.1、github.com",
+    );
+    await expect(page.getByText("目标", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("协议", { exact: true })).toHaveCount(0);
     const magicInput = page.getByLabel("magic string");
     await expect(magicInput).toHaveValue("");
     await magicInput.click();
@@ -115,10 +121,9 @@ for (const viewport of viewports) {
       /^(liquid|fallback)$/,
     );
     await expect.poll(mocks.styleRequests).toBe(1);
-    const ipVersionSwitch = page.getByRole("switch", { name: "IPv4 IPv6" });
-    await expect(ipVersionSwitch).not.toBeChecked();
-    await ipVersionSwitch.click();
-    await expect(ipVersionSwitch).toBeChecked();
+    await expect(page.getByRole("button", { name: "IPv4" })).toBeVisible();
+    await page.getByRole("button", { name: "IPv4" }).click();
+    await expect(page.getByRole("button", { name: "IPv6" })).toBeVisible();
 
     await ensureExactFiltersOpen(page);
     await page.getByLabel("国家/地区").fill("US");

@@ -997,16 +997,16 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).not.toBeChecked();
-    fireEvent.click(screen.getByRole("switch", { name: "IPv4 IPv6" }));
-    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "IPv4" }));
+    expect(screen.getByRole("button", { name: "IPv6" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion).toBe(6);
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
-    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
     expect(screen.getByLabelText("Limit")).toHaveValue(3);
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 

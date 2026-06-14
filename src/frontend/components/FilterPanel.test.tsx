@@ -127,6 +127,13 @@ describe("FilterPanel", () => {
       "primary-controls",
     );
     expect(baseControls.closest("[data-liquid-glass]")).toBeNull();
+    expect(screen.getByLabelText("目标")).toHaveAttribute(
+      "placeholder",
+      "目标 IP 或域名，如 1.1.1.1、github.com",
+    );
+    expect(within(baseControls).queryByText("目标")).not.toBeInTheDocument();
+    expect(within(baseControls).queryByText("协议")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
     expect(screen.getByLabelText("Limit")).toHaveValue(3);
     expect(screen.queryByLabelText("probes")).not.toBeInTheDocument();
     expect(
@@ -357,22 +364,22 @@ describe("FilterPanel", () => {
     expect(screen.getByText("当前筛选")).toBeInTheDocument();
     const footer = screen.getByTestId("filter-panel-footer");
     expect(
-      within(footer).getByRole("button", { name: "开始网络路径诊断" }),
-    ).toBeInTheDocument();
+      within(footer).queryByRole("button", { name: "开始网络路径诊断" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("updates IP version switch", () => {
+  it("updates IP version button", () => {
     const onIpVersionChange = vi.fn();
     const first = renderPanel({ ipVersion: 4, onIpVersionChange });
 
     expect(screen.queryByLabelText("IP 版本")).not.toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("switch", { name: "IPv4 IPv6" }));
+    fireEvent.click(screen.getByRole("button", { name: "IPv4" }));
     first.unmount();
     renderPanel({ ipVersion: 6, onIpVersionChange });
-    expect(screen.getByRole("switch", { name: "IPv4 IPv6" })).toBeChecked();
-    fireEvent.click(screen.getByRole("switch", { name: "IPv4 IPv6" }));
+    expect(screen.getByRole("button", { name: "IPv6" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "IPv6" }));
 
     expect(onIpVersionChange).toHaveBeenNthCalledWith(1, 6);
     expect(onIpVersionChange).toHaveBeenNthCalledWith(2, 4);
@@ -839,7 +846,6 @@ describe("FilterPanel", () => {
         .getByRole("button", { name: "开始网络路径诊断" })
         .closest("[data-liquid-glass]"),
     ).not.toHaveAttribute("data-liquid-glass-interactive");
-    expect(screen.getByText("运行中")).toBeInTheDocument();
     expect(screen.getByText("probes 读取失败")).toBeInTheDocument();
     expect(screen.getByText("诊断额度暂不可用")).toBeInTheDocument();
   });
