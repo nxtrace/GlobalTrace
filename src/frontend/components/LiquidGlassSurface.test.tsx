@@ -181,11 +181,11 @@ describe("LiquidGlassSurface", () => {
     [
       "iconButton",
       {
-        displacementScale: 60.2,
-        blurAmount: 0.094,
-        saturation: 157.2,
-        aberrationIntensity: 2.07,
-        elasticity: 0.293,
+        displacementScale: 135.669,
+        blurAmount: 0.384,
+        saturation: 195.466,
+        aberrationIntensity: 6.931,
+        elasticity: 0.444,
         cornerRadius: 999,
         overLight: false,
         mode: "prominent",
@@ -194,11 +194,11 @@ describe("LiquidGlassSurface", () => {
     [
       "button",
       {
-        displacementScale: 58.2,
-        blurAmount: 0.09,
-        saturation: 155.5,
-        aberrationIntensity: 1.915,
-        elasticity: 0.287,
+        displacementScale: 124.197,
+        blurAmount: 0.363,
+        saturation: 192.361,
+        aberrationIntensity: 6.381,
+        elasticity: 0.424,
         cornerRadius: 999,
         overLight: false,
         mode: "prominent",
@@ -207,11 +207,11 @@ describe("LiquidGlassSurface", () => {
     [
       "tab",
       {
-        displacementScale: 55.6,
-        blurAmount: 0.086,
-        saturation: 155.5,
-        aberrationIntensity: 1.865,
-        elasticity: 0.26,
+        displacementScale: 117.04,
+        blurAmount: 0.329,
+        saturation: 187.098,
+        aberrationIntensity: 5.831,
+        elasticity: 0.383,
         cornerRadius: 999,
         overLight: false,
         mode: "prominent",
@@ -220,11 +220,11 @@ describe("LiquidGlassSurface", () => {
     [
       "toolbar",
       {
-        displacementScale: 55,
-        blurAmount: 0.085,
-        saturation: 155.2,
-        aberrationIntensity: 1.78,
-        elasticity: 0.24,
+        displacementScale: 113.461,
+        blurAmount: 0.329,
+        saturation: 186.625,
+        aberrationIntensity: 5.807,
+        elasticity: 0.363,
         cornerRadius: 18,
         overLight: false,
         mode: "prominent",
@@ -233,11 +233,11 @@ describe("LiquidGlassSurface", () => {
     [
       "metric",
       {
-        displacementScale: 45.4,
-        blurAmount: 0.068,
-        saturation: 150.4,
-        aberrationIntensity: 1.505,
-        elasticity: 0.157,
+        displacementScale: 85.254,
+        blurAmount: 0.24,
+        saturation: 169.89,
+        aberrationIntensity: 3.918,
+        elasticity: 0.227,
         cornerRadius: 16,
         overLight: false,
         mode: "standard",
@@ -246,11 +246,11 @@ describe("LiquidGlassSurface", () => {
     [
       "floatingPanel",
       {
-        displacementScale: 46.8,
-        blurAmount: 0.072,
-        saturation: 151.8,
-        aberrationIntensity: 1.54,
-        elasticity: 0.164,
+        displacementScale: 93.148,
+        blurAmount: 0.284,
+        saturation: 177.784,
+        aberrationIntensity: 4.181,
+        elasticity: 0.259,
         cornerRadius: 24,
         overLight: false,
         mode: "standard",
@@ -259,11 +259,11 @@ describe("LiquidGlassSurface", () => {
     [
       "panel",
       {
-        displacementScale: 41.4,
-        blurAmount: 0.063,
-        saturation: 148.4,
-        aberrationIntensity: 1.42,
-        elasticity: 0.147,
+        displacementScale: 85.99,
+        blurAmount: 0.26,
+        saturation: 171.574,
+        aberrationIntensity: 3.631,
+        elasticity: 0.233,
         cornerRadius: 18,
         overLight: false,
         mode: "standard",
@@ -272,11 +272,11 @@ describe("LiquidGlassSurface", () => {
     [
       "chip",
       {
-        displacementScale: 55,
-        blurAmount: 0.084,
-        saturation: 153.2,
-        aberrationIntensity: 1.73,
-        elasticity: 0.226,
+        displacementScale: 110.83,
+        blurAmount: 0.317,
+        saturation: 183.046,
+        aberrationIntensity: 5.52,
+        elasticity: 0.353,
         cornerRadius: 999,
         overLight: false,
         mode: "prominent",
@@ -301,14 +301,14 @@ describe("LiquidGlassSurface", () => {
   });
 
   it.each([
-    ["button", "prominent", 66, 0.105, 2.2, 0.35],
-    ["iconButton", "prominent", 68, 0.11, 2.4, 0.35],
-    ["tab", "prominent", 64, 0.102, 2.15, 0.32],
-    ["chip", "prominent", 64, 0.1, 2, 0.28],
-    ["toolbar", "prominent", 64, 0.1, 2.05, 0.3],
-    ["floatingPanel", "standard", 54, 0.083, 1.75, 0.2],
-    ["panel", "standard", 48, 0.074, 1.6, 0.18],
-    ["metric", "standard", 52, 0.08, 1.7, 0.19],
+    ["button", "prominent", 200, 0.64, 11, 0.68],
+    ["iconButton", "prominent", 220, 0.68, 12, 0.7],
+    ["tab", "prominent", 190, 0.58, 10, 0.62],
+    ["chip", "prominent", 180, 0.56, 9.5, 0.58],
+    ["toolbar", "prominent", 185, 0.58, 10, 0.6],
+    ["floatingPanel", "standard", 150, 0.5, 7, 0.42],
+    ["panel", "standard", 140, 0.46, 6, 0.38],
+    ["metric", "standard", 135, 0.42, 6.5, 0.36],
   ] as const)(
     "maps intensity 100 to the reference-strength range for %s",
     async (variant, expectedMode, displacementScale, blurAmount, aberrationIntensity, elasticity) => {
@@ -328,11 +328,16 @@ describe("LiquidGlassSurface", () => {
         blurAmount,
         aberrationIntensity,
         elasticity,
+        overLight: true,
         mode: expectedMode,
       });
       expect(screen.getByText("Max intensity content").closest("[data-liquid-glass]")).toHaveAttribute(
         "data-liquid-glass-intensity",
         "100",
+      );
+      expect(screen.getByText("Max intensity content").closest("[data-liquid-glass]")).toHaveAttribute(
+        "data-liquid-glass-demo-intensity",
+        "true",
       );
     },
   );

@@ -4232,6 +4232,27 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
     inset 0 -10px 22px rgba(35, 184, 255, 0.08);
 }
 
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] {
+  --liquid-optical-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.08) 34%, rgba(35, 184, 255, 0.24) 62%, rgba(139, 92, 246, 0.18)),
+    rgba(255, 255, 255, 0.14);
+  --liquid-optical-border: rgba(255, 255, 255, 0.82);
+  --liquid-optical-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.24),
+    inset 16px 0 28px rgba(255, 255, 255, 0.16),
+    inset -16px 0 28px rgba(35, 184, 255, 0.12),
+    0 16px 48px rgba(22, 43, 53, 0.16);
+  --liquid-optical-specular:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.06) 34%, rgba(35, 184, 255, 0.22) 58%, rgba(139, 92, 246, 0.16) 76%, rgba(255, 255, 255, 0.32));
+  --liquid-optical-edge:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.58),
+    inset 0 1px 8px rgba(255, 255, 255, 0.44),
+    inset 0 -18px 36px rgba(35, 184, 255, 0.14),
+    inset 12px 0 24px rgba(255, 255, 255, 0.14),
+    inset -12px 0 24px rgba(139, 92, 246, 0.1);
+}
+
 :root[data-theme="dark"] .liquid-glass-surface[data-liquid-glass-mode="liquid"] {
   --liquid-optical-bg:
     linear-gradient(135deg, rgba(245, 251, 255, 0.1), rgba(53, 210, 255, 0.08) 48%, rgba(139, 92, 246, 0.12)),
@@ -4248,6 +4269,28 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
     inset 0 0 0 1px rgba(148, 226, 255, 0.22),
     inset 0 1px 4px rgba(255, 255, 255, 0.14),
     inset 0 -10px 22px rgba(53, 210, 255, 0.1);
+}
+
+:root[data-theme="dark"] .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] {
+  --liquid-optical-bg:
+    linear-gradient(135deg, rgba(245, 251, 255, 0.28), rgba(53, 210, 255, 0.16) 38%, rgba(139, 92, 246, 0.28) 68%, rgba(255, 255, 255, 0.16)),
+    rgba(6, 14, 24, 0.26);
+  --liquid-optical-border: rgba(186, 236, 255, 0.44);
+  --liquid-optical-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 -1px 0 rgba(53, 210, 255, 0.18),
+    inset 16px 0 28px rgba(255, 255, 255, 0.08),
+    inset -16px 0 28px rgba(53, 210, 255, 0.16),
+    0 18px 48px rgba(0, 0, 0, 0.34),
+    0 0 28px rgba(53, 210, 255, 0.14);
+  --liquid-optical-specular:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(53, 210, 255, 0.08) 36%, rgba(139, 92, 246, 0.22) 66%, rgba(255, 255, 255, 0.18));
+  --liquid-optical-edge:
+    inset 0 0 0 1px rgba(186, 236, 255, 0.32),
+    inset 0 1px 8px rgba(255, 255, 255, 0.22),
+    inset 0 -18px 36px rgba(53, 210, 255, 0.16),
+    inset 12px 0 24px rgba(255, 255, 255, 0.08),
+    inset -12px 0 24px rgba(139, 92, 246, 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -4267,6 +4310,28 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
       inset 0 0 0 1px rgba(148, 226, 255, 0.22),
       inset 0 1px 4px rgba(255, 255, 255, 0.14),
       inset 0 -10px 22px rgba(53, 210, 255, 0.1);
+  }
+
+  :root[data-theme="system"] .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] {
+    --liquid-optical-bg:
+      linear-gradient(135deg, rgba(245, 251, 255, 0.28), rgba(53, 210, 255, 0.16) 38%, rgba(139, 92, 246, 0.28) 68%, rgba(255, 255, 255, 0.16)),
+      rgba(6, 14, 24, 0.26);
+    --liquid-optical-border: rgba(186, 236, 255, 0.44);
+    --liquid-optical-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.26),
+      inset 0 -1px 0 rgba(53, 210, 255, 0.18),
+      inset 16px 0 28px rgba(255, 255, 255, 0.08),
+      inset -16px 0 28px rgba(53, 210, 255, 0.16),
+      0 18px 48px rgba(0, 0, 0, 0.34),
+      0 0 28px rgba(53, 210, 255, 0.14);
+    --liquid-optical-specular:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(53, 210, 255, 0.08) 36%, rgba(139, 92, 246, 0.22) 66%, rgba(255, 255, 255, 0.18));
+    --liquid-optical-edge:
+      inset 0 0 0 1px rgba(186, 236, 255, 0.32),
+      inset 0 1px 8px rgba(255, 255, 255, 0.22),
+      inset 0 -18px 36px rgba(53, 210, 255, 0.16),
+      inset 12px 0 24px rgba(255, 255, 255, 0.08),
+      inset -12px 0 24px rgba(139, 92, 246, 0.14);
   }
 }
 
@@ -4317,8 +4382,60 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
   box-shadow: var(--liquid-optical-edge);
 }
 
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .glass {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(35, 184, 255, 0.08) 56%, rgba(139, 92, 246, 0.08)),
+    rgba(255, 255, 255, 0.1);
+}
+
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+  border-width: 1px;
+}
+
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .liquid-glass-content::before {
+  opacity: 0.88;
+}
+
+:root[data-theme="dark"] .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .glass {
+  background:
+    linear-gradient(135deg, rgba(245, 251, 255, 0.16), rgba(53, 210, 255, 0.1) 56%, rgba(139, 92, 246, 0.12)),
+    rgba(8, 18, 30, 0.22);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .glass {
+    background:
+      linear-gradient(135deg, rgba(245, 251, 255, 0.16), rgba(53, 210, 255, 0.1) 56%, rgba(139, 92, 246, 0.12)),
+      rgba(8, 18, 30, 0.22);
+  }
+}
+
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .filter-summary,
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .run-state,
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .attribution-panel,
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .about-panel,
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .metric,
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .results-section,
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .probe-tabs-frame,
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .primary-action {
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .probe-tab-button,
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .result-view-button,
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .result-command-button {
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.22);
+}
+
 .liquid-glass-partial-displacement[data-liquid-glass-mode="liquid"] .liquid-glass-content::before {
   opacity: 0.72;
+}
+
+.liquid-glass-demo-intensity.liquid-glass-partial-displacement[data-liquid-glass-mode="liquid"] .liquid-glass-content::before {
+  opacity: 0.88;
 }
 
 .liquid-glass-partial-displacement[data-liquid-glass-mode="liquid"] .liquid-glass-content::after {
@@ -4332,6 +4449,13 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
   border-color: var(--probe-tab-active-border);
   background: var(--probe-tab-active-bg);
   box-shadow: var(--probe-tab-active-shadow), var(--liquid-optical-shadow);
+}
+
+.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"].probe-tab-surface.is-active .liquid-glass-content {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(35, 184, 255, 0.2) 58%, rgba(139, 92, 246, 0.16)),
+    var(--probe-tab-active-bg);
+  box-shadow: var(--probe-tab-active-shadow), var(--liquid-optical-shadow), var(--liquid-optical-edge);
 }
 
 .run-action-surface[data-liquid-glass-mode="liquid"] .primary-action {

@@ -672,7 +672,7 @@ test("forced Liquid Glass fallback remains usable", async ({ page }) => {
   });
 });
 
-test("liquid glass surfaces keep textured backgrounds and restrained shadows", async ({ page }) => {
+test("liquid glass surfaces expose reference-strength optics at max intensity", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const consoleErrors = collectConsoleErrors(page);
   await installMocks(page);
@@ -1157,6 +1157,8 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
         /blur\(([\d.]+)px\)/,
       );
       return {
+        demoIntensity: surface?.getAttribute("data-liquid-glass-demo-intensity") ?? "",
+        liquidIntensity: surface?.getAttribute("data-liquid-glass-intensity") ?? "",
         glassBackgroundColor: glassStyle?.backgroundColor ?? "",
         glassBoxShadow: glassStyle?.boxShadow ?? "",
         warpBackdropFilter: warpStyle?.backdropFilter || warpStyle?.getPropertyValue("-webkit-backdrop-filter") || "",
@@ -1222,13 +1224,15 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
     expect(liquidState?.warpDisplay).not.toBe("none");
     expect(liquidState?.warpOpacity).toBeGreaterThanOrEqual(0.95);
     expect(liquidState?.warpBackdropFilter).toContain("blur(");
-    expect(liquidState?.warpBlurPx).toBeGreaterThanOrEqual(7);
+    expect(liquidState?.warpBlurPx).toBeGreaterThanOrEqual(28);
+    expect(liquidState?.demoIntensity).toBe("true");
+    expect(liquidState?.liquidIntensity).toBe("100");
     expect(liquidState?.glassBackgroundColor).not.toBe("rgba(0, 0, 0, 0)");
     expect(liquidState?.glassBoxShadow).not.toBe("none");
     expect(liquidState?.opticalLayerBackgroundImage).not.toBe("none");
     expect(liquidState?.contentBorderTopWidth).toBe("1px");
     expect(liquidState?.contentBoxShadow).not.toBe("none");
-    expect(liquidState?.opticalLayerOpacity).toBeGreaterThanOrEqual(0.4);
+    expect(liquidState?.opticalLayerOpacity).toBeGreaterThanOrEqual(0.85);
   }
   expect(state.probeTable?.backgroundAlpha).toBeGreaterThanOrEqual(0.34);
   expect(state.tableScroll?.backgroundAlpha).toBeGreaterThanOrEqual(0.48);

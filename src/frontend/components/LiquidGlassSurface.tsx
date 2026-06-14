@@ -69,6 +69,7 @@ export function LiquidGlassSurface({
   const forceFallback = useForceFallback(liquidGlassPreference.enabled);
   const canUseLiquid = !forceFallback && supportsGlassEffects();
   const partialDisplacement = canUseLiquid && usesPartialDisplacementBrowser();
+  const demoIntensity = liquidGlassPreference.intensity >= 95;
   const [LiquidGlass, setLiquidGlass] = useState<LiquidGlassComponent | null>(null);
   const canRenderLiquid = canUseLiquid && LiquidGlass;
   const mode = canRenderLiquid ? "liquid" : "fallback";
@@ -96,6 +97,7 @@ export function LiquidGlassSurface({
     `liquid-glass-${variant}`,
     fullWidth ? "liquid-glass-full" : "",
     partialDisplacement ? "liquid-glass-partial-displacement" : "",
+    demoIntensity ? "liquid-glass-demo-intensity" : "",
     surfaceBackdropClassName(variant),
     className,
   ]
@@ -122,6 +124,7 @@ export function LiquidGlassSurface({
       data-liquid-glass-mode={mode}
       data-liquid-glass-intensity={liquidGlassPreference.intensity}
       data-liquid-glass-partial-displacement={partialDisplacement ? "true" : undefined}
+      data-liquid-glass-demo-intensity={demoIntensity ? "true" : undefined}
       data-liquid-glass-interactive={interactive && !disabled ? "true" : undefined}
       style={style}
       onClickCapture={onClick && !disabled ? onClick : undefined}
@@ -263,77 +266,78 @@ function usesPartialDisplacementBrowser(): boolean {
 }
 
 function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["variant"]>, intensity: number) {
-  const t = clampLiquidGlassIntensity(intensity) / MAX_LIQUID_GLASS_INTENSITY;
+  const t = liquidGlassIntensityCurve(intensity);
+  const demoIntensity = clampLiquidGlassIntensity(intensity) >= 95;
   const specs = {
     iconButton: {
-      displacementScale: [42, 68],
-      blurAmount: [0.055, 0.11],
-      saturation: [146, 162],
-      aberrationIntensity: [1.3, 2.4],
-      elasticity: [0.16, 0.35],
+      displacementScale: [42, 220],
+      blurAmount: [0.055, 0.68],
+      saturation: [146, 240],
+      aberrationIntensity: [1.3, 12],
+      elasticity: [0.16, 0.7],
       cornerRadius: 999,
       mode: "prominent" as const,
     },
     button: {
-      displacementScale: [40, 66],
-      blurAmount: [0.055, 0.105],
-      saturation: [145, 160],
-      aberrationIntensity: [1.25, 2.2],
-      elasticity: [0.14, 0.35],
+      displacementScale: [40, 200],
+      blurAmount: [0.055, 0.64],
+      saturation: [145, 235],
+      aberrationIntensity: [1.25, 11],
+      elasticity: [0.14, 0.68],
       cornerRadius: 999,
       mode: "prominent" as const,
     },
     tab: {
-      displacementScale: [36, 64],
-      blurAmount: [0.05, 0.102],
-      saturation: [145, 160],
-      aberrationIntensity: [1.2, 2.15],
-      elasticity: [0.12, 0.32],
+      displacementScale: [36, 190],
+      blurAmount: [0.05, 0.58],
+      saturation: [145, 225],
+      aberrationIntensity: [1.2, 10],
+      elasticity: [0.12, 0.62],
       cornerRadius: 999,
       mode: "prominent" as const,
     },
     toolbar: {
-      displacementScale: [34, 64],
-      blurAmount: [0.05, 0.1],
-      saturation: [144, 160],
-      aberrationIntensity: [1.15, 2.05],
-      elasticity: [0.1, 0.3],
+      displacementScale: [34, 185],
+      blurAmount: [0.05, 0.58],
+      saturation: [144, 225],
+      aberrationIntensity: [1.15, 10],
+      elasticity: [0.1, 0.6],
       cornerRadius: 18,
       mode: "prominent" as const,
     },
     metric: {
-      displacementScale: [30, 52],
-      blurAmount: [0.04, 0.08],
-      saturation: [142, 154],
-      aberrationIntensity: [1.05, 1.7],
-      elasticity: [0.08, 0.19],
+      displacementScale: [30, 135],
+      blurAmount: [0.04, 0.42],
+      saturation: [142, 195],
+      aberrationIntensity: [1.05, 6.5],
+      elasticity: [0.08, 0.36],
       cornerRadius: 16,
       mode: "standard" as const,
     },
     floatingPanel: {
-      displacementScale: [30, 54],
-      blurAmount: [0.045, 0.083],
-      saturation: [142, 156],
-      aberrationIntensity: [1.05, 1.75],
-      elasticity: [0.08, 0.2],
+      displacementScale: [30, 150],
+      blurAmount: [0.045, 0.5],
+      saturation: [142, 210],
+      aberrationIntensity: [1.05, 7],
+      elasticity: [0.08, 0.42],
       cornerRadius: 24,
       mode: "standard" as const,
     },
     panel: {
-      displacementScale: [26, 48],
-      blurAmount: [0.038, 0.074],
-      saturation: [140, 152],
-      aberrationIntensity: [1, 1.6],
-      elasticity: [0.07, 0.18],
+      displacementScale: [26, 140],
+      blurAmount: [0.038, 0.46],
+      saturation: [140, 200],
+      aberrationIntensity: [1, 6],
+      elasticity: [0.07, 0.38],
       cornerRadius: 18,
       mode: "standard" as const,
     },
     chip: {
-      displacementScale: [34, 64],
-      blurAmount: [0.048, 0.1],
-      saturation: [142, 158],
-      aberrationIntensity: [1.1, 2],
-      elasticity: [0.1, 0.28],
+      displacementScale: [34, 180],
+      blurAmount: [0.048, 0.56],
+      saturation: [142, 220],
+      aberrationIntensity: [1.1, 9.5],
+      elasticity: [0.1, 0.58],
       cornerRadius: 999,
       mode: "prominent" as const,
     },
@@ -357,9 +361,13 @@ function liquidPropsForVariant(variant: NonNullable<LiquidGlassSurfaceProps["var
     aberrationIntensity: interpolate(spec.aberrationIntensity, t),
     elasticity: interpolate(spec.elasticity, t),
     cornerRadius: spec.cornerRadius,
-    overLight: false,
+    overLight: demoIntensity,
     mode: spec.mode,
   };
+}
+
+function liquidGlassIntensityCurve(intensity: number): number {
+  return Math.pow(clampLiquidGlassIntensity(intensity) / MAX_LIQUID_GLASS_INTENSITY, 1.8);
 }
 
 function interpolate([min, max]: [number, number], t: number): number {
