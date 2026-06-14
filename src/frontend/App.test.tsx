@@ -8,8 +8,6 @@ import type { GlobalpingMeasurement } from "../shared/globalping";
 vi.mock("./components/ProbeMap", () => ({
   ProbeMap: (props: {
     probes: GlobalpingProbe[];
-    filteredProbeCount: number;
-    selectionNotice: string;
     onPickAsn: (selection: { magic: string; city: string; country: string; asn: string; network: string; count: number }) => void;
     onBoxSelect: (probes: GlobalpingProbe[]) => void;
   }) => {
@@ -27,9 +25,7 @@ vi.mock("./components/ProbeMap", () => ({
     };
     return (
       <section aria-label="mock probe map">
-        <span>{props.selectionNotice || "no selection"}</span>
         <span>map-probe-count:{props.probes.length}</span>
-        <span>map-filtered-count:{props.filteredProbeCount}</span>
         <span>probe-projection:mercator</span>
         <span>box:on</span>
         <button type="button" onClick={() => pickProbeAt(0)}>
@@ -126,11 +122,8 @@ describe("App", () => {
     expect(screen.getByText("box:on")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "切换到 3D 视图" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Globalping credits 控制诊断创建 · 可创建诊断 249/250（当前 IP）",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
+    expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toHaveValue("");
     expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
     expect(document.documentElement.dataset.theme).toBe("system");
@@ -403,11 +396,8 @@ describe("App", () => {
       expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBeNull();
     });
     expect(screen.getByText("NextTrace Token 仅当前会话可用")).toBeInTheDocument();
-    expect(
-      await screen.findByText(
-        "NextTrace API Token 直连已启用 · 可创建诊断 249/250（当前 IP）",
-      ),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("NextTrace API Token 直连已启用")).toBeInTheDocument();
+    expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
@@ -549,7 +539,6 @@ describe("App", () => {
     });
     expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
     expect(screen.getByText("map-probe-count:2")).toBeInTheDocument();
-    expect(screen.getByText("map-filtered-count:1")).toBeInTheDocument();
     const chips = screen.getByTestId("filter-chips");
     expect(chips).toHaveTextContent("Los Angeles+US+AS7922");
     expect(within(chips).queryByText("magic")).not.toBeInTheDocument();
@@ -559,7 +548,6 @@ describe("App", () => {
       expect(screen.getAllByText("已选择 Falkenstein · AS24940").length).toBeGreaterThan(0);
     });
     expect(screen.getByText("map-probe-count:2")).toBeInTheDocument();
-    expect(screen.getByText("map-filtered-count:1")).toBeInTheDocument();
     expect(chips).toHaveTextContent("Falkenstein+DE+AS24940");
   });
 
@@ -1096,11 +1084,8 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("probes down")).toBeInTheDocument();
-    expect(
-      await screen.findByText(
-        "Globalping credits 控制诊断创建 · 诊断额度暂不可用",
-      ),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
+    expect(await screen.findByText("诊断额度暂不可用")).toBeInTheDocument();
   });
 
   it("turns upstream parameter validation failures into actionable copy", async () => {

@@ -448,15 +448,13 @@ button {
 .panel-title-row > div:first-child,
 .brand-home-link,
 .section-header > div:first-child,
-.status-bar > div:first-child,
-.map-status > div:first-child {
+.status-bar > div:first-child {
   min-width: 0;
 }
 
 .panel-title-row p,
 .section-header p,
 .status-bar span,
-.map-status span,
 .probe-match-row > span {
   overflow-wrap: anywhere;
 }
@@ -696,6 +694,12 @@ summary:focus-visible {
   border-radius: 999px;
 }
 
+.target-run-surface .liquid-glass-content,
+.target-run-surface .liquid-glass-fallback-content {
+  align-items: center;
+  justify-content: center;
+}
+
 .target-submit-button {
   width: 100%;
   height: 100%;
@@ -820,6 +824,9 @@ summary:focus-visible {
 }
 
 .protocol-pill-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
   min-height: 30px;
   padding: 0 3px;
@@ -831,6 +838,9 @@ summary:focus-visible {
   font-size: 9px;
   font-weight: 780;
   line-height: 1;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -1776,11 +1786,49 @@ summary:focus-visible {
 .quota-chip {
   min-width: 80px;
   max-width: 100%;
-  padding: 7px 11px;
-  line-height: 1.2;
-  text-align: center;
-  font-weight: 760;
+  padding: 6px 12px;
+  font-size: 11px;
+  line-height: 1.15;
+  text-align: left;
+  font-weight: 640;
   white-space: normal;
+}
+
+.status-actions .quota-chip,
+.status-actions .result-command-button {
+  min-height: 40px;
+  height: 40px;
+}
+
+.status-actions .quota-chip {
+  display: inline-grid;
+  align-content: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.status-actions .quota-chip .quota-chip-title,
+.status-actions .quota-chip .quota-chip-detail {
+  display: block;
+  line-height: 1.12;
+}
+
+.status-actions .quota-chip .quota-chip-title {
+  color: var(--ink-soft) !important;
+  font-size: 11px !important;
+  font-weight: 720 !important;
+}
+
+.status-actions .quota-chip .quota-chip-detail {
+  color: var(--ink-muted) !important;
+  font-size: 10px !important;
+  font-weight: 560 !important;
+}
+
+.status-actions .result-command-surface,
+.status-actions .result-command-surface .liquid-glass-content,
+.status-actions .result-command-surface .liquid-glass-fallback-content {
+  height: 40px;
 }
 
 .workspace-content {
@@ -1830,7 +1878,7 @@ summary:focus-visible {
 }
 
 .map-container {
-  height: clamp(300px, 34svh, 440px);
+  height: clamp(344px, 40svh, 484px);
   background: var(--map-bg);
 }
 
@@ -1988,70 +2036,6 @@ summary:focus-visible {
 .probe-popup small {
   color: var(--ink-soft);
   font-size: 12px;
-}
-
-.map-status {
-  min-height: 44px;
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 10px;
-  border-top: 1px solid var(--table-border);
-  background: var(--subtle-panel-bg);
-}
-
-.map-status div:first-child {
-  display: grid;
-  gap: 1px;
-}
-
-.map-status strong {
-  font-size: 13px;
-  font-weight: 760;
-  line-height: 1.15;
-}
-
-.map-status span {
-  color: var(--ink-soft);
-  font-size: 12px;
-  line-height: 1.15;
-}
-
-.map-legend {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.map-legend > span {
-  display: inline-flex;
-  min-width: 0;
-  min-height: 22px;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  line-height: 1.05;
-  white-space: nowrap;
-}
-
-.legend-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
-}
-
-.legend-dot.eyeball {
-  background: var(--accent);
-}
-
-.legend-dot.datacenter {
-  background: var(--datacenter);
 }
 
 .map-empty {
@@ -3394,15 +3378,13 @@ pre {
   }
 
   .status-bar,
-  .map-status,
   .section-header {
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
   .status-actions,
-  .result-header-actions,
-  .map-legend {
+  .result-header-actions {
     justify-content: flex-start;
   }
 
@@ -3428,7 +3410,7 @@ pre {
   }
 
   .map-container {
-    height: clamp(300px, 42svh, 440px);
+    height: clamp(344px, 48svh, 484px);
   }
 
   .about-shell {
@@ -3612,8 +3594,13 @@ pre {
     min-width: 0;
   }
 
+  .status-actions .quota-chip {
+    height: auto;
+    white-space: normal;
+  }
+
   .map-container {
-    height: clamp(300px, 44svh, 400px);
+    height: clamp(344px, 50svh, 444px);
   }
 
   .result-map {
@@ -4665,15 +4652,6 @@ textarea:hover {
     0 14px 32px rgba(139, 92, 246, 0.18);
 }
 
-.map-status {
-  border-top-color: var(--table-border);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.48), rgba(35, 184, 255, 0.08) 54%, rgba(249, 115, 22, 0.08)),
-    var(--subtle-panel-bg);
-  backdrop-filter: blur(20px) saturate(1.18);
-  -webkit-backdrop-filter: blur(20px) saturate(1.18);
-}
-
 .map-empty,
 .table-empty,
 .table-note,
@@ -4752,8 +4730,7 @@ textarea:hover {
 
 :root[data-theme="dark"] .metric,
 :root[data-theme="dark"] .metric-surface:nth-child(3n + 2) .metric,
-:root[data-theme="dark"] .metric-surface:nth-child(3n) .metric,
-:root[data-theme="dark"] .map-status {
+:root[data-theme="dark"] .metric-surface:nth-child(3n) .metric {
   background:
     linear-gradient(145deg, rgba(53, 210, 255, 0.1), rgba(139, 92, 246, 0.09) 56%, rgba(249, 115, 22, 0.07)),
     var(--table-bg);
@@ -4762,8 +4739,7 @@ textarea:hover {
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] .metric,
   :root[data-theme="system"] .metric-surface:nth-child(3n + 2) .metric,
-  :root[data-theme="system"] .metric-surface:nth-child(3n) .metric,
-  :root[data-theme="system"] .map-status {
+  :root[data-theme="system"] .metric-surface:nth-child(3n) .metric {
     background:
       linear-gradient(145deg, rgba(53, 210, 255, 0.1), rgba(139, 92, 246, 0.09) 56%, rgba(249, 115, 22, 0.07)),
       var(--table-bg);
@@ -5294,6 +5270,9 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .target-run-surface .target-submit-button,
 .target-run-surface[data-liquid-glass-mode="liquid"] .target-submit-button,
 .app-shell.ambient-photo-ready .target-run-surface[data-liquid-glass-mode="liquid"] .target-submit-button {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   color: #ffffff;
   background: transparent !important;
   box-shadow: none;
@@ -5387,8 +5366,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .liquid-glass-surface.liquid-glass-coverage.result-empty-surface .liquid-glass-fallback-content,
 .liquid-glass-surface.liquid-glass-coverage.polling-state-surface .liquid-glass-content,
 .liquid-glass-surface.liquid-glass-coverage.polling-state-surface .liquid-glass-fallback-content,
-.liquid-glass-surface.liquid-glass-coverage.map-status-surface .liquid-glass-content,
-.liquid-glass-surface.liquid-glass-coverage.map-status-surface .liquid-glass-fallback-content,
 .liquid-glass-surface.liquid-glass-coverage.map-empty-surface .liquid-glass-content,
 .liquid-glass-surface.liquid-glass-coverage.map-empty-surface .liquid-glass-fallback-content {
   display: block;
@@ -5396,13 +5373,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 
 .liquid-glass-surface.liquid-glass-coverage.about-link-surface {
   width: 100%;
-}
-
-.liquid-glass-surface.liquid-glass-coverage.map-status-surface,
-.liquid-glass-surface.liquid-glass-coverage.map-status-surface .liquid-glass-content,
-.liquid-glass-surface.liquid-glass-coverage.map-status-surface .liquid-glass-fallback-content {
-  width: 100%;
-  border-radius: 0;
 }
 
 .liquid-glass-surface.liquid-glass-coverage.map-empty-surface {
@@ -5449,7 +5419,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .about-background-credit-surface[data-liquid-glass-mode="liquid"] .about-background-credit,
 .result-empty-surface[data-liquid-glass-mode="liquid"] .result-empty,
 .polling-state-surface[data-liquid-glass-mode="liquid"] .polling-state,
-.map-status-surface[data-liquid-glass-mode="liquid"] .map-status,
 .map-empty-surface[data-liquid-glass-mode="liquid"] .map-empty {
   border-color: transparent;
   background: transparent;

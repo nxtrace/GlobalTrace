@@ -77,11 +77,8 @@ for (const viewport of viewports) {
     await page.getByRole("button", { name: "关闭高级参数" }).click();
     await page.getByRole("button", { name: "主题：Light" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(
-      page.getByText(
-        "Globalping credits 控制诊断创建 · 可创建诊断 249/250（当前 IP）",
-      ),
-    ).toBeVisible();
+    await expect(page.getByText("Globalping credits 控制诊断创建")).toBeVisible();
+    await expect(page.getByText("可创建诊断 249/250（当前 IP）")).toBeVisible();
     await expect(
       page.getByText("从全球探针发起 MTR，展示跳点延迟、丢包与地理信息"),
     ).toHaveCount(0);
@@ -123,6 +120,17 @@ for (const viewport of viewports) {
     const firstParameterPillTop = parameterPillsTop[0];
     for (const pillTop of parameterPillsTop) {
       expect(Math.abs(pillTop - firstParameterPillTop)).toBeLessThanOrEqual(1);
+    }
+    const protocolOptionGaps = await page.evaluate(() => {
+      const optionBoxes = Array.from(
+        document.querySelectorAll(".protocol-pill-option"),
+      ).map((option) => option.getBoundingClientRect());
+      return optionBoxes
+        .slice(1)
+        .map((optionBox, index) => optionBox.left - optionBoxes[index].right);
+    });
+    for (const optionGap of protocolOptionGaps) {
+      expect(optionGap).toBeGreaterThanOrEqual(0);
     }
     const parameterValueRightGaps = await page.evaluate(() =>
       [
@@ -232,9 +240,8 @@ for (const viewport of viewports) {
 
     if (viewport.name === "1440x1000") {
       await boxSelectLosAngelesWithOutsideRelease(page);
-      await expect(
-        page.getByLabel("probe map").getByText("框选 1 个 probes"),
-      ).toBeVisible();
+      await expect(page.getByText("框选 1 个 probes")).toBeVisible();
+      await expect(page.getByLabel("probe map").getByText("框选 1 个 probes")).toHaveCount(0);
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toBeVisible();
@@ -244,7 +251,7 @@ for (const viewport of viewports) {
       await expect(page.getByTestId("filter-chips")).toContainText("world");
       await expect(
         page.getByLabel("probe map").getByText("点选地图选择筛选条件"),
-      ).toBeVisible();
+      ).toHaveCount(0);
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toHaveCount(0);
@@ -254,9 +261,8 @@ for (const viewport of viewports) {
         [-118.24, 34.05],
         "Comcast AS7922 ×1",
       );
-      await expect(
-        page.getByLabel("probe map").getByText("已选择 Los Angeles · AS7922"),
-      ).toBeVisible();
+      await expect(page.getByText("已选择 Los Angeles · AS7922")).toBeVisible();
+      await expect(page.getByLabel("probe map").getByText("已选择 Los Angeles · AS7922")).toHaveCount(0);
       await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
       await expect(page.getByTestId("filter-chips")).not.toContainText(
         "Comcast",
@@ -335,14 +341,14 @@ for (const viewport of [
     await expect(page.getByLabel("probe map")).toBeVisible();
     await expect(
       page.getByLabel("probe map").getByText("3 / 3 probes", { exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(page.getByRole("button", { name: "框选" })).toBeVisible();
     await expect(
       page.getByRole("button", { name: "切换到 3D 视图" }),
     ).toHaveCount(0);
     await expectMapCanvasPainted(page);
     await expectProbeMapProjection(page, "mercator");
-    const homeMapHeight = await expectCompactHomeProbeMapLayout(page);
+    await expectCompactHomeProbeMapLayout(page);
     if (viewport.name === "1440x1000") {
       await expectProbeMapOverviewZoom(page, 1.15);
     }
@@ -367,7 +373,7 @@ for (const viewport of [
     await expect(page.getByLabel("trace result map")).toBeVisible();
     await expectMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
-    await expectResultMapHeight(page, homeMapHeight);
+    await expectResultMapHeight(page);
 
     await page.getByRole("button", { name: "切换结果地图到 3D" }).click();
 
@@ -476,15 +482,13 @@ test("map ASN picker groups same-city probes by ASN and submits ASN-only magic",
   await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
   await expectMapContainsCoordinate(page, [-121.89, 37.34]);
   await selectMapAsnAtCoordinate(page, [-121.89, 37.34], "Oracle AS31898 ×2");
-  await expect(
-    page.getByLabel("probe map").getByText("已选择 San Jose · AS31898"),
-  ).toBeVisible();
+  await expect(page.getByText("已选择 San Jose · AS31898")).toBeVisible();
+  await expect(page.getByLabel("probe map").getByText("已选择 San Jose · AS31898")).toHaveCount(0);
   await expect(page.getByText("2 / 4 probes 匹配")).toBeVisible();
   await expect(page.getByTestId("filter-chips")).not.toContainText("Oracle");
   await selectMapAsnAtCoordinate(page, [-121.89, 37.34], "LeaseWeb AS7203 ×1");
-  await expect(
-    page.getByLabel("probe map").getByText("已选择 San Jose · AS7203"),
-  ).toBeVisible();
+  await expect(page.getByText("已选择 San Jose · AS7203")).toBeVisible();
+  await expect(page.getByLabel("probe map").getByText("已选择 San Jose · AS7203")).toHaveCount(0);
   await expect(page.getByText("1 / 4 probes 匹配")).toBeVisible();
   await expect(page.getByTestId("filter-chips")).not.toContainText("LeaseWeb");
 
@@ -646,11 +650,8 @@ test("saved NextTrace token sends browser batch request", async ({ page }) => {
 
   await page.goto("/");
 
-  await expect(
-    page.getByText(
-      "NextTrace API Token 直连已启用 · 可创建诊断 249/250（当前 IP）",
-    ),
-  ).toBeVisible();
+  await expect(page.getByText("NextTrace API Token 直连已启用")).toBeVisible();
+  await expect(page.getByText("可创建诊断 249/250（当前 IP）")).toBeVisible();
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
@@ -1129,9 +1130,7 @@ test("liquid glass surfaces expose reference-strength optics at max intensity", 
   await expect(
     page.locator('.run-action-surface[data-liquid-glass-interactive="true"]'),
   ).toBeVisible();
-  await expect(
-    page.locator('.map-status-surface[data-liquid-glass-mode="liquid"]'),
-  ).toBeVisible();
+  await expect(page.locator(".map-status-surface")).toHaveCount(0);
   await expect(
     page
       .locator('.attribution-action-surface[data-liquid-glass-mode="liquid"]')
@@ -1141,9 +1140,8 @@ test("liquid glass surfaces expose reference-strength optics at max intensity", 
   ).toBeVisible();
   await ensureExactFiltersOpen(page);
   await page.getByLabel("国家/地区").fill("ZZ");
-  await expect(
-    page.getByLabel("probe map").getByText("0 / 3 probes"),
-  ).toBeVisible();
+  await expect(page.getByText("0 / 3 probes 匹配")).toBeVisible();
+  await expect(page.getByLabel("probe map").getByText("0 / 3 probes")).toHaveCount(0);
   await expect(page.locator(".map-empty-surface")).toHaveCount(0);
   await page.getByLabel("国家/地区").fill("");
   await page.getByRole("button", { name: "打开高级参数" }).click();
@@ -2377,71 +2375,27 @@ async function expectProbeMapOverviewZoom(
 
 async function expectCompactHomeProbeMapLayout(page: Page): Promise<number> {
   const mapSection = page.locator(".map-section");
-  await expect(
-    mapSection.getByText("3 / 3 probes", { exact: true }),
-  ).toBeVisible();
-  await expect(mapSection.getByText("点选地图选择筛选条件")).toBeVisible();
-  await expect(mapSection.getByText("eyeball", { exact: true })).toBeVisible();
-  await expect(
-    mapSection.getByText("datacenter", { exact: true }),
-  ).toBeVisible();
+  await expect(mapSection.locator(".map-status")).toHaveCount(0);
+  await expect(mapSection.locator(".map-legend")).toHaveCount(0);
+  await expect(mapSection.getByText("点选地图选择筛选条件")).toHaveCount(0);
 
   const state = await page.locator(".map-section").evaluate((section) => {
     const map = section.querySelector(".map-container") as HTMLElement | null;
     const status = section.querySelector(".map-status") as HTMLElement | null;
-    const legend = section.querySelector(".map-legend") as HTMLElement | null;
-    const legendItems = Array.from(
-      section.querySelectorAll(".map-legend > span"),
-    ) as HTMLElement[];
     const mapRect = map?.getBoundingClientRect();
-    const statusStyle = status ? window.getComputedStyle(status) : null;
-    const statusTextStyle = status?.querySelector("strong")
-      ? window.getComputedStyle(status.querySelector("strong") as HTMLElement)
-      : null;
-    const noticeStyle = status?.querySelector("div:first-child span")
-      ? window.getComputedStyle(
-          status.querySelector("div:first-child span") as HTMLElement,
-        )
-      : null;
-    const legendStyle = legend ? window.getComputedStyle(legend) : null;
-    const firstLegendItemStyle = legendItems[0]
-      ? window.getComputedStyle(legendItems[0])
-      : null;
 
     return {
       mapHeight: mapRect?.height ?? 0,
       mapComputedHeight: map ? window.getComputedStyle(map).height : "",
-      statusMinHeight: statusStyle?.minHeight ?? "",
-      statusPaddingTop: statusStyle?.paddingTop ?? "",
-      statusPaddingRight: statusStyle?.paddingRight ?? "",
-      statusGap: statusStyle?.gap ?? "",
-      statusOverflow: status ? status.scrollHeight - status.clientHeight : 0,
-      statusTextLineHeight: statusTextStyle?.lineHeight ?? "",
-      noticeLineHeight: noticeStyle?.lineHeight ?? "",
-      legendGap: legendStyle?.gap ?? "",
-      legendTexts: legendItems.map((item) => item.textContent?.trim()),
-      legendItemMinHeight: firstLegendItemStyle?.minHeight ?? "",
-      legendItemPaddingTop: firstLegendItemStyle?.paddingTop ?? "",
-      legendItemPaddingRight: firstLegendItemStyle?.paddingRight ?? "",
+      hasStatus: Boolean(status),
     };
   });
 
-  expect(state.mapHeight).toBeGreaterThanOrEqual(300);
+  expect(state.hasStatus).toBe(false);
+  expect(state.mapHeight).toBeGreaterThanOrEqual(340);
   expect(
     Math.abs(Number.parseFloat(state.mapComputedHeight) - state.mapHeight),
   ).toBeLessThanOrEqual(1);
-  expect(state.statusMinHeight).toBe("44px");
-  expect(state.statusPaddingTop).toBe("7px");
-  expect(state.statusPaddingRight).toBe("10px");
-  expect(state.statusGap).toBe("8px");
-  expect(state.statusOverflow).toBeLessThanOrEqual(1);
-  expect(Number.parseFloat(state.statusTextLineHeight)).toBeLessThan(16);
-  expect(Number.parseFloat(state.noticeLineHeight)).toBeLessThan(15);
-  expect(state.legendGap).toBe("6px");
-  expect(state.legendTexts).toEqual(["eyeball", "datacenter"]);
-  expect(state.legendItemMinHeight).toBe("22px");
-  expect(state.legendItemPaddingTop).toBe("3px");
-  expect(state.legendItemPaddingRight).toBe("8px");
 
   return state.mapHeight;
 }
@@ -2462,14 +2416,19 @@ async function expectResultMapProjection(
     .toBe(projection);
 }
 
-async function expectResultMapHeight(
-  page: Page,
-  expectedHeight: number,
-): Promise<void> {
-  const resultHeight = await page
-    .locator(".result-map")
-    .evaluate((node) => node.getBoundingClientRect().height);
-  expect(Math.abs(resultHeight - expectedHeight)).toBeLessThanOrEqual(1);
+async function expectResultMapHeight(page: Page): Promise<void> {
+  const state = await page.locator(".result-map").evaluate((node) => {
+    const element = node as HTMLElement;
+    const rect = element.getBoundingClientRect();
+    return {
+      height: rect.height,
+      computedHeight: window.getComputedStyle(element).height,
+    };
+  });
+  expect(state.height).toBeGreaterThanOrEqual(300);
+  expect(
+    Math.abs(Number.parseFloat(state.computedHeight) - state.height),
+  ).toBeLessThanOrEqual(1);
 }
 
 async function expectResultMapHasCountryLabelStyle(page: Page): Promise<void> {

@@ -192,10 +192,10 @@ afterEach(() => {
 });
 
 describe("ProbeMap", () => {
-  it("adds liquid surfaces to status states without wrapping the map canvas", () => {
-    renderMap({ probes: [], totalProbes: 3, status: "ready" });
+  it("keeps empty state liquid surface separate from the map canvas", () => {
+    renderMap({ probes: [], status: "ready" });
 
-    expect(document.querySelector(".map-status-surface[data-liquid-glass]")).not.toBeNull();
+    expect(document.querySelector(".map-status-surface[data-liquid-glass]")).toBeNull();
     expect(screen.getByText("没有匹配的在线 probe").closest(".map-empty-surface[data-liquid-glass]")).not.toBeNull();
     expect(document.querySelector(".map-container[data-liquid-glass]")).toBeNull();
     expect(document.querySelector(".maplibregl-canvas[data-liquid-glass]")).toBeNull();
@@ -301,16 +301,15 @@ describe("ProbeMap", () => {
     map.easeToCalls.length = 0;
     map.fitBoundsCalls.length = 0;
 
-    rerender(probeMapElement({ probes: mapProbes, filteredProbeCount: 1 }));
+    rerender(probeMapElement({ probes: mapProbes }));
 
-    expect(screen.getByText("1 / 3 probes")).toBeInTheDocument();
     expect(map.easeToCalls).toHaveLength(0);
     expect(map.fitBoundsCalls).toHaveLength(0);
   });
 
   it("opens an ASN picker and selects city, country, and ASN without network", async () => {
     const onPickAsn = vi.fn();
-    renderMap({ probes: sanJoseProbes, totalProbes: sanJoseProbes.length, onPickAsn });
+    renderMap({ probes: sanJoseProbes, onPickAsn });
     const map = latestMap();
     act(() => map.triggerLoad());
     map.renderedFeatures = [{ properties: { index: 0 }, geometry: { type: "Point", coordinates: [-121.89, 37.34] } }];
@@ -340,7 +339,7 @@ describe("ProbeMap", () => {
   });
 
   it("keeps same-location ASN candidates available after filtering to one ASN", () => {
-    renderMap({ probes: sanJoseProbes, filteredProbeCount: 2, totalProbes: sanJoseProbes.length });
+    renderMap({ probes: sanJoseProbes });
     const map = latestMap();
     act(() => map.triggerLoad());
     map.renderedFeatures = [{ properties: { index: 0 }, geometry: { type: "Point", coordinates: [-121.89, 37.34] } }];
@@ -349,7 +348,6 @@ describe("ProbeMap", () => {
       void map.triggerLayer("click", "probe-points");
     });
 
-    expect(screen.getByText("2 / 4 probes")).toBeInTheDocument();
     expect(screen.getByText("+ 4")).toBeVisible();
     expect(screen.getByRole("option", { name: "Oracle AS31898 ×2" })).toBeVisible();
     expect(screen.getByRole("option", { name: "LeaseWeb AS7203 ×1" })).toBeVisible();
@@ -357,7 +355,7 @@ describe("ProbeMap", () => {
   });
 
   it("shows a hover preview picker and hides it after leaving a point", async () => {
-    renderMap({ probes: sanJoseProbes, totalProbes: sanJoseProbes.length });
+    renderMap({ probes: sanJoseProbes });
     const map = latestMap();
     act(() => map.triggerLoad());
     map.renderedFeatures = [{ properties: { index: 0 }, geometry: { type: "Point", coordinates: [-121.89, 37.34] } }];
@@ -422,10 +420,7 @@ function probeMapElement(overrides: Partial<React.ComponentProps<typeof ProbeMap
   return (
     <ProbeMap
       probes={nextProbes}
-      filteredProbeCount={overrides.filteredProbeCount ?? nextProbes.length}
-      totalProbes={overrides.totalProbes ?? 3}
       status={overrides.status ?? "ready"}
-      selectionNotice={overrides.selectionNotice ?? ""}
       selectionActive={overrides.selectionActive ?? false}
       mapStyleUrl={overrides.mapStyleUrl ?? "/mock-style.json"}
       onPickAsn={overrides.onPickAsn ?? vi.fn()}

@@ -166,7 +166,6 @@ export function App() {
   const diagnosisControlLabel = nexttraceToken
     ? "NextTrace API Token 直连已启用"
     : "Globalping credits 控制诊断创建";
-  const quotaBadgeLabel = `${diagnosisControlLabel} · ${quotaLabel}`;
 
   useEffect(() => {
     const onPopState = () => setRoute(currentRoute());
@@ -657,6 +656,10 @@ export function App() {
                 <strong>网络路径诊断</strong>
               </div>
               <div className="status-actions">
+                <Badge variant="accent" className="quota-chip">
+                  <span className="quota-chip-title">{diagnosisControlLabel}</span>
+                  <span className="quota-chip-detail">{quotaLabel}</span>
+                </Badge>
                 {finalResult && workspaceMode === "select" && (
                   <LiquidGlassSurface
                     variant="button"
@@ -673,9 +676,6 @@ export function App() {
                     </Button>
                   </LiquidGlassSurface>
                 )}
-                <Badge variant="accent" className="quota-chip">
-                  {quotaBadgeLabel}
-                </Badge>
               </div>
             </header>
           </LiquidGlassSurface>
@@ -693,10 +693,7 @@ export function App() {
                 <Suspense fallback={<ProbeMapFallback />}>
                   <ProbeMap
                     probes={probes}
-                    filteredProbeCount={filteredProbes.length}
-                    totalProbes={probes.length}
                     status={probesStatus}
-                    selectionNotice={selectionNotice}
                     selectionActive={mapSelectionActive}
                     mapStyleUrl={config.mapStyleUrl}
                     onPickAsn={pickMapAsn}
