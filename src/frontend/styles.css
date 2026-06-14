@@ -3352,9 +3352,11 @@ pre {
     linear-gradient(150deg, rgba(255, 255, 255, 0.34), rgba(239, 252, 255, 0.18) 50%, rgba(246, 240, 255, 0.16)),
     rgba(255, 255, 255, 0.14);
   --photo-primary-controls-bg: rgba(255, 255, 255, 0.14);
-  --photo-liquid-panel-bg: rgba(255, 255, 255, 0.12);
-  --photo-liquid-toolbar-bg: rgba(255, 255, 255, 0.12);
-  --photo-run-action-bg: linear-gradient(135deg, rgba(45, 212, 191, 0.66), rgba(79, 143, 134, 0.58) 48%, rgba(124, 92, 255, 0.62));
+  --photo-liquid-panel-bg: rgba(255, 255, 255, 0.055);
+  --photo-liquid-toolbar-bg: rgba(255, 255, 255, 0.05);
+  --photo-run-action-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(53, 210, 255, 0.18) 52%, rgba(2, 132, 199, 0.24)),
+    rgba(255, 255, 255, 0.05);
   --filter-panel-bg:
     linear-gradient(150deg, rgba(255, 255, 255, 0.68), rgba(239, 252, 255, 0.42) 50%, rgba(246, 240, 255, 0.36)),
     var(--glass-bg);
@@ -3376,8 +3378,8 @@ pre {
     linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(35, 184, 255, 0.08) 42%, rgba(139, 92, 246, 0.1)),
     rgba(255, 255, 255, 0.08);
   --status-glass-border: rgba(255, 255, 255, 0.72);
-  --liquid-inner-bg: rgba(255, 255, 255, 0.24);
-  --liquid-toolbar-bg: rgba(255, 255, 255, 0.22);
+  --liquid-inner-bg: rgba(255, 255, 255, 0.07);
+  --liquid-toolbar-bg: rgba(255, 255, 255, 0.065);
   --liquid-inner-border: rgba(255, 255, 255, 0.58);
   --liquid-inner-shadow:
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
@@ -3386,11 +3388,11 @@ pre {
     0 1px 0 rgba(255, 255, 255, 0.46) inset,
     0 8px 20px rgba(22, 43, 53, 0.08);
   --liquid-control-bg:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.26), rgba(35, 184, 255, 0.08) 52%, rgba(139, 92, 246, 0.1)),
-    rgba(255, 255, 255, 0.18);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(35, 184, 255, 0.12) 52%, rgba(139, 92, 246, 0.1)),
+    rgba(255, 255, 255, 0.055);
   --liquid-control-hover-bg:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.34), rgba(35, 184, 255, 0.12) 52%, rgba(139, 92, 246, 0.14)),
-    rgba(255, 255, 255, 0.24);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(35, 184, 255, 0.16) 52%, rgba(139, 92, 246, 0.14)),
+    rgba(255, 255, 255, 0.075);
   --liquid-control-border: rgba(255, 255, 255, 0.54);
   --liquid-control-shadow:
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
@@ -3398,8 +3400,8 @@ pre {
   --panel-action-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
   --probe-tabs-frame-radius: 22px;
   --probe-tabs-frame-bg:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(35, 184, 255, 0.05) 54%, rgba(139, 92, 246, 0.06)),
-    rgba(255, 255, 255, 0.16);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(35, 184, 255, 0.06) 54%, rgba(139, 92, 246, 0.05)),
+    rgba(255, 255, 255, 0.06);
   --probe-tabs-frame-border: rgba(255, 255, 255, 0.42);
   --probe-tabs-frame-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
@@ -3407,19 +3409,19 @@ pre {
   --probe-tab-text: var(--ink);
   --probe-tab-meta-color: var(--ink-muted);
   --probe-tab-surface-bg:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(35, 184, 255, 0.06) 58%, rgba(139, 92, 246, 0.08)),
-    rgba(255, 255, 255, 0.16);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(35, 184, 255, 0.08) 58%, rgba(139, 92, 246, 0.07)),
+    rgba(255, 255, 255, 0.055);
   --probe-tab-hover-bg:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(35, 184, 255, 0.1) 58%, rgba(139, 92, 246, 0.12)),
-    rgba(255, 255, 255, 0.2);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(35, 184, 255, 0.12) 58%, rgba(139, 92, 246, 0.1)),
+    rgba(255, 255, 255, 0.075);
   --probe-tab-active-bg:
     linear-gradient(
       135deg,
-      color-mix(in srgb, var(--route-color, var(--accent)) 72%, rgba(255, 255, 255, 0.24)),
-      color-mix(in srgb, var(--route-color, var(--accent)) 44%, rgba(255, 255, 255, 0.2)) 58%,
-      color-mix(in srgb, var(--route-color, var(--accent)) 12%, rgba(255, 255, 255, 0.3))
+      color-mix(in srgb, var(--route-color, var(--accent)) 42%, transparent),
+      color-mix(in srgb, var(--route-color, var(--accent)) 28%, rgba(255, 255, 255, 0.04)) 58%,
+      rgba(255, 255, 255, 0.1)
     ),
-    rgba(255, 255, 255, 0.36);
+    rgba(255, 255, 255, 0.08);
   --probe-tab-border: rgba(255, 255, 255, 0.46);
   --probe-tab-hover-border: rgba(255, 255, 255, 0.62);
   --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 88%, rgba(255, 255, 255, 0.42));
@@ -3498,9 +3500,11 @@ pre {
     linear-gradient(150deg, rgba(16, 31, 44, 0.32), rgba(10, 21, 32, 0.26) 52%, rgba(24, 16, 45, 0.22)),
     rgba(10, 18, 27, 0.22);
   --photo-primary-controls-bg: rgba(10, 20, 30, 0.18);
-  --photo-liquid-panel-bg: rgba(10, 20, 30, 0.16);
-  --photo-liquid-toolbar-bg: rgba(9, 18, 28, 0.18);
-  --photo-run-action-bg: linear-gradient(135deg, rgba(45, 212, 191, 0.64), rgba(53, 210, 255, 0.54) 48%, rgba(124, 92, 255, 0.62));
+  --photo-liquid-panel-bg: rgba(10, 20, 30, 0.08);
+  --photo-liquid-toolbar-bg: rgba(9, 18, 28, 0.085);
+  --photo-run-action-bg:
+    linear-gradient(135deg, rgba(245, 251, 255, 0.16), rgba(53, 210, 255, 0.2) 52%, rgba(2, 132, 199, 0.24)),
+    rgba(9, 18, 28, 0.12);
   --filter-panel-bg:
     linear-gradient(150deg, rgba(16, 31, 44, 0.62), rgba(10, 21, 32, 0.5) 52%, rgba(24, 16, 45, 0.42)),
     var(--glass-bg);
@@ -3523,8 +3527,8 @@ pre {
     linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.06) 42%, rgba(139, 92, 246, 0.1)),
     rgba(9, 18, 28, 0.62);
   --status-glass-border: rgba(114, 220, 255, 0.18);
-  --liquid-inner-bg: rgba(10, 20, 30, 0.28);
-  --liquid-toolbar-bg: rgba(9, 18, 28, 0.32);
+  --liquid-inner-bg: rgba(10, 20, 30, 0.11);
+  --liquid-toolbar-bg: rgba(9, 18, 28, 0.12);
   --liquid-inner-border: rgba(114, 220, 255, 0.2);
   --liquid-inner-shadow:
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
@@ -3533,11 +3537,11 @@ pre {
     0 1px 0 rgba(255, 255, 255, 0.08) inset,
     0 8px 22px rgba(0, 0, 0, 0.24);
   --liquid-control-bg:
-    linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.08) 50%, rgba(139, 92, 246, 0.1)),
-    rgba(9, 18, 28, 0.58);
+    linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.12) 50%, rgba(139, 92, 246, 0.1)),
+    rgba(9, 18, 28, 0.18);
   --liquid-control-hover-bg:
-    linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.12) 50%, rgba(139, 92, 246, 0.14)),
-    rgba(14, 29, 43, 0.74);
+    linear-gradient(135deg, rgba(245, 251, 255, 0.14), rgba(53, 210, 255, 0.16) 50%, rgba(139, 92, 246, 0.14)),
+    rgba(14, 29, 43, 0.24);
   --liquid-control-border: rgba(148, 226, 255, 0.28);
   --liquid-control-shadow:
     0 1px 0 rgba(255, 255, 255, 0.12) inset,
@@ -3545,22 +3549,26 @@ pre {
     0 0 18px rgba(53, 210, 255, 0.08);
   --panel-action-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --probe-tabs-frame-bg:
-    linear-gradient(135deg, rgba(245, 251, 255, 0.07), rgba(53, 210, 255, 0.05) 54%, rgba(139, 92, 246, 0.08)),
-    rgba(8, 17, 27, 0.42);
+    linear-gradient(135deg, rgba(245, 251, 255, 0.06), rgba(53, 210, 255, 0.07) 54%, rgba(139, 92, 246, 0.07)),
+    rgba(8, 17, 27, 0.16);
   --probe-tabs-frame-border: rgba(148, 226, 255, 0.18);
   --probe-tabs-frame-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --probe-tab-text: rgba(245, 251, 255, 0.96);
   --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
   --probe-tab-surface-bg:
-    linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.06) 58%, rgba(139, 92, 246, 0.08)),
-    rgba(9, 18, 28, 0.42);
+    linear-gradient(135deg, rgba(245, 251, 255, 0.07), rgba(53, 210, 255, 0.08) 58%, rgba(139, 92, 246, 0.08)),
+    rgba(9, 18, 28, 0.16);
   --probe-tab-hover-bg:
-    linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.1) 58%, rgba(139, 92, 246, 0.12)),
-    rgba(12, 25, 38, 0.56);
+    linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.12) 58%, rgba(139, 92, 246, 0.12)),
+    rgba(12, 25, 38, 0.22);
   --probe-tab-active-bg:
-    linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 32%, rgba(8, 18, 28, 0.48)), rgba(53, 210, 255, 0.1)),
-    rgba(9, 19, 30, 0.64);
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--route-color, var(--accent)) 38%, transparent),
+      color-mix(in srgb, var(--route-color, var(--accent)) 24%, rgba(53, 210, 255, 0.06))
+    ),
+    rgba(9, 19, 30, 0.22);
   --probe-tab-border: rgba(148, 226, 255, 0.2);
   --probe-tab-hover-border: rgba(148, 226, 255, 0.32);
   --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 50%, rgba(148, 226, 255, 0.28));
@@ -3639,9 +3647,11 @@ pre {
       linear-gradient(150deg, rgba(16, 31, 44, 0.32), rgba(10, 21, 32, 0.26) 52%, rgba(24, 16, 45, 0.22)),
       rgba(10, 18, 27, 0.22);
     --photo-primary-controls-bg: rgba(10, 20, 30, 0.18);
-    --photo-liquid-panel-bg: rgba(10, 20, 30, 0.16);
-    --photo-liquid-toolbar-bg: rgba(9, 18, 28, 0.18);
-    --photo-run-action-bg: linear-gradient(135deg, rgba(45, 212, 191, 0.64), rgba(53, 210, 255, 0.54) 48%, rgba(124, 92, 255, 0.62));
+    --photo-liquid-panel-bg: rgba(10, 20, 30, 0.08);
+    --photo-liquid-toolbar-bg: rgba(9, 18, 28, 0.085);
+    --photo-run-action-bg:
+      linear-gradient(135deg, rgba(245, 251, 255, 0.16), rgba(53, 210, 255, 0.2) 52%, rgba(2, 132, 199, 0.24)),
+      rgba(9, 18, 28, 0.12);
     --filter-panel-bg:
       linear-gradient(150deg, rgba(16, 31, 44, 0.62), rgba(10, 21, 32, 0.5) 52%, rgba(24, 16, 45, 0.42)),
       var(--glass-bg);
@@ -3664,8 +3674,8 @@ pre {
       linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.06) 42%, rgba(139, 92, 246, 0.1)),
       rgba(9, 18, 28, 0.62);
     --status-glass-border: rgba(114, 220, 255, 0.18);
-    --liquid-inner-bg: rgba(10, 20, 30, 0.28);
-    --liquid-toolbar-bg: rgba(9, 18, 28, 0.32);
+    --liquid-inner-bg: rgba(10, 20, 30, 0.11);
+    --liquid-toolbar-bg: rgba(9, 18, 28, 0.12);
     --liquid-inner-border: rgba(114, 220, 255, 0.2);
     --liquid-inner-shadow:
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
@@ -3674,11 +3684,11 @@ pre {
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
       0 8px 22px rgba(0, 0, 0, 0.24);
     --liquid-control-bg:
-      linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.08) 50%, rgba(139, 92, 246, 0.1)),
-      rgba(9, 18, 28, 0.58);
+      linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.12) 50%, rgba(139, 92, 246, 0.1)),
+      rgba(9, 18, 28, 0.18);
     --liquid-control-hover-bg:
-      linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.12) 50%, rgba(139, 92, 246, 0.14)),
-      rgba(14, 29, 43, 0.74);
+      linear-gradient(135deg, rgba(245, 251, 255, 0.14), rgba(53, 210, 255, 0.16) 50%, rgba(139, 92, 246, 0.14)),
+      rgba(14, 29, 43, 0.24);
     --liquid-control-border: rgba(148, 226, 255, 0.28);
     --liquid-control-shadow:
       0 1px 0 rgba(255, 255, 255, 0.12) inset,
@@ -3686,22 +3696,26 @@ pre {
       0 0 18px rgba(53, 210, 255, 0.08);
     --panel-action-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
     --probe-tabs-frame-bg:
-      linear-gradient(135deg, rgba(245, 251, 255, 0.07), rgba(53, 210, 255, 0.05) 54%, rgba(139, 92, 246, 0.08)),
-      rgba(8, 17, 27, 0.42);
+      linear-gradient(135deg, rgba(245, 251, 255, 0.06), rgba(53, 210, 255, 0.07) 54%, rgba(139, 92, 246, 0.07)),
+      rgba(8, 17, 27, 0.16);
     --probe-tabs-frame-border: rgba(148, 226, 255, 0.18);
     --probe-tabs-frame-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
     --probe-tab-text: rgba(245, 251, 255, 0.96);
     --probe-tab-meta-color: rgba(202, 222, 232, 0.82);
     --probe-tab-surface-bg:
-      linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.06) 58%, rgba(139, 92, 246, 0.08)),
-      rgba(9, 18, 28, 0.42);
+      linear-gradient(135deg, rgba(245, 251, 255, 0.07), rgba(53, 210, 255, 0.08) 58%, rgba(139, 92, 246, 0.08)),
+      rgba(9, 18, 28, 0.16);
     --probe-tab-hover-bg:
-      linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.1) 58%, rgba(139, 92, 246, 0.12)),
-      rgba(12, 25, 38, 0.56);
+      linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.12) 58%, rgba(139, 92, 246, 0.12)),
+      rgba(12, 25, 38, 0.22);
     --probe-tab-active-bg:
-      linear-gradient(135deg, color-mix(in srgb, var(--route-color, var(--accent)) 32%, rgba(8, 18, 28, 0.48)), rgba(53, 210, 255, 0.1)),
-      rgba(9, 19, 30, 0.64);
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--route-color, var(--accent)) 38%, transparent),
+        color-mix(in srgb, var(--route-color, var(--accent)) 24%, rgba(53, 210, 255, 0.06))
+      ),
+      rgba(9, 19, 30, 0.22);
     --probe-tab-border: rgba(148, 226, 255, 0.2);
     --probe-tab-hover-border: rgba(148, 226, 255, 0.32);
     --probe-tab-active-border: color-mix(in srgb, var(--route-color, var(--accent)) 50%, rgba(148, 226, 255, 0.28));
@@ -4217,46 +4231,46 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 
 .liquid-glass-surface[data-liquid-glass-mode="liquid"] {
   --liquid-optical-bg:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(35, 184, 255, 0.07) 44%, rgba(139, 92, 246, 0.08)),
-    rgba(255, 255, 255, 0.12);
-  --liquid-optical-border: rgba(255, 255, 255, 0.68);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.025) 34%, rgba(35, 184, 255, 0.1) 62%, rgba(139, 92, 246, 0.07)),
+    rgba(255, 255, 255, 0.045);
+  --liquid-optical-border: rgba(255, 255, 255, 0.72);
   --liquid-optical-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.54),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.2),
     0 10px 26px rgba(22, 43, 53, 0.08);
   --liquid-optical-specular:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.04) 38%, rgba(35, 184, 255, 0.14) 62%, rgba(255, 255, 255, 0.22));
+    linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.035) 38%, rgba(35, 184, 255, 0.2) 62%, rgba(255, 255, 255, 0.24));
   --liquid-optical-edge:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.46),
-    inset 0 1px 4px rgba(255, 255, 255, 0.34),
-    inset 0 -10px 22px rgba(35, 184, 255, 0.08);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.54),
+    inset 0 1px 5px rgba(255, 255, 255, 0.42),
+    inset 0 -12px 26px rgba(35, 184, 255, 0.12);
 }
 
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] {
   --liquid-optical-bg:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.08) 34%, rgba(35, 184, 255, 0.24) 62%, rgba(139, 92, 246, 0.18)),
-    rgba(255, 255, 255, 0.14);
-  --liquid-optical-border: rgba(255, 255, 255, 0.82);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.035) 34%, rgba(35, 184, 255, 0.22) 62%, rgba(139, 92, 246, 0.12), rgba(255, 255, 255, 0.16)),
+    rgba(255, 255, 255, 0.035);
+  --liquid-optical-border: rgba(255, 255, 255, 0.9);
   --liquid-optical-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.24),
-    inset 16px 0 28px rgba(255, 255, 255, 0.16),
-    inset -16px 0 28px rgba(35, 184, 255, 0.12),
-    0 16px 48px rgba(22, 43, 53, 0.16);
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.28),
+    inset 16px 0 28px rgba(255, 255, 255, 0.18),
+    inset -16px 0 28px rgba(35, 184, 255, 0.16),
+    0 14px 42px rgba(22, 43, 53, 0.12);
   --liquid-optical-specular:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.06) 34%, rgba(35, 184, 255, 0.22) 58%, rgba(139, 92, 246, 0.16) 76%, rgba(255, 255, 255, 0.32));
+    linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.055) 34%, rgba(35, 184, 255, 0.3) 58%, rgba(139, 92, 246, 0.18) 76%, rgba(255, 255, 255, 0.34));
   --liquid-optical-edge:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.58),
-    inset 0 1px 8px rgba(255, 255, 255, 0.44),
-    inset 0 -18px 36px rgba(35, 184, 255, 0.14),
-    inset 12px 0 24px rgba(255, 255, 255, 0.14),
-    inset -12px 0 24px rgba(139, 92, 246, 0.1);
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72),
+    inset 0 1px 9px rgba(255, 255, 255, 0.58),
+    inset 0 -18px 36px rgba(35, 184, 255, 0.18),
+    inset 12px 0 24px rgba(255, 255, 255, 0.18),
+    inset -12px 0 24px rgba(139, 92, 246, 0.12);
 }
 
 :root[data-theme="dark"] .liquid-glass-surface[data-liquid-glass-mode="liquid"] {
   --liquid-optical-bg:
-    linear-gradient(135deg, rgba(245, 251, 255, 0.1), rgba(53, 210, 255, 0.08) 48%, rgba(139, 92, 246, 0.12)),
-    rgba(9, 18, 28, 0.26);
+    linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.1) 48%, rgba(139, 92, 246, 0.1)),
+    rgba(9, 18, 28, 0.12);
   --liquid-optical-border: rgba(148, 226, 255, 0.3);
   --liquid-optical-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
@@ -4273,9 +4287,9 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 
 :root[data-theme="dark"] .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] {
   --liquid-optical-bg:
-    linear-gradient(135deg, rgba(245, 251, 255, 0.28), rgba(53, 210, 255, 0.16) 38%, rgba(139, 92, 246, 0.28) 68%, rgba(255, 255, 255, 0.16)),
-    rgba(6, 14, 24, 0.26);
-  --liquid-optical-border: rgba(186, 236, 255, 0.44);
+    linear-gradient(135deg, rgba(245, 251, 255, 0.18), rgba(53, 210, 255, 0.18) 38%, rgba(139, 92, 246, 0.22) 68%, rgba(255, 255, 255, 0.12)),
+    rgba(6, 14, 24, 0.12);
+  --liquid-optical-border: rgba(186, 236, 255, 0.54);
   --liquid-optical-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.26),
     inset 0 -1px 0 rgba(53, 210, 255, 0.18),
@@ -4296,8 +4310,8 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] .liquid-glass-surface[data-liquid-glass-mode="liquid"] {
     --liquid-optical-bg:
-      linear-gradient(135deg, rgba(245, 251, 255, 0.1), rgba(53, 210, 255, 0.08) 48%, rgba(139, 92, 246, 0.12)),
-      rgba(9, 18, 28, 0.26);
+      linear-gradient(135deg, rgba(245, 251, 255, 0.08), rgba(53, 210, 255, 0.1) 48%, rgba(139, 92, 246, 0.1)),
+      rgba(9, 18, 28, 0.12);
     --liquid-optical-border: rgba(148, 226, 255, 0.3);
     --liquid-optical-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.14),
@@ -4314,9 +4328,9 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 
   :root[data-theme="system"] .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] {
     --liquid-optical-bg:
-      linear-gradient(135deg, rgba(245, 251, 255, 0.28), rgba(53, 210, 255, 0.16) 38%, rgba(139, 92, 246, 0.28) 68%, rgba(255, 255, 255, 0.16)),
-      rgba(6, 14, 24, 0.26);
-    --liquid-optical-border: rgba(186, 236, 255, 0.44);
+      linear-gradient(135deg, rgba(245, 251, 255, 0.18), rgba(53, 210, 255, 0.18) 38%, rgba(139, 92, 246, 0.22) 68%, rgba(255, 255, 255, 0.12)),
+      rgba(6, 14, 24, 0.12);
+    --liquid-optical-border: rgba(186, 236, 255, 0.54);
     --liquid-optical-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.26),
       inset 0 -1px 0 rgba(53, 210, 255, 0.18),
@@ -4336,7 +4350,7 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 }
 
 .liquid-glass-surface[data-liquid-glass-mode="liquid"] .glass {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .liquid-glass-surface[data-liquid-glass-mode="liquid"] .glass__warp {
@@ -4384,8 +4398,8 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .glass {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(35, 184, 255, 0.08) 56%, rgba(139, 92, 246, 0.08)),
-    rgba(255, 255, 255, 0.1);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(35, 184, 255, 0.07) 56%, rgba(139, 92, 246, 0.06)),
+    rgba(255, 255, 255, 0.025);
 }
 
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .liquid-glass-content {
@@ -4398,15 +4412,15 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 
 :root[data-theme="dark"] .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .glass {
   background:
-    linear-gradient(135deg, rgba(245, 251, 255, 0.16), rgba(53, 210, 255, 0.1) 56%, rgba(139, 92, 246, 0.12)),
-    rgba(8, 18, 30, 0.22);
+    linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.1) 56%, rgba(139, 92, 246, 0.1)),
+    rgba(8, 18, 30, 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .glass {
     background:
-      linear-gradient(135deg, rgba(245, 251, 255, 0.16), rgba(53, 210, 255, 0.1) 56%, rgba(139, 92, 246, 0.12)),
-      rgba(8, 18, 30, 0.22);
+      linear-gradient(135deg, rgba(245, 251, 255, 0.12), rgba(53, 210, 255, 0.1) 56%, rgba(139, 92, 246, 0.1)),
+      rgba(8, 18, 30, 0.12);
   }
 }
 

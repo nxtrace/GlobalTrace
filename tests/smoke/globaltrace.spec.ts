@@ -1160,11 +1160,14 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
         demoIntensity: surface?.getAttribute("data-liquid-glass-demo-intensity") ?? "",
         liquidIntensity: surface?.getAttribute("data-liquid-glass-intensity") ?? "",
         glassBackgroundColor: glassStyle?.backgroundColor ?? "",
+        glassBackgroundAlpha: alphaOf(glassStyle?.backgroundColor ?? ""),
         glassBoxShadow: glassStyle?.boxShadow ?? "",
         warpBackdropFilter: warpStyle?.backdropFilter || warpStyle?.getPropertyValue("-webkit-backdrop-filter") || "",
         warpBlurPx: blurMatch ? Number.parseFloat(blurMatch[1]) : 0,
         warpDisplay: warpStyle?.display ?? "",
         warpOpacity: Number.parseFloat(warpStyle?.opacity || "0") || 0,
+        contentBackgroundColor: contentStyle?.backgroundColor ?? "",
+        contentBackgroundAlpha: alphaOf(contentStyle?.backgroundColor ?? ""),
         contentBackgroundImage: contentStyle?.backgroundImage ?? "",
         contentBorderTopWidth: contentStyle?.borderTopWidth ?? "",
         contentBoxShadow: contentStyle?.boxShadow ?? "",
@@ -1224,10 +1227,13 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
     expect(liquidState?.warpDisplay).not.toBe("none");
     expect(liquidState?.warpOpacity).toBeGreaterThanOrEqual(0.95);
     expect(liquidState?.warpBackdropFilter).toContain("blur(");
-    expect(liquidState?.warpBlurPx).toBeGreaterThanOrEqual(28);
+    expect(liquidState?.warpBlurPx).toBeGreaterThanOrEqual(12);
+    expect(liquidState?.warpBlurPx).toBeLessThanOrEqual(22);
     expect(liquidState?.demoIntensity).toBe("true");
     expect(liquidState?.liquidIntensity).toBe("100");
     expect(liquidState?.glassBackgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(liquidState?.glassBackgroundAlpha).toBeLessThanOrEqual(0.08);
+    expect(liquidState?.contentBackgroundAlpha).toBeLessThanOrEqual(0.08);
     expect(liquidState?.glassBoxShadow).not.toBe("none");
     expect(liquidState?.opticalLayerBackgroundImage).not.toBe("none");
     expect(liquidState?.contentBorderTopWidth).toBe("1px");
@@ -1476,7 +1482,7 @@ async function expectProbeMapOverviewZoom(page: Page, minZoom: number): Promise<
 }
 
 async function expectCompactHomeProbeMapLayout(page: Page): Promise<number> {
-  const mapSection = page.getByLabel("probe map");
+  const mapSection = page.locator(".map-section");
   await expect(mapSection.getByText("3 / 3 probes", { exact: true })).toBeVisible();
   await expect(mapSection.getByText("点选地图表示选择筛选条件，不承诺指定精确 probe")).toBeVisible();
   await expect(mapSection.getByText("eyeball", { exact: true })).toBeVisible();
