@@ -777,7 +777,7 @@ describe("ResultsView", () => {
     expect(Math.abs(coordinate[1] - (coordinate[0] - 1))).toBeGreaterThan(0.05);
   });
 
-  it("opens an inactive route map point without switching route or selecting a table row", async () => {
+  it("opens an inactive route map point, switches route, and does not select a table row", async () => {
     const scrollIntoView = mockScrollIntoView();
     render(<ResultsView result={multiRouteResult} mapStyleUrl="about:blank" mapProjection="globe" />);
     const map = await latestMap();
@@ -785,8 +785,10 @@ describe("ResultsView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "选择 TTL 1" }));
 
-    expect(screen.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "false");
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "false");
+      expect(screen.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "true");
+    });
     expect(document.querySelector(".hop-table tr.selected")).toBeNull();
     expect(screen.getByLabelText("trace result map")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
     expect(scrollIntoView).not.toHaveBeenCalled();

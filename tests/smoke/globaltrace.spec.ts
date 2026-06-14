@@ -596,6 +596,32 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
   expect(consoleErrors).toEqual([]);
 });
 
+test("result route map switches route when an inactive route marker is clicked", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page, { traceResponse: multiRouteTraceResult() });
+
+  await page.goto("/?measurement=m-smoke");
+
+  await expect(page.getByText("finished · 2 probes · m-smoke")).toBeVisible();
+  await expect(page.getByLabel("trace result map")).toBeVisible();
+  await expectMapCanvasPainted(page);
+  await expectResultRouteData(page, { labels: ["1-2", "5"], minLineLength: 2, maxLineLngSpan: 140 });
+  await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "false");
+
+  await clickResultMapRouteNode(page, "route-1-node-1");
+
+  await expect(page.getByRole("tab", { name: /Los Angeles/ })).toHaveAttribute("aria-selected", "false");
+  await expect(page.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "true");
+  await expectResultRouteData(page, { labels: ["1", "2"], minLineLength: 2, maxLineLngSpan: 140 });
+  await expect(page.locator('.hop-table tr[data-ttl="1"]')).not.toHaveClass(/selected/);
+  await expectResultSelectedRouteNode(page, null);
+  await expectResultMapPopup(page, "TTL 1");
+  await expectNoPageOverflow(page);
+  expect(consoleErrors).toEqual([]);
+});
+
 test("result overlay chains vertical wheel scrolling from hop table boundaries", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   const consoleErrors = collectConsoleErrors(page);
@@ -2706,6 +2732,41 @@ function routeQualityTraceResult(): TraceResultResponse {
       country_en: "United Kingdom",
       city_en: "London",
     }),
+  ];
+  return result;
+}
+
+function multiRouteTraceResult(): TraceResultResponse {
+  const result = routeQualityTraceResult();
+  const active = result.results[0];
+  if (!active) return result;
+  result.probesCount = 2;
+  result.results = [
+    active,
+    {
+      ...active,
+      id: "probe-2",
+      probe: {
+        continent: "AS",
+        region: "Eastern Asia",
+        country: "JP",
+        state: null,
+        city: "Tokyo",
+        asn: 64500,
+        latitude: 35.68,
+        longitude: 139.76,
+        network: "ExampleNet",
+        tags: ["datacenter-network"],
+        resolvers: [],
+      },
+      resolvedAddress: "198.51.100.11",
+      resolvedHostname: "edge.example",
+      rawOutput: "tokyo raw",
+      hops: [
+        traceHop(1, "198.51.100.10", 35.68, 139.76, { country_en: "Japan", city_en: "Tokyo" }),
+        traceHop(2, "198.51.100.11", 22.31, 114.17, { country_en: "Hong Kong", city_en: "Hong Kong" }),
+      ],
+    },
   ];
   return result;
 }

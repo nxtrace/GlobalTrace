@@ -291,6 +291,7 @@ export function ResultsView({
                 mapProjection={mapProjection}
                 selectedRouteNodeId={selectedRouteNodeId}
                 mapFocusRequest={mapFocusRequest}
+                onSelectRoute={selectProbe}
               />
             )}
 
@@ -618,24 +619,36 @@ function ResultMap({
   mapProjection,
   selectedRouteNodeId,
   mapFocusRequest,
+  onSelectRoute,
 }: {
   data: ResultMapData;
   mapStyleUrl: string;
   mapProjection: MapProjection;
   selectedRouteNodeId: string | null;
   mapFocusRequest: number;
+  onSelectRoute: (routeIndex: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const dataRef = useRef(data);
   const selectedRouteNodeIdRef = useRef(selectedRouteNodeId);
+  const previewRouteNodeIdRef = useRef<string | null>(null);
+  const onSelectRouteRef = useRef(onSelectRoute);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const routeMarkersRef = useRef<maplibregl.Marker[]>([]);
   const loadedRef = useRef(false);
   const [pinnedGroupId, setPinnedGroupId] = useState<string | null>(null);
+  const [previewRouteNodeId, setPreviewRouteNodeId] = useState<string | null>(null);
   const expandedGroupId = pinnedGroupId;
   dataRef.current = data;
   selectedRouteNodeIdRef.current = selectedRouteNodeId;
+  previewRouteNodeIdRef.current = previewRouteNodeId;
+  onSelectRouteRef.current = onSelectRoute;
+
+  const previewRouteNode = (node: ResultRouteNode) => {
+    setPreviewRouteNodeId(node.nodeId);
+    if (node.resultIndex !== dataRef.current.activeRouteIndex) onSelectRouteRef.current(node.resultIndex);
+  };
 
   useEffect(() => {
     if (!pinnedGroupId || data.routeGroupById.has(pinnedGroupId)) return;
@@ -736,9 +749,10 @@ function ResultMap({
         selectedRouteNodeId: selectedRouteNodeIdRef.current,
         expandedGroupId: null,
         popupRef,
+        onPreviewRouteNode: previewRouteNode,
         setPinnedGroupId,
       });
-      applySelectedRouteNode(map, selectedRouteNodeIdRef.current, dataRef.current, popupRef);
+      applyRouteNodePopup(map, selectedRouteNodeIdRef.current, previewRouteNodeIdRef.current, dataRef.current, popupRef);
       fitResultMap(map, dataRef.current, mapProjection);
     });
     const resizeObserver =
@@ -786,7 +800,7 @@ function ResultMap({
     }
     if (map && source) {
       fitResultMap(map, data, mapProjection);
-      applySelectedRouteNode(map, selectedRouteNodeIdRef.current, data, popupRef);
+      applyRouteNodePopup(map, selectedRouteNodeIdRef.current, previewRouteNodeIdRef.current, data, popupRef);
     }
   }, [data]);
 
@@ -800,6 +814,7 @@ function ResultMap({
       selectedRouteNodeId,
       expandedGroupId,
       popupRef,
+      onPreviewRouteNode: previewRouteNode,
       setPinnedGroupId,
     });
   }, [data, expandedGroupId, selectedRouteNodeId]);
@@ -810,7 +825,7 @@ function ResultMap({
       (containerRef.current as ResultMapDebugElement).__globalTraceSelectedRouteNodeId = selectedRouteNodeId;
     }
     if (!map || !loadedRef.current) return;
-    applySelectedRouteNode(map, selectedRouteNodeId, dataRef.current, popupRef);
+    applyRouteNodePopup(map, selectedRouteNodeId, previewRouteNodeIdRef.current, dataRef.current, popupRef);
   }, [selectedRouteNodeId]);
 
   useEffect(() => {
@@ -1123,6 +1138,7 @@ function renderResultRouteMarkers({
   selectedRouteNodeId,
   expandedGroupId,
   popupRef,
+  onPreviewRouteNode,
   setPinnedGroupId,
 }: {
   map: maplibregl.Map;
@@ -1131,6 +1147,7 @@ function renderResultRouteMarkers({
   selectedRouteNodeId: string | null;
   expandedGroupId: string | null;
   popupRef: MutableRefObject<maplibregl.Popup | null>;
+  onPreviewRouteNode: (node: ResultRouteNode) => void;
   setPinnedGroupId: GroupStateSetter;
 }): void {
   ensureResultRouteMarkerStyles();
@@ -1143,6 +1160,7 @@ function renderResultRouteMarkers({
       expanded,
       map,
       popupRef,
+      onPreviewRouteNode,
       setPinnedGroupId,
     });
     const marker = new maplibregl.Marker({
@@ -1196,6 +1214,7 @@ function createRouteGroupMarkerElement({
   expanded,
   map,
   popupRef,
+  onPreviewRouteNode,
   setPinnedGroupId,
 }: {
   group: ResultRouteGroup;
@@ -1203,6 +1222,7 @@ function createRouteGroupMarkerElement({
   expanded: boolean;
   map: maplibregl.Map;
   popupRef: MutableRefObject<maplibregl.Popup | null>;
+  onPreviewRouteNode: (node: ResultRouteNode) => void;
   setPinnedGroupId: GroupStateSetter;
 }): HTMLElement {
   const element = document.createElement("div");
@@ -1228,6 +1248,7 @@ function createRouteGroupMarkerElement({
         size: 28,
         map,
         popupRef,
+        onPreviewRouteNode,
         setPinnedGroupId,
       }),
     );
@@ -1253,6 +1274,7 @@ function createRouteGroupMarkerElement({
         size: 25,
         map,
         popupRef,
+        onPreviewRouteNode,
         setPinnedGroupId,
       }),
     );
@@ -1286,6 +1308,7 @@ function createRouteNodeButton({
   size,
   map,
   popupRef,
+  onPreviewRouteNode,
   setPinnedGroupId,
 }: {
   node: ResultRouteNode;
@@ -1295,6 +1318,7 @@ function createRouteNodeButton({
   size: number;
   map: maplibregl.Map;
   popupRef: MutableRefObject<maplibregl.Popup | null>;
+  onPreviewRouteNode: (node: ResultRouteNode) => void;
   setPinnedGroupId: GroupStateSetter;
 }): HTMLButtonElement {
   const button = document.createElement("button");
@@ -1309,6 +1333,7 @@ function createRouteNodeButton({
     event.preventDefault();
     event.stopPropagation();
     setPinnedGroupId(node.groupSize > 1 ? node.groupId : null);
+    onPreviewRouteNode(node);
     showRouteNodePopup(map, node, popupRef);
   });
   return button;
@@ -1369,13 +1394,16 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
-function applySelectedRouteNode(
+function applyRouteNodePopup(
   map: maplibregl.Map,
   selectedRouteNodeId: string | null,
+  previewRouteNodeId: string | null,
   data: ResultMapData,
   popupRef: MutableRefObject<maplibregl.Popup | null>,
 ): void {
-  const node = selectedRouteNodeId ? data.routeNodeById.get(selectedRouteNodeId) : undefined;
+  const selectedNode = selectedRouteNodeId ? data.routeNodeById.get(selectedRouteNodeId) : undefined;
+  const previewNode = previewRouteNodeId ? data.routeNodeById.get(previewRouteNodeId) : undefined;
+  const node = selectedNode || (previewNode?.resultIndex === data.activeRouteIndex ? previewNode : undefined);
   if (!node) {
     popupRef.current?.remove();
     popupRef.current = null;
