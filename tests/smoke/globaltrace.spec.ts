@@ -300,10 +300,14 @@ test("map ASN picker groups same-city probes by ASN and submits ASN-only magic",
   await expect(page.getByLabel("probe map").getByText("已选择 San Jose · AS31898")).toBeVisible();
   await expect(page.getByText("2 / 4 probes 匹配")).toBeVisible();
   await expect(page.getByTestId("filter-chips")).not.toContainText("Oracle");
+  await selectMapAsnAtCoordinate(page, [-121.89, 37.34], "LeaseWeb AS7203 ×1");
+  await expect(page.getByLabel("probe map").getByText("已选择 San Jose · AS7203")).toBeVisible();
+  await expect(page.getByText("1 / 4 probes 匹配")).toBeVisible();
+  await expect(page.getByTestId("filter-chips")).not.toContainText("LeaseWeb");
 
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
   await expect.poll(() => mocks.traceRequests().length).toBe(1);
-  expect(mocks.traceRequests()[0]?.locations).toEqual([{ magic: "San Jose+US+AS31898" }]);
+  expect(mocks.traceRequests()[0]?.locations).toEqual([{ magic: "San Jose+US+AS7203" }]);
 });
 
 test("desktop filter summary constrains long magic content and keeps run controls visible", async ({ page }) => {
@@ -777,7 +781,8 @@ test("liquid glass surfaces expose reference-strength optics at max intensity", 
   ).toBeVisible();
   await ensureExactFiltersOpen(page);
   await page.getByLabel("国家/地区").fill("ZZ");
-  await expect(page.locator('.map-empty-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();
+  await expect(page.getByLabel("probe map").getByText("0 / 3 probes")).toBeVisible();
+  await expect(page.locator(".map-empty-surface")).toHaveCount(0);
   await page.getByLabel("国家/地区").fill("");
   await page.getByRole("button", { name: "打开高级参数" }).click();
   await expect(page.locator('.overlay-close-surface[data-liquid-glass-mode="liquid"]')).toBeVisible();

@@ -8,35 +8,42 @@ import type { GlobalpingMeasurement } from "../shared/globalping";
 vi.mock("./components/ProbeMap", () => ({
   ProbeMap: (props: {
     probes: GlobalpingProbe[];
+    filteredProbeCount: number;
     selectionNotice: string;
     onPickAsn: (selection: { magic: string; city: string; country: string; asn: string; network: string; count: number }) => void;
     onBoxSelect: (probes: GlobalpingProbe[]) => void;
-  }) => (
-    <section aria-label="mock probe map">
-      <span>{props.selectionNotice || "no selection"}</span>
-      <span>probe-projection:mercator</span>
-      <span>box:on</span>
-      <button
-        type="button"
-        onClick={() => {
-          const probe = props.probes[0];
-          props.onPickAsn({
-            magic: `${probe.location.city}+${probe.location.country}+AS${probe.location.asn}`,
-            city: probe.location.city,
-            country: probe.location.country,
-            asn: `AS${probe.location.asn}`,
-            network: probe.location.network,
-            count: 1,
-          });
-        }}
-      >
-        pick first probe
-      </button>
-      <button type="button" onClick={() => props.onBoxSelect(repeatProbes(props.probes[0], 12))}>
-        box many probes
-      </button>
-    </section>
-  ),
+  }) => {
+    const pickProbeAt = (index: number) => {
+      const probe = props.probes[index];
+      if (!probe) return;
+      props.onPickAsn({
+        magic: `${probe.location.city}+${probe.location.country}+AS${probe.location.asn}`,
+        city: probe.location.city,
+        country: probe.location.country,
+        asn: `AS${probe.location.asn}`,
+        network: probe.location.network,
+        count: 1,
+      });
+    };
+    return (
+      <section aria-label="mock probe map">
+        <span>{props.selectionNotice || "no selection"}</span>
+        <span>map-probe-count:{props.probes.length}</span>
+        <span>map-filtered-count:{props.filteredProbeCount}</span>
+        <span>probe-projection:mercator</span>
+        <span>box:on</span>
+        <button type="button" onClick={() => pickProbeAt(0)}>
+          pick first probe
+        </button>
+        <button type="button" onClick={() => pickProbeAt(1)}>
+          pick second probe
+        </button>
+        <button type="button" onClick={() => props.onBoxSelect(repeatProbes(props.probes[0], 12))}>
+          box many probes
+        </button>
+      </section>
+    );
+  },
 }));
 
 vi.mock("./components/ResultsView", () => ({
@@ -528,9 +535,19 @@ describe("App", () => {
       expect(screen.getAllByText("已选择 Los Angeles · AS7922").length).toBeGreaterThan(0);
     });
     expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
+    expect(screen.getByText("map-probe-count:2")).toBeInTheDocument();
+    expect(screen.getByText("map-filtered-count:1")).toBeInTheDocument();
     const chips = screen.getByTestId("filter-chips");
     expect(chips).toHaveTextContent("Los Angeles+US+AS7922");
     expect(within(chips).queryByText("magic")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "pick second probe" }));
+    await waitFor(() => {
+      expect(screen.getAllByText("已选择 Falkenstein · AS24940").length).toBeGreaterThan(0);
+    });
+    expect(screen.getByText("map-probe-count:2")).toBeInTheDocument();
+    expect(screen.getByText("map-filtered-count:1")).toBeInTheDocument();
+    expect(chips).toHaveTextContent("Falkenstein+DE+AS24940");
   });
 
   it("narrows field suggestions with other structured filters", async () => {

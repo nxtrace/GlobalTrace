@@ -35,6 +35,7 @@ export interface ProbeMapAsnSelection {
 
 interface ProbeMapProps {
   probes: GlobalpingProbe[];
+  filteredProbeCount: number;
   totalProbes: number;
   status: "loading" | "ready" | "error";
   selectionNotice: string;
@@ -61,6 +62,7 @@ interface ProbePickerState {
 
 export function ProbeMap({
   probes,
+  filteredProbeCount,
   totalProbes,
   status,
   selectionNotice,
@@ -411,7 +413,7 @@ export function ProbeMap({
         <LiquidGlassSurface variant="toolbar" fullWidth className="liquid-glass-coverage map-status-surface">
           <div className="map-status" aria-live="polite">
             <div>
-              <strong>{mapStatusText(status, probes.length, totalProbes)}</strong>
+              <strong>{mapStatusText(status, filteredProbeCount, totalProbes)}</strong>
               <span>{selectionNotice || "点选地图选择筛选条件"}</span>
             </div>
             <div className="map-legend" aria-label="probe 类型图例">

@@ -692,7 +692,8 @@ export function App() {
               {probeMapReady ? (
                 <Suspense fallback={<ProbeMapFallback />}>
                   <ProbeMap
-                    probes={filteredProbes}
+                    probes={probes}
+                    filteredProbeCount={filteredProbes.length}
                     totalProbes={probes.length}
                     status={probesStatus}
                     selectionNotice={selectionNotice}

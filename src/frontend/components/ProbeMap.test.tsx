@@ -293,21 +293,18 @@ describe("ProbeMap", () => {
     }
   });
 
-  it("moves to a single filtered probe", async () => {
-    const { rerender } = renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
+  it("keeps map candidates global when the filtered count changes", async () => {
+    const mapProbes = [laProbe, deProbe, tokyoProbe];
+    const { rerender } = renderMap({ probes: mapProbes });
     const map = latestMap();
     act(() => map.triggerLoad());
     map.easeToCalls.length = 0;
     map.fitBoundsCalls.length = 0;
 
-    rerender(probeMapElement({ probes: [laProbe] }));
+    rerender(probeMapElement({ probes: mapProbes, filteredProbeCount: 1 }));
 
-    await waitFor(() => {
-      expect(map.easeToCalls.at(-1)).toMatchObject({
-        center: [-118.24, 34.05],
-        zoom: 5.2,
-      });
-    });
+    expect(screen.getByText("1 / 3 probes")).toBeInTheDocument();
+    expect(map.easeToCalls).toHaveLength(0);
     expect(map.fitBoundsCalls).toHaveLength(0);
   });
 
@@ -340,6 +337,23 @@ describe("ProbeMap", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog", { name: "San Jose probe candidates" })).toBeNull();
     });
+  });
+
+  it("keeps same-location ASN candidates available after filtering to one ASN", () => {
+    renderMap({ probes: sanJoseProbes, filteredProbeCount: 2, totalProbes: sanJoseProbes.length });
+    const map = latestMap();
+    act(() => map.triggerLoad());
+    map.renderedFeatures = [{ properties: { index: 0 }, geometry: { type: "Point", coordinates: [-121.89, 37.34] } }];
+
+    act(() => {
+      void map.triggerLayer("click", "probe-points");
+    });
+
+    expect(screen.getByText("2 / 4 probes")).toBeInTheDocument();
+    expect(screen.getByText("+ 4")).toBeVisible();
+    expect(screen.getByRole("option", { name: "Oracle AS31898 ×2" })).toBeVisible();
+    expect(screen.getByRole("option", { name: "LeaseWeb AS7203 ×1" })).toBeVisible();
+    expect(screen.getByRole("option", { name: "xTom AS6233 ×1" })).toBeVisible();
   });
 
   it("shows a hover preview picker and hides it after leaving a point", async () => {
@@ -404,9 +418,11 @@ function renderMap(overrides: Partial<React.ComponentProps<typeof ProbeMap>> = {
 }
 
 function probeMapElement(overrides: Partial<React.ComponentProps<typeof ProbeMap>> = {}) {
+  const nextProbes = overrides.probes ?? [laProbe, deProbe, tokyoProbe];
   return (
     <ProbeMap
-      probes={overrides.probes ?? [laProbe, deProbe, tokyoProbe]}
+      probes={nextProbes}
+      filteredProbeCount={overrides.filteredProbeCount ?? nextProbes.length}
       totalProbes={overrides.totalProbes ?? 3}
       status={overrides.status ?? "ready"}
       selectionNotice={overrides.selectionNotice ?? ""}
