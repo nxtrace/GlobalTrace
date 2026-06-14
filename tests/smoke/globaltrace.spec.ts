@@ -1410,7 +1410,7 @@ async function expectResultHopTableWheelChaining(page: Page): Promise<void> {
   const initial = await readState();
   expect(initial.dialogMaxScroll).toBeGreaterThan(0);
   expect(initial.tableMaxScroll).toBeGreaterThan(0);
-  expect(initial.dialogOverflowY).toBe("auto");
+  expect(initial.dialogOverflowY).toBe("scroll");
   expect(initial.dialogOverscrollX).toBe("contain");
   expect(initial.dialogOverscrollY).toBe("contain");
   expect(initial.dialogScrollbarGutter).toContain("stable");

@@ -2404,6 +2404,7 @@ tbody tr:hover {
 
 @media (min-width: 821px) {
   .glass-overlay-result .glass-overlay-bare-surface {
+    overflow-y: scroll;
     scrollbar-gutter: stable;
   }
 
