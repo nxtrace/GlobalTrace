@@ -4982,17 +4982,66 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
     inset -12px 0 18px rgba(35, 184, 255, 0.1);
 }
 
+.target-run-surface[data-liquid-glass-mode="liquid"] > div[style]:not(.liquid-glass-package),
+.target-run-surface[data-liquid-glass-mode="liquid"] > span[style],
+.result-view-surface[data-liquid-glass-mode="liquid"] > div[style]:not(.liquid-glass-package),
+.result-view-surface[data-liquid-glass-mode="liquid"] > span[style],
+.probe-tab-surface[data-liquid-glass-mode="liquid"] > div[style]:not(.liquid-glass-package),
+.probe-tab-surface[data-liquid-glass-mode="liquid"] > span[style],
+.about-card-surface[data-liquid-glass-mode="liquid"] > div[style]:not(.liquid-glass-package),
+.about-card-surface[data-liquid-glass-mode="liquid"] > span[style] {
+  display: none !important;
+}
+
+.target-run-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.target-run-surface[data-liquid-glass-mode="liquid"] .glass,
+.result-view-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.result-view-surface[data-liquid-glass-mode="liquid"] .glass,
+.probe-tab-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.probe-tab-surface[data-liquid-glass-mode="liquid"] .glass,
+.about-card-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.about-card-surface[data-liquid-glass-mode="liquid"] .glass {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  overflow: hidden !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.target-run-surface[data-liquid-glass-mode="liquid"] .glass > div:last-child,
+.result-view-surface[data-liquid-glass-mode="liquid"] .glass > div:last-child,
+.probe-tab-surface[data-liquid-glass-mode="liquid"] .glass > div:last-child,
+.about-card-surface[data-liquid-glass-mode="liquid"] .glass > div:last-child {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+}
+
+.probe-tab-surface[data-liquid-glass-mode="liquid"] {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
 .probe-tab-surface[data-liquid-glass-mode="liquid"].is-active .liquid-glass-content {
+  box-sizing: border-box;
+  overflow: hidden;
   border-color: var(--probe-tab-active-border);
   background: var(--probe-tab-active-bg);
-  box-shadow: var(--probe-tab-active-shadow);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 72%, transparent);
 }
 
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"].probe-tab-surface.is-active .liquid-glass-content {
+  box-sizing: border-box;
+  overflow: hidden;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(35, 184, 255, 0.2) 58%, rgba(139, 92, 246, 0.16)),
     var(--probe-tab-active-bg);
-  box-shadow: var(--probe-tab-active-shadow);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 72%, transparent);
 }
 
 .run-action-surface[data-liquid-glass-mode="liquid"] .primary-action {
@@ -5113,8 +5162,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .probe-tabs-frame-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .probe-tab-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
-.probe-tab-surface[data-liquid-glass-mode="liquid"].is-active .liquid-glass-content,
-.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"].probe-tab-surface.is-active .liquid-glass-content,
 .app-shell.ambient-photo-ready .status-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .app-shell.ambient-photo-ready .map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .app-shell.ambient-photo-ready .result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
@@ -5126,7 +5173,16 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
   -webkit-backdrop-filter: none;
 }
 
-.result-view-surface[data-liquid-glass-mode="liquid"].is-active .liquid-glass-content,
+.result-view-surface[data-liquid-glass-mode="liquid"].is-active .liquid-glass-content {
+  border-color: color-mix(in srgb, var(--accent) 52%, rgba(255, 255, 255, 0.58));
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.2), color-mix(in srgb, var(--accent) 20%, transparent)),
+    rgba(47, 131, 121, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.48),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 44%, transparent);
+}
+
 .map-tool-surface[data-liquid-glass-mode="liquid"] .tool-button.active {
   border-color: color-mix(in srgb, var(--route-color, var(--accent)) 56%, rgba(255, 255, 255, 0.8));
   box-shadow:
@@ -5153,6 +5209,34 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.26);
 }
 
+.result-view-surface[data-liquid-glass-mode="liquid"].is-active .result-view-button {
+  color: var(--accent-strong);
+}
+
+.target-run-surface[data-liquid-glass-mode="liquid"] {
+  width: 100%;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.target-run-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.target-run-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.target-run-surface[data-liquid-glass-mode="liquid"] .liquid-glass-fallback-content {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.target-run-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.target-run-surface[data-liquid-glass-mode="liquid"] .liquid-glass-fallback-content,
+.target-run-surface[data-liquid-glass-mode="liquid"] .target-submit-button {
+  display: grid;
+  place-items: center;
+}
+
 .target-run-surface .liquid-glass-content,
 .target-run-surface .liquid-glass-fallback-content {
   background: linear-gradient(180deg, #199b8f, #11756e);
@@ -5175,6 +5259,12 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
   color: #ffffff;
   background: transparent !important;
   box-shadow: none;
+}
+
+.target-run-surface[data-liquid-glass-mode="liquid"] .target-submit-button svg {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 .map-toolbar-surface .map-tool-surface .liquid-glass-content,
@@ -5250,6 +5340,24 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .liquid-glass-surface.liquid-glass-coverage.about-card-surface .liquid-glass-content,
 .liquid-glass-surface.liquid-glass-coverage.about-card-surface .liquid-glass-fallback-content,
 .liquid-glass-surface.liquid-glass-coverage.about-card-surface .about-card {
+  height: 100%;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface[data-liquid-glass-mode="liquid"],
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface[data-liquid-glass-mode="liquid"] .glass,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface[data-liquid-glass-mode="liquid"] .about-card {
+  min-height: 100%;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface[data-liquid-glass-mode="liquid"] {
+  align-self: stretch;
+}
+
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface[data-liquid-glass-mode="liquid"] .glass,
+.liquid-glass-surface.liquid-glass-coverage.about-card-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
   height: 100%;
 }
 
