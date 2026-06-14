@@ -317,6 +317,40 @@ export function FilterPanel(props: FilterPanelProps) {
                     <option value="UDP">UDP</option>
                   </NativeSelect>
                 </label>
+                <label className="compact-field port-field">
+                  <span>端口</span>
+                  <Input
+                    value={props.port}
+                    onChange={(event) => props.onPortChange(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="自动"
+                    aria-label="端口"
+                  />
+                </label>
+                <label className="compact-field packets-field">
+                  <span>Packets</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={16}
+                    value={props.packets}
+                    onChange={(event) =>
+                      props.onPacketsChange(Number(event.target.value))
+                    }
+                    aria-label="Packets"
+                  />
+                </label>
+              </div>
+
+              <div className="magic-limit-row">
+                <label className="field-label magic-field">
+                  <span>magic string</span>
+                  <MagicSuggestionTextarea
+                    value={visibleMagicValue(props.filters.magic)}
+                    options={filterSuggestions.magicStrings}
+                    onChange={(value) => setFilter("magic", value)}
+                  />
+                </label>
                 <label className="compact-field limit-field">
                   <span>Limit</span>
                   <Input
@@ -331,15 +365,6 @@ export function FilterPanel(props: FilterPanelProps) {
                   />
                 </label>
               </div>
-
-              <label className="field-label">
-                <span>magic string</span>
-                <MagicSuggestionTextarea
-                  value={visibleMagicValue(props.filters.magic)}
-                  options={filterSuggestions.magicStrings}
-                  onChange={(value) => setFilter("magic", value)}
-                />
-              </label>
             </section>
           </Surface>
 
@@ -574,32 +599,6 @@ function AdvancedParamsPanel({
   const liquidGlassIntensityId = useId();
   return (
     <div className="advanced-params-panel">
-      <div className="control-grid">
-        <label className="field-label">
-          <span>端口</span>
-          <Input
-            value={props.port}
-            onChange={(event) => props.onPortChange(event.target.value)}
-            inputMode="numeric"
-            placeholder="自动"
-            aria-label="端口"
-          />
-        </label>
-        <label className="field-label">
-          <span>Packets</span>
-          <Input
-            type="number"
-            min={1}
-            max={16}
-            value={props.packets}
-            onChange={(event) =>
-              props.onPacketsChange(Number(event.target.value))
-            }
-            aria-label="Packets"
-          />
-        </label>
-      </div>
-
       <div className="token-section">
         <div className="summary-title">
           <Monitor size={16} />

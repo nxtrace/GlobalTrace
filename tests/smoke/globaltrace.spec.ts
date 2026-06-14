@@ -61,6 +61,12 @@ for (const viewport of viewports) {
     await expect(page.getByRole("dialog", { name: "高级参数" })).toBeVisible();
     await expectGlassOverlayStructure(page, "高级参数");
     await expect(page.getByLabel("Globalping Token")).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "高级参数" }).getByLabel("Packets"),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog", { name: "高级参数" }).getByLabel("端口"),
+    ).toHaveCount(0);
     await expectNoPageOverflow(page);
     if (viewport.name === "390x844") {
       await page.screenshot({
@@ -77,6 +83,8 @@ for (const viewport of viewports) {
       "placeholder",
       "目标 IP 或域名，如 1.1.1.1、github.com",
     );
+    await expect(page.getByLabel("端口")).toHaveValue("");
+    await expect(page.getByLabel("Packets")).toHaveValue("5");
     await expect(page.getByText("目标", { exact: true })).toHaveCount(0);
     await expect(page.getByText("协议", { exact: true })).toHaveCount(0);
     const magicInput = page.getByLabel("magic string");
