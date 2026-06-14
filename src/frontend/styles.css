@@ -2375,6 +2375,37 @@ tbody tr:hover {
 
 .glass-overlay-result .glass-overlay-bare-surface {
   max-height: calc(100svh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color:
+    color-mix(in srgb, var(--ink-muted) 58%, transparent)
+    color-mix(in srgb, var(--panel-solid) 36%, transparent);
+}
+
+.glass-overlay-result .glass-overlay-bare-surface::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+.glass-overlay-result .glass-overlay-bare-surface::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-solid) 34%, transparent);
+}
+
+.glass-overlay-result .glass-overlay-bare-surface::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background:
+    color-mix(in srgb, var(--ink-muted) 56%, transparent)
+    padding-box;
+}
+
+.glass-overlay-result .glass-overlay-bare-surface::-webkit-scrollbar-thumb:hover {
+  background:
+    color-mix(in srgb, var(--accent-strong) 58%, var(--ink-muted))
+    padding-box;
 }
 
 .glass-overlay-result .glass-overlay-bare-surface > .results-section-surface {
@@ -2443,7 +2474,8 @@ tbody tr:hover {
 
 .hop-table-scroll {
   max-height: min(60vh, 640px);
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
 }
 
 .hop-table {

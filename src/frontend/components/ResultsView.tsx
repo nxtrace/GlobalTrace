@@ -363,6 +363,7 @@ function HopTable({
 }) {
   const rowRefs = useRef<Record<number, HTMLTableRowElement | null>>({});
   const cardRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const selectedTtls = selectedRouteNodeId ? (mapData.routeNodeById.get(selectedRouteNodeId)?.ttlList ?? []) : [];
 
   useEffect(() => {
@@ -372,6 +373,14 @@ function HopTable({
     cardRefs.current[firstTtl]?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
   }, [selectedRouteNodeId, selectedTtls]);
 
+  useEffect(() => {
+    const tableScroll = tableScrollRef.current;
+    if (!tableScroll) return;
+    const onWheel = (event: WheelEvent) => handleHopTableWheel(event, tableScroll);
+    tableScroll.addEventListener("wheel", onWheel, { passive: false });
+    return () => tableScroll.removeEventListener("wheel", onWheel);
+  }, []);
+
   if (!active.hops.length) {
     const failure = active.status === "failed" && active.rawOutput ? `该 probe 失败：${active.rawOutput}` : "该 probe 还没有 hop 数据。";
     return <div className="table-empty">{failure}</div>;
@@ -379,7 +388,7 @@ function HopTable({
 
   return (
     <div className="hop-layout">
-      <div className="table-scroll hop-table-scroll">
+      <div className="table-scroll hop-table-scroll" ref={tableScrollRef}>
         <Table className="hop-table">
           <TableHeader>
             <TableRow>
@@ -485,6 +494,38 @@ function HopTable({
       </details>
     </div>
   );
+}
+
+function handleHopTableWheel(event: WheelEvent, scrollArea: HTMLElement) {
+  if (event.shiftKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY) || event.deltaY === 0) return;
+
+  const deltaY = normalizeWheelDeltaY(event, scrollArea);
+  const maxScrollTop = scrollArea.scrollHeight - scrollArea.clientHeight;
+  const canScrollVertically = maxScrollTop > 1;
+  const atTop = scrollArea.scrollTop <= 1;
+  const atBottom = scrollArea.scrollTop >= maxScrollTop - 1;
+  const shouldDelegate = !canScrollVertically || (deltaY < 0 && atTop) || (deltaY > 0 && atBottom);
+
+  if (!shouldDelegate) return;
+
+  const resultPanel = scrollArea.closest(".glass-overlay-bare-surface, .glass-overlay-body") as HTMLElement | null;
+  if (!resultPanel) return;
+
+  const panelMaxScrollTop = resultPanel.scrollHeight - resultPanel.clientHeight;
+  if (panelMaxScrollTop <= 1) {
+    event.preventDefault();
+    return;
+  }
+
+  const nextScrollTop = Math.min(panelMaxScrollTop, Math.max(0, resultPanel.scrollTop + deltaY));
+  resultPanel.scrollTop = nextScrollTop;
+  event.preventDefault();
+}
+
+function normalizeWheelDeltaY(event: WheelEvent, scrollArea: HTMLElement): number {
+  if (event.deltaMode === 1) return event.deltaY * 16;
+  if (event.deltaMode === 2) return event.deltaY * scrollArea.clientHeight;
+  return event.deltaY;
 }
 
 function GeoIpMetric({ result }: { result: TraceResultResponse }) {

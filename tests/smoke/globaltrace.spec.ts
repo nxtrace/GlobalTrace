@@ -596,6 +596,22 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
   expect(consoleErrors).toEqual([]);
 });
 
+test("result overlay chains vertical wheel scrolling from hop table boundaries", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page, { traceResponse: longHopTraceResult(64) });
+
+  await page.goto("/?measurement=m-smoke");
+
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
+  await expect(page.getByLabel("trace result map")).toBeVisible();
+  await expectBareResultOverlay(page);
+  await expectResultHopTableWheelChaining(page);
+  await expectNoPageOverflow(page);
+  expect(consoleErrors).toEqual([]);
+});
+
 test("result route map normalizes antimeridian paths", async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 1024 });
   const consoleErrors = collectConsoleErrors(page);
@@ -1334,6 +1350,103 @@ async function expectBareResultOverlay(page: Page): Promise<void> {
   expect(state.hasPanel).toBe(false);
   expect(state.firstChildClassName).toContain("results-section-surface");
   expect(state.resultSurfaceMode).toMatch(/^(liquid|fallback)$/);
+}
+
+async function expectResultHopTableWheelChaining(page: Page): Promise<void> {
+  const table = page.locator(".hop-table-scroll");
+  await expect(table).toBeVisible();
+
+  const readState = () =>
+    page.evaluate(() => {
+      const dialog = document.querySelector(".glass-overlay-result .glass-overlay-bare-surface") as HTMLElement | null;
+      const tableScroll = document.querySelector(".hop-table-scroll") as HTMLElement | null;
+      const dialogStyle = dialog ? window.getComputedStyle(dialog) : null;
+      const tableStyle = tableScroll ? window.getComputedStyle(tableScroll) : null;
+      return {
+        dialogMaxScroll: dialog ? dialog.scrollHeight - dialog.clientHeight : 0,
+        dialogOverscrollX: dialogStyle?.overscrollBehaviorX ?? "",
+        dialogOverscrollY: dialogStyle?.overscrollBehaviorY ?? "",
+        dialogOverflowY: dialogStyle?.overflowY ?? "",
+        dialogScrollbarGutter: dialogStyle?.scrollbarGutter ?? "",
+        dialogScrollbarWidth: dialogStyle?.scrollbarWidth ?? "",
+        dialogScrollTop: dialog?.scrollTop ?? 0,
+        tableMaxScroll: tableScroll ? tableScroll.scrollHeight - tableScroll.clientHeight : 0,
+        tableOverscrollX: tableStyle?.overscrollBehaviorX ?? "",
+        tableOverscrollY: tableStyle?.overscrollBehaviorY ?? "",
+        tableOverflowX: tableStyle?.overflowX ?? "",
+        tableOverflowY: tableStyle?.overflowY ?? "",
+        tableScrollTop: tableScroll?.scrollTop ?? 0,
+        windowScrollY: window.scrollY,
+      };
+    });
+
+  const positionTableInDialog = async () => {
+    await table.evaluate((node) => {
+      const tableScroll = node as HTMLElement;
+      const dialog = tableScroll.closest(".glass-overlay-bare-surface") as HTMLElement | null;
+      if (!dialog) return;
+      const dialogRect = dialog.getBoundingClientRect();
+      const tableRect = tableScroll.getBoundingClientRect();
+      const nextScrollTop = dialog.scrollTop + tableRect.top - dialogRect.top - 24;
+      const maxScrollTop = dialog.scrollHeight - dialog.clientHeight;
+      dialog.scrollTop = Math.min(nextScrollTop, Math.max(0, maxScrollTop - 120));
+    });
+  };
+
+  const moveMouseToTable = async () => {
+    const point = await table.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        x: rect.left + Math.min(rect.width / 2, rect.width - 24),
+        y: Math.min(rect.bottom - 24, Math.max(rect.top + 44, rect.top + rect.height / 2)),
+      };
+    });
+    await page.mouse.move(point.x, point.y);
+  };
+
+  await positionTableInDialog();
+  await moveMouseToTable();
+
+  const initial = await readState();
+  expect(initial.dialogMaxScroll).toBeGreaterThan(0);
+  expect(initial.tableMaxScroll).toBeGreaterThan(0);
+  expect(initial.dialogOverflowY).toBe("auto");
+  expect(initial.dialogOverscrollX).toBe("contain");
+  expect(initial.dialogOverscrollY).toBe("contain");
+  expect(initial.dialogScrollbarGutter).toContain("stable");
+  expect(initial.dialogScrollbarWidth).toBe("auto");
+  expect(initial.tableOverflowX).toBe("auto");
+  expect(initial.tableOverflowY).toBe("auto");
+  expect(initial.tableOverscrollX).toBe("contain");
+  expect(initial.tableOverscrollY).toBe("auto");
+
+  await table.evaluate((node) => {
+    (node as HTMLElement).scrollTop = 0;
+  });
+  const beforeTableScroll = await readState();
+  await page.mouse.wheel(0, 180);
+  await expect.poll(async () => (await readState()).tableScrollTop).toBeGreaterThan(beforeTableScroll.tableScrollTop + 20);
+  const afterTableScroll = await readState();
+  expect(afterTableScroll.dialogScrollTop).toBeLessThanOrEqual(beforeTableScroll.dialogScrollTop + 2);
+
+  await table.evaluate((node) => {
+    const tableScroll = node as HTMLElement;
+    tableScroll.scrollTop = tableScroll.scrollHeight;
+  });
+  const beforeDownChain = await readState();
+  await page.mouse.wheel(0, 360);
+  await expect.poll(async () => (await readState()).dialogScrollTop).toBeGreaterThan(beforeDownChain.dialogScrollTop + 20);
+
+  await table.evaluate((node) => {
+    (node as HTMLElement).scrollTop = 0;
+  });
+  const beforeUpChain = await readState();
+  expect(beforeUpChain.dialogScrollTop).toBeGreaterThan(20);
+  await page.mouse.wheel(0, -360);
+  await expect.poll(async () => (await readState()).dialogScrollTop).toBeLessThan(beforeUpChain.dialogScrollTop - 20);
+
+  const final = await readState();
+  expect(final.windowScrollY).toBe(0);
 }
 
 async function expectBareAboutOverlay(page: Page): Promise<void> {
@@ -2544,6 +2657,25 @@ function multiProbeTraceResult(count: number): TraceResultResponse {
       longitude: base.probe.longitude + index * 0.1,
     },
   }));
+  return result;
+}
+
+function longHopTraceResult(count: number): TraceResultResponse {
+  const result = traceResult("finished");
+  const active = result.results[0];
+  if (!active) return result;
+  active.hops = Array.from({ length: count }, (_, index) => {
+    const ttl = index + 1;
+    const lat = 34 + (index % 9) * 3;
+    const lng = -118 + (index % 12) * 8;
+    return traceHop(ttl, `203.0.113.${ttl}`, lat, lng, {
+      country_en: index % 2 === 0 ? "United States" : "Canada",
+      prov_en: `Region ${ttl}`,
+      city_en: `Hop City ${ttl}`,
+    });
+  });
+  active.rawOutput = active.hops.map((hop) => `${hop.ttl} ${hop.ip} ${hop.stats?.avg}ms`).join("\n");
+  result.enrichment.fetched = count;
   return result;
 }
 
