@@ -2377,16 +2377,10 @@ tbody tr:hover {
   max-height: calc(100svh - 32px);
   overflow: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
   scrollbar-width: auto;
   scrollbar-color:
     color-mix(in srgb, var(--ink-muted) 58%, transparent)
     color-mix(in srgb, var(--panel-solid) 36%, transparent);
-}
-
-.glass-overlay-result .glass-overlay-bare-surface::-webkit-scrollbar {
-  width: 14px;
-  height: 14px;
 }
 
 .glass-overlay-result .glass-overlay-bare-surface::-webkit-scrollbar-track {
@@ -2406,6 +2400,17 @@ tbody tr:hover {
   background:
     color-mix(in srgb, var(--accent-strong) 58%, var(--ink-muted))
     padding-box;
+}
+
+@media (min-width: 821px) {
+  .glass-overlay-result .glass-overlay-bare-surface {
+    scrollbar-gutter: stable;
+  }
+
+  .glass-overlay-result .glass-overlay-bare-surface::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 .glass-overlay-result .glass-overlay-bare-surface > .results-section-surface {
