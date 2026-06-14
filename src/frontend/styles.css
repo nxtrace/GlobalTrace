@@ -707,7 +707,7 @@ summary:focus-visible {
 
 .parameter-pill-grid {
   display: grid;
-  grid-template-columns: minmax(86px, 1.08fr) minmax(64px, 0.78fr) minmax(76px, 0.92fr) minmax(60px, 0.72fr);
+  grid-template-columns: minmax(86px, 1.08fr) minmax(68px, 0.78fr) minmax(78px, 0.92fr) minmax(64px, 0.72fr);
   gap: 5px;
   align-items: stretch;
   min-width: 0;
@@ -794,18 +794,20 @@ summary:focus-visible {
 }
 
 .port-pill-value {
-  flex: 0 0 3.5ch;
+  flex: 0 0 auto;
+  min-width: 3.5ch;
 }
 
 .numeric-pill-value {
-  flex: 0 0 2ch;
+  flex: 0 0 auto;
+  min-width: 2ch;
 }
 
 .port-pill .parameter-pill-label,
 .packets-pill .parameter-pill-label,
 .limit-pill .parameter-pill-label {
-  min-width: 0;
-  overflow: hidden;
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .protocol-pill {
@@ -3506,7 +3508,7 @@ pre {
   }
 
   .parameter-pill-grid {
-    grid-template-columns: minmax(86px, 1.08fr) minmax(64px, 0.78fr) minmax(76px, 0.92fr) minmax(60px, 0.72fr);
+    grid-template-columns: minmax(86px, 1.08fr) minmax(68px, 0.78fr) minmax(78px, 0.92fr) minmax(64px, 0.72fr);
     gap: 5px;
   }
 
@@ -4807,7 +4809,7 @@ textarea:hover {
   }
 
   .parameter-pill-grid {
-    grid-template-columns: minmax(82px, 1.05fr) minmax(60px, 0.76fr) minmax(72px, 0.9fr) minmax(58px, 0.7fr);
+    grid-template-columns: minmax(82px, 1.05fr) minmax(64px, 0.76fr) minmax(72px, 0.9fr) minmax(58px, 0.7fr);
     gap: 4px;
   }
 

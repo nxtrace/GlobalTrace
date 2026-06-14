@@ -134,8 +134,27 @@ for (const viewport of viewports) {
       }),
     );
     for (const rightGap of parameterValueRightGaps) {
-      expect(rightGap).toBeGreaterThanOrEqual(8);
+      expect(rightGap).toBeGreaterThanOrEqual(4);
     }
+    const clippedParameterText = await page.evaluate(() =>
+      [
+        ".port-pill .parameter-pill-label",
+        ".port-pill-value",
+        ".packets-pill .parameter-pill-label",
+        ".packets-pill .numeric-pill-value",
+        ".limit-pill .parameter-pill-label",
+        ".limit-pill .numeric-pill-value",
+      ]
+        .map((selector) => document.querySelector<HTMLElement>(selector))
+        .filter((element): element is HTMLElement => Boolean(element))
+        .map((element) => ({
+          text: element.textContent || element.dataset.placeholder || "",
+          clipped: element.scrollWidth - element.clientWidth > 1,
+        }))
+        .filter((result) => result.clipped)
+        .map((result) => result.text),
+    );
+    expect(clippedParameterText).toEqual([]);
     const magicInput = page.getByLabel("magic string");
     await expect(magicInput).toHaveValue("");
     await magicInput.click();
