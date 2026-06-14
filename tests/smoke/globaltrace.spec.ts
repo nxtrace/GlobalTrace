@@ -324,13 +324,16 @@ for (const viewport of viewports) {
   });
 }
 
-test("first-time result layout dialog stores the selected order", async ({
+test("first-time result layout dialog stays above shared result links", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await installMocks(page, { resultLayoutPreference: null });
+  await installMocks(page, {
+    resultLayoutPreference: null,
+    traceResponse: traceResult("finished", "m-smoke"),
+  });
 
-  await page.goto("/");
+  await page.goto("/?measurement=m-smoke");
 
   const dialog = page.getByRole("dialog", { name: "选择结果页显示顺序" });
   await expect(dialog).toBeVisible();
@@ -344,6 +347,12 @@ test("first-time result layout dialog stores the selected order", async ({
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
 
+  const blockingZIndex = await page
+    .locator(".glass-overlay-blocking")
+    .evaluate((overlay) =>
+      Number.parseInt(window.getComputedStyle(overlay).zIndex, 10),
+    );
+
   await dialog.getByRole("button", { name: "地图优先" }).click();
   await expect(dialog).toHaveCount(0);
   await expect
@@ -352,13 +361,16 @@ test("first-time result layout dialog stores the selected order", async ({
     )
     .toBe("map-first");
 
-  await expect(page.getByLabel("probe map")).toBeVisible();
-  await page.getByRole("button", { name: "打开高级参数" }).click();
-  const advancedDialog = page.getByRole("dialog", { name: "高级参数" });
-  await expect(advancedDialog.getByText("结果页显示顺序：")).toBeVisible();
   await expect(
-    advancedDialog.getByRole("radio", { name: "地图优先" }),
-  ).toBeChecked();
+    page.getByText("finished · 1 probes · m-smoke"),
+  ).toBeVisible();
+  const resultZIndex = await page
+    .locator(".glass-overlay-result")
+    .evaluate((overlay) =>
+      Number.parseInt(window.getComputedStyle(overlay).zIndex, 10),
+    );
+  expect(blockingZIndex).toBeGreaterThan(resultZIndex);
+  await expectBareResultOverlay(page);
 });
 
 for (const viewport of [

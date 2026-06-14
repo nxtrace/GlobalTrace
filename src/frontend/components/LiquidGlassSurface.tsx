@@ -46,6 +46,7 @@ interface LiquidGlassSurfaceProps {
   ariaLabel?: string;
   title?: string;
   actionRole?: "button" | "none";
+  cornerRadius?: number;
 }
 
 export function LiquidGlassPreferenceProvider({ children, enabled, intensity }: LiquidGlassPreferenceProviderProps) {
@@ -71,6 +72,7 @@ export function LiquidGlassSurface({
   ariaLabel,
   title,
   actionRole = "button",
+  cornerRadius,
 }: LiquidGlassSurfaceProps) {
   const liquidGlassPreference = useLiquidGlassPreference();
   const forceFallback = useForceFallback(liquidGlassPreference.enabled);
@@ -97,7 +99,10 @@ export function LiquidGlassSurface({
     };
   }, [LiquidGlass, canUseLiquid]);
 
-  const glassProps = liquidPropsForVariant(variant, liquidGlassPreference.intensity);
+  const glassProps = {
+    ...liquidPropsForVariant(variant, liquidGlassPreference.intensity),
+    ...(cornerRadius !== undefined ? { cornerRadius } : {}),
+  };
   const actionClick = !disabled ? onClick : undefined;
   const feedbackClick = !disabled && (interactive || onClick) ? (onClick ?? noop) : undefined;
   const liquidInteractionProps = feedbackClick ? { onClick: feedbackClick } : {};

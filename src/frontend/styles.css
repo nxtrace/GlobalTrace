@@ -2635,38 +2635,111 @@ tbody tr:hover {
 
 .result-layout-choice {
   display: grid;
-  gap: 14px;
-  padding: 8px 0 4px;
+  gap: 12px;
+  padding: 0;
 }
 
 .result-layout-choice p {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .result-layout-choice-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .result-layout-choice-surface {
   width: 100%;
-  min-height: 42px;
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 760;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
+.result-layout-choice-surface .liquid-glass-package,
 .result-layout-choice-surface .liquid-glass-content,
 .result-layout-choice-surface .liquid-glass-fallback-content {
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 14px;
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.result-layout-choice-button {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 14px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.result-layout-choice-button:hover {
+  transform: translateY(-1px);
+}
+
+.result-layout-choice-surface .result-layout-choice-button {
+  border-color: transparent !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.result-layout-choice-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.result-layout-choice-panel,
+.glass-overlay-blocking.glass-overlay-compact .result-layout-choice-panel {
+  width: min(420px, calc(100vw - 32px));
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.result-layout-choice-panel .liquid-glass-package,
+.result-layout-choice-panel .liquid-glass-content,
+.result-layout-choice-panel .liquid-glass-fallback-content {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.result-layout-choice-panel .glass-overlay-panel {
+  border-radius: 18px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.result-layout-choice-panel .glass-overlay-header {
+  padding: 11px 14px;
+}
+
+.result-layout-choice-panel .glass-overlay-header h2 {
+  font-size: 16px;
+}
+
+.result-layout-choice-panel .glass-overlay-body {
+  padding: 12px 14px 14px;
+}
+
+@media (max-width: 460px) {
+  .result-layout-choice-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 .glass-overlay {
@@ -2679,6 +2752,10 @@ tbody tr:hover {
   background:
     linear-gradient(135deg, rgba(5, 10, 15, 0.18), rgba(5, 10, 15, 0.08)),
     rgba(0, 0, 0, 0.12);
+}
+
+.glass-overlay-blocking {
+  z-index: 400;
 }
 
 .glass-overlay-center {

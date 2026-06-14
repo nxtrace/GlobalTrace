@@ -1,4 +1,4 @@
-import { AlertCircle, Eye, Loader2 } from "lucide-react";
+import { AlertCircle, Eye, Loader2, Map as MapIcon, Table2 } from "lucide-react";
 import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   createTrace,
@@ -95,7 +95,7 @@ export function App() {
   const [liquidGlassIntensity, setLiquidGlassIntensity] = useState(readStoredLiquidGlassIntensity);
   const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
   const [storedResultContentOrder] = useState<ResultContentOrder | null>(() => readStoredResultContentOrder());
-  const [resultContentOrder, setResultContentOrder] = useState<ResultContentOrder>(storedResultContentOrder ?? "table-first");
+  const [resultContentOrder, setResultContentOrder] = useState<ResultContentOrder>(storedResultContentOrder ?? "map-first");
   const [resultContentOrderPromptOpen, setResultContentOrderPromptOpen] = useState(storedResultContentOrder === null);
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
   const [storedGlobalpingToken] = useState(readStoredGlobalpingToken);
@@ -862,28 +862,25 @@ function ResultContentOrderDialog({
       size="compact"
       placement="center"
       dismissible={false}
+      priority="blocking"
+      className="result-layout-choice-panel"
+      surfaceCornerRadius={18}
       onClose={() => undefined}
     >
       <section className="result-layout-choice" aria-label="选择结果页显示顺序">
         <p>后续如果还想改，可以在高级参数中修改。</p>
         <div className="result-layout-choice-actions" aria-label="结果页显示顺序">
-          <LiquidGlassSurface
-            variant="button"
-            interactive
-            ariaLabel="地图优先"
-            className="result-layout-choice-surface"
-            onClick={() => onSelect("map-first")}
-          >
-            地图优先
+          <LiquidGlassSurface variant="button" interactive actionRole="none" cornerRadius={14} className="result-layout-choice-surface">
+            <Button variant="glass" type="button" className="result-layout-choice-button" onClick={() => onSelect("map-first")}>
+              <MapIcon size={16} aria-hidden="true" />
+              地图优先
+            </Button>
           </LiquidGlassSurface>
-          <LiquidGlassSurface
-            variant="button"
-            interactive
-            ariaLabel="表格优先"
-            className="result-layout-choice-surface"
-            onClick={() => onSelect("table-first")}
-          >
-            表格优先
+          <LiquidGlassSurface variant="button" interactive actionRole="none" cornerRadius={14} className="result-layout-choice-surface">
+            <Button variant="glass" type="button" className="result-layout-choice-button" onClick={() => onSelect("table-first")}>
+              <Table2 size={16} aria-hidden="true" />
+              表格优先
+            </Button>
           </LiquidGlassSurface>
         </div>
       </section>

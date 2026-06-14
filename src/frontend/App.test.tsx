@@ -224,6 +224,7 @@ describe("App", () => {
 
     const dialog = screen.getByRole("dialog", { name: "选择结果页显示顺序" });
     expect(within(dialog).getByText("后续如果还想改，可以在高级参数中修改。")).toBeInTheDocument();
+    expect(dialog.closest(".glass-overlay-blocking")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "关闭选择结果页显示顺序" })).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
@@ -233,6 +234,32 @@ describe("App", () => {
     await waitFor(() => {
       expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("table-first");
     });
+    expect(screen.queryByRole("dialog", { name: "选择结果页显示顺序" })).not.toBeInTheDocument();
+  });
+
+  it("keeps first-time result order choice above shared result links", async () => {
+    window.localStorage.removeItem("globaltrace.resultLayout");
+    window.history.replaceState(null, "", "/?measurement=m123");
+    mockApi({ traceStatus: () => "finished" });
+
+    render(<App />);
+
+    const initialChoiceDialog = screen.getByRole("dialog", { name: "选择结果页显示顺序" });
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(initialChoiceDialog).toBeInTheDocument();
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    const resultDialog = screen.getByRole("dialog", { name: "诊断结果" });
+    const choiceDialog = screen.getByRole("dialog", { name: "选择结果页显示顺序" });
+    expect(resultDialog.closest(".glass-overlay-result")).not.toBeNull();
+    expect(choiceDialog.closest(".glass-overlay-blocking")).not.toBeNull();
+    expect(screen.getByText("layout:map-first")).toBeInTheDocument();
+
+    fireEvent.click(within(choiceDialog).getByRole("button", { name: "地图优先" }));
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("map-first");
+    });
+    expect(screen.getByText("result:finished:m123")).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "选择结果页显示顺序" })).not.toBeInTheDocument();
   });
 

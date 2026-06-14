@@ -14,6 +14,8 @@ interface GlassOverlayProps {
   chrome?: "default" | "bare";
   placement?: "center" | "sheet";
   dismissible?: boolean;
+  priority?: "default" | "blocking";
+  surfaceCornerRadius?: number;
 }
 
 export function GlassOverlay({
@@ -26,17 +28,20 @@ export function GlassOverlay({
   chrome = "default",
   placement = "center",
   dismissible = true,
+  priority = "default",
+  surfaceCornerRadius,
 }: GlassOverlayProps) {
   const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (priority !== "blocking" && document.querySelector(".glass-overlay-blocking")) return;
       if (dismissible && event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [dismissible, onClose, open]);
+  }, [dismissible, onClose, open, priority]);
 
   if (!open) return null;
 
@@ -44,7 +49,15 @@ export function GlassOverlay({
     if (dismissible && event.target === event.currentTarget) onClose();
   };
 
-  const overlayClassName = `glass-overlay glass-overlay-${size} glass-overlay-${placement} glass-overlay-chrome-${chrome}`;
+  const overlayClassName = [
+    "glass-overlay",
+    `glass-overlay-${size}`,
+    `glass-overlay-${placement}`,
+    `glass-overlay-chrome-${chrome}`,
+    priority === "blocking" ? "glass-overlay-blocking" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   if (chrome === "bare") {
     const overlay = (
@@ -64,7 +77,12 @@ export function GlassOverlay({
 
   return renderOverlay(
     <div className={overlayClassName} onMouseDown={closeFromBackdrop}>
-      <LiquidGlassSurface variant="floatingPanel" fullWidth className={`glass-overlay-surface ${className}`.trim()}>
+      <LiquidGlassSurface
+        variant="floatingPanel"
+        fullWidth
+        cornerRadius={surfaceCornerRadius}
+        className={`glass-overlay-surface ${className}`.trim()}
+      >
         <section className="glass-overlay-panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <header className="glass-overlay-header">
             <h2 id={titleId}>{title}</h2>
