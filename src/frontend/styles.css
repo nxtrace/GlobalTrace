@@ -956,6 +956,17 @@ summary:focus-visible {
   accent-color: var(--accent);
 }
 
+.result-layout-setting {
+  display: grid;
+  gap: 8px;
+}
+
+.result-layout-setting > span {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 740;
+}
+
 .result-layout-control span {
   min-width: 0;
   font-size: 12px;
@@ -2620,6 +2631,42 @@ tbody tr:hover {
   color: var(--ink-muted);
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.result-layout-choice {
+  display: grid;
+  gap: 14px;
+  padding: 8px 0 4px;
+}
+
+.result-layout-choice p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.result-layout-choice-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.result-layout-choice-surface {
+  width: 100%;
+  min-height: 42px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.result-layout-choice-surface .liquid-glass-content,
+.result-layout-choice-surface .liquid-glass-fallback-content {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
 }
 
 .glass-overlay {

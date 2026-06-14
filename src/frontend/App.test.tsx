@@ -84,6 +84,7 @@ beforeEach(() => {
     configurable: true,
     value: createMemoryStorage(),
   });
+  window.localStorage.setItem("globaltrace.resultLayout", "table-first");
   setNavigatorDevice({ userAgent: "Mozilla/5.0 (X11; Linux x86_64)", platform: "Linux x86_64" });
 });
 
@@ -198,14 +199,14 @@ describe("App", () => {
 
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
-    expect(screen.getByRole("radio", { name: "地图在上" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "地图优先" })).toBeChecked();
 
-    fireEvent.click(screen.getByRole("radio", { name: "表格在上" }));
+    fireEvent.click(screen.getByRole("radio", { name: "表格优先" }));
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBeNull();
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("table-first");
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "地图在上" }));
+    fireEvent.click(screen.getByRole("radio", { name: "地图优先" }));
     await waitFor(() => {
       expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("map-first");
     });
@@ -214,6 +215,57 @@ describe("App", () => {
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(screen.getByText("layout:map-first")).toBeInTheDocument();
   });
+
+  it("asks first-time users to choose the result content order", async () => {
+    window.localStorage.removeItem("globaltrace.resultLayout");
+    mockApi();
+
+    render(<App />);
+
+    const dialog = screen.getByRole("dialog", { name: "选择结果页显示顺序" });
+    expect(within(dialog).getByText("后续如果还想改，可以在高级参数中修改。")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "关闭选择结果页显示顺序" })).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("dialog", { name: "选择结果页显示顺序" })).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "表格优先" }));
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("table-first");
+    });
+    expect(screen.queryByRole("dialog", { name: "选择结果页显示顺序" })).not.toBeInTheDocument();
+  });
+
+  it("uses first-time map-first selection for the result page", async () => {
+    window.localStorage.removeItem("globaltrace.resultLayout");
+    mockApi();
+
+    render(<App />);
+
+    const dialog = screen.getByRole("dialog", { name: "选择结果页显示顺序" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "地图优先" }));
+    await waitFor(() => {
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("map-first");
+    });
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(screen.getByText("layout:map-first")).toBeInTheDocument();
+  });
+
+  it.each(["table-first", "map-first"] as const)(
+    "does not ask for result content order when %s is stored",
+    async (storedOrder) => {
+      window.localStorage.setItem("globaltrace.resultLayout", storedOrder);
+      mockApi();
+
+      render(<App />);
+
+      await screen.findByText("2 / 2 probes 匹配");
+      expect(screen.queryByRole("dialog", { name: "选择结果页显示顺序" })).not.toBeInTheDocument();
+    },
+  );
 
   it("persists theme mode locally", async () => {
     mockApi();

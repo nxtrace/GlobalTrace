@@ -324,6 +324,43 @@ for (const viewport of viewports) {
   });
 }
 
+test("first-time result layout dialog stores the selected order", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await installMocks(page, { resultLayoutPreference: null });
+
+  await page.goto("/");
+
+  const dialog = page.getByRole("dialog", { name: "选择结果页显示顺序" });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByText("后续如果还想改，可以在高级参数中修改。"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "关闭选择结果页显示顺序" }),
+  ).toHaveCount(0);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole("button", { name: "地图优先" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.localStorage.getItem("globaltrace.resultLayout")),
+    )
+    .toBe("map-first");
+
+  await expect(page.getByLabel("probe map")).toBeVisible();
+  await page.getByRole("button", { name: "打开高级参数" }).click();
+  const advancedDialog = page.getByRole("dialog", { name: "高级参数" });
+  await expect(advancedDialog.getByText("结果页显示顺序：")).toBeVisible();
+  await expect(
+    advancedDialog.getByRole("radio", { name: "地图优先" }),
+  ).toBeChecked();
+});
+
 for (const viewport of [
   { name: "1440x1000", width: 1440, height: 1000 },
   { name: "390x844", width: 390, height: 844 },
@@ -1335,6 +1372,7 @@ interface MockOptions {
   traceResponse?: TraceResultResponse;
   beforeMeasurementResponse?: () => Promise<void>;
   probes?: GlobalpingProbe[];
+  resultLayoutPreference?: "table-first" | "map-first" | null;
 }
 
 async function installBackgroundMock(page: Page): Promise<void> {
@@ -1382,6 +1420,13 @@ async function installMocks(
   const measurementId = options.measurementId || "m-smoke";
   const mockProbes = options.probes || probes;
   const traceRequests: GlobalpingMeasurementRequest[] = [];
+  if (options.resultLayoutPreference !== null) {
+    const resultLayoutPreference =
+      options.resultLayoutPreference || "table-first";
+    await page.addInitScript((value) => {
+      window.localStorage.setItem("globaltrace.resultLayout", value);
+    }, resultLayoutPreference);
+  }
   await page.route("**/mock-style.json", async (route) => {
     styleRequests += 1;
     await route.fulfill({

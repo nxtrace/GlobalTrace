@@ -13,6 +13,7 @@ interface GlassOverlayProps {
   size?: "compact" | "about" | "result";
   chrome?: "default" | "bare";
   placement?: "center" | "sheet";
+  dismissible?: boolean;
 }
 
 export function GlassOverlay({
@@ -24,22 +25,23 @@ export function GlassOverlay({
   size = "compact",
   chrome = "default",
   placement = "center",
+  dismissible = true,
 }: GlassOverlayProps) {
   const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (dismissible && event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, open]);
+  }, [dismissible, onClose, open]);
 
   if (!open) return null;
 
   const closeFromBackdrop = (event: MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) onClose();
+    if (dismissible && event.target === event.currentTarget) onClose();
   };
 
   const overlayClassName = `glass-overlay glass-overlay-${size} glass-overlay-${placement} glass-overlay-chrome-${chrome}`;
@@ -66,17 +68,19 @@ export function GlassOverlay({
         <section className="glass-overlay-panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
           <header className="glass-overlay-header">
             <h2 id={titleId}>{title}</h2>
-            <LiquidGlassSurface
-              variant="iconButton"
-              interactive
-              actionRole="none"
-              onClick={onClose}
-              className="liquid-glass-coverage overlay-close-surface"
-            >
-              <Button variant="ghost" size="icon" type="button" aria-label={`关闭${title}`}>
-                <X size={18} />
-              </Button>
-            </LiquidGlassSurface>
+            {dismissible ? (
+              <LiquidGlassSurface
+                variant="iconButton"
+                interactive
+                actionRole="none"
+                onClick={onClose}
+                className="liquid-glass-coverage overlay-close-surface"
+              >
+                <Button variant="ghost" size="icon" type="button" aria-label={`关闭${title}`}>
+                  <X size={18} />
+                </Button>
+              </LiquidGlassSurface>
+            ) : null}
           </header>
           <div className="glass-overlay-body">{children}</div>
         </section>

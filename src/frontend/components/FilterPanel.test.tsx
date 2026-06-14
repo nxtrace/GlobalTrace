@@ -214,14 +214,18 @@ describe("FilterPanel", () => {
     expect(
       within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" }),
     ).toBeChecked();
+    expect(within(advancedDialog).getByText("结果页显示顺序：")).toBeVisible();
     const layoutGroup = within(advancedDialog).getByRole("radiogroup", {
-      name: "结果页布局",
+      name: "结果页显示顺序",
     });
+    const layoutOptions = within(layoutGroup).getAllByRole("radio");
+    expect(layoutOptions[0]).toHaveAccessibleName("地图优先");
+    expect(layoutOptions[1]).toHaveAccessibleName("表格优先");
     expect(
-      within(layoutGroup).getByRole("radio", { name: "表格在上" }),
+      within(layoutGroup).getByRole("radio", { name: "表格优先" }),
     ).toBeChecked();
     expect(
-      within(layoutGroup).getByRole("radio", { name: "地图在上" }),
+      within(layoutGroup).getByRole("radio", { name: "地图优先" }),
     ).not.toBeChecked();
     expect(
       within(advancedDialog).queryByLabelText("端口"),
@@ -322,7 +326,7 @@ describe("FilterPanel", () => {
     });
 
     openAdvancedParams();
-    fireEvent.click(screen.getByRole("radio", { name: "地图在上" }));
+    fireEvent.click(screen.getByRole("radio", { name: "地图优先" }));
 
     expect(onResultContentOrderChange).toHaveBeenCalledWith("map-first");
   });

@@ -642,25 +642,28 @@ function AdvancedParamsPanel({
             aria-label="液态玻璃强度"
           />
         </div>
-        <div className="segmented result-layout-control" role="radiogroup" aria-label="结果页布局">
-          <label className={props.resultContentOrder === "table-first" ? "selected" : ""}>
-            <span>表格在上</span>
-            <input
-              type="radio"
-              name="result-content-order"
-              checked={props.resultContentOrder === "table-first"}
-              onChange={() => props.onResultContentOrderChange("table-first")}
-            />
-          </label>
-          <label className={props.resultContentOrder === "map-first" ? "selected" : ""}>
-            <span>地图在上</span>
-            <input
-              type="radio"
-              name="result-content-order"
-              checked={props.resultContentOrder === "map-first"}
-              onChange={() => props.onResultContentOrderChange("map-first")}
-            />
-          </label>
+        <div className="result-layout-setting">
+          <span>结果页显示顺序：</span>
+          <div className="segmented result-layout-control" role="radiogroup" aria-label="结果页显示顺序">
+            <label className={props.resultContentOrder === "map-first" ? "selected" : ""}>
+              <span>地图优先</span>
+              <input
+                type="radio"
+                name="result-content-order"
+                checked={props.resultContentOrder === "map-first"}
+                onChange={() => props.onResultContentOrderChange("map-first")}
+              />
+            </label>
+            <label className={props.resultContentOrder === "table-first" ? "selected" : ""}>
+              <span>表格优先</span>
+              <input
+                type="radio"
+                name="result-content-order"
+                checked={props.resultContentOrder === "table-first"}
+                onChange={() => props.onResultContentOrderChange("table-first")}
+              />
+            </label>
+          </div>
         </div>
       </div>
 

@@ -94,7 +94,9 @@ export function App() {
   const [liquidGlassEnabled, setLiquidGlassEnabled] = useState(readStoredLiquidGlassEnabled);
   const [liquidGlassIntensity, setLiquidGlassIntensity] = useState(readStoredLiquidGlassIntensity);
   const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
-  const [resultContentOrder, setResultContentOrder] = useState<ResultContentOrder>(readStoredResultContentOrder);
+  const [storedResultContentOrder] = useState<ResultContentOrder | null>(() => readStoredResultContentOrder());
+  const [resultContentOrder, setResultContentOrder] = useState<ResultContentOrder>(storedResultContentOrder ?? "table-first");
+  const [resultContentOrderPromptOpen, setResultContentOrderPromptOpen] = useState(storedResultContentOrder === null);
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
   const [storedGlobalpingToken] = useState(readStoredGlobalpingToken);
   const [globalpingToken, setGlobalpingToken] = useState(storedGlobalpingToken.token);
@@ -184,10 +186,6 @@ export function App() {
   useEffect(() => {
     writeStoredResultMapProjection(resultMapProjection);
   }, [resultMapProjection]);
-
-  useEffect(() => {
-    writeStoredResultContentOrder(resultContentOrder);
-  }, [resultContentOrder]);
 
   useEffect(() => {
     if (bootstrappedRef.current) return;
@@ -588,6 +586,12 @@ export function App() {
     writeStoredLiquidGlassIntensity(intensity);
   }, []);
 
+  const updateResultContentOrder = useCallback((order: ResultContentOrder) => {
+    setResultContentOrder(order);
+    writeStoredResultContentOrder(order);
+    setResultContentOrderPromptOpen(false);
+  }, []);
+
   const navigateAbout = useCallback(() => {
     window.history.pushState(null, "", "/about");
     setRoute("/about");
@@ -653,7 +657,7 @@ export function App() {
           onCycleThemeMode={cycleThemeMode}
           onLiquidGlassEnabledChange={updateLiquidGlassEnabled}
           onLiquidGlassIntensityChange={updateLiquidGlassIntensity}
-          onResultContentOrderChange={setResultContentOrder}
+          onResultContentOrderChange={updateResultContentOrder}
           onNavigateHome={navigateHome}
           onNavigateAbout={navigateAbout}
           onReset={reset}
@@ -763,6 +767,11 @@ export function App() {
           <ResultsViewFallback />
         )}
       </GlassOverlay>
+
+      <ResultContentOrderDialog
+        open={resultContentOrderPromptOpen}
+        onSelect={updateResultContentOrder}
+      />
     </LiquidGlassPreferenceProvider>
   );
 }
@@ -834,6 +843,49 @@ function MeasurementLoadingDialog({
         <Loader2 size={24} className="spin" />
         <p>正在读取 Globalping measurement，完成后会自动展示结果。</p>
         {measurementId && <span>{measurementId}</span>}
+      </section>
+    </GlassOverlay>
+  );
+}
+
+function ResultContentOrderDialog({
+  open,
+  onSelect,
+}: {
+  open: boolean;
+  onSelect: (value: ResultContentOrder) => void;
+}) {
+  return (
+    <GlassOverlay
+      open={open}
+      title="选择结果页显示顺序"
+      size="compact"
+      placement="center"
+      dismissible={false}
+      onClose={() => undefined}
+    >
+      <section className="result-layout-choice" aria-label="选择结果页显示顺序">
+        <p>后续如果还想改，可以在高级参数中修改。</p>
+        <div className="result-layout-choice-actions" aria-label="结果页显示顺序">
+          <LiquidGlassSurface
+            variant="button"
+            interactive
+            ariaLabel="地图优先"
+            className="result-layout-choice-surface"
+            onClick={() => onSelect("map-first")}
+          >
+            地图优先
+          </LiquidGlassSurface>
+          <LiquidGlassSurface
+            variant="button"
+            interactive
+            ariaLabel="表格优先"
+            className="result-layout-choice-surface"
+            onClick={() => onSelect("table-first")}
+          >
+            表格优先
+          </LiquidGlassSurface>
+        </div>
       </section>
     </GlassOverlay>
   );
@@ -995,21 +1047,18 @@ function writeStoredResultMapProjection(projection: MapProjection): void {
   }
 }
 
-function readStoredResultContentOrder(): ResultContentOrder {
+function readStoredResultContentOrder(): ResultContentOrder | null {
   try {
-    return window.localStorage.getItem(RESULT_CONTENT_ORDER_STORAGE_KEY) === "map-first" ? "map-first" : "table-first";
+    const stored = window.localStorage.getItem(RESULT_CONTENT_ORDER_STORAGE_KEY);
+    return stored === "map-first" || stored === "table-first" ? stored : null;
   } catch {
-    return "table-first";
+    return null;
   }
 }
 
 function writeStoredResultContentOrder(order: ResultContentOrder): void {
   try {
-    if (order === "map-first") {
-      window.localStorage.setItem(RESULT_CONTENT_ORDER_STORAGE_KEY, order);
-      return;
-    }
-    window.localStorage.removeItem(RESULT_CONTENT_ORDER_STORAGE_KEY);
+    window.localStorage.setItem(RESULT_CONTENT_ORDER_STORAGE_KEY, order);
   } catch {
     // Result layout persistence is best-effort.
   }
