@@ -350,7 +350,7 @@ export function ProbeMap({
         <div className="map-status" aria-live="polite">
           <div>
             <strong>{mapStatusText(status, probes.length, totalProbes)}</strong>
-            <span>{selectionNotice || "点选地图表示选择筛选条件，不承诺指定精确 probe"}</span>
+            <span>{selectionNotice || "点选地图选择筛选条件"}</span>
           </div>
           <div className="map-legend" aria-label="probe 类型图例">
             <Badge variant="accent"><i className="legend-dot eyeball" /> eyeball</Badge>

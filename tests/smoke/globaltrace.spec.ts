@@ -111,7 +111,7 @@ for (const viewport of viewports) {
       await page.getByRole("button", { name: "取消地图筛选" }).click();
       await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
       await expect(page.getByTestId("filter-chips")).toContainText("world");
-      await expect(page.getByLabel("probe map").getByText("点选地图表示选择筛选条件，不承诺指定精确 probe")).toBeVisible();
+      await expect(page.getByLabel("probe map").getByText("点选地图选择筛选条件")).toBeVisible();
       await expect(page.getByRole("button", { name: "取消地图筛选" })).toHaveCount(0);
       await expect(page.getByLabel("probes")).toHaveValue("3");
       await clickMapCoordinate(page, [-118.24, 34.05]);
@@ -1597,7 +1597,7 @@ async function expectProbeMapOverviewZoom(page: Page, minZoom: number): Promise<
 async function expectCompactHomeProbeMapLayout(page: Page): Promise<number> {
   const mapSection = page.locator(".map-section");
   await expect(mapSection.getByText("3 / 3 probes", { exact: true })).toBeVisible();
-  await expect(mapSection.getByText("点选地图表示选择筛选条件，不承诺指定精确 probe")).toBeVisible();
+  await expect(mapSection.getByText("点选地图选择筛选条件")).toBeVisible();
   await expect(mapSection.getByText("eyeball", { exact: true })).toBeVisible();
   await expect(mapSection.getByText("datacenter", { exact: true })).toBeVisible();
 
