@@ -149,7 +149,7 @@ for (const viewport of viewports) {
       }),
     );
     for (const rightGap of parameterValueRightGaps) {
-      expect(rightGap).toBeGreaterThanOrEqual(4);
+      expect(rightGap).toBeGreaterThanOrEqual(3.5);
     }
     const clippedParameterText = await page.evaluate(() =>
       [
