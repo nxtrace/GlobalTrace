@@ -19,30 +19,6 @@ const maplibreMock = vi.hoisted(() => {
       return this;
     }
 
-    async getClusterExpansionZoom() {
-      return 4;
-    }
-  }
-
-  class FakePopup {
-    readonly nodes: HTMLElement[] = [];
-
-    setLngLat() {
-      return this;
-    }
-
-    setDOMContent(node: HTMLElement) {
-      this.nodes.push(node);
-      return this;
-    }
-
-    addTo() {
-      return this;
-    }
-
-    remove() {
-      return this;
-    }
   }
 
   class FakeNavigationControl {
@@ -195,7 +171,6 @@ const maplibreMock = vi.hoisted(() => {
   return {
     FakeMap,
     FakeNavigationControl,
-    FakePopup,
   };
 });
 
@@ -203,11 +178,9 @@ vi.mock("maplibre-gl", () => ({
   default: {
     Map: maplibreMock.FakeMap,
     NavigationControl: maplibreMock.FakeNavigationControl,
-    Popup: maplibreMock.FakePopup,
   },
   Map: maplibreMock.FakeMap,
   NavigationControl: maplibreMock.FakeNavigationControl,
-  Popup: maplibreMock.FakePopup,
 }));
 
 afterEach(() => {
@@ -228,19 +201,16 @@ describe("ProbeMap", () => {
     expect(document.querySelector(".maplibregl-canvas[data-liquid-glass]")).toBeNull();
   });
 
-  it("fits multiple probes and clusters the source after load", () => {
+  it("fits multiple probes and renders unclustered glow points after load", () => {
     renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
     const map = latestMap();
 
     act(() => map.triggerLoad());
 
-    expect(map.sources.get("probes")?.options).toMatchObject({
-      cluster: true,
-      clusterMaxZoom: 8,
-      clusterRadius: 46,
-    });
+    expect(map.sources.get("probes")?.options).toMatchObject({ type: "geojson" });
+    expect(map.sources.get("probes")?.options).not.toHaveProperty("cluster");
     expect(map.layers.map((layer) => layer.id)).toEqual([
-      "probe-clusters",
+      "probe-point-glow",
       "probe-selected-halo",
       "probe-points",
     ]);
@@ -341,21 +311,72 @@ describe("ProbeMap", () => {
     expect(map.fitBoundsCalls).toHaveLength(0);
   });
 
-  it("does not rebuild the map when callback identities change", () => {
-    const { rerender } = renderMap({ probes: [laProbe], onPickProbe: vi.fn() });
+  it("opens an ASN picker and selects city, country, and ASN without network", async () => {
+    const onPickAsn = vi.fn();
+    renderMap({ probes: sanJoseProbes, totalProbes: sanJoseProbes.length, onPickAsn });
     const map = latestMap();
     act(() => map.triggerLoad());
-    const nextPick = vi.fn();
+    map.renderedFeatures = [{ properties: { index: 0 }, geometry: { type: "Point", coordinates: [-121.89, 37.34] } }];
 
-    rerender(probeMapElement({ probes: [laProbe], onPickProbe: nextPick }));
-    map.renderedFeatures = [{ properties: { index: 0 }, geometry: { type: "Point", coordinates: [-118.24, 34.05] } }];
     act(() => {
       void map.triggerLayer("click", "probe-points");
     });
 
+    expect(screen.getByRole("dialog", { name: "San Jose probe candidates" })).toBeVisible();
+    expect(screen.getByText("+ 4")).toBeVisible();
+    expect(screen.getByRole("option", { name: "Oracle AS31898 ×2" })).toBeVisible();
+    expect(screen.getByRole("option", { name: "LeaseWeb AS7203 ×1" })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("option", { name: "Oracle AS31898 ×2" }));
+
+    expect(onPickAsn).toHaveBeenCalledWith({
+      magic: "San Jose+US+AS31898",
+      city: "San Jose",
+      country: "US",
+      asn: "AS31898",
+      network: "Oracle",
+      count: 2,
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "San Jose probe candidates" })).toBeNull();
+    });
+  });
+
+  it("shows a hover preview picker and hides it after leaving a point", async () => {
+    renderMap({ probes: sanJoseProbes, totalProbes: sanJoseProbes.length });
+    const map = latestMap();
+    act(() => map.triggerLoad());
+    map.renderedFeatures = [{ properties: { index: 0 }, geometry: { type: "Point", coordinates: [-121.89, 37.34] } }];
+
+    act(() => {
+      void map.triggerLayer("mouseenter", "probe-points");
+    });
+    expect(screen.getByRole("dialog", { name: "San Jose probe candidates" })).toBeVisible();
+
+    act(() => {
+      void map.triggerLayer("mouseleave", "probe-points");
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "San Jose probe candidates" })).toBeNull();
+    });
+  });
+
+  it("does not rebuild the map when callback identities change", () => {
+    const { rerender } = renderMap({ probes: [laProbe], onPickAsn: vi.fn() });
+    const map = latestMap();
+    act(() => map.triggerLoad());
+    const nextPick = vi.fn();
+
+    rerender(probeMapElement({ probes: [laProbe], onPickAsn: nextPick }));
+    map.renderedFeatures = [{ properties: { index: 0 }, geometry: { type: "Point", coordinates: [-118.24, 34.05] } }];
+    act(() => {
+      void map.triggerLayer("click", "probe-points");
+    });
+    fireEvent.click(screen.getByRole("option", { name: "Comcast AS7922 ×1" }));
+
     expect(maplibreMock.FakeMap.instances).toHaveLength(1);
     expect(map.removeCalls).toHaveLength(0);
-    expect(nextPick).toHaveBeenCalledWith(laProbe);
+    expect(nextPick).toHaveBeenCalledWith(expect.objectContaining({ magic: "Los Angeles+US+AS7922" }));
   });
 
   it("clamps box selection coordinates when the pointer is released outside the map", async () => {
@@ -391,7 +412,7 @@ function probeMapElement(overrides: Partial<React.ComponentProps<typeof ProbeMap
       selectionNotice={overrides.selectionNotice ?? ""}
       selectionActive={overrides.selectionActive ?? false}
       mapStyleUrl={overrides.mapStyleUrl ?? "/mock-style.json"}
-      onPickProbe={overrides.onPickProbe ?? vi.fn()}
+      onPickAsn={overrides.onPickAsn ?? vi.fn()}
       onBoxSelect={overrides.onBoxSelect ?? vi.fn()}
       onClearSelection={overrides.onClearSelection ?? vi.fn()}
     />
@@ -472,9 +493,34 @@ const tokyoProbe: GlobalpingProbe = {
   resolvers: [],
 };
 
+const sanJoseProbes: GlobalpingProbe[] = [
+  sanJoseProbe("Oracle", 31898, -121.89, 37.34),
+  sanJoseProbe("Oracle", 31898, -121.9, 37.35),
+  sanJoseProbe("LeaseWeb", 7203, -121.91, 37.33),
+  sanJoseProbe("xTom", 6233, -121.88, 37.32),
+];
+
 const boxVisibleProbe = mapProbe("Visible", 20, 20);
 const boxOutsideProbe = mapProbe("Outside", 120, 20);
 const boxBeforeProbe = mapProbe("Before", 5, 20);
+
+function sanJoseProbe(network: string, asn: number, longitude: number, latitude: number): GlobalpingProbe {
+  return {
+    location: {
+      continent: "NA",
+      region: "Northern America",
+      country: "US",
+      state: "CA",
+      city: "San Jose",
+      asn,
+      latitude,
+      longitude,
+      network,
+    },
+    tags: ["datacenter-network"],
+    resolvers: [],
+  };
+}
 
 function mapProbe(city: string, longitude: number, latitude: number): GlobalpingProbe {
   return {

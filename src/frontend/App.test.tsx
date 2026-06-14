@@ -9,14 +9,27 @@ vi.mock("./components/ProbeMap", () => ({
   ProbeMap: (props: {
     probes: GlobalpingProbe[];
     selectionNotice: string;
-    onPickProbe: (probe: GlobalpingProbe) => void;
+    onPickAsn: (selection: { magic: string; city: string; country: string; asn: string; network: string; count: number }) => void;
     onBoxSelect: (probes: GlobalpingProbe[]) => void;
   }) => (
     <section aria-label="mock probe map">
       <span>{props.selectionNotice || "no selection"}</span>
       <span>probe-projection:mercator</span>
       <span>box:on</span>
-      <button type="button" onClick={() => props.onPickProbe(props.probes[0])}>
+      <button
+        type="button"
+        onClick={() => {
+          const probe = props.probes[0];
+          props.onPickAsn({
+            magic: `${probe.location.city}+${probe.location.country}+AS${probe.location.asn}`,
+            city: probe.location.city,
+            country: probe.location.country,
+            asn: `AS${probe.location.asn}`,
+            network: probe.location.network,
+            count: 1,
+          });
+        }}
+      >
         pick first probe
       </button>
       <button type="button" onClick={() => props.onBoxSelect(repeatProbes(props.probes[0], 12))}>
@@ -516,7 +529,7 @@ describe("App", () => {
     });
     expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
     const chips = screen.getByTestId("filter-chips");
-    expect(chips).toHaveTextContent("Los Angeles+US+AS7922+eyeball-network");
+    expect(chips).toHaveTextContent("Los Angeles+US+AS7922");
     expect(within(chips).queryByText("magic")).not.toBeInTheDocument();
   });
 

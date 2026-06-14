@@ -27,6 +27,7 @@ import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
 import type { MapProjection } from "./components/mapProjection";
+import type { ProbeMapAsnSelection } from "./components/ProbeMap";
 import { deferUntilIdle } from "./lib/defer";
 import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
 import {
@@ -413,6 +414,15 @@ export function App() {
     setSelectionNotice(`已选择 ${probe.location.city || probe.location.country} · AS${probe.location.asn}`);
   }, [expandLimitForExplicitFilters, mapSelectionActive, resetMapSelectionLimitTracking]);
 
+  const pickMapAsn = useCallback((selection: ProbeMapAsnSelection) => {
+    if (!mapSelectionActive) resetMapSelectionLimitTracking();
+    const nextFilters = { magic: selection.magic };
+    setFilters(nextFilters);
+    expandLimitForExplicitFilters(nextFilters);
+    setMapSelectionActive(true);
+    setSelectionNotice(`已选择 ${selection.city || selection.country} · ${selection.asn}`);
+  }, [expandLimitForExplicitFilters, mapSelectionActive, resetMapSelectionLimitTracking]);
+
   const boxSelect = useCallback((selected: GlobalpingProbe[]) => {
     if (!selected.length) {
       setSelectionNotice("框选范围内没有可用 probe");
@@ -688,7 +698,7 @@ export function App() {
                     selectionNotice={selectionNotice}
                     selectionActive={mapSelectionActive}
                     mapStyleUrl={config.mapStyleUrl}
-                    onPickProbe={pickProbe}
+                    onPickAsn={pickMapAsn}
                     onBoxSelect={boxSelect}
                     onClearSelection={clearMapSelection}
                   />

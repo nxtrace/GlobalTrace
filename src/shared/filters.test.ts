@@ -86,6 +86,7 @@ describe("shared filters", () => {
       "Falkenstein",
     );
     expect(filterProbes(probes, { magic: "Los Angeles+US+AS7922+eyeball-network" })).toHaveLength(1);
+    expect(filterProbes(probes, { magic: "Los Angeles+US+AS7922" })).toHaveLength(1);
     expect(filterProbes(probes, { magic: "DE+Hetzner" })[0]?.location.city).toBe("Falkenstein");
     expect(filterProbes(probes, { magic: "US+Comcast" })[0]?.location.city).toBe("Los Angeles");
     expect(filterProbes(probes, { magic: "Comcast+US" })[0]?.location.city).toBe("Los Angeles");
@@ -109,6 +110,9 @@ describe("shared filters", () => {
   });
 
   it("normalizes small multi-token magic filters against current probes", () => {
+    expect(normalizeMagicFiltersForProbes({ magic: "Los Angeles+US+AS7922" }, probes, 10)).toEqual({
+      magic: "Los Angeles+US+AS7922",
+    });
     expect(normalizeMagicFiltersForProbes({ magic: "AS4134+CN" }, chinaAs4134Probes, 10)).toEqual({
       magic: [
         "Shenzhen+CN+AS4134+eyeball-network",

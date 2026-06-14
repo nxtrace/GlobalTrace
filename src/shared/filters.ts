@@ -91,7 +91,13 @@ export function normalizeMagicFiltersForProbes(
       continue;
     }
 
-    const selected = Array.from(new Set(filterProbes(probes, { magic: location }).map(probeToMagic)));
+    const matchedProbes = filterProbes(probes, { magic: location });
+    if (isExactLocationAsnMagic(location, matchedProbes)) {
+      addUnique(normalized, location);
+      continue;
+    }
+
+    const selected = Array.from(new Set(matchedProbes.map(probeToMagic)));
     if (selected.length < 1 || selected.length > maxProbes) {
       addUnique(normalized, location);
       continue;
@@ -194,6 +200,23 @@ function magicTokens(value: string): string[] {
     .split("+")
     .map((token) => token.trim())
     .filter(Boolean);
+}
+
+function isExactLocationAsnMagic(magic: string, matchedProbes: GlobalpingProbe[]): boolean {
+  if (!matchedProbes.length) return false;
+  const tokens = magicTokens(magic);
+  if (tokens.length !== 3) return false;
+  const asnToken = tokens.find((token) => /^(AS)?\d+$/i.test(compactText(token)));
+  if (!asnToken) return false;
+  const asn = normalizeAsn(asnToken);
+  const locationTokens = tokens
+    .filter((token) => token !== asnToken)
+    .map((token) => compactText(token).toLowerCase());
+  return matchedProbes.every((probe) => (
+    normalizeAsn(probe.location.asn) === asn &&
+    locationTokens.includes(compactText(probe.location.city).toLowerCase()) &&
+    locationTokens.includes(compactText(probe.location.country).toLowerCase())
+  ));
 }
 
 function includesText(value: string | null | undefined, query: string | undefined): boolean {

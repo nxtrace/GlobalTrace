@@ -3,6 +3,7 @@ import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { BoxSelect, MousePointer2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FeatureCollection, Point } from "geojson";
+import { compactText, normalizeAsn } from "../../shared/filters";
 import type { GlobalpingProbe } from "../../shared/types";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Badge } from "./ui/badge";
@@ -20,6 +21,17 @@ const PROBE_MAP_DESKTOP_MAX_HEIGHT = 1080;
 const PROBE_MAP_DESKTOP_MIN_CANVAS_HEIGHT = 300;
 const PROBE_MAP_DESKTOP_MAX_CANVAS_HEIGHT = 380;
 const PROBE_MAP_FIT_DURATION_MS = 420;
+const PROBE_PICKER_WIDTH = 286;
+const PROBE_PICKER_MAX_HEIGHT = 360;
+
+export interface ProbeMapAsnSelection {
+  magic: string;
+  city: string;
+  country: string;
+  asn: string;
+  network: string;
+  count: number;
+}
 
 interface ProbeMapProps {
   probes: GlobalpingProbe[];
@@ -28,9 +40,23 @@ interface ProbeMapProps {
   selectionNotice: string;
   selectionActive: boolean;
   mapStyleUrl: string;
-  onPickProbe: (probe: GlobalpingProbe) => void;
+  onPickAsn: (selection: ProbeMapAsnSelection) => void;
   onBoxSelect: (probes: GlobalpingProbe[]) => void;
   onClearSelection: () => void;
+}
+
+interface ProbePickerGroup extends ProbeMapAsnSelection {
+  key: string;
+}
+
+interface ProbePickerState {
+  city: string;
+  country: string;
+  total: number;
+  groups: ProbePickerGroup[];
+  left: number;
+  top: number;
+  pinned: boolean;
 }
 
 export function ProbeMap({
@@ -40,7 +66,7 @@ export function ProbeMap({
   selectionNotice,
   selectionActive,
   mapStyleUrl,
-  onPickProbe,
+  onPickAsn,
   onBoxSelect,
   onClearSelection,
 }: ProbeMapProps) {
@@ -49,15 +75,18 @@ export function ProbeMap({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const probesRef = useRef(probes);
   const [boxMode, setBoxMode] = useState(false);
-  const [selectedProbeKey, setSelectedProbeKey] = useState<string | null>(null);
-  const onPickProbeRef = useRef(onPickProbe);
+  const [selectedProbeGroupKey, setSelectedProbeGroupKey] = useState<string | null>(null);
+  const [picker, setPicker] = useState<ProbePickerState | null>(null);
+  const pickerRef = useRef<ProbePickerState | null>(null);
+  const onPickAsnRef = useRef(onPickAsn);
   const onBoxSelectRef = useRef(onBoxSelect);
-  const selectedProbeKeyRef = useRef<string | null>(null);
+  const selectedProbeGroupKeyRef = useRef<string | null>(null);
 
   probesRef.current = probes;
-  onPickProbeRef.current = onPickProbe;
+  pickerRef.current = picker;
+  onPickAsnRef.current = onPickAsn;
   onBoxSelectRef.current = onBoxSelect;
-  selectedProbeKeyRef.current = selectedProbeKey;
+  selectedProbeGroupKeyRef.current = selectedProbeGroupKey;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -72,113 +101,74 @@ export function ProbeMap({
       map.setProjection({ type: "mercator" });
       map.addSource("probes", {
         type: "geojson",
-        data: probeFeatureCollection(probesRef.current, selectedProbeKeyRef.current),
-        cluster: true,
-        clusterMaxZoom: 8,
-        clusterRadius: 46,
+        data: probeFeatureCollection(probesRef.current, selectedProbeGroupKeyRef.current),
       });
       map.addLayer({
-        id: "probe-clusters",
+        id: "probe-point-glow",
         type: "circle",
         source: "probes",
-        filter: ["has", "point_count"],
         paint: {
-          "circle-radius": ["step", ["get", "point_count"], 17, 20, 22, 100, 28, 1000, 34],
-          "circle-color": ["step", ["get", "point_count"], "#34d399", 20, "#22d3ee", 100, "#8b5cf6"],
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 1.6,
-          "circle-opacity": 0.82,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 10, 6, 17],
+          "circle-color": ["case", ["==", ["get", "selected"], true], "#2dd4bf", "#93c5fd"],
+          "circle-blur": 0.72,
+          "circle-opacity": ["case", ["==", ["get", "selected"], true], 0.56, 0.32],
         },
       });
       map.addLayer({
         id: "probe-selected-halo",
         type: "circle",
         source: "probes",
-        filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "selected"], true]],
+        filter: ["==", ["get", "selected"], true],
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 12, 6, 18],
-          "circle-color": "rgba(35, 184, 255, 0.18)",
-          "circle-stroke-color": "rgba(139, 92, 246, 0.46)",
-          "circle-stroke-width": 1.4,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 11, 6, 19],
+          "circle-color": "rgba(45, 212, 191, 0.16)",
+          "circle-stroke-color": "rgba(45, 212, 191, 0.72)",
+          "circle-stroke-width": 2,
         },
       });
       map.addLayer({
         id: "probe-points",
         type: "circle",
         source: "probes",
-        filter: ["!", ["has", "point_count"]],
         paint: {
           "circle-radius": [
             "interpolate",
             ["linear"],
             ["zoom"],
             1,
-            ["case", ["==", ["get", "selected"], true], 7, 4],
+            ["case", ["==", ["get", "selected"], true], 5.4, 3.2],
             6,
-            ["case", ["==", ["get", "selected"], true], 11, 7],
+            ["case", ["==", ["get", "selected"], true], 8.5, 5.5],
           ],
-          "circle-color": ["case", ["in", "eyeball-network", ["get", "tags"]], "#14b8a6", "#f97316"],
-          "circle-stroke-color": ["case", ["==", ["get", "selected"], true], "#23b8ff", "#ffffff"],
-          "circle-stroke-width": ["case", ["==", ["get", "selected"], true], 2.5, 1.2],
-          "circle-opacity": 0.9,
+          "circle-color": ["case", ["==", ["get", "selected"], true], "#5eead4", "#bfdbfe"],
+          "circle-stroke-color": ["case", ["==", ["get", "selected"], true], "#2dd4bf", "rgba(255, 255, 255, 0.86)"],
+          "circle-stroke-width": ["case", ["==", ["get", "selected"], true], 1.8, 1],
+          "circle-opacity": 0.92,
         },
       });
       fitVisibleProbes(map, probesRef.current);
     });
-    const popup = new maplibregl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      className: "probe-map-popup",
-      offset: 12,
-    });
-    const pickProbeAtPoint = (event: maplibregl.MapMouseEvent) => {
-      const features = map.queryRenderedFeatures(event.point, { layers: ["probe-points"] });
-      const index = Number(features[0]?.properties?.index);
-      const probe = probesRef.current[index];
-      if (!probe) return;
-      setSelectedProbeKey(probeKey(probe));
-      popup.setLngLat([probe.location.longitude, probe.location.latitude]).setDOMContent(probePopupNode(probe)).addTo(map);
-      onPickProbeRef.current(probe);
-    };
-    const showProbePopup = (event: maplibregl.MapMouseEvent) => {
-      const features = map.queryRenderedFeatures(event.point, { layers: ["probe-points"] });
-      const index = Number(features[0]?.properties?.index);
-      const probe = probesRef.current[index];
-      if (!probe) return;
+    const openProbePicker = (event: maplibregl.MapMouseEvent, pinned: boolean) => {
+      if (!pinned && pickerRef.current?.pinned) return;
+      const nextPicker = pickerForEvent(map, event, probesRef.current, pinned);
+      if (!nextPicker) return;
       map.getCanvas().style.cursor = "pointer";
-      popup.setLngLat([probe.location.longitude, probe.location.latitude]).setDOMContent(probePopupNode(probe)).addTo(map);
+      setPicker(nextPicker);
     };
-    const hideProbePopup = () => {
+    const pinProbePicker = (event: maplibregl.MapMouseEvent) => {
+      openProbePicker(event, true);
+    };
+    const previewProbePicker = (event: maplibregl.MapMouseEvent) => {
+      openProbePicker(event, false);
+    };
+    const hideProbePicker = () => {
       map.getCanvas().style.cursor = "";
-      popup.remove();
+      if (!pickerRef.current?.pinned) setPicker(null);
     };
-    const zoomCluster = async (event: maplibregl.MapMouseEvent) => {
-      const feature = map.queryRenderedFeatures(event.point, { layers: ["probe-clusters"] })[0];
-      const clusterId = Number(feature?.properties?.cluster_id);
-      const coordinates = pointCoordinates(feature?.geometry);
-      if (!Number.isFinite(clusterId) || !coordinates) return;
-      const source = map.getSource("probes") as GeoJSONSource | undefined;
-      const expansionZoom = await source?.getClusterExpansionZoom(clusterId);
-      map.easeTo({
-        center: coordinates,
-        zoom: Math.min(expansionZoom ?? map.getZoom() + 2, 9),
-        duration: 420,
-        essential: true,
-      });
-    };
-    const setClusterCursor = () => {
-      map.getCanvas().style.cursor = "pointer";
-    };
-    const clearClusterCursor = () => {
-      map.getCanvas().style.cursor = "";
-    };
-    map.on("click", "probe-points", pickProbeAtPoint);
-    map.on("mouseenter", "probe-points", showProbePopup);
-    map.on("mousemove", "probe-points", showProbePopup);
-    map.on("mouseleave", "probe-points", hideProbePopup);
-    map.on("click", "probe-clusters", zoomCluster);
-    map.on("mouseenter", "probe-clusters", setClusterCursor);
-    map.on("mouseleave", "probe-clusters", clearClusterCursor);
+    map.on("click", "probe-points", pinProbePicker);
+    map.on("mouseenter", "probe-points", previewProbePicker);
+    map.on("mousemove", "probe-points", previewProbePicker);
+    map.on("mouseleave", "probe-points", hideProbePicker);
     const resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => map.resize());
     resizeObserver?.observe(containerRef.current);
@@ -192,14 +182,10 @@ export function ProbeMap({
     }
     return () => {
       resizeObserver?.disconnect();
-      popup.remove();
-      map.off("click", "probe-points", pickProbeAtPoint);
-      map.off("mouseenter", "probe-points", showProbePopup);
-      map.off("mousemove", "probe-points", showProbePopup);
-      map.off("mouseleave", "probe-points", hideProbePopup);
-      map.off("click", "probe-clusters", zoomCluster);
-      map.off("mouseenter", "probe-clusters", setClusterCursor);
-      map.off("mouseleave", "probe-clusters", clearClusterCursor);
+      map.off("click", "probe-points", pinProbePicker);
+      map.off("mouseenter", "probe-points", previewProbePicker);
+      map.off("mousemove", "probe-points", previewProbePicker);
+      map.off("mouseleave", "probe-points", hideProbePicker);
       if (containerRef.current) {
         delete (containerRef.current as HTMLElement & { __globalTraceMap?: maplibregl.Map }).__globalTraceMap;
       }
@@ -210,18 +196,35 @@ export function ProbeMap({
 
   useEffect(() => {
     const source = mapRef.current?.getSource("probes") as GeoJSONSource | undefined;
-    source?.setData(probeFeatureCollection(probes, selectedProbeKey));
-  }, [probes, selectedProbeKey]);
+    source?.setData(probeFeatureCollection(probes, selectedProbeGroupKey));
+  }, [probes, selectedProbeGroupKey]);
 
   useEffect(() => {
-    if (!selectionActive) setSelectedProbeKey(null);
+    if (!selectionActive) {
+      setSelectedProbeGroupKey(null);
+      setPicker(null);
+    }
   }, [selectionActive]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map?.getSource("probes")) return;
     fitVisibleProbes(map, probes);
+    setPicker(null);
   }, [probes]);
+
+  const pickAsnGroup = (group: ProbePickerGroup) => {
+    setSelectedProbeGroupKey(group.key);
+    setPicker(null);
+    onPickAsnRef.current({
+      magic: group.magic,
+      city: group.city,
+      country: group.country,
+      asn: group.asn,
+      network: group.network,
+      count: group.count,
+    });
+  };
 
   useEffect(() => {
     const map = mapRef.current;
@@ -361,6 +364,50 @@ export function ProbeMap({
           </LiquidGlassSurface>
         </div>
         <div className="map-container" ref={containerRef} />
+        {picker && (
+          <div
+            className={picker.pinned ? "probe-picker pinned" : "probe-picker"}
+            style={{ left: picker.left, top: picker.top }}
+            role="dialog"
+            aria-label={`${locationTitle(picker)} probe candidates`}
+          >
+            <header className="probe-picker-header">
+              <div>
+                <strong>{locationTitle(picker)}</strong>
+                {picker.country && <span>{picker.country}</span>}
+              </div>
+              <Badge variant="accent">+ {picker.total}</Badge>
+              {picker.pinned && (
+                <button
+                  type="button"
+                  className="probe-picker-close"
+                  aria-label="关闭 probe 候选列表"
+                  onClick={() => setPicker(null)}
+                >
+                  <X size={17} />
+                </button>
+              )}
+            </header>
+            <div className="probe-picker-list" role="listbox" aria-label="probe ASN candidates">
+              {picker.groups.map((group) => (
+                <button
+                  type="button"
+                  role="option"
+                  aria-label={`${group.network} ${group.asn} ×${group.count}`}
+                  aria-selected={selectedProbeGroupKey === group.key}
+                  className="probe-picker-row"
+                  key={group.key}
+                  onClick={() => pickAsnGroup(group)}
+                >
+                  <span title={group.network}>{group.network}</span>
+                  <small>
+                    {group.asn} ×{group.count}
+                  </small>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <LiquidGlassSurface variant="toolbar" fullWidth className="liquid-glass-coverage map-status-surface">
           <div className="map-status" aria-live="polite">
             <div>
@@ -425,7 +472,7 @@ function probeFeatureCollection(
           country: probe.location.country,
           asn: probe.location.asn,
           network: probe.location.network,
-          selected: probeKey(probe) === selectedKey,
+          selected: probeSelectionKey(probe) === selectedKey,
         },
       })),
   };
@@ -515,14 +562,6 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function pointCoordinates(geometry: unknown): [number, number] | null {
-  if (!geometry || typeof geometry !== "object" || (geometry as { type?: unknown }).type !== "Point") return null;
-  const coordinates = (geometry as { coordinates?: unknown }).coordinates;
-  return Array.isArray(coordinates) && coordinates.length >= 2
-    ? [Number(coordinates[0]), Number(coordinates[1])]
-    : null;
-}
-
 function projectedProbePoint(
   map: maplibregl.Map,
   probe: GlobalpingProbe,
@@ -535,19 +574,90 @@ function projectedProbePoint(
 }
 
 function probeKey(probe: GlobalpingProbe): string {
-  const { latitude, longitude, city, country, asn, network } = probe.location;
-  return [latitude, longitude, city, country, asn, network].join("|");
+  const { city, country } = probe.location;
+  return [compactText(city), compactText(country)].join("|");
 }
 
-function probePopupNode(probe: GlobalpingProbe): HTMLElement {
-  const wrapper = document.createElement("div");
-  wrapper.className = "probe-popup";
-  const title = document.createElement("strong");
-  title.textContent = [probe.location.city, probe.location.country].filter(Boolean).join(", ") || "Globalping probe";
-  const meta = document.createElement("span");
-  meta.textContent = [`AS${probe.location.asn}`, probe.location.network].filter(Boolean).join(" · ");
-  const tags = document.createElement("small");
-  tags.textContent = probe.tags.slice(0, 3).join(" · ");
-  wrapper.append(title, meta, tags);
-  return wrapper;
+function probeSelectionKey(probe: GlobalpingProbe): string {
+  return [probeKey(probe), normalizeAsn(probe.location.asn)].join("|");
+}
+
+function probeAtFeatureIndex(probes: GlobalpingProbe[], index: number): GlobalpingProbe | null {
+  return validProbes(probes)[index] ?? null;
+}
+
+function pickerForEvent(
+  map: maplibregl.Map,
+  event: maplibregl.MapMouseEvent,
+  probes: GlobalpingProbe[],
+  pinned: boolean,
+): ProbePickerState | null {
+  const index = Number(map.queryRenderedFeatures(event.point, { layers: ["probe-points"] })[0]?.properties?.index);
+  if (!Number.isFinite(index)) return null;
+  const probe = probeAtFeatureIndex(probes, index);
+  if (!probe) return null;
+  const groups = probePickerGroups(probe, validProbes(probes));
+  if (!groups.length) return null;
+  const anchor = projectedProbePoint(map, probe, event.point.x);
+  const position = probePickerPosition(map, anchor);
+  return {
+    city: compactText(probe.location.city),
+    country: compactText(probe.location.country),
+    total: groups.reduce((sum, group) => sum + group.count, 0),
+    groups,
+    left: position.left,
+    top: position.top,
+    pinned,
+  };
+}
+
+function probePickerGroups(anchor: GlobalpingProbe, probes: GlobalpingProbe[]): ProbePickerGroup[] {
+  const anchorKey = probeKey(anchor);
+  const groups = new Map<string, ProbePickerGroup>();
+  for (const probe of probes) {
+    if (probeKey(probe) !== anchorKey) continue;
+    const asn = normalizeAsn(probe.location.asn);
+    if (!asn) continue;
+    const key = [anchorKey, asn].join("|");
+    const network = compactText(probe.location.network) || "Unknown network";
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count += 1;
+      if (existing.network === "Unknown network" && network !== "Unknown network") {
+        existing.network = network;
+      }
+      continue;
+    }
+    const city = compactText(probe.location.city);
+    const country = compactText(probe.location.country);
+    groups.set(key, {
+      key,
+      city,
+      country,
+      asn,
+      network,
+      count: 1,
+      magic: [city, country, asn].filter(Boolean).join("+") || "world",
+    });
+  }
+  return Array.from(groups.values()).sort(
+    (left, right) =>
+      right.count - left.count ||
+      left.network.localeCompare(right.network) ||
+      left.asn.localeCompare(right.asn),
+  );
+}
+
+function probePickerPosition(map: maplibregl.Map, anchor: { x: number; y: number }): { left: number; top: number } {
+  const rect = map.getCanvas().getBoundingClientRect();
+  const maxLeft = Math.max(10, rect.width - PROBE_PICKER_WIDTH - 10);
+  const maxTop = Math.max(10, rect.height - PROBE_PICKER_MAX_HEIGHT - 10);
+  return {
+    left: Math.round(clamp(anchor.x + 18, 10, maxLeft)),
+    top: Math.round(clamp(anchor.y - 26, 10, maxTop)),
+  };
+}
+
+function locationTitle(location: Pick<ProbePickerState, "city" | "country">): string {
+  return location.city || location.country || "Globalping";
 }

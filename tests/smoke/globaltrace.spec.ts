@@ -114,7 +114,7 @@ for (const viewport of viewports) {
       await expect(page.getByLabel("probe map").getByText("点选地图选择筛选条件")).toBeVisible();
       await expect(page.getByRole("button", { name: "取消地图筛选" })).toHaveCount(0);
       await expect(page.getByLabel("probes")).toHaveValue("3");
-      await clickMapCoordinate(page, [-118.24, 34.05]);
+      await selectMapAsnAtCoordinate(page, [-118.24, 34.05], "Comcast AS7922 ×1");
       await expect(page.getByLabel("probe map").getByText("已选择 Los Angeles · AS7922")).toBeVisible();
       await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
       await expect(page.getByTestId("filter-chips")).not.toContainText("Comcast");
@@ -288,6 +288,23 @@ for (const viewport of mobileResultViewports) {
     });
   });
 }
+
+test("map ASN picker groups same-city probes by ASN and submits ASN-only magic", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const mocks = await installMocks(page, { probes: makeSanJoseSmokeProbes() });
+  await page.goto("/");
+
+  await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
+  await expectMapContainsCoordinate(page, [-121.89, 37.34]);
+  await selectMapAsnAtCoordinate(page, [-121.89, 37.34], "Oracle AS31898 ×2");
+  await expect(page.getByLabel("probe map").getByText("已选择 San Jose · AS31898")).toBeVisible();
+  await expect(page.getByText("2 / 4 probes 匹配")).toBeVisible();
+  await expect(page.getByTestId("filter-chips")).not.toContainText("Oracle");
+
+  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+  await expect.poll(() => mocks.traceRequests().length).toBe(1);
+  expect(mocks.traceRequests()[0]?.locations).toEqual([{ magic: "San Jose+US+AS31898" }]);
+});
 
 test("desktop filter summary constrains long magic content and keeps run controls visible", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -2496,14 +2513,20 @@ async function clickResultMapRouteGroup(page: Page, routeId: string, label: stri
     .toBeGreaterThan(0);
 }
 
-async function clickMapCoordinate(page: Page, coordinate: [number, number]): Promise<void> {
+async function selectMapAsnAtCoordinate(page: Page, coordinate: [number, number], optionName: string): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await expectMapProjectsCoordinateInsideCanvas(page, coordinate);
     const point = await mapScreenPoint(page, coordinate);
     await page.mouse.click(point.x, point.y);
-    if ((await page.getByLabel("probe map").getByText(/^已选择 /).count()) > 0) return;
+    const option = page.getByRole("option", { name: optionName });
+    if ((await option.count()) > 0) {
+      await expect(option).toBeVisible();
+      await option.click();
+      return;
+    }
     await page.waitForTimeout(250);
   }
+  throw new Error(`could not select map ASN option ${optionName}`);
 }
 
 async function boxSelectLosAngelesWithOutsideRelease(page: Page): Promise<void> {
@@ -2652,6 +2675,33 @@ const probes: GlobalpingProbe[] = [
     resolvers: [],
   },
 ];
+
+function makeSanJoseSmokeProbes(): GlobalpingProbe[] {
+  return [
+    sanJoseSmokeProbe("Oracle", 31898, -121.89, 37.34),
+    sanJoseSmokeProbe("Oracle", 31898, -121.9, 37.35),
+    sanJoseSmokeProbe("LeaseWeb", 7203, -121.91, 37.33),
+    sanJoseSmokeProbe("xTom", 6233, -121.88, 37.32),
+  ];
+}
+
+function sanJoseSmokeProbe(network: string, asn: number, longitude: number, latitude: number): GlobalpingProbe {
+  return {
+    location: {
+      continent: "NA",
+      region: "Northern America",
+      country: "US",
+      state: "CA",
+      city: "San Jose",
+      asn,
+      latitude,
+      longitude,
+      network,
+    },
+    tags: ["datacenter-network"],
+    resolvers: [],
+  };
+}
 
 function makeChinaSmokeProbes(count: number): GlobalpingProbe[] {
   const cities = ["Shenzhen", "Nanning", "Guangzhou", "Shenzhou"];
