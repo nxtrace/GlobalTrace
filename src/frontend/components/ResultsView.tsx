@@ -150,6 +150,21 @@ export function ResultsView({
     setSelectedRouteNodeId(null);
   }, [result?.measurementId]);
 
+  useEffect(() => {
+    if (!result) return;
+    const label = enrichmentLabel(result.enrichment.status);
+    console.debug(
+      `[GlobalTrace] GeoIP ${label} · cache ${result.enrichment.cached} · fetch ${result.enrichment.fetched}`,
+      {
+        measurementId: result.measurementId,
+        status: result.enrichment.status,
+        cached: result.enrichment.cached,
+        fetched: result.enrichment.fetched,
+        errors: result.enrichment.errors,
+      },
+    );
+  }, [result]);
+
   const selectProbe = (index: number) => {
     setSelected(index);
     setSelectedRouteNodeId(null);
@@ -182,8 +197,6 @@ export function ResultsView({
       </LiquidGlassSurface>
     );
   }
-
-  const summary = resultSummary(result, active);
 
   return (
     <LiquidGlassSurface variant="floatingPanel" fullWidth className="results-section-surface">
@@ -221,18 +234,6 @@ export function ResultsView({
               </LiquidGlassSurface>
             )}
           </div>
-        </div>
-
-        <div className="result-metrics" aria-label="trace summary">
-          {summary.map((metric) => (
-            <LiquidGlassSurface variant="metric" fullWidth className="metric-surface" key={metric.label}>
-              <div className="metric">
-                <span>{metric.label}</span>
-                <strong>{metric.value}</strong>
-              </div>
-            </LiquidGlassSurface>
-          ))}
-          <GeoIpMetric result={result} />
         </div>
 
         <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
@@ -597,24 +598,6 @@ function normalizeWheelDeltaY(event: WheelEvent, scrollArea: HTMLElement): numbe
   if (event.deltaMode === 1) return event.deltaY * 16;
   if (event.deltaMode === 2) return event.deltaY * scrollArea.clientHeight;
   return event.deltaY;
-}
-
-function GeoIpMetric({ result }: { result: TraceResultResponse }) {
-  const hasErrors = result.enrichment.errors.length > 0;
-  return (
-    <LiquidGlassSurface variant="metric" fullWidth className="metric-surface">
-      <div className={`metric geoip ${result.enrichment.status}`} aria-label="GeoIP enrichment status">
-        <span>GeoIP</span>
-        <strong className="geoip-value">
-          <b>{enrichmentLabel(result.enrichment.status)}</b>
-          <small>
-            cache {result.enrichment.cached} · fetch {result.enrichment.fetched}
-          </small>
-        </strong>
-        {hasErrors && <span className="metric-detail notice-text">{enrichmentErrorSummary(result.enrichment.errors)}</span>}
-      </div>
-    </LiquidGlassSurface>
-  );
 }
 
 function ResultMap({
@@ -1798,21 +1781,6 @@ function compactHopDetails(hop: TraceHop) {
   };
 }
 
-function resultSummary(result: TraceResultResponse, active: TraceProbeResult | null) {
-  const finished = result.results.filter((item) => item.status === "finished").length;
-  const failed = result.results.filter((item) => item.status === "failed" || item.status === "error").length;
-  const hopCount = active?.hops.length || 0;
-  const summary = [
-    { label: "status", value: result.status },
-    { label: "probes", value: `${finished}/${result.probesCount}` },
-    { label: "hops", value: String(hopCount) },
-  ];
-  if (failed > 0) {
-    summary.splice(2, 0, { label: "失败 probes", value: String(failed) });
-  }
-  return summary;
-}
-
 function findTargetHop(active: TraceProbeResult | null): TraceHop | null {
   const targetIp = active?.resolvedAddress?.trim();
   if (!targetIp) return null;
@@ -1823,11 +1791,4 @@ function enrichmentLabel(status: TraceResultResponse["enrichment"]["status"]): s
   if (status === "complete") return "完成";
   if (status === "partial") return "部分完成";
   return "跳过";
-}
-
-function enrichmentErrorSummary(errors: TraceResultResponse["enrichment"]["errors"]): string {
-  const failedIpCount = new Set(errors.flatMap((error) => error.ips)).size;
-  const messages = [...new Set(errors.map((error) => error.message.trim()).filter(Boolean))].slice(0, 2);
-  const prefix = failedIpCount > 0 ? `${failedIpCount} IP 失败` : `${errors.length} batch error`;
-  return messages.length ? `${prefix}: ${messages.join("; ")}` : prefix;
 }

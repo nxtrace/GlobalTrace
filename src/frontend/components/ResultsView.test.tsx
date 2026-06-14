@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildPacketFeatureCollection, buildResultMapData, ResultsView } from "./ResultsView";
 import type { TraceHop, TraceResultResponse } from "../../shared/types";
 
@@ -199,6 +199,12 @@ vi.mock("maplibre-gl", () => ({
   Popup: maplibreMock.FakePopup,
 }));
 
+let consoleDebugSpy: ReturnType<typeof vi.spyOn>;
+
+beforeEach(() => {
+  consoleDebugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+});
+
 afterEach(() => {
   cleanup();
   maplibreMock.FakeMap.instances = [];
@@ -232,8 +238,9 @@ describe("ResultsView", () => {
     ]);
     expect(within(table).queryByRole("columnheader", { name: "source" })).not.toBeInTheDocument();
     expect(screen.getByText("example.com")).toBeInTheDocument();
-    expectGeoIpMetric("完成", "cache 0 · fetch 1");
-    expect(screen.queryByText("GeoIP: 完成")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("trace summary")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("GeoIP enrichment status")).not.toBeInTheDocument();
+    expectGeoIpDebug("完成", "cache 0 · fetch 1");
     expect(within(table).getByText("8.8.8.8")).toBeInTheDocument();
     expect(within(table).getByText("dns.google")).toBeInTheDocument();
     expect(within(table).getByText("AS15169")).toBeInTheDocument();
@@ -241,7 +248,6 @@ describe("ResultsView", () => {
     expect(within(table).getByText("美国，加利福尼亚，山景城")).toBeInTheDocument();
     expect(screen.getByText("raw output")).toBeInTheDocument();
     expect(document.querySelector(".results-section-surface[data-liquid-glass]")).not.toBeNull();
-    expect(screen.getByLabelText("trace summary").querySelectorAll(".metric-surface[data-liquid-glass]").length).toBeGreaterThan(0);
     const tabs = document.querySelector(".probe-tabs");
     const routeTabs = screen.getAllByRole("tab");
     const tabsFrame = document.querySelector(".probe-tabs-frame-surface");
@@ -268,9 +274,9 @@ describe("ResultsView", () => {
   it("renders target metrics inside route tabs instead of the summary cards", () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    const summary = screen.getByLabelText("trace summary");
-    expect(within(summary).queryByText("目标延迟")).not.toBeInTheDocument();
-    expect(within(summary).queryByText("目标丢包")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("trace summary")).not.toBeInTheDocument();
+    expect(screen.queryByText("目标延迟")).not.toBeInTheDocument();
+    expect(screen.queryByText("目标丢包")).not.toBeInTheDocument();
     expectRouteTabTarget(screen.getByRole("tab", { name: /Los Angeles/ }), {
       latency: "1.2 ms",
       loss: "0.0%",
@@ -279,8 +285,8 @@ describe("ResultsView", () => {
     });
     expect(screen.queryByText("延迟")).not.toBeInTheDocument();
     expect(screen.queryByText("丢包")).not.toBeInTheDocument();
-    expect(within(summary).queryByText("public IP")).not.toBeInTheDocument();
-    expect(within(summary).queryByText("avg loss")).not.toBeInTheDocument();
+    expect(screen.queryByText("public IP")).not.toBeInTheDocument();
+    expect(screen.queryByText("avg loss")).not.toBeInTheDocument();
   });
 
   it("renders peer.as links for table IPs without selecting the hop", () => {
@@ -452,7 +458,7 @@ describe("ResultsView", () => {
 
     expect(screen.getByText("measurement 正在运行，轮询完成后会补齐 hop 和 GeoIP。")).toBeInTheDocument();
     expect(screen.getByText("measurement 正在运行，轮询完成后会补齐 hop 和 GeoIP。").closest(".polling-state-surface[data-liquid-glass]")).not.toBeNull();
-    expectGeoIpMetric("跳过", "cache 0 · fetch 0");
+    expectGeoIpDebug("跳过", "cache 0 · fetch 0");
     expect(screen.getByText("该 probe 还没有 hop 数据。")).toBeInTheDocument();
     expect(document.querySelector(".table-empty[data-liquid-glass]")).toBeNull();
   });
@@ -460,15 +466,14 @@ describe("ResultsView", () => {
   it("surfaces partial enrichment batch errors", () => {
     render(<ResultsView result={partialResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    expectGeoIpMetric("部分完成", "cache 3 · fetch 64");
-    expect(screen.getByText("1 IP 失败: nxtrace batch failed")).toBeInTheDocument();
+    expectGeoIpDebug("部分完成", "cache 3 · fetch 64");
+    expect(screen.queryByText("1 IP 失败: nxtrace batch failed")).not.toBeInTheDocument();
   });
 
   it("shows failed probe counts and raw failure reason", () => {
     render(<ResultsView result={failedProbeResult} mapStyleUrl="about:blank" renderMap={false} />);
 
-    expectSummaryMetric("probes", "1/2");
-    expectSummaryMetric("失败 probes", "1");
+    expect(screen.queryByLabelText("trace summary")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: /Ningbo/ }));
     expect(screen.getByText("该 probe 失败：Private IP ranges are not allowed.")).toBeInTheDocument();
   });
@@ -923,13 +928,6 @@ function mockScrollIntoView() {
   return scrollIntoView;
 }
 
-function expectSummaryMetric(label: string, value: string) {
-  const summary = screen.getByLabelText("trace summary");
-  const metric = within(summary).getByText(label).closest(".metric");
-  if (!metric) throw new Error(`metric not found for ${label}`);
-  expect(within(metric as HTMLElement).getByText(value)).toBeInTheDocument();
-}
-
 function expectRouteTabTarget(
   tab: HTMLElement,
   expected: { latency: string; loss: string; dots: number; lost: number },
@@ -946,16 +944,16 @@ function expectRouteTabTarget(
   expect(tab.querySelectorAll(".probe-tab-packet-dot.is-lost")).toHaveLength(expected.lost);
 }
 
-function expectGeoIpMetric(status: string, detail: string) {
-  const summary = screen.getByLabelText("trace summary");
-  const metric = within(summary).getByLabelText("GeoIP enrichment status");
-  expect(metric).toHaveClass("metric", "geoip");
-  expect(within(metric).getByText("GeoIP")).toBeInTheDocument();
-  const value = metric.querySelector(".geoip-value");
-  if (!value) throw new Error("GeoIP value not found");
-  expect(within(value as HTMLElement).getByText(status)).toBeInTheDocument();
-  expect(within(value as HTMLElement).getByText(detail)).toBeInTheDocument();
-  expect(summary).toContainElement(metric);
+function expectGeoIpDebug(status: string, detail: string) {
+  expect(consoleDebugSpy).toHaveBeenCalledWith(
+    expect.stringContaining(`GeoIP ${status} · ${detail}`),
+    expect.objectContaining({
+      cached: expect.any(Number),
+      fetched: expect.any(Number),
+      measurementId: expect.any(String),
+      status: expect.any(String),
+    }),
+  );
 }
 
 function hopLabels(collection: ReturnType<typeof buildResultMapData>["featureCollection"]): string[] {

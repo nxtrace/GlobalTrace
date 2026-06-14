@@ -400,7 +400,7 @@ describe("FilterPanel", () => {
     expect(magicInput).toHaveValue("");
     expect(magicInput).toHaveAttribute(
       "placeholder",
-      "Los Angeles+US+AS7922+Comcast, Shanghai+CN+AS4134+China Telecom",
+      "Shanghai+China Telecom, US+AS7922, Yokohama+JP+AS17676+SoftBank",
     );
     fireEvent.focus(magicInput);
     expect(

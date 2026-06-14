@@ -98,7 +98,7 @@ const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
 };
 const MAX_VISIBLE_SUGGESTIONS = 8;
 const MAGIC_PLACEHOLDER =
-  "Los Angeles+US+AS7922+Comcast, Shanghai+CN+AS4134+China Telecom";
+  "Shanghai+China Telecom, US+AS7922, Yokohama+JP+AS17676+SoftBank";
 const EXACT_FILTERS_DESKTOP_QUERY = "(min-width: 821px)";
 
 interface IndexedMagicToken {
@@ -487,6 +487,16 @@ export function FilterPanel(props: FilterPanelProps) {
                   </label>
                 </div>
 
+                <label className="field-label">
+                  <span>tag</span>
+                  <SuggestionInput
+                    label="tag"
+                    value={props.filters.tag || ""}
+                    options={filterSuggestions.tags}
+                    onChange={(value) => setFilter("tag", value)}
+                  />
+                </label>
+
                 <div className="segmented" aria-label="网络类型">
                   <label className={props.filters.eyeball ? "selected" : ""}>
                     <span>eyeball</span>
@@ -509,16 +519,6 @@ export function FilterPanel(props: FilterPanelProps) {
                     />
                   </label>
                 </div>
-
-                <label className="field-label">
-                  <span>tag</span>
-                  <SuggestionInput
-                    label="tag"
-                    value={props.filters.tag || ""}
-                    options={filterSuggestions.tags}
-                    onChange={(value) => setFilter("tag", value)}
-                  />
-                </label>
               </div>
             </details>
           </Surface>

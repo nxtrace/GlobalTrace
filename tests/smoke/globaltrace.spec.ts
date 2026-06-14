@@ -361,7 +361,7 @@ for (const viewport of [
       page.getByRole("group", { name: "结果地图视图" }),
     ).toBeVisible();
     await expectResultHeaderActions(page);
-    await expectGeoIpMetricReadable(page);
+    await expectNoResultSummaryMetrics(page);
     await expect(
       page.getByRole("button", { name: "切换结果地图到 2D" }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -1761,26 +1761,9 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.scrollbarWidth).toBe("none");
 }
 
-async function expectGeoIpMetricReadable(page: Page): Promise<void> {
-  const metric = page.getByLabel("GeoIP enrichment status");
-  await expect(metric).toContainText("GeoIP");
-  await expect(metric).toContainText("cache 0 · fetch 1");
-
-  const state = await metric.evaluate((node) => {
-    const value = node.querySelector(".geoip-value") as HTMLElement | null;
-    const style = value ? window.getComputedStyle(value) : null;
-    return {
-      overflowX: style?.overflowX ?? "",
-      scrollOverflow: value ? value.scrollWidth - value.clientWidth : 0,
-      textOverflow: style?.textOverflow ?? "",
-      whiteSpace: style?.whiteSpace ?? "",
-    };
-  });
-
-  expect(state.textOverflow).toBe("clip");
-  expect(state.overflowX).toBe("visible");
-  expect(state.whiteSpace).toBe("normal");
-  expect(state.scrollOverflow).toBeLessThanOrEqual(1);
+async function expectNoResultSummaryMetrics(page: Page): Promise<void> {
+  await expect(page.getByLabel("trace summary")).toHaveCount(0);
+  await expect(page.getByLabel("GeoIP enrichment status")).toHaveCount(0);
 }
 
 async function expectLightModePanelBoundaries(page: Page): Promise<void> {

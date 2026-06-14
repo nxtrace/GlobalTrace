@@ -810,6 +810,12 @@ summary:focus-visible {
   min-width: 2ch;
 }
 
+.port-pill-value,
+.packets-pill .numeric-pill-value,
+.limit-pill .numeric-pill-value {
+  font-size: 10px;
+}
+
 .port-pill .parameter-pill-label,
 .packets-pill .parameter-pill-label,
 .limit-pill .parameter-pill-label {
@@ -880,19 +886,19 @@ summary:focus-visible {
 }
 
 .magic-pill textarea {
-  min-height: 34px;
-  height: 34px;
-  padding: 6px 4px;
+  min-height: 38px;
+  height: 38px;
+  padding: 4px;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 650;
-  line-height: 1.35;
+  line-height: 1.25;
   overflow: hidden;
   resize: none;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .magic-pill textarea:hover,
@@ -1475,6 +1481,7 @@ summary:focus-visible {
 }
 
 .map-toolbar-surface {
+  width: fit-content;
   max-width: 100%;
 }
 
@@ -2343,7 +2350,7 @@ tbody tr:hover {
   border-color: var(--probe-tab-active-border);
   background: var(--probe-tab-active-bg);
   box-shadow: var(--probe-tab-active-shadow);
-  transform: translateY(-1px);
+  transform: none;
 }
 
 .probe-tabs::-webkit-scrollbar {
@@ -2504,104 +2511,10 @@ tbody tr:hover {
   margin-top: 0;
 }
 
-.result-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-}
-
-.metric-surface,
-.metric-surface .liquid-glass-content,
-.metric-surface .liquid-glass-fallback-content {
-  min-width: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.metric-surface .liquid-glass-content,
-.metric-surface .liquid-glass-fallback-content {
-  display: block;
-}
-
-.metric {
-  min-width: 0;
-  height: 100%;
-  display: grid;
-  gap: 2px;
-  padding: 7px 9px;
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  background: var(--table-bg);
-}
-
-.metric span {
-  color: var(--ink-muted);
-  font-size: 11px;
-  font-weight: 720;
-  line-height: 1.15;
-}
-
-.metric strong {
-  overflow: hidden;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.metric-detail {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.2;
-}
-
-.metric.geoip {
-  background: rgba(88, 127, 120, 0.08);
-  color: var(--accent-strong);
-}
-
-.metric.geoip .geoip-value {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 5px;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-}
-
-.metric.geoip .geoip-value b {
-  flex: 0 0 auto;
-  font-weight: inherit;
-}
-
-.metric.geoip .geoip-value small {
-  min-width: 0;
-  color: var(--ink-muted);
-  font-size: 12px;
-  font-weight: 720;
-  line-height: 1;
-  overflow-wrap: anywhere;
-}
-
-.metric.geoip.partial {
-  background: rgba(156, 140, 114, 0.1);
-  color: #6f614d;
-}
-
-.metric.geoip.skipped {
-  background: rgba(0, 0, 0, 0.035);
-  color: var(--ink-soft);
-}
-
-.metric.geoip .notice-text {
-  color: inherit;
-}
-
 .result-map {
   width: 100%;
   max-width: 100%;
-  height: clamp(300px, 34svh, 440px);
+  height: clamp(360px, 42svh, 540px);
   border: 1px solid var(--table-border);
   border-radius: 18px;
   overflow: hidden;
@@ -3388,12 +3301,8 @@ pre {
     justify-content: flex-start;
   }
 
-  .result-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .result-map {
-    height: clamp(300px, 42svh, 440px);
+    height: clamp(340px, 52svh, 520px);
   }
 
   .result-map-globe {
@@ -3509,9 +3418,9 @@ pre {
   }
 
   .magic-pill textarea {
-    min-height: 30px;
-    height: 30px;
-    font-size: 12px;
+    min-height: 36px;
+    height: 36px;
+    font-size: 10px;
   }
 
   .panel-title-row {
@@ -3604,7 +3513,7 @@ pre {
   }
 
   .result-map {
-    height: clamp(300px, 44svh, 400px);
+    height: clamp(320px, 50svh, 460px);
     border-radius: 14px;
   }
 
@@ -3628,7 +3537,8 @@ pre {
   }
 
   .map-toolbar-surface {
-    width: 100%;
+    width: fit-content;
+    max-width: 100%;
   }
 
   .map-toolbar-surface .liquid-glass-content {
@@ -3662,20 +3572,6 @@ pre {
 
   pre {
     max-height: min(44svh, 380px);
-  }
-
-  .result-metrics {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .metric {
-    padding: 7px 8px;
-    border-radius: 10px;
-  }
-
-  .metric strong {
-    white-space: normal;
-    overflow-wrap: anywhere;
   }
 
   .hop-card {
@@ -3831,8 +3727,14 @@ pre {
 }
 
 @media (max-width: 900px) and (max-height: 560px) {
-  .map-container,
-  .result-map,
+  .map-container {
+    height: clamp(300px, 68svh, 420px);
+  }
+
+  .result-map {
+    height: clamp(320px, 72svh, 460px);
+  }
+
   .result-map-globe {
     height: clamp(300px, 68svh, 420px);
   }
@@ -3983,7 +3885,7 @@ pre {
     inset 0 1px 0 rgba(255, 255, 255, 0.46);
   --probe-tab-active-shadow:
     0 1px 0 rgba(255, 255, 255, 0.52) inset,
-    0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 76%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 76%, transparent),
     0 10px 22px color-mix(in srgb, var(--route-color, var(--accent)) 28%, transparent);
   --probe-tab-active-title-color: color-mix(in srgb, var(--route-color, var(--accent)) 86%, var(--ink));
   --probe-tab-active-meta-color: color-mix(in srgb, var(--route-color, var(--accent)) 58%, var(--ink-soft));
@@ -4130,7 +4032,7 @@ pre {
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --probe-tab-active-shadow:
     0 1px 0 rgba(255, 255, 255, 0.12) inset,
-    0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 26%, rgba(0, 0, 0, 0.08));
+    inset 0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 26%, rgba(0, 0, 0, 0.08));
   --probe-tab-active-title-color: var(--probe-tab-text);
   --probe-tab-active-meta-color: color-mix(in srgb, var(--probe-tab-text) 82%, var(--probe-tab-meta-color));
 }
@@ -4277,7 +4179,7 @@ pre {
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
     --probe-tab-active-shadow:
       0 1px 0 rgba(255, 255, 255, 0.12) inset,
-      0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 26%, rgba(0, 0, 0, 0.08));
+      inset 0 0 0 1px color-mix(in srgb, var(--route-color, var(--accent)) 26%, rgba(0, 0, 0, 0.08));
     --probe-tab-active-title-color: var(--probe-tab-text);
     --probe-tab-active-meta-color: color-mix(in srgb, var(--probe-tab-text) 82%, var(--probe-tab-meta-color));
   }
@@ -4500,14 +4402,6 @@ textarea:hover {
   box-shadow: none;
 }
 
-.metric-surface[data-liquid-glass-mode="liquid"] .metric {
-  border-color: var(--liquid-inner-border);
-  background: var(--liquid-inner-bg);
-  box-shadow: var(--liquid-inner-shadow);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
 .probe-tabs-frame-surface[data-liquid-glass-mode="liquid"] .probe-tabs-frame {
   border-color: transparent;
   background: transparent;
@@ -4557,7 +4451,6 @@ textarea:hover {
   -webkit-backdrop-filter: blur(24px);
 }
 
-.app-shell.ambient-photo-ready .metric-surface[data-liquid-glass-mode="liquid"] .metric,
 .app-shell.ambient-photo-ready .results-section-surface[data-liquid-glass-mode="liquid"] .results-section {
   background: var(--photo-liquid-panel-bg);
 }
@@ -4664,32 +4557,6 @@ textarea:hover {
   -webkit-backdrop-filter: blur(18px) saturate(1.14);
 }
 
-.result-metrics {
-  gap: 8px;
-}
-
-.metric {
-  border-color: var(--glass-border);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(35, 184, 255, 0.08) 58%, rgba(139, 92, 246, 0.08)),
-    var(--table-bg);
-  box-shadow: var(--shadow-inset);
-  backdrop-filter: blur(18px) saturate(1.14);
-  -webkit-backdrop-filter: blur(18px) saturate(1.14);
-}
-
-.metric-surface:nth-child(3n + 2) .metric {
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(139, 92, 246, 0.1) 58%, rgba(249, 115, 22, 0.08)),
-    var(--table-bg);
-}
-
-.metric-surface:nth-child(3n) .metric {
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(249, 115, 22, 0.1) 58%, rgba(35, 184, 255, 0.08)),
-    var(--table-bg);
-}
-
 .table-scroll {
   border-color: var(--table-border);
   background: var(--table-bg);
@@ -4726,24 +4593,6 @@ textarea:hover {
     linear-gradient(135deg, rgba(35, 184, 255, 0.16), rgba(139, 92, 246, 0.12)),
     var(--control-bg);
   box-shadow: var(--shadow-control);
-}
-
-:root[data-theme="dark"] .metric,
-:root[data-theme="dark"] .metric-surface:nth-child(3n + 2) .metric,
-:root[data-theme="dark"] .metric-surface:nth-child(3n) .metric {
-  background:
-    linear-gradient(145deg, rgba(53, 210, 255, 0.1), rgba(139, 92, 246, 0.09) 56%, rgba(249, 115, 22, 0.07)),
-    var(--table-bg);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="system"] .metric,
-  :root[data-theme="system"] .metric-surface:nth-child(3n + 2) .metric,
-  :root[data-theme="system"] .metric-surface:nth-child(3n) .metric {
-    background:
-      linear-gradient(145deg, rgba(53, 210, 255, 0.1), rgba(139, 92, 246, 0.09) 56%, rgba(249, 115, 22, 0.07)),
-      var(--table-bg);
-  }
 }
 
 @media (max-width: 360px) {
@@ -5049,7 +4898,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .filter-summary,
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .attribution-panel,
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .about-panel,
-.liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .metric,
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .results-section,
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .probe-tabs-frame,
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"] .primary-action {
@@ -5083,14 +4931,14 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .probe-tab-surface[data-liquid-glass-mode="liquid"].is-active .liquid-glass-content {
   border-color: var(--probe-tab-active-border);
   background: var(--probe-tab-active-bg);
-  box-shadow: var(--probe-tab-active-shadow), var(--liquid-optical-shadow);
+  box-shadow: var(--probe-tab-active-shadow);
 }
 
 .liquid-glass-demo-intensity[data-liquid-glass-mode="liquid"].probe-tab-surface.is-active .liquid-glass-content {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(35, 184, 255, 0.2) 58%, rgba(139, 92, 246, 0.16)),
     var(--probe-tab-active-bg);
-  box-shadow: var(--probe-tab-active-shadow), var(--liquid-optical-shadow), var(--liquid-optical-edge);
+  box-shadow: var(--probe-tab-active-shadow);
 }
 
 .run-action-surface[data-liquid-glass-mode="liquid"] .primary-action {
@@ -5204,7 +5052,6 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 
 .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
 .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel,
-.metric-surface[data-liquid-glass-mode="liquid"] .metric,
 .results-section-surface[data-liquid-glass-mode="liquid"] .results-section,
 .probe-tabs-frame-surface[data-liquid-glass-mode="liquid"] .probe-tabs-frame,
 .status-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
@@ -5219,14 +5066,12 @@ html.liquid-glass-force-fallback .liquid-glass-fallback-content {
 .app-shell.ambient-photo-ready .result-map-toolbar-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
 .app-shell.ambient-photo-ready .filter-summary-surface[data-liquid-glass-mode="liquid"] .filter-summary,
 .about-shell.ambient-photo-ready .about-panel-surface[data-liquid-glass-mode="liquid"] .about-panel,
-.app-shell.ambient-photo-ready .metric-surface[data-liquid-glass-mode="liquid"] .metric,
 .app-shell.ambient-photo-ready .results-section-surface[data-liquid-glass-mode="liquid"] .results-section {
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
-.probe-tab-surface[data-liquid-glass-mode="liquid"].is-active .liquid-glass-content,
 .result-view-surface[data-liquid-glass-mode="liquid"].is-active .liquid-glass-content,
 .map-tool-surface[data-liquid-glass-mode="liquid"] .tool-button.active {
   border-color: color-mix(in srgb, var(--route-color, var(--accent)) 56%, rgba(255, 255, 255, 0.8));
