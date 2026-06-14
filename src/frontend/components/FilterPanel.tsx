@@ -1,6 +1,30 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
-import { Filter, Info, KeyRound, Monitor, Moon, Play, RotateCcw, Settings, ShieldCheck, Sun } from "lucide-react";
-import { compactText, normalizeAsn, type FilterChip, type ProbeFilterSuggestions } from "../../shared/filters";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
+import {
+  Filter,
+  Info,
+  KeyRound,
+  Monitor,
+  Moon,
+  Play,
+  RotateCcw,
+  Settings,
+  ShieldCheck,
+  Sun,
+} from "lucide-react";
+import {
+  compactText,
+  normalizeAsn,
+  type FilterChip,
+  type ProbeFilterSuggestions,
+} from "../../shared/filters";
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
@@ -75,7 +99,8 @@ const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
   magicStrings: [],
 };
 const MAX_VISIBLE_SUGGESTIONS = 8;
-const MAGIC_PLACEHOLDER = "Los Angeles+US+AS7922+Comcast, Shanghai+CN+AS4134+China Telecom";
+const MAGIC_PLACEHOLDER =
+  "Los Angeles+US+AS7922+Comcast, Shanghai+CN+AS4134+China Telecom";
 const EXACT_FILTERS_DESKTOP_QUERY = "(min-width: 821px)";
 
 interface IndexedMagicToken {
@@ -90,7 +115,8 @@ interface IndexedMagicOption {
 }
 
 function readExactFiltersDefaultOpen(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return true;
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function")
+    return true;
   return window.matchMedia(EXACT_FILTERS_DESKTOP_QUERY).matches;
 }
 
@@ -100,7 +126,9 @@ export function FilterPanel(props: FilterPanelProps) {
   const nexttraceTokenStatusId = useId();
   const [advancedParamsOpen, setAdvancedParamsOpen] = useState(false);
   const exactFiltersTouchedRef = useRef(false);
-  const [exactFiltersOpen, setExactFiltersOpen] = useState(readExactFiltersDefaultOpen);
+  const [exactFiltersOpen, setExactFiltersOpen] = useState(
+    readExactFiltersDefaultOpen,
+  );
 
   const openAdvancedParams = () => {
     props.onOpenAdvancedParams?.();
@@ -112,12 +140,17 @@ export function FilterPanel(props: FilterPanelProps) {
   };
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    )
+      return;
     const mediaQuery = window.matchMedia(EXACT_FILTERS_DESKTOP_QUERY);
     const updateDefault = (matches: boolean) => {
       if (!exactFiltersTouchedRef.current) setExactFiltersOpen(matches);
     };
-    const onChange = (event: MediaQueryListEvent) => updateDefault(event.matches);
+    const onChange = (event: MediaQueryListEvent) =>
+      updateDefault(event.matches);
 
     updateDefault(mediaQuery.matches);
     mediaQuery.addEventListener?.("change", onChange);
@@ -131,10 +164,16 @@ export function FilterPanel(props: FilterPanelProps) {
   const setFilter = (key: keyof TraceFilters, value: string | boolean) => {
     const nextValue = cleanFilterValue(value);
     if (key === "magic") {
-      props.onFiltersChange({ magic: typeof nextValue === "string" ? nextValue : "world" });
+      props.onFiltersChange({
+        magic: typeof nextValue === "string" ? nextValue : "world",
+      });
       return;
     }
-    props.onFiltersChange({ ...props.filters, magic: undefined, [key]: nextValue });
+    props.onFiltersChange({
+      ...props.filters,
+      magic: undefined,
+      [key]: nextValue,
+    });
   };
 
   return (
@@ -152,7 +191,7 @@ export function FilterPanel(props: FilterPanelProps) {
               aria-label="返回首页"
             >
               <h1>GlobalTrace</h1>
-              <p>Globalping x NextTrace 的全球路由追踪</p>
+              <p>全球路由追踪</p>
             </a>
             <div className="panel-title-actions">
               <LiquidGlassSurface
@@ -163,7 +202,12 @@ export function FilterPanel(props: FilterPanelProps) {
                 title={`主题：${themeModeLabel(props.themeMode)}`}
                 ariaLabel={`主题：${themeModeLabel(props.themeMode)}`}
               >
-                <Button variant="ghost" size="icon" className="panel-action-button" asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="panel-action-button"
+                  asChild
+                >
                   <span>
                     <ThemeIcon mode={props.themeMode} />
                   </span>
@@ -177,7 +221,12 @@ export function FilterPanel(props: FilterPanelProps) {
                 title="高级参数"
                 ariaLabel="打开高级参数"
               >
-                <Button variant="ghost" size="icon" className="panel-action-button" asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="panel-action-button"
+                  asChild
+                >
                   <span>
                     <Settings size={18} />
                   </span>
@@ -191,7 +240,12 @@ export function FilterPanel(props: FilterPanelProps) {
                 title="重置筛选"
                 ariaLabel="重置筛选"
               >
-                <Button variant="ghost" size="icon" className="panel-action-button" asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="panel-action-button"
+                  asChild
+                >
                   <span>
                     <RotateCcw size={18} />
                   </span>
@@ -201,7 +255,10 @@ export function FilterPanel(props: FilterPanelProps) {
           </div>
 
           <Surface asChild variant="flat" className="primary-controls-surface">
-            <section className="control-section primary-controls" aria-label="基础参数">
+            <section
+              className="control-section primary-controls"
+              aria-label="基础参数"
+            >
               <label className="field-label">
                 <span>目标</span>
                 <Input
@@ -218,7 +275,11 @@ export function FilterPanel(props: FilterPanelProps) {
                   <span>协议</span>
                   <NativeSelect
                     value={props.protocol}
-                    onChange={(event) => props.onProtocolChange(event.target.value as TraceProtocol)}
+                    onChange={(event) =>
+                      props.onProtocolChange(
+                        event.target.value as TraceProtocol,
+                      )
+                    }
                     aria-label="协议"
                   >
                     <option value="ICMP">ICMP</option>
@@ -230,7 +291,11 @@ export function FilterPanel(props: FilterPanelProps) {
                   <span>IP 版本</span>
                   <NativeSelect
                     value={props.ipVersion}
-                    onChange={(event) => props.onIpVersionChange(parseIpVersionSelection(event.target.value))}
+                    onChange={(event) =>
+                      props.onIpVersionChange(
+                        parseIpVersionSelection(event.target.value),
+                      )
+                    }
                     aria-label="IP 版本"
                   >
                     <option value="">自动</option>
@@ -245,7 +310,9 @@ export function FilterPanel(props: FilterPanelProps) {
                     min={1}
                     max={10}
                     value={props.limit}
-                    onChange={(event) => props.onLimitChange(Number(event.target.value))}
+                    onChange={(event) =>
+                      props.onLimitChange(Number(event.target.value))
+                    }
                     aria-label="probes"
                   />
                 </label>
@@ -262,7 +329,11 @@ export function FilterPanel(props: FilterPanelProps) {
             </section>
           </Surface>
 
-          <LiquidGlassSurface variant="panel" fullWidth className="filter-summary-surface">
+          <LiquidGlassSurface
+            variant="panel"
+            fullWidth
+            className="filter-summary-surface"
+          >
             <section className="filter-summary" aria-label="当前筛选">
               <div className="summary-title">
                 <Filter size={16} />
@@ -283,8 +354,16 @@ export function FilterPanel(props: FilterPanelProps) {
                 )}
               </div>
               <div className="probe-match-row">
-                <span>{probeStatusText(props.probesStatus, props.visibleProbes, props.totalProbes)}</span>
-                {props.selectionNotice && <span className="notice-text">{props.selectionNotice}</span>}
+                <span>
+                  {probeStatusText(
+                    props.probesStatus,
+                    props.visibleProbes,
+                    props.totalProbes,
+                  )}
+                </span>
+                {props.selectionNotice && (
+                  <span className="notice-text">{props.selectionNotice}</span>
+                )}
               </div>
             </section>
           </LiquidGlassSurface>
@@ -293,12 +372,15 @@ export function FilterPanel(props: FilterPanelProps) {
             <details
               className="advanced-panel"
               open={exactFiltersOpen}
-              onToggle={(event) => setExactFiltersOpen(event.currentTarget.open)}
+              onToggle={(event) =>
+                setExactFiltersOpen(event.currentTarget.open)
+              }
             >
               <summary
                 onClick={markExactFiltersTouched}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") markExactFiltersTouched();
+                  if (event.key === "Enter" || event.key === " ")
+                    markExactFiltersTouched();
                 }}
               >
                 <Filter size={16} />
@@ -350,7 +432,9 @@ export function FilterPanel(props: FilterPanelProps) {
                     <span>eyeball</span>
                     <Switch
                       checked={Boolean(props.filters.eyeball)}
-                      onCheckedChange={(checked) => setFilter("eyeball", Boolean(checked))}
+                      onCheckedChange={(checked) =>
+                        setFilter("eyeball", Boolean(checked))
+                      }
                       aria-label="eyeball"
                     />
                   </label>
@@ -358,7 +442,9 @@ export function FilterPanel(props: FilterPanelProps) {
                     <span>datacenter</span>
                     <Switch
                       checked={Boolean(props.filters.datacenter)}
-                      onCheckedChange={(checked) => setFilter("datacenter", Boolean(checked))}
+                      onCheckedChange={(checked) =>
+                        setFilter("datacenter", Boolean(checked))
+                      }
                       aria-label="datacenter"
                     />
                   </label>
@@ -394,28 +480,46 @@ export function FilterPanel(props: FilterPanelProps) {
         </div>
 
         <div className="filter-panel-footer" data-testid="filter-panel-footer">
-          <LiquidGlassSurface variant="panel" fullWidth className="run-state-surface">
+          <LiquidGlassSurface
+            variant="panel"
+            fullWidth
+            className="run-state-surface"
+          >
             <div className="run-state" aria-live="polite">
               <ShieldCheck size={16} />
               <div>
                 <strong>
-                  {props.nexttraceTokenSaved ? "NextTrace API Token 直连已启用" : "Globalping credits 控制诊断创建"}
+                  {props.nexttraceTokenSaved
+                    ? "NextTrace API Token 直连已启用"
+                    : "Globalping credits 控制诊断创建"}
                 </strong>
                 <span>{props.quotaLabel}</span>
               </div>
             </div>
           </LiquidGlassSurface>
 
-          <LiquidGlassSurface variant="panel" fullWidth className="attribution-glass-surface">
+          <LiquidGlassSurface
+            variant="panel"
+            fullWidth
+            className="attribution-glass-surface"
+          >
             <div className="attribution-panel">
               <span>
                 <span>
                   Powered by{" "}
-                  <a href="https://globalping.io/" target="_blank" rel="noreferrer">
+                  <a
+                    href="https://globalping.io/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Globalping
                   </a>{" "}
                   <span className="attribution-separator">×</span>{" "}
-                  <a href="https://www.nxtrace.org/" target="_blank" rel="noreferrer">
+                  <a
+                    href="https://www.nxtrace.org/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     NextTrace
                   </a>
                 </span>
@@ -427,7 +531,12 @@ export function FilterPanel(props: FilterPanelProps) {
                 onClick={props.onNavigateAbout}
                 className="liquid-glass-coverage attribution-action-surface"
               >
-                <Button variant="ghost" size="sm" type="button" aria-label="关于 GlobalTrace">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  aria-label="关于 GlobalTrace"
+                >
                   <Info size={15} />
                   关于
                 </Button>
@@ -444,7 +553,12 @@ export function FilterPanel(props: FilterPanelProps) {
             onClick={props.onSubmit}
             ariaLabel="开始网络路径诊断"
           >
-            <Button variant="primary" size="lg" className="primary-action" asChild>
+            <Button
+              variant="primary"
+              size="lg"
+              className="primary-action"
+              asChild
+            >
               <span>
                 <Play size={18} />
                 {props.loading ? "运行中" : "开始诊断"}
@@ -486,7 +600,9 @@ function AdvancedParamsPanel({
             min={1}
             max={16}
             value={props.packets}
-            onChange={(event) => props.onPacketsChange(Number(event.target.value))}
+            onChange={(event) =>
+              props.onPacketsChange(Number(event.target.value))
+            }
             aria-label="包数"
           />
         </label>
@@ -501,7 +617,9 @@ function AdvancedParamsPanel({
           <span>液态玻璃效果</span>
           <Switch
             checked={props.liquidGlassEnabled}
-            onCheckedChange={(checked) => props.onLiquidGlassEnabledChange(Boolean(checked))}
+            onCheckedChange={(checked) =>
+              props.onLiquidGlassEnabledChange(Boolean(checked))
+            }
             aria-label="液态玻璃效果"
           />
         </label>
@@ -521,7 +639,9 @@ function AdvancedParamsPanel({
             step={1}
             value={props.liquidGlassIntensity}
             disabled={!props.liquidGlassEnabled}
-            onChange={(event) => props.onLiquidGlassIntensityChange(Number(event.target.value))}
+            onChange={(event) =>
+              props.onLiquidGlassIntensityChange(Number(event.target.value))
+            }
             aria-label="液态玻璃强度"
           />
         </div>
@@ -537,7 +657,9 @@ function AdvancedParamsPanel({
           <Input
             type="password"
             value={props.globalpingTokenDraft}
-            onChange={(event) => props.onGlobalpingTokenDraftChange(event.target.value)}
+            onChange={(event) =>
+              props.onGlobalpingTokenDraftChange(event.target.value)
+            }
             placeholder="可选：使用自己的 Globalping Token"
             autoComplete="off"
             aria-label="Globalping Token"
@@ -548,7 +670,9 @@ function AdvancedParamsPanel({
           <span>记住到本机</span>
           <Switch
             checked={props.globalpingTokenRemembered}
-            onCheckedChange={(checked) => props.onGlobalpingTokenRememberedChange(Boolean(checked))}
+            onCheckedChange={(checked) =>
+              props.onGlobalpingTokenRememberedChange(Boolean(checked))
+            }
             aria-label="记住 Globalping 到本机"
           />
         </label>
@@ -568,7 +692,12 @@ function AdvancedParamsPanel({
               onClick={props.onSaveGlobalpingToken}
               className="liquid-glass-coverage token-action-surface"
             >
-              <Button variant="glass" size="sm" type="button" aria-label="保存 Globalping">
+              <Button
+                variant="glass"
+                size="sm"
+                type="button"
+                aria-label="保存 Globalping"
+              >
                 保存
               </Button>
             </LiquidGlassSurface>
@@ -579,7 +708,12 @@ function AdvancedParamsPanel({
               onClick={props.onClearGlobalpingToken}
               className="liquid-glass-coverage token-action-surface"
             >
-              <Button variant="ghost" size="sm" type="button" aria-label="清除 Globalping">
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                aria-label="清除 Globalping"
+              >
                 清除
               </Button>
             </LiquidGlassSurface>
@@ -612,7 +746,9 @@ function AdvancedParamsPanel({
           <Input
             type="password"
             value={props.nexttraceTokenDraft}
-            onChange={(event) => props.onNexttraceTokenDraftChange(event.target.value)}
+            onChange={(event) =>
+              props.onNexttraceTokenDraftChange(event.target.value)
+            }
             placeholder="可选：直连 NextTrace enrichment"
             autoComplete="off"
             aria-label="NextTrace API Token"
@@ -623,7 +759,9 @@ function AdvancedParamsPanel({
           <span>记住到本机</span>
           <Switch
             checked={props.nexttraceTokenRemembered}
-            onCheckedChange={(checked) => props.onNexttraceTokenRememberedChange(Boolean(checked))}
+            onCheckedChange={(checked) =>
+              props.onNexttraceTokenRememberedChange(Boolean(checked))
+            }
             aria-label="记住 NextTrace 到本机"
           />
         </label>
@@ -643,7 +781,12 @@ function AdvancedParamsPanel({
               onClick={props.onSaveNexttraceToken}
               className="liquid-glass-coverage token-action-surface"
             >
-              <Button variant="glass" size="sm" type="button" aria-label="保存 NextTrace">
+              <Button
+                variant="glass"
+                size="sm"
+                type="button"
+                aria-label="保存 NextTrace"
+              >
                 保存
               </Button>
             </LiquidGlassSurface>
@@ -654,7 +797,12 @@ function AdvancedParamsPanel({
               onClick={props.onClearNexttraceToken}
               className="liquid-glass-coverage token-action-surface"
             >
-              <Button variant="ghost" size="sm" type="button" aria-label="清除 NextTrace">
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                aria-label="清除 NextTrace"
+              >
                 清除
               </Button>
             </LiquidGlassSurface>
@@ -680,7 +828,10 @@ function MagicSuggestionTextarea({
   const [activeIndex, setActiveIndex] = useState(0);
   const [cursorPosition, setCursorPosition] = useState(value.length);
   const indexedOptions = useMemo(() => indexMagicOptions(options), [options]);
-  const query = useMemo(() => magicSegmentAt(value, cursorPosition).query, [cursorPosition, value]);
+  const query = useMemo(
+    () => magicSegmentAt(value, cursorPosition).query,
+    [cursorPosition, value],
+  );
   const visibleOptions = useMemo(() => {
     const queryTokens = magicOptionTokens(query);
     if (!queryTokens.length) return [];
@@ -699,7 +850,9 @@ function MagicSuggestionTextarea({
   }, [options, value, cursorPosition]);
 
   const showOptions = open && visibleOptions.length > 0;
-  const activeOptionId = showOptions ? `${listboxId}-${activeIndex}` : undefined;
+  const activeOptionId = showOptions
+    ? `${listboxId}-${activeIndex}`
+    : undefined;
 
   const updateCursorPosition = (textarea: HTMLTextAreaElement) => {
     setCursorPosition(textarea.selectionStart ?? textarea.value.length);
@@ -708,8 +861,14 @@ function MagicSuggestionTextarea({
   const selectOption = (option: string) => {
     const position = textareaRef.current?.selectionStart ?? cursorPosition;
     const segment = magicSegmentAt(value, position);
-    const nextValue = replaceMagicSegment(value, segment.start, segment.end, option);
-    const leadingWhitespace = value.slice(segment.start, segment.end).match(/^\s*/)?.[0] ?? "";
+    const nextValue = replaceMagicSegment(
+      value,
+      segment.start,
+      segment.end,
+      option,
+    );
+    const leadingWhitespace =
+      value.slice(segment.start, segment.end).match(/^\s*/)?.[0] ?? "";
     onChange(nextValue);
     setOpen(false);
     setCursorPosition(segment.start + leadingWhitespace.length + option.length);
@@ -726,7 +885,9 @@ function MagicSuggestionTextarea({
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setOpen(true);
-      setActiveIndex((current) => Math.min(current + 1, visibleOptions.length - 1));
+      setActiveIndex((current) =>
+        Math.min(current + 1, visibleOptions.length - 1),
+      );
       return;
     }
 
@@ -743,7 +904,10 @@ function MagicSuggestionTextarea({
     }
   };
 
-  const handleOptionMouseDown = (event: MouseEvent<HTMLDivElement>, option: string) => {
+  const handleOptionMouseDown = (
+    event: MouseEvent<HTMLDivElement>,
+    option: string,
+  ) => {
     event.preventDefault();
     selectOption(option);
   };
@@ -777,7 +941,12 @@ function MagicSuggestionTextarea({
         aria-activedescendant={activeOptionId}
       />
       {showOptions && (
-        <div id={listboxId} className="suggestion-popover" role="listbox" aria-label="候选列表">
+        <div
+          id={listboxId}
+          className="suggestion-popover"
+          role="listbox"
+          aria-label="候选列表"
+        >
           {visibleOptions.map((option, index) => (
             <div
               id={`${listboxId}-${index}`}
@@ -824,15 +993,28 @@ function magicOptionTokens(value: string): IndexedMagicToken[] {
     }));
 }
 
-function magicIndexedOptionMatchesQuery(option: IndexedMagicOption, queryTokens: IndexedMagicToken[]): boolean {
+function magicIndexedOptionMatchesQuery(
+  option: IndexedMagicOption,
+  queryTokens: IndexedMagicToken[],
+): boolean {
   if (!option.tokens.length || option.includesWorld) return true;
-  return queryTokens.every((queryToken) => option.tokens.some((optionToken) => magicIndexedTokenMatches(optionToken, queryToken)));
+  return queryTokens.every((queryToken) =>
+    option.tokens.some((optionToken) =>
+      magicIndexedTokenMatches(optionToken, queryToken),
+    ),
+  );
 }
 
-function magicIndexedTokenMatches(optionToken: IndexedMagicToken, queryToken: IndexedMagicToken): boolean {
+function magicIndexedTokenMatches(
+  optionToken: IndexedMagicToken,
+  queryToken: IndexedMagicToken,
+): boolean {
   if (!queryToken.lower || queryToken.lower === "world") return true;
   if (/^(AS)?\d+$/i.test(queryToken.lower)) {
-    return optionToken.normalizedAsn === queryToken.normalizedAsn || optionToken.lower.includes(queryToken.lower);
+    return (
+      optionToken.normalizedAsn === queryToken.normalizedAsn ||
+      optionToken.lower.includes(queryToken.lower)
+    );
   }
   return optionToken.lower.includes(queryToken.lower);
 }
@@ -853,7 +1035,9 @@ function SuggestionInput({
   const [activeIndex, setActiveIndex] = useState(0);
   const visibleOptions = useMemo(() => {
     const query = value.trim().toLowerCase();
-    const matches = query ? options.filter((option) => option.toLowerCase().includes(query)) : options;
+    const matches = query
+      ? options.filter((option) => option.toLowerCase().includes(query))
+      : options;
     return matches.slice(0, MAX_VISIBLE_SUGGESTIONS);
   }, [options, value]);
 
@@ -862,7 +1046,9 @@ function SuggestionInput({
   }, [options, value]);
 
   const showOptions = open && visibleOptions.length > 0;
-  const activeOptionId = showOptions ? `${listboxId}-${activeIndex}` : undefined;
+  const activeOptionId = showOptions
+    ? `${listboxId}-${activeIndex}`
+    : undefined;
 
   const selectOption = (option: string) => {
     onChange(option);
@@ -880,7 +1066,9 @@ function SuggestionInput({
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setOpen(true);
-      setActiveIndex((current) => Math.min(current + 1, visibleOptions.length - 1));
+      setActiveIndex((current) =>
+        Math.min(current + 1, visibleOptions.length - 1),
+      );
       return;
     }
 
@@ -897,7 +1085,10 @@ function SuggestionInput({
     }
   };
 
-  const handleOptionMouseDown = (event: MouseEvent<HTMLDivElement>, option: string) => {
+  const handleOptionMouseDown = (
+    event: MouseEvent<HTMLDivElement>,
+    option: string,
+  ) => {
     event.preventDefault();
     selectOption(option);
   };
@@ -921,7 +1112,12 @@ function SuggestionInput({
         aria-activedescendant={activeOptionId}
       />
       {showOptions && (
-        <div id={listboxId} className="suggestion-popover" role="listbox" aria-label="候选列表">
+        <div
+          id={listboxId}
+          className="suggestion-popover"
+          role="listbox"
+          aria-label="候选列表"
+        >
           {visibleOptions.map((option, index) => (
             <div
               id={`${listboxId}-${index}`}
@@ -940,7 +1136,9 @@ function SuggestionInput({
   );
 }
 
-function cleanFilterValue(value: string | boolean): string | boolean | undefined {
+function cleanFilterValue(
+  value: string | boolean,
+): string | boolean | undefined {
   if (typeof value === "string") {
     return value.trim() ? value : undefined;
   }
@@ -951,7 +1149,10 @@ function visibleMagicValue(value: string | undefined): string {
   return value?.trim().toLowerCase() === "world" ? "" : value || "";
 }
 
-function magicSegmentAt(value: string, position: number): { start: number; end: number; query: string } {
+function magicSegmentAt(
+  value: string,
+  position: number,
+): { start: number; end: number; query: string } {
   const cursor = Math.max(0, Math.min(position, value.length));
   const start = value.lastIndexOf(",", Math.max(0, cursor - 1)) + 1;
   const nextComma = value.indexOf(",", cursor);
@@ -959,10 +1160,17 @@ function magicSegmentAt(value: string, position: number): { start: number; end: 
   return { start, end, query: value.slice(start, end).trim() };
 }
 
-function replaceMagicSegment(value: string, start: number, end: number, option: string): string {
+function replaceMagicSegment(
+  value: string,
+  start: number,
+  end: number,
+  option: string,
+): string {
   const segment = value.slice(start, end);
   const leadingWhitespace = segment.match(/^\s*/)?.[0] ?? "";
-  const trailingWhitespace = segment.trim() ? segment.match(/\s*$/)?.[0] ?? "" : "";
+  const trailingWhitespace = segment.trim()
+    ? (segment.match(/\s*$/)?.[0] ?? "")
+    : "";
   return `${value.slice(0, start)}${leadingWhitespace}${option}${trailingWhitespace}${value.slice(end)}`;
 }
 
@@ -972,7 +1180,11 @@ function parseIpVersionSelection(value: string): IpVersionSelection {
   return "";
 }
 
-function probeStatusText(status: "loading" | "ready" | "error", visible: number, total: number): string {
+function probeStatusText(
+  status: "loading" | "ready" | "error",
+  visible: number,
+  total: number,
+): string {
   if (status === "loading") return "probes 加载中";
   if (status === "error") return "probes 读取失败";
   return `${visible} / ${total} probes 匹配`;

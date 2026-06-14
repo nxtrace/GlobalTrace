@@ -33,7 +33,8 @@ const NETWORK_MAGIC_SUGGESTIONS = [
   "Los Angeles+US+AS7922+eyeball-network",
 ];
 
-const exactFiltersPanel = () => screen.getByText("精确筛选").closest("details") as HTMLDetailsElement;
+const exactFiltersPanel = () =>
+  screen.getByText("精确筛选").closest("details") as HTMLDetailsElement;
 
 const openExactFilters = () => {
   if (!exactFiltersPanel().open) fireEvent.click(screen.getByText("精确筛选"));
@@ -49,7 +50,11 @@ describe("FilterPanel", () => {
   });
 
   it("shows active filters, advanced controls, and reset action", () => {
-    const filters: TraceFilters = { country: "US", city: "Los Angeles", eyeball: true };
+    const filters: TraceFilters = {
+      country: "US",
+      city: "Los Angeles",
+      eyeball: true,
+    };
     const onReset = vi.fn();
     const onFiltersChange = vi.fn();
 
@@ -104,24 +109,38 @@ describe("FilterPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Globalping x NextTrace 的全球路由追踪")).toBeInTheDocument();
+    expect(screen.getByText("全球路由追踪")).toBeInTheDocument();
     expect(screen.getByText("当前筛选")).toBeInTheDocument();
     const chips = within(screen.getByTestId("filter-chips"));
     expect(chips.getByText("国家/地区")).toBeInTheDocument();
     expect(chips.getByText("US")).toBeInTheDocument();
     expect(screen.getByText("12 / 120 probes 匹配")).toBeInTheDocument();
-    expect(screen.getByText("已从地图选择 US+Los Angeles+AS7922")).toBeInTheDocument();
-    expect(screen.getByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
+    expect(
+      screen.getByText("已从地图选择 US+Los Angeles+AS7922"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Globalping credits 控制诊断创建"),
+    ).toBeInTheDocument();
     const baseControls = screen.getByRole("region", { name: "基础参数" });
-    expect(baseControls).toHaveClass("primary-controls-surface", "primary-controls");
-    expect(baseControls.closest("[data-liquid-glass]")).toBeNull();
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" }).closest("[data-liquid-glass]")).toHaveAttribute(
-      "data-liquid-glass-interactive",
-      "true",
+    expect(baseControls).toHaveClass(
+      "primary-controls-surface",
+      "primary-controls",
     );
-    expect(screen.getByRole("button", { name: "主题：System" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "切换到 2D 视图" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "切换到 3D 视图" })).not.toBeInTheDocument();
+    expect(baseControls.closest("[data-liquid-glass]")).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "开始网络路径诊断" })
+        .closest("[data-liquid-glass]"),
+    ).toHaveAttribute("data-liquid-glass-interactive", "true");
+    expect(
+      screen.getByRole("button", { name: "主题：System" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "切换到 2D 视图" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "切换到 3D 视图" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toBeVisible();
     expect(screen.getByLabelText("eyeball")).toBeVisible();
     expect(screen.getByLabelText("datacenter")).toBeVisible();
@@ -129,14 +148,32 @@ describe("FilterPanel", () => {
     expect(screen.queryByLabelText("Globalping Token")).not.toBeInTheDocument();
     expect(screen.getByText(/Powered by/)).toBeInTheDocument();
     expect(screen.getByText("×")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Globalping" })).toHaveAttribute("href", "https://globalping.io/");
-    expect(screen.getByRole("link", { name: "NextTrace" })).toHaveAttribute("href", "https://www.nxtrace.org/");
-    expect(screen.queryByRole("link", { name: "GlobalTrace GitHub" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "关于 GlobalTrace" }).closest(".attribution-action-surface[data-liquid-glass]")).not.toBeNull();
-    const advancedParamsButton = screen.getByRole("button", { name: "打开高级参数" });
+    expect(screen.getByRole("link", { name: "Globalping" })).toHaveAttribute(
+      "href",
+      "https://globalping.io/",
+    );
+    expect(screen.getByRole("link", { name: "NextTrace" })).toHaveAttribute(
+      "href",
+      "https://www.nxtrace.org/",
+    );
+    expect(
+      screen.queryByRole("link", { name: "GlobalTrace GitHub" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: "关于 GlobalTrace" })
+        .closest(".attribution-action-surface[data-liquid-glass]"),
+    ).not.toBeNull();
+    const advancedParamsButton = screen.getByRole("button", {
+      name: "打开高级参数",
+    });
     expect(advancedParamsButton.closest(".panel-title-actions")).not.toBeNull();
-    expect(advancedParamsButton.closest("[data-liquid-glass]")).toHaveClass("liquid-glass-iconButton");
-    expect(document.querySelector(".advanced-params-trigger-surface")).toBeNull();
+    expect(advancedParamsButton.closest("[data-liquid-glass]")).toHaveClass(
+      "liquid-glass-iconButton",
+    );
+    expect(
+      document.querySelector(".advanced-params-trigger-surface"),
+    ).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(onReset).toHaveBeenCalledTimes(1);
@@ -148,33 +185,71 @@ describe("FilterPanel", () => {
     expect(screen.getByLabelText("tag")).toBeVisible();
     expect(screen.getByLabelText("eyeball")).toBeVisible();
     expect(screen.getByLabelText("datacenter")).toBeVisible();
-    const advancedPanel = screen.getByText("精确筛选").closest("details") as HTMLElement;
-    expect(within(advancedPanel).queryByLabelText("magic string")).not.toBeInTheDocument();
+    const advancedPanel = screen
+      .getByText("精确筛选")
+      .closest("details") as HTMLElement;
+    expect(
+      within(advancedPanel).queryByLabelText("magic string"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Globalping Token")).not.toBeInTheDocument();
 
     openAdvancedParams();
     const advancedDialog = screen.getByRole("dialog", { name: "高级参数" });
     expect(advancedDialog.closest(".glass-overlay-center")).not.toBeNull();
     expect(advancedDialog.closest(".glass-overlay-sheet")).toBeNull();
-    expect(within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
-    expect(within(advancedDialog).getByLabelText("Globalping Token")).toBeVisible();
-    expect(within(advancedDialog).getByText("未使用 Globalping Token")).toBeVisible();
-    expect(within(advancedDialog).getByRole("button", { name: "保存 Globalping" }).closest(".token-action-surface[data-liquid-glass]")).not.toBeNull();
-    expect(within(advancedDialog).getByRole("button", { name: "清除 Globalping" }).closest(".token-action-surface[data-liquid-glass]")).not.toBeNull();
-    expect(within(advancedDialog).getByRole("button", { name: "保存 NextTrace" }).closest(".token-action-surface[data-liquid-glass]")).not.toBeNull();
-    expect(within(advancedDialog).getByRole("button", { name: "清除 NextTrace" }).closest(".token-action-surface[data-liquid-glass]")).not.toBeNull();
-    expect(within(advancedDialog).getByRole("link", { name: "获取 NextTrace API Token" })).toHaveAttribute(
-      "href",
-      "https://api.nxtrace.org/v4/api-tokens",
-    );
-    expect(within(advancedDialog).getByRole("link", { name: "获取 NextTrace API Token" }).closest(".token-help-surface[data-liquid-glass]")).not.toBeNull();
-    expect(within(advancedDialog).getByLabelText("NextTrace API Token")).toBeVisible();
-    expect(within(advancedDialog).getByText("未使用 NextTrace Token")).toBeVisible();
-    expect(within(advancedDialog).getByRole("link", { name: "获取 NextTrace API Token" })).toHaveAttribute(
-      "href",
-      "https://api.nxtrace.org/v4/api-tokens",
-    );
-    fireEvent.change(screen.getByLabelText("magic string"), { target: { value: "DE+Hetzner" } });
+    expect(
+      within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" }),
+    ).toBeChecked();
+    expect(
+      within(advancedDialog).getByLabelText("Globalping Token"),
+    ).toBeVisible();
+    expect(
+      within(advancedDialog).getByText("未使用 Globalping Token"),
+    ).toBeVisible();
+    expect(
+      within(advancedDialog)
+        .getByRole("button", { name: "保存 Globalping" })
+        .closest(".token-action-surface[data-liquid-glass]"),
+    ).not.toBeNull();
+    expect(
+      within(advancedDialog)
+        .getByRole("button", { name: "清除 Globalping" })
+        .closest(".token-action-surface[data-liquid-glass]"),
+    ).not.toBeNull();
+    expect(
+      within(advancedDialog)
+        .getByRole("button", { name: "保存 NextTrace" })
+        .closest(".token-action-surface[data-liquid-glass]"),
+    ).not.toBeNull();
+    expect(
+      within(advancedDialog)
+        .getByRole("button", { name: "清除 NextTrace" })
+        .closest(".token-action-surface[data-liquid-glass]"),
+    ).not.toBeNull();
+    expect(
+      within(advancedDialog).getByRole("link", {
+        name: "获取 NextTrace API Token",
+      }),
+    ).toHaveAttribute("href", "https://api.nxtrace.org/v4/api-tokens");
+    expect(
+      within(advancedDialog)
+        .getByRole("link", { name: "获取 NextTrace API Token" })
+        .closest(".token-help-surface[data-liquid-glass]"),
+    ).not.toBeNull();
+    expect(
+      within(advancedDialog).getByLabelText("NextTrace API Token"),
+    ).toBeVisible();
+    expect(
+      within(advancedDialog).getByText("未使用 NextTrace Token"),
+    ).toBeVisible();
+    expect(
+      within(advancedDialog).getByRole("link", {
+        name: "获取 NextTrace API Token",
+      }),
+    ).toHaveAttribute("href", "https://api.nxtrace.org/v4/api-tokens");
+    fireEvent.change(screen.getByLabelText("magic string"), {
+      target: { value: "DE+Hetzner" },
+    });
     expect(onFiltersChange).toHaveBeenCalledWith({ magic: "DE+Hetzner" });
   });
 
@@ -200,7 +275,9 @@ describe("FilterPanel", () => {
       onLiquidGlassIntensityChange,
     });
     openAdvancedParams();
-    const disabledSlider = screen.getByLabelText("液态玻璃强度") as HTMLInputElement;
+    const disabledSlider = screen.getByLabelText(
+      "液态玻璃强度",
+    ) as HTMLInputElement;
     expect(disabledSlider).toHaveValue("42");
     expect(disabledSlider).toBeDisabled();
   });
@@ -210,12 +287,17 @@ describe("FilterPanel", () => {
     const onProtocolChange = vi.fn();
     renderPanel({ onFiltersChange, onProtocolChange });
 
-    fireEvent.change(screen.getByLabelText("协议"), { target: { value: "TCP" } });
+    fireEvent.change(screen.getByLabelText("协议"), {
+      target: { value: "TCP" },
+    });
     openExactFilters();
     fireEvent.click(screen.getByLabelText("eyeball"));
 
     expect(onProtocolChange).toHaveBeenCalledWith("TCP");
-    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, eyeball: true });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      magic: undefined,
+      eyeball: true,
+    });
   });
 
   it("defaults exact filters open on desktop and collapsed on mobile", () => {
@@ -249,9 +331,11 @@ describe("FilterPanel", () => {
   });
 
   it("keeps run controls in the footer when the magic summary is long", () => {
-    const magic = Array.from({ length: 12 }, (_, index) => `Novosibirsk-${index}+RU+AS${21000 + index}+datacenter-network`).join(
-      ", ",
-    );
+    const magic = Array.from(
+      { length: 12 },
+      (_, index) =>
+        `Novosibirsk-${index}+RU+AS${21000 + index}+datacenter-network`,
+    ).join(", ");
     renderPanel({
       filters: { magic },
       chips: filterChips({ magic }),
@@ -259,14 +343,18 @@ describe("FilterPanel", () => {
     });
 
     const chips = screen.getByTestId("filter-chips");
-    expect(chips).toHaveTextContent("Novosibirsk-0+RU+AS21000+datacenter-network");
+    expect(chips).toHaveTextContent(
+      "Novosibirsk-0+RU+AS21000+datacenter-network",
+    );
     expect(within(chips).queryByText("magic")).not.toBeInTheDocument();
     const magicSummary = within(chips).getByText(magic);
     expect(magicSummary.closest(".filter-chip")).toBeNull();
     expect(magicSummary.closest(".filter-magic-summary")).not.toBeNull();
     expect(screen.getByText("当前筛选")).toBeInTheDocument();
     const footer = screen.getByTestId("filter-panel-footer");
-    expect(within(footer).getByRole("button", { name: "开始网络路径诊断" })).toBeInTheDocument();
+    expect(
+      within(footer).getByRole("button", { name: "开始网络路径诊断" }),
+    ).toBeInTheDocument();
   });
 
   it("updates IP version selection", () => {
@@ -275,8 +363,12 @@ describe("FilterPanel", () => {
 
     expect(screen.getByLabelText("IP 版本")).toHaveValue("");
 
-    fireEvent.change(screen.getByLabelText("IP 版本"), { target: { value: "6" } });
-    fireEvent.change(screen.getByLabelText("IP 版本"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("IP 版本"), {
+      target: { value: "6" },
+    });
+    fireEvent.change(screen.getByLabelText("IP 版本"), {
+      target: { value: "" },
+    });
 
     expect(onIpVersionChange).toHaveBeenNthCalledWith(1, 6);
     expect(onIpVersionChange).toHaveBeenNthCalledWith(2, "");
@@ -292,7 +384,9 @@ describe("FilterPanel", () => {
       "Los Angeles+US+AS7922+Comcast, Shanghai+CN+AS4134+China Telecom",
     );
     fireEvent.focus(magicInput);
-    expect(screen.queryByRole("listbox", { name: "候选列表" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("listbox", { name: "候选列表" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("filter-chips")).toHaveTextContent("world");
   });
 
@@ -319,7 +413,9 @@ describe("FilterPanel", () => {
     fireEvent.keyDown(magicInput, { key: "ArrowDown" });
     fireEvent.keyDown(magicInput, { key: "Enter" });
 
-    expect(onFiltersChange).toHaveBeenCalledWith({ magic: "Falkenstein+DE+AS24940+datacenter-network" });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      magic: "Falkenstein+DE+AS24940+datacenter-network",
+    });
   });
 
   it("hides magic suggestions while the current comma-separated segment is empty", () => {
@@ -336,11 +432,18 @@ describe("FilterPanel", () => {
       },
     });
 
-    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
-    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    const magicInput = screen.getByLabelText(
+      "magic string",
+    ) as HTMLTextAreaElement;
+    magicInput.setSelectionRange(
+      magicInput.value.length,
+      magicInput.value.length,
+    );
     fireEvent.focus(magicInput);
 
-    expect(screen.queryByRole("listbox", { name: "候选列表" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("listbox", { name: "候选列表" }),
+    ).not.toBeInTheDocument();
   });
 
   it("filters magic suggestions by the current comma-separated segment", () => {
@@ -359,15 +462,26 @@ describe("FilterPanel", () => {
       onFiltersChange,
     });
 
-    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
-    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    const magicInput = screen.getByLabelText(
+      "magic string",
+    ) as HTMLTextAreaElement;
+    magicInput.setSelectionRange(
+      magicInput.value.length,
+      magicInput.value.length,
+    );
     fireEvent.focus(magicInput);
 
     expectSuggestionOptions(["Falkenstein+DE+AS24940+datacenter-network"]);
 
-    fireEvent.mouseDown(screen.getByRole("option", { name: "Falkenstein+DE+AS24940+datacenter-network" }));
+    fireEvent.mouseDown(
+      screen.getByRole("option", {
+        name: "Falkenstein+DE+AS24940+datacenter-network",
+      }),
+    );
 
-    expect(onFiltersChange).toHaveBeenCalledWith({ magic: "US, Falkenstein+DE+AS24940+datacenter-network" });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      magic: "US, Falkenstein+DE+AS24940+datacenter-network",
+    });
   });
 
   it("shows generic magic suggestions before matching full probe suggestions", () => {
@@ -384,11 +498,19 @@ describe("FilterPanel", () => {
       },
     });
 
-    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
-    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    const magicInput = screen.getByLabelText(
+      "magic string",
+    ) as HTMLTextAreaElement;
+    magicInput.setSelectionRange(
+      magicInput.value.length,
+      magicInput.value.length,
+    );
     fireEvent.focus(magicInput);
 
-    expectSuggestionOptions(["CN+Shanghai", "Shanghai+CN+AS4134+eyeball-network"]);
+    expectSuggestionOptions([
+      "CN+Shanghai",
+      "Shanghai+CN+AS4134+eyeball-network",
+    ]);
   });
 
   it("matches generic magic suggestions regardless of token order", () => {
@@ -405,8 +527,13 @@ describe("FilterPanel", () => {
       },
     });
 
-    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
-    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    const magicInput = screen.getByLabelText(
+      "magic string",
+    ) as HTMLTextAreaElement;
+    magicInput.setSelectionRange(
+      magicInput.value.length,
+      magicInput.value.length,
+    );
     fireEvent.focus(magicInput);
 
     expectSuggestionOptions([
@@ -429,8 +556,13 @@ describe("FilterPanel", () => {
       },
     });
 
-    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
-    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    const magicInput = screen.getByLabelText(
+      "magic string",
+    ) as HTMLTextAreaElement;
+    magicInput.setSelectionRange(
+      magicInput.value.length,
+      magicInput.value.length,
+    );
     fireEvent.focus(magicInput);
 
     expectSuggestionOptions([
@@ -454,8 +586,13 @@ describe("FilterPanel", () => {
       },
     });
 
-    const updatedMagicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
-    updatedMagicInput.setSelectionRange(updatedMagicInput.value.length, updatedMagicInput.value.length);
+    const updatedMagicInput = screen.getByLabelText(
+      "magic string",
+    ) as HTMLTextAreaElement;
+    updatedMagicInput.setSelectionRange(
+      updatedMagicInput.value.length,
+      updatedMagicInput.value.length,
+    );
     fireEvent.focus(updatedMagicInput);
     expectSuggestionOptions([
       "US+AS7922+Comcast",
@@ -477,8 +614,13 @@ describe("FilterPanel", () => {
       },
     });
 
-    const magicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
-    magicInput.setSelectionRange(magicInput.value.length, magicInput.value.length);
+    const magicInput = screen.getByLabelText(
+      "magic string",
+    ) as HTMLTextAreaElement;
+    magicInput.setSelectionRange(
+      magicInput.value.length,
+      magicInput.value.length,
+    );
     fireEvent.focus(magicInput);
 
     expectSuggestionOptions([
@@ -500,8 +642,13 @@ describe("FilterPanel", () => {
       },
     });
 
-    const updatedMagicInput = screen.getByLabelText("magic string") as HTMLTextAreaElement;
-    updatedMagicInput.setSelectionRange(updatedMagicInput.value.length, updatedMagicInput.value.length);
+    const updatedMagicInput = screen.getByLabelText(
+      "magic string",
+    ) as HTMLTextAreaElement;
+    updatedMagicInput.setSelectionRange(
+      updatedMagicInput.value.length,
+      updatedMagicInput.value.length,
+    );
     fireEvent.focus(updatedMagicInput);
     expectSuggestionOptions([
       "CN+AS4134+China Telecom",
@@ -511,16 +658,35 @@ describe("FilterPanel", () => {
 
   it("clears magic when structured filters are edited", () => {
     const onFiltersChange = vi.fn();
-    renderPanel({ filters: { magic: "DE+AS24940" }, chips: filterChips({ magic: "DE+AS24940" }), onFiltersChange });
+    renderPanel({
+      filters: { magic: "DE+AS24940" },
+      chips: filterChips({ magic: "DE+AS24940" }),
+      onFiltersChange,
+    });
 
     openExactFilters();
-    fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "US" } });
-    fireEvent.change(screen.getByLabelText("ASN"), { target: { value: "7922" } });
-    fireEvent.change(screen.getByLabelText("network"), { target: { value: "Comcast" } });
+    fireEvent.change(screen.getByLabelText("国家/地区"), {
+      target: { value: "US" },
+    });
+    fireEvent.change(screen.getByLabelText("ASN"), {
+      target: { value: "7922" },
+    });
+    fireEvent.change(screen.getByLabelText("network"), {
+      target: { value: "Comcast" },
+    });
 
-    expect(onFiltersChange).toHaveBeenNthCalledWith(1, { magic: undefined, country: "US" });
-    expect(onFiltersChange).toHaveBeenNthCalledWith(2, { magic: undefined, asn: "7922" });
-    expect(onFiltersChange).toHaveBeenNthCalledWith(3, { magic: undefined, network: "Comcast" });
+    expect(onFiltersChange).toHaveBeenNthCalledWith(1, {
+      magic: undefined,
+      country: "US",
+    });
+    expect(onFiltersChange).toHaveBeenNthCalledWith(2, {
+      magic: undefined,
+      asn: "7922",
+    });
+    expect(onFiltersChange).toHaveBeenNthCalledWith(3, {
+      magic: undefined,
+      network: "Comcast",
+    });
   });
 
   it("connects online probe suggestions to structured filter inputs", () => {
@@ -551,13 +717,19 @@ describe("FilterPanel", () => {
     const networkInput = screen.getByLabelText("network");
     fireEvent.focus(networkInput);
     fireEvent.mouseDown(screen.getByRole("option", { name: "Hetzner Online" }));
-    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, network: "Hetzner Online" });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      magic: undefined,
+      network: "Hetzner Online",
+    });
 
     const asnInput = screen.getByLabelText("ASN");
     fireEvent.focus(asnInput);
     fireEvent.keyDown(asnInput, { key: "ArrowDown" });
     fireEvent.keyDown(asnInput, { key: "Enter" });
-    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, asn: "AS24940" });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      magic: undefined,
+      asn: "AS24940",
+    });
   });
 
   it("filters visible suggestions by the current input without blocking free text", () => {
@@ -583,7 +755,10 @@ describe("FilterPanel", () => {
     expectSuggestionOptions(["Comcast"]);
 
     fireEvent.change(networkInput, { target: { value: "custom network" } });
-    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, network: "custom network" });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      magic: undefined,
+      network: "custom network",
+    });
   });
 
   it("filters and selects tag suggestions without blocking free text", () => {
@@ -608,11 +783,19 @@ describe("FilterPanel", () => {
 
     expectSuggestionOptions(["eyeball-network"]);
 
-    fireEvent.mouseDown(screen.getByRole("option", { name: "eyeball-network" }));
-    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, tag: "eyeball-network" });
+    fireEvent.mouseDown(
+      screen.getByRole("option", { name: "eyeball-network" }),
+    );
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      magic: undefined,
+      tag: "eyeball-network",
+    });
 
     fireEvent.change(tagInput, { target: { value: "custom-tag" } });
-    expect(onFiltersChange).toHaveBeenCalledWith({ magic: undefined, tag: "custom-tag" });
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      magic: undefined,
+      tag: "custom-tag",
+    });
   });
 
   it("preserves spaces while editing network filters", () => {
@@ -620,20 +803,38 @@ describe("FilterPanel", () => {
     renderPanel({ filters: {}, chips: filterChips({}), onFiltersChange });
 
     openExactFilters();
-    fireEvent.change(screen.getByLabelText("network"), { target: { value: "Hetzner Online " } });
-    fireEvent.change(screen.getByLabelText("network"), { target: { value: "   " } });
+    fireEvent.change(screen.getByLabelText("network"), {
+      target: { value: "Hetzner Online " },
+    });
+    fireEvent.change(screen.getByLabelText("network"), {
+      target: { value: "   " },
+    });
 
-    expect(onFiltersChange).toHaveBeenNthCalledWith(1, { magic: undefined, network: "Hetzner Online " });
-    expect(onFiltersChange).toHaveBeenNthCalledWith(2, { magic: undefined, network: undefined });
+    expect(onFiltersChange).toHaveBeenNthCalledWith(1, {
+      magic: undefined,
+      network: "Hetzner Online ",
+    });
+    expect(onFiltersChange).toHaveBeenNthCalledWith(2, {
+      magic: undefined,
+      network: undefined,
+    });
   });
 
   it("disables the run action and shows loading/error statuses", () => {
-    renderPanel({ loading: true, probesStatus: "error", quotaLabel: "诊断额度暂不可用" });
+    renderPanel({
+      loading: true,
+      probesStatus: "error",
+      quotaLabel: "诊断额度暂不可用",
+    });
 
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" }).closest("[data-liquid-glass]")).not.toHaveAttribute(
-      "data-liquid-glass-interactive",
-    );
+    expect(
+      screen.getByRole("button", { name: "开始网络路径诊断" }),
+    ).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen
+        .getByRole("button", { name: "开始网络路径诊断" })
+        .closest("[data-liquid-glass]"),
+    ).not.toHaveAttribute("data-liquid-glass-interactive");
     expect(screen.getByText("运行中")).toBeInTheDocument();
     expect(screen.getByText("probes 读取失败")).toBeInTheDocument();
     expect(screen.getByText("诊断额度暂不可用")).toBeInTheDocument();
@@ -642,13 +843,19 @@ describe("FilterPanel", () => {
   it("keeps the run action available when config is ready", () => {
     const first = renderPanel({ canSubmit: true });
 
-    expect(screen.getByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).not.toHaveAttribute("aria-disabled");
+    expect(
+      screen.getByText("Globalping credits 控制诊断创建"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "开始网络路径诊断" }),
+    ).not.toHaveAttribute("aria-disabled");
 
     first.unmount();
     renderPanel({ canSubmit: false });
 
-    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.getByRole("button", { name: "开始网络路径诊断" }),
+    ).toHaveAttribute("aria-disabled", "true");
   });
 
   it("updates token controls, theme, and about actions", () => {
@@ -689,8 +896,12 @@ describe("FilterPanel", () => {
     });
 
     openAdvancedParams();
-    fireEvent.change(screen.getByLabelText("Globalping Token"), { target: { value: "next-token" } });
-    fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: "nexttrace-token" } });
+    fireEvent.change(screen.getByLabelText("Globalping Token"), {
+      target: { value: "next-token" },
+    });
+    fireEvent.change(screen.getByLabelText("NextTrace API Token"), {
+      target: { value: "nexttrace-token" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
     fireEvent.click(screen.getByRole("button", { name: "清除 Globalping" }));
     fireEvent.click(screen.getByLabelText("记住 Globalping 到本机"));
@@ -701,8 +912,12 @@ describe("FilterPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "主题：Dark" }));
     fireEvent.click(screen.getByRole("button", { name: "关于 GlobalTrace" }));
 
-    expect(screen.getByText("Globalping Token 已记住到本机浏览器")).toBeInTheDocument();
-    expect(screen.getByText("NextTrace Token 已记住到本机浏览器")).toBeInTheDocument();
+    expect(
+      screen.getByText("Globalping Token 已记住到本机浏览器"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("NextTrace Token 已记住到本机浏览器"),
+    ).toBeInTheDocument();
     expect(onGlobalpingTokenDraftChange).toHaveBeenCalledWith("next-token");
     expect(onNexttraceTokenDraftChange).toHaveBeenCalledWith("nexttrace-token");
     expect(onSaveGlobalpingToken).toHaveBeenCalledTimes(1);
@@ -726,7 +941,9 @@ describe("FilterPanel", () => {
   });
 });
 
-function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}) {
+function renderPanel(
+  overrides: Partial<ComponentProps<typeof FilterPanel>> = {},
+) {
   const filters: TraceFilters = { magic: "world" };
   return render(
     <FilterPanel
@@ -783,7 +1000,11 @@ function renderPanel(overrides: Partial<ComponentProps<typeof FilterPanel>> = {}
 
 function expectSuggestionOptions(values: string[]) {
   const listbox = screen.getByRole("listbox", { name: "候选列表" });
-  expect(within(listbox).getAllByRole("option").map((option) => option.textContent)).toEqual(values);
+  expect(
+    within(listbox)
+      .getAllByRole("option")
+      .map((option) => option.textContent),
+  ).toEqual(values);
 }
 
 function mockExactFiltersViewport(initialMatches: boolean) {
@@ -795,22 +1016,36 @@ function mockExactFiltersViewport(initialMatches: boolean) {
     },
     media: "(min-width: 821px)",
     onchange: null,
-    addEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
-      if (type === "change") listeners.add(listener);
-    }),
-    removeEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
-      if (type === "change") listeners.delete(listener);
-    }),
-    addListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => listeners.add(listener)),
-    removeListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener)),
+    addEventListener: vi.fn(
+      (type: string, listener: (event: MediaQueryListEvent) => void) => {
+        if (type === "change") listeners.add(listener);
+      },
+    ),
+    removeEventListener: vi.fn(
+      (type: string, listener: (event: MediaQueryListEvent) => void) => {
+        if (type === "change") listeners.delete(listener);
+      },
+    ),
+    addListener: vi.fn((listener: (event: MediaQueryListEvent) => void) =>
+      listeners.add(listener),
+    ),
+    removeListener: vi.fn((listener: (event: MediaQueryListEvent) => void) =>
+      listeners.delete(listener),
+    ),
     dispatchEvent: vi.fn(),
   } as unknown as MediaQueryList;
 
-  vi.stubGlobal("matchMedia", vi.fn(() => mediaQueryList));
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => mediaQueryList),
+  );
   return {
     setMatches(nextMatches: boolean) {
       matches = nextMatches;
-      const event = { matches, media: "(min-width: 821px)" } as MediaQueryListEvent;
+      const event = {
+        matches,
+        media: "(min-width: 821px)",
+      } as MediaQueryListEvent;
       listeners.forEach((listener) => listener(event));
     },
   };
