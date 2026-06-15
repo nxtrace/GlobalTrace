@@ -89,9 +89,10 @@ for (const viewport of viewports) {
     );
     await expect(page.locator(".parameter-pill-grid")).toBeVisible();
     await expect(page.locator(".trace-options-row")).toHaveCount(0);
-    await expect(page.getByLabel("端口")).toHaveText("");
-    await expect(page.getByLabel("Packets")).toHaveText("5");
-    await expect(page.getByLabel("Limit")).toHaveText("3");
+    await expect(page.getByLabel("端口")).toHaveValue("");
+    await expect(page.getByLabel("端口")).toHaveAttribute("placeholder", "自动");
+    await expect(page.getByLabel("Packets")).toHaveValue("5");
+    await expect(page.getByLabel("Limit")).toHaveValue("3");
     await expect(page.getByText("目标", { exact: true })).toHaveCount(0);
     await expect(page.getByText("协议", { exact: true })).toHaveCount(0);
     await expect(page.getByText("magic string", { exact: true })).toHaveCount(0);
@@ -106,6 +107,11 @@ for (const viewport of viewports) {
       page,
       page.getByLabel("目标"),
       ".target-command-row",
+    );
+    await expectFocusStyleChanges(
+      page,
+      page.getByLabel("Limit"),
+      ".limit-pill",
     );
     await expectFocusStyleChanges(
       page,
@@ -255,7 +261,7 @@ for (const viewport of viewports) {
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toBeVisible();
-      await expect(page.getByLabel("Limit")).toHaveText("1");
+      await expect(page.getByLabel("Limit")).toHaveValue("1");
       await page.getByRole("button", { name: "取消地图筛选" }).click();
       await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
       await expect(page.getByTestId("filter-chips")).toContainText("world");
@@ -265,7 +271,7 @@ for (const viewport of viewports) {
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toHaveCount(0);
-      await expect(page.getByLabel("Limit")).toHaveText("3");
+      await expect(page.getByLabel("Limit")).toHaveValue("3");
       await selectMapAsnAtCoordinate(
         page,
         [-118.24, 34.05],
@@ -613,10 +619,10 @@ test("reversed magic expands probes and normalizes measurement locations", async
   await page.goto("/");
 
   await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("Limit")).toHaveText("3");
+  await expect(page.getByLabel("Limit")).toHaveValue("3");
   await page.getByLabel("magic string").fill("AS4134+CN");
   await expect(page.getByText("4 / 4 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("Limit")).toHaveText("4");
+  await expect(page.getByLabel("Limit")).toHaveValue("4");
   const magicSuggestions = page.getByRole("listbox", { name: "候选列表" });
   await expect(
     magicSuggestions.getByRole("option", {
@@ -649,11 +655,11 @@ test("structured filters expand probes after explicit user filtering", async ({
   await page.goto("/");
 
   await expect(page.getByText("5 / 5 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("Limit")).toHaveText("3");
+  await expect(page.getByLabel("Limit")).toHaveValue("3");
   await ensureExactFiltersOpen(page);
   await page.getByLabel("国家/地区").fill("CN");
   await expect(page.getByText("4 / 5 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("Limit")).toHaveText("4");
+  await expect(page.getByLabel("Limit")).toHaveValue("4");
   expect(consoleErrors).toEqual([]);
 });
 

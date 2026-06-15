@@ -110,8 +110,7 @@ const openAdvancedParams = () => {
 
 const editTextControl = (label: string, value: string) => {
   const control = screen.getByLabelText(label);
-  control.textContent = value;
-  fireEvent.input(control);
+  fireEvent.change(control, { target: { value } });
 };
 
 describe("App", () => {
@@ -129,7 +128,7 @@ describe("App", () => {
     expect(screen.getByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
     expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toHaveValue("");
-    expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
+    expect(screen.getByLabelText("Limit")).toHaveValue("3");
     expect(document.documentElement.dataset.theme).toBe("system");
   });
 
@@ -141,8 +140,10 @@ describe("App", () => {
     expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
     const backgroundLayer = document.querySelector(".ambient-background") as HTMLElement | null;
     expect(backgroundLayer).not.toBeNull();
-    expect(document.documentElement).toHaveClass("ambient-photo-ready");
-    expect(document.querySelector(".app-shell")).toHaveClass("ambient-photo-ready");
+    await waitFor(() => {
+      expect(document.documentElement).toHaveClass("ambient-photo-ready");
+      expect(document.querySelector(".app-shell")).toHaveClass("ambient-photo-ready");
+    });
     expect(backgroundLayer?.getAttribute("style")).toContain("--ambient-background-image: url(\"/api/background/image\")");
     expect(screen.queryByText(/背景：岁月的层峦/)).not.toBeInTheDocument();
   });
@@ -322,8 +323,8 @@ describe("App", () => {
 
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
-    expect(screen.getByLabelText("端口")).toHaveTextContent("443");
-    expect(screen.getByLabelText("Packets")).toHaveTextContent("9");
+    expect(screen.getByLabelText("端口")).toHaveValue("443");
+    expect(screen.getByLabelText("Packets")).toHaveValue("9");
 
     editTextControl("端口", "8443");
     editTextControl("Packets", "7");
@@ -347,13 +348,13 @@ describe("App", () => {
 
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
-    expect(screen.getByLabelText("端口")).toHaveTextContent("443");
-    expect(screen.getByLabelText("Packets")).toHaveTextContent("5");
+    expect(screen.getByLabelText("端口")).toHaveValue("443");
+    expect(screen.getByLabelText("Packets")).toHaveValue("5");
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
 
-    expect(screen.getByLabelText("端口")).toHaveTextContent("");
-    expect(screen.getByLabelText("Packets")).toHaveTextContent("5");
+    expect(screen.getByLabelText("端口")).toHaveValue("");
+    expect(screen.getByLabelText("Packets")).toHaveValue("5");
     expect(window.localStorage.getItem("globaltrace.tracePort")).toBeNull();
     expect(window.localStorage.getItem("globaltrace.tracePackets")).toBeNull();
   });
@@ -505,7 +506,7 @@ describe("App", () => {
     });
     expect(screen.getByText("NextTrace Token 仅当前会话可用")).toBeInTheDocument();
     expect(await screen.findByText("NextTrace API Token 直连已启用")).toBeInTheDocument();
-    expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
+    expect(await screen.findByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
@@ -631,8 +632,10 @@ describe("App", () => {
       "href",
       "https://www.bing.com/search?q=%E6%81%B6%E5%9C%B0",
     );
-    expect(document.documentElement).toHaveClass("ambient-photo-ready");
-    expect(document.querySelector(".app-shell")).toHaveClass("ambient-photo-ready");
+    await waitFor(() => {
+      expect(document.documentElement).toHaveClass("ambient-photo-ready");
+      expect(document.querySelector(".app-shell")).toHaveClass("ambient-photo-ready");
+    });
   });
 
   it("updates filters when a map probe is selected", async () => {
@@ -786,7 +789,7 @@ describe("App", () => {
     fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "CN+AS4134" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
+      expect(screen.getByLabelText("Limit")).toHaveValue("4");
     });
     expect(magicInput).toHaveValue("CN+AS4134");
   });
@@ -818,13 +821,13 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("5 / 5 probes 匹配");
-    expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
+    expect(screen.getByLabelText("Limit")).toHaveValue("3");
 
     openExactFilters();
     fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
+      expect(screen.getByLabelText("Limit")).toHaveValue("4");
     });
 
     fireEvent.change(screen.getByLabelText("城市"), { target: { value: "Shenzhen" } });
@@ -832,7 +835,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByText("1 / 5 probes 匹配")).toBeInTheDocument();
     });
-    expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
+    expect(screen.getByLabelText("Limit")).toHaveValue("4");
   });
 
   it("caps explicit filter probe expansion at ten", async () => {
@@ -844,7 +847,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Limit")).toHaveTextContent("10");
+      expect(screen.getByLabelText("Limit")).toHaveValue("10");
     });
   });
 
@@ -856,7 +859,7 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("magic string"), { target: { value: "AS4134+CN" } });
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
+      expect(screen.getByLabelText("Limit")).toHaveValue("4");
     });
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
@@ -881,7 +884,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getAllByText("已添加框选 12 个 probes，保留最近 10 个").length).toBeGreaterThan(0);
     });
-    expect(screen.getByLabelText("Limit")).toHaveTextContent("10");
+    expect(screen.getByLabelText("Limit")).toHaveValue("10");
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     await screen.findByText("result:finished:m123");
@@ -1140,7 +1143,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
+    expect(screen.getByLabelText("Limit")).toHaveValue("3");
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     await waitFor(() => {

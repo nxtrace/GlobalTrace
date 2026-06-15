@@ -88,6 +88,8 @@ describe("AdvancedParamsPanel", () => {
     );
 
     const intensity = screen.getByLabelText("液态玻璃强度");
+    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
+    expect(screen.getByText("72")).toBeInTheDocument();
     expect(intensity).toHaveValue("72");
     expect(intensity).not.toBeDisabled();
 
@@ -98,6 +100,7 @@ describe("AdvancedParamsPanel", () => {
     expect(onLiquidGlassIntensityChange).toHaveBeenCalledWith(35);
 
     rerender(<AdvancedParamsPanel {...defaultProps({ liquidGlassEnabled: false })} />);
+    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).not.toBeChecked();
     expect(screen.getByLabelText("液态玻璃强度")).toBeDisabled();
   });
 

@@ -137,9 +137,17 @@ describe("FilterPanel", () => {
     expect(baseControls.querySelector(".parameter-pill-grid")).not.toBeNull();
     expect(baseControls.querySelector(".trace-options-row")).toBeNull();
     expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
-    expect(within(baseControls).getByLabelText("端口")).toHaveTextContent("");
-    expect(within(baseControls).getByLabelText("Packets")).toHaveTextContent("5");
+    expect(screen.getByLabelText("Limit")).toHaveValue("3");
+    expect(screen.getByLabelText("Limit")).toHaveClass(
+      "parameter-pill-control",
+      "numeric-pill-value",
+    );
+    expect(within(baseControls).getByLabelText("端口")).toHaveValue("");
+    expect(within(baseControls).getByLabelText("端口")).toHaveAttribute(
+      "placeholder",
+      "自动",
+    );
+    expect(within(baseControls).getByLabelText("Packets")).toHaveValue("5");
     expect(screen.queryByLabelText("probes")).not.toBeInTheDocument();
     expect(
       screen
@@ -351,6 +359,27 @@ describe("FilterPanel", () => {
       magic: undefined,
       eyeball: true,
     });
+  });
+
+  it("updates compact numeric controls through semantic inputs", () => {
+    const onPortChange = vi.fn();
+    const onPacketsChange = vi.fn();
+    const onLimitChange = vi.fn();
+    renderPanel({ onPortChange, onPacketsChange, onLimitChange });
+
+    fireEvent.change(screen.getByLabelText("端口"), {
+      target: { value: "84x43" },
+    });
+    fireEvent.change(screen.getByLabelText("Packets"), {
+      target: { value: "99" },
+    });
+    fireEvent.change(screen.getByLabelText("Limit"), {
+      target: { value: "0" },
+    });
+
+    expect(onPortChange).toHaveBeenCalledWith("8443");
+    expect(onPacketsChange).toHaveBeenCalledWith(16);
+    expect(onLimitChange).toHaveBeenCalledWith(1);
   });
 
   it("defaults exact filters open on desktop and collapsed on mobile", () => {

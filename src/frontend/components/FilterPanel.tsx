@@ -2,7 +2,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type KeyboardEvent,
 } from "react";
 import {
   Filter,
@@ -300,62 +299,54 @@ export function FilterPanel(props: FilterPanelProps) {
                 </div>
                 <label className="parameter-pill port-pill">
                   <span className="parameter-pill-label">端口</span>
-                  <span
-                    className="parameter-pill-editable port-pill-value"
-                    role="textbox"
-                    contentEditable
-                    suppressContentEditableWarning
+                  <input
+                    className="parameter-pill-control port-pill-value"
+                    type="text"
+                    value={props.port}
                     inputMode="numeric"
-                    data-placeholder="自动"
+                    pattern="[0-9]*"
+                    placeholder="自动"
                     aria-label="端口"
-                    onInput={(event) =>
+                    title="端口，留空自动"
+                    onChange={(event) =>
                       props.onPortChange(
-                        sanitizeEditableDigits(event.currentTarget),
+                        sanitizeNumericText(event.currentTarget.value),
                       )
                     }
-                    onKeyDown={commitEditableOnEnter}
-                  >
-                    {props.port}
-                  </span>
+                  />
                 </label>
                 <label className="parameter-pill packets-pill">
                   <span className="parameter-pill-label">Packets</span>
-                  <span
-                    className="parameter-pill-editable numeric-pill-value"
-                    role="textbox"
-                    contentEditable
-                    suppressContentEditableWarning
+                  <input
+                    className="parameter-pill-control numeric-pill-value"
+                    type="text"
+                    value={props.packets}
                     inputMode="numeric"
+                    pattern="[0-9]*"
                     aria-label="Packets"
-                    onInput={(event) =>
+                    onChange={(event) =>
                       props.onPacketsChange(
-                        clampEditableNumber(event.currentTarget, 1, 16),
+                        clampNumericText(event.currentTarget.value, 1, 16),
                       )
                     }
-                    onKeyDown={commitEditableOnEnter}
-                  >
-                    {props.packets}
-                  </span>
+                  />
                 </label>
 
                 <label className="parameter-pill limit-pill">
                   <span className="parameter-pill-label">Limit</span>
-                  <span
-                    className="parameter-pill-editable numeric-pill-value"
-                    role="textbox"
-                    contentEditable
-                    suppressContentEditableWarning
+                  <input
+                    className="parameter-pill-control numeric-pill-value"
+                    type="text"
+                    value={props.limit}
                     inputMode="numeric"
+                    pattern="[0-9]*"
                     aria-label="Limit"
-                    onInput={(event) =>
+                    onChange={(event) =>
                       props.onLimitChange(
-                        clampEditableNumber(event.currentTarget, 1, 10),
+                        clampNumericText(event.currentTarget.value, 1, 10),
                       )
                     }
-                    onKeyDown={commitEditableOnEnter}
-                  >
-                    {props.limit}
-                  </span>
+                  />
                 </label>
                 <label className="parameter-pill magic-pill">
                   <MagicSuggestionTextarea
@@ -567,28 +558,14 @@ export function FilterPanel(props: FilterPanelProps) {
   );
 }
 
-function sanitizeEditableDigits(element: HTMLElement): string {
-  const digits = (element.textContent || "").replace(/\D/g, "");
-  if (element.textContent !== digits) {
-    element.textContent = digits;
-  }
-  return digits;
+function sanitizeNumericText(value: string): string {
+  return value.replace(/\D/g, "");
 }
 
-function clampEditableNumber(
-  element: HTMLElement,
-  min: number,
-  max: number,
-): number {
-  const digits = sanitizeEditableDigits(element);
+function clampNumericText(value: string, min: number, max: number): number {
+  const digits = sanitizeNumericText(value);
   if (!digits) return min;
   return Math.min(max, Math.max(min, Number(digits)));
-}
-
-function commitEditableOnEnter(event: KeyboardEvent<HTMLElement>): void {
-  if (event.key !== "Enter") return;
-  event.preventDefault();
-  event.currentTarget.blur();
 }
 
 function ThemeIcon({ mode }: { mode: ThemeMode }) {

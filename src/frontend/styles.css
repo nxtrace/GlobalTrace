@@ -316,6 +316,14 @@ button {
 }
 
 .filter-panel {
+  --control-console-cyan: #23b8ff;
+  --control-console-violet: #7c5cff;
+  --control-console-amber: #c6ae82;
+  --control-rack-bg:
+    linear-gradient(180deg, color-mix(in srgb, var(--control-bg-solid) 84%, transparent), color-mix(in srgb, var(--control-bg) 78%, transparent));
+  --control-rack-border: color-mix(in srgb, var(--control-border) 82%, var(--control-console-cyan));
+  --control-rack-active:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 34%, transparent), color-mix(in srgb, var(--control-console-cyan) 20%, transparent) 54%, color-mix(in srgb, var(--control-console-violet) 18%, transparent));
   position: sticky;
   top: 18px;
   min-width: 0;
@@ -721,31 +729,55 @@ summary:focus-visible {
 
 .parameter-pill-grid {
   display: grid;
-  grid-template-columns: minmax(86px, 1.08fr) minmax(68px, 0.78fr) minmax(78px, 0.92fr) minmax(64px, 0.72fr);
-  gap: 5px;
+  grid-template-columns: minmax(92px, 1.1fr) minmax(72px, 0.78fr) minmax(86px, 0.94fr) minmax(72px, 0.78fr);
+  gap: 6px;
   align-items: stretch;
   min-width: 0;
 }
 
 .parameter-pill {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
-  min-height: 40px;
-  padding: 5px 7px;
-  border: 1px solid var(--control-border);
+  min-height: 42px;
+  padding: 5px 8px;
+  border: 1px solid var(--control-rack-border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--control-bg) 72%, transparent);
+  background: var(--control-rack-bg);
   color: var(--ink-soft);
-  box-shadow: var(--shadow-inset);
+  box-shadow:
+    var(--shadow-inset),
+    0 8px 18px color-mix(in srgb, var(--accent) 8%, transparent);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.parameter-pill:hover {
+  border-color: color-mix(in srgb, var(--line-strong) 74%, var(--control-console-cyan));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--control-bg-solid-hover) 78%, transparent), color-mix(in srgb, var(--control-bg-hover) 70%, transparent));
+}
+
+.parameter-pill:focus-within,
+.parameter-pill:has(.parameter-pill-control:focus) {
+  border-color: var(--focus-ring) !important;
+  box-shadow:
+    var(--shadow-inset),
+    0 0 0 2px var(--focus-ring-soft),
+    0 10px 24px color-mix(in srgb, var(--accent) 12%, transparent) !important;
 }
 
 .parameter-pill-label {
   color: var(--ink-soft);
-  font-size: 10px;
-  font-weight: 760;
+  font-size: 11px;
+  font-weight: 800;
   line-height: 1;
   white-space: nowrap;
 }
@@ -785,42 +817,57 @@ summary:focus-visible {
   font-style: normal;
 }
 
-.parameter-pill-editable {
+.parameter-pill-control {
   min-width: 0;
+  min-height: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--ink);
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   text-align: right;
+  box-shadow: none;
   white-space: nowrap;
   outline: none;
 }
 
-.parameter-pill-editable:empty::before {
-  content: attr(data-placeholder);
-  color: var(--ink-muted);
+.parameter-pill-control:hover,
+.parameter-pill-control:focus,
+.parameter-pill-control:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
-.parameter-pill-editable:focus-visible {
-  border-radius: 6px;
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+.parameter-pill-control::placeholder {
+  color: var(--ink-muted);
+  font-style: italic;
+  font-weight: 700;
+  opacity: 0.82;
 }
 
 .port-pill-value {
   flex: 0 0 auto;
-  min-width: 3.5ch;
+  width: 4ch;
+  min-width: 4ch;
 }
 
 .numeric-pill-value {
   flex: 0 0 auto;
-  min-width: 2ch;
+  width: 2.4ch;
+  min-width: 2.4ch;
 }
 
 .port-pill-value,
 .packets-pill .numeric-pill-value,
 .limit-pill .numeric-pill-value {
-  font-size: 10px;
+  font-size: 12px;
+  transform: translateX(-4px);
 }
 
 .port-pill .parameter-pill-label,
@@ -832,7 +879,7 @@ summary:focus-visible {
 
 .protocol-pill {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 3px;
+  gap: 4px;
   padding: 4px;
 }
 
@@ -841,15 +888,15 @@ summary:focus-visible {
   align-items: center;
   justify-content: center;
   min-width: 0;
-  min-height: 30px;
+  min-height: 32px;
   padding: 0 3px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--ink-muted);
   font: inherit;
-  font-size: 9px;
-  font-weight: 780;
+  font-size: 10px;
+  font-weight: 820;
   line-height: 1;
   overflow: hidden;
   text-align: center;
@@ -858,8 +905,16 @@ summary:focus-visible {
 }
 
 .protocol-pill-option.is-active {
-  background: color-mix(in srgb, var(--accent-soft) 68%, transparent);
+  background: var(--control-rack-active);
   color: var(--ink);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 44%, transparent),
+    0 6px 14px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.protocol-pill-option:hover:not(.is-active) {
+  background: color-mix(in srgb, var(--accent-soft) 54%, transparent);
+  color: var(--ink-soft);
 }
 
 .protocol-pill-option:focus-visible {
@@ -884,8 +939,9 @@ summary:focus-visible {
 .magic-pill {
   grid-column: 1 / -1;
   grid-template-columns: minmax(0, 1fr);
-  min-height: 46px;
-  border-radius: 16px;
+  min-height: 54px;
+  padding: 7px 10px;
+  border-radius: 18px;
 }
 
 .magic-pill .suggestion-input {
@@ -900,19 +956,26 @@ summary:focus-visible {
 }
 
 .magic-pill textarea {
-  min-height: 38px;
-  height: 38px;
-  padding: 4px;
+  min-height: 40px;
+  height: 40px;
+  padding: 2px 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 11px;
-  font-weight: 650;
-  line-height: 1.25;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.32;
   overflow: hidden;
   resize: none;
   white-space: normal;
+}
+
+.magic-pill textarea::placeholder {
+  color: color-mix(in srgb, var(--ink-muted) 82%, transparent);
+  font-style: italic;
+  font-weight: 640;
 }
 
 .magic-pill textarea:hover,
@@ -950,6 +1013,28 @@ summary:focus-visible {
     background 160ms ease,
     color 160ms ease,
     transform 160ms ease;
+}
+
+.advanced-panel-body .field-label {
+  gap: 8px;
+}
+
+.advanced-panel-body .field-label > span {
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.advanced-panel-body .field-label input {
+  min-height: 44px;
+  border-radius: 15px;
+}
+
+.advanced-panel-body .segmented label {
+  min-height: 46px;
+  padding: 9px 12px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--control-bg) 88%, transparent), color-mix(in srgb, var(--control-bg-solid) 58%, transparent));
 }
 
 .segmented label:hover {
@@ -1041,12 +1126,19 @@ summary:focus-visible {
 }
 
 .filter-magic-summary {
-  display: block;
-  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
   min-width: 0;
+  max-width: 100%;
+  min-height: 29px;
+  padding: 5px 10px;
+  border: 1px dashed color-mix(in srgb, var(--accent-border) 76%, var(--control-console-amber));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-soft) 48%, transparent);
   color: var(--ink-soft);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 760;
   line-height: 1.22;
   overflow-wrap: anywhere;
 }
@@ -1231,12 +1323,37 @@ summary:focus-visible {
   font-size: 12px;
 }
 
+.advanced-params-panel > .token-section:first-child {
+  gap: 12px;
+}
+
+.advanced-params-panel > .token-section:first-child .token-remember {
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--control-rack-border, var(--control-border));
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--control-bg) 82%, transparent), color-mix(in srgb, var(--control-bg-solid) 58%, transparent));
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 760;
+  box-shadow: var(--shadow-inset);
+}
+
 .liquid-intensity-control {
   display: grid;
   gap: 8px;
   color: var(--ink-muted);
   font-size: 12px;
   font-weight: 720;
+}
+
+.advanced-params-panel > .token-section:first-child .liquid-intensity-control {
+  padding: 11px 12px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--control-bg) 70%, transparent);
+  box-shadow: var(--shadow-inset);
 }
 
 .liquid-intensity-control > span {
@@ -1251,10 +1368,12 @@ summary:focus-visible {
   color: var(--ink);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  font-weight: 820;
 }
 
 .liquid-intensity-slider {
   width: 100%;
+  min-height: 12px;
   height: 12px;
   padding: 0;
   cursor: pointer;
@@ -1269,7 +1388,8 @@ summary:focus-visible {
 
 .liquid-intensity-slider:disabled {
   cursor: not-allowed;
-  opacity: 0.48;
+  opacity: 0.42;
+  filter: grayscale(0.42);
 }
 
 .token-actions,
@@ -3585,12 +3705,12 @@ pre {
   }
 
   .parameter-pill-grid {
-    grid-template-columns: minmax(86px, 1.08fr) minmax(68px, 0.78fr) minmax(78px, 0.92fr) minmax(64px, 0.72fr);
-    gap: 5px;
+    grid-template-columns: minmax(92px, 1.1fr) minmax(72px, 0.78fr) minmax(86px, 0.94fr) minmax(72px, 0.78fr);
+    gap: 6px;
   }
 
   .parameter-pill {
-    gap: 5px;
+    gap: 4px;
     min-height: 38px;
     padding-inline: 6px;
   }
@@ -3598,14 +3718,15 @@ pre {
   .parameter-pill.port-pill,
   .parameter-pill.packets-pill,
   .parameter-pill.limit-pill {
-    padding-inline: 8px;
+    padding-inline: 7px;
   }
 
   .parameter-pill-label {
     font-size: 10px;
   }
 
-  .parameter-pill-input {
+  .parameter-pill-input,
+  .parameter-pill-control {
     min-height: 28px;
     height: 28px;
     font-size: 11px;
@@ -3623,7 +3744,7 @@ pre {
   .magic-pill textarea {
     min-height: 36px;
     height: 36px;
-    font-size: 10px;
+    font-size: 11px;
   }
 
   .panel-title-row {
@@ -4517,6 +4638,10 @@ textarea:hover {
 .parameter-pill-input:hover,
 .parameter-pill-input:focus,
 .parameter-pill-input:focus-visible,
+.parameter-pill-control,
+.parameter-pill-control:hover,
+.parameter-pill-control:focus,
+.parameter-pill-control:focus-visible,
 .protocol-pill-option,
 .protocol-pill-option:hover,
 .protocol-pill-option:focus,
@@ -4864,7 +4989,8 @@ textarea:hover {
     font-size: 9px;
   }
 
-  .parameter-pill-input {
+  .parameter-pill-input,
+  .parameter-pill-control {
     font-size: 10px;
   }
 
