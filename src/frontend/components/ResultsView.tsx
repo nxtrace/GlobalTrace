@@ -10,9 +10,7 @@ import {
   coordinateBounds,
   degreesToRadians,
   resultRouteColor,
-  type ResultMapCoordinate,
   type ResultMapData,
-  type ResultMapRoute,
   type ResultMarkerOffset,
   type ResultRouteGroup,
   type ResultRouteNode,
@@ -1186,16 +1184,6 @@ function showRouteNodePopup(
 
 function routeNodePopupHtml(node: ResultRouteNode): string {
   return `<div class="result-map-popup"><strong>${escapeHtml(node.popupTitle)}</strong><span>${escapeHtml(node.popupBody)}</span></div>`;
-}
-
-function routeNodePopupBody(hops: TraceHop[]): string {
-  return hops
-    .map((hop) => {
-      const endpoint = [hop.ip || "*", displayHostname(hop.hostname, hop.ip || "*")].filter(Boolean).join(" / ");
-      return [endpoint, formatAsn(hop), formatRegion(hop), formatOwner(hop)].filter((item) => item && item !== "-").join(" · ");
-    })
-    .filter(Boolean)
-    .join("\n");
 }
 
 function fitResultMap(map: maplibregl.Map, data: ResultMapData, mapProjection: MapProjection): void {

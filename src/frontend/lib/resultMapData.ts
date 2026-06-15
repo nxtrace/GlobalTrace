@@ -1,5 +1,5 @@
 import type { Feature, FeatureCollection } from "geojson";
-import { MAX_TRACE_PACKETS, type TraceHop, type TraceProbeResult } from "../../shared/types";
+import type { TraceHop, TraceProbeResult } from "../../shared/types";
 import {
   buildRouteNodeIdByTtl,
   buildRouteNodesForHops,

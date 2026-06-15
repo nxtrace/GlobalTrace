@@ -18,7 +18,7 @@ import { ProbeTable } from "./components/ProbeTable";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
-import type { MapProjection, ResultContentOrder } from "./components/mapProjection";
+import type { ResultContentOrder } from "./components/mapProjection";
 import type { ProbeMapAsnSelection } from "./components/ProbeMap";
 import { deferUntilIdle } from "./lib/defer";
 import { usePersistentAppSettings } from "./hooks/usePersistentAppSettings";
@@ -34,7 +34,6 @@ import {
   filterChips,
   filterProbes,
   magicFromSelectedProbes,
-  normalizeMagicFiltersForProbes,
   probeFilterSuggestions,
   probeToMagic,
 } from "../shared/filters";
