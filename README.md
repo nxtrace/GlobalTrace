@@ -10,6 +10,26 @@ GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping
 - 测量来源：Globalping `type: "mtr"` measurement。
 - 增强数据：Worker 按 Globalping measurement ID 拉取可信结果后调用 nxtrace API v4 batch GeoIP/ASN/whois；用户提供个人 NextTrace API Token 后，新建诊断可由浏览器直连 batch API。
 
+## 架构
+
+GlobalTrace 是一个 Cloudflare Worker 托管的 React SPA + API Worker。`/api/*` 先进入 Hono Worker，其他路径由 Cloudflare Workers Static Assets 返回 Vite 构建出的 SPA 静态资源。
+
+```mermaid
+flowchart LR
+  Browser["Browser React SPA"] -->|static assets| Assets["Cloudflare Workers Static Assets"]
+  Browser -->|GET /api/config /probes /trace| Worker["Hono Worker API"]
+  Browser -->|POST /v1/measurements| Globalping["Globalping API"]
+  Browser -->|poll measurement| Globalping
+  Browser -->|optional personal token| BrowserNxtrace["api.nxtrace.org /v4/ipGeo/batch"]
+  Worker -->|read measurement by ID| Globalping
+  Worker -->|server token enrichment| Nxtrace["nxtrace API v4 batch"]
+  Worker --> Cache["Cloudflare Cache API"]
+```
+
+诊断创建由浏览器直接调用 Globalping；Worker 不代理创建 measurement。Worker 负责可信读取 measurement、转换 MTR 结果、调用 nxtrace enrichment、返回分享结果缓存，以及服务 `/api/config`、`/api/probes`、背景图等站点 API。
+
+用户提供的 Globalping / NextTrace Token 只保存在当前浏览器会话或用户明确记住的本机存储中。Worker secret 只用于服务端 `NXTRACE_API_V4_TOKEN`，项目不使用 KV、D1、R2、Durable Object 或服务端报告存储。
+
 ## 本地运行
 
 ```bash
