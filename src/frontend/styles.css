@@ -4565,6 +4565,7 @@ textarea:hover {
 }
 
 .filter-summary-surface[data-liquid-glass-mode="liquid"] {
+  flex: none;
   min-height: max-content;
 }
 

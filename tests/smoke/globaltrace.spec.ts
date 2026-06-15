@@ -1274,17 +1274,34 @@ test("liquid glass filter summary keeps exact filters below it on short desktop"
     const exactFilters = document.querySelector(
       ".advanced-panel",
     ) as HTMLElement | null;
+    const chipRow = document.querySelector(".chip-row") as HTMLElement | null;
+    const probeMatchRow = document.querySelector(
+      ".probe-match-row",
+    ) as HTMLElement | null;
     const summarySurfaceRect = summarySurface?.getBoundingClientRect();
     const summaryContentRect = summaryContent?.getBoundingClientRect();
     const exactFiltersRect = exactFilters?.getBoundingClientRect();
+    const chipRowRect = chipRow?.getBoundingClientRect();
+    const probeMatchRowRect = probeMatchRow?.getBoundingClientRect();
     return {
       summarySurfaceHeight: summarySurfaceRect?.height ?? 0,
+      summarySurfaceBottom: summarySurfaceRect?.bottom ?? 0,
       summaryContentBottom: summaryContentRect?.bottom ?? 0,
+      chipRowHeight: chipRowRect?.height ?? 0,
+      chipRowBottom: chipRowRect?.bottom ?? 0,
+      probeMatchRowHeight: probeMatchRowRect?.height ?? 0,
+      probeMatchRowBottom: probeMatchRowRect?.bottom ?? 0,
       exactFiltersTop: exactFiltersRect?.top ?? 0,
     };
   });
 
   expect(state.summarySurfaceHeight).toBeGreaterThan(0);
+  expect(state.chipRowHeight).toBeGreaterThan(0);
+  expect(state.probeMatchRowHeight).toBeGreaterThan(0);
+  expect(state.chipRowBottom).toBeLessThanOrEqual(state.summarySurfaceBottom);
+  expect(state.probeMatchRowBottom).toBeLessThanOrEqual(
+    state.summarySurfaceBottom,
+  );
   expect(
     state.exactFiltersTop - state.summaryContentBottom,
   ).toBeGreaterThanOrEqual(10);
