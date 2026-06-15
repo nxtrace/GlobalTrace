@@ -3,6 +3,7 @@ import type { BackgroundImage } from "../api";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
+import { handleSpaLinkClick } from "./spaNavigation";
 
 interface AboutPageProps {
   backgroundImage?: BackgroundImage | null;
@@ -51,12 +52,13 @@ export function AboutPage({ backgroundImage, onBack }: AboutPageProps) {
             variant="button"
             interactive
             actionRole="none"
-            onClick={onBack}
             className="liquid-glass-coverage about-action-surface"
           >
-            <Button variant="glass" size="sm" type="button" className="about-action-button" aria-label="返回诊断">
-              <ArrowLeft size={16} />
-              返回诊断
+            <Button asChild variant="glass" size="sm" className="about-action-button" aria-label="返回诊断">
+              <a href="/" onClick={(event) => handleSpaLinkClick(event, onBack)}>
+                <ArrowLeft size={16} />
+                返回诊断
+              </a>
             </Button>
           </LiquidGlassSurface>
         </div>

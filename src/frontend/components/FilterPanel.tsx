@@ -30,6 +30,7 @@ import { Surface } from "./ui/surface";
 import { Switch } from "./ui/switch";
 import { AdvancedParamsPanel } from "./filter-panel/AdvancedParamsPanel";
 import { MagicSuggestionTextarea, SuggestionInput } from "./filter-panel/suggestions";
+import { handleSpaLinkClick } from "./spaNavigation";
 
 export type IpVersionSelection = 4 | 6;
 
@@ -163,10 +164,7 @@ export function FilterPanel(props: FilterPanelProps) {
             <a
               className="brand-home-link"
               href="/"
-              onClick={(event) => {
-                event.preventDefault();
-                props.onNavigateHome();
-              }}
+              onClick={(event) => handleSpaLinkClick(event, props.onNavigateHome)}
               aria-label="返回首页"
             >
               <h1>GlobalTrace</h1>
@@ -547,17 +545,18 @@ export function FilterPanel(props: FilterPanelProps) {
                 variant="button"
                 interactive
                 actionRole="none"
-                onClick={props.onNavigateAbout}
                 className="liquid-glass-coverage attribution-action-surface"
               >
                 <Button
+                  asChild
                   variant="ghost"
                   size="sm"
-                  type="button"
                   aria-label="关于 GlobalTrace"
                 >
-                  <Info size={15} />
-                  关于
+                  <a href="/about" onClick={(event) => handleSpaLinkClick(event, props.onNavigateAbout)}>
+                    <Info size={15} />
+                    关于
+                  </a>
                 </Button>
               </LiquidGlassSurface>
             </div>

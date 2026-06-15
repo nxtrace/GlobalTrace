@@ -102,6 +102,16 @@ for (const viewport of viewports) {
       );
       await expect(page.getByLabel(label)).toHaveCSS("box-shadow", "none");
     }
+    await expectFocusStyleChanges(
+      page,
+      page.getByLabel("目标"),
+      ".target-command-row",
+    );
+    await expectFocusStyleChanges(
+      page,
+      page.getByLabel("magic string"),
+      ".magic-pill",
+    );
     await expect(
       page.getByRole("button", { name: "ICMP", exact: true }),
     ).toHaveCSS("box-shadow", "none");
@@ -1185,7 +1195,7 @@ test("liquid glass surfaces expose reference-strength optics at max intensity", 
     page
       .locator('.attribution-action-surface[data-liquid-glass-mode="liquid"]')
       .filter({
-        has: page.getByRole("button", { name: "关于 GlobalTrace" }),
+        has: page.getByRole("link", { name: "关于 GlobalTrace" }),
       }),
   ).toBeVisible();
   await ensureExactFiltersOpen(page);
@@ -1220,7 +1230,7 @@ test("liquid glass surfaces expose reference-strength optics at max intensity", 
       }),
   ).toBeVisible();
   await page.getByRole("button", { name: "关闭高级参数" }).click();
-  await page.getByRole("button", { name: "关于 GlobalTrace" }).click();
+  await page.getByRole("link", { name: "关于 GlobalTrace" }).click();
   await expect(
     page.getByRole("dialog", { name: "关于 GlobalTrace" }),
   ).toBeVisible();
@@ -1242,7 +1252,7 @@ test("liquid glass surfaces expose reference-strength optics at max intensity", 
       '.about-background-credit-surface[data-liquid-glass-mode="liquid"]',
     ),
   ).toBeVisible();
-  await page.getByRole("button", { name: "返回诊断" }).click();
+  await page.getByRole("link", { name: "返回诊断" }).click();
   await expect(page.getByText(/背景：岁月的层峦/)).toBeHidden();
   await expectLiquidGlassVisualStructure(page);
   expect(consoleErrors).toEqual([]);
@@ -1697,6 +1707,30 @@ async function expectNoPageOverflow(page: Page): Promise<void> {
   }));
   expect(widths.documentScroll).toBeLessThanOrEqual(widths.documentClient);
   expect(widths.bodyScroll).toBeLessThanOrEqual(widths.bodyClient);
+}
+
+async function expectFocusStyleChanges(
+  page: Page,
+  target: Locator,
+  wrapperSelector: string,
+): Promise<void> {
+  const wrapper = page.locator(wrapperSelector).first();
+  const before = await wrapper.evaluate((node) => {
+    const style = window.getComputedStyle(node);
+    return {
+      borderColor: style.borderColor,
+      boxShadow: style.boxShadow,
+    };
+  });
+  await target.focus();
+  const after = await wrapper.evaluate((node) => {
+    const style = window.getComputedStyle(node);
+    return {
+      borderColor: style.borderColor,
+      boxShadow: style.boxShadow,
+    };
+  });
+  expect(after).not.toEqual(before);
 }
 
 async function expectFilterSummaryConstrainsLongChips(

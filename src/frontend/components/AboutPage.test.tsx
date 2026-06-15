@@ -26,9 +26,10 @@ describe("AboutPage", () => {
     expect(sourceLink).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
     expect(sourceLink.closest(".about-action-surface[data-liquid-glass]")).not.toBeNull();
 
-    const backButton = screen.getByRole("button", { name: "返回诊断" });
-    expect(backButton.closest(".about-action-surface[data-liquid-glass]")).not.toBeNull();
-    fireEvent.click(backButton);
+    const backLink = screen.getByRole("link", { name: "返回诊断" });
+    expect(backLink).toHaveAttribute("href", "/");
+    expect(backLink.closest(".about-action-surface[data-liquid-glass]")).not.toBeNull();
+    fireEvent.click(backLink);
     expect(onBack).toHaveBeenCalledTimes(1);
 
     expect(document.querySelectorAll(".about-card-surface[data-liquid-glass]")).toHaveLength(3);

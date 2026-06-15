@@ -635,6 +635,13 @@ summary:focus-visible {
   box-shadow: var(--shadow-inset);
 }
 
+.target-command-row:has(.target-command-input:focus-visible) {
+  border-color: var(--focus-ring);
+  box-shadow:
+    var(--shadow-inset),
+    0 0 0 2px var(--focus-ring-soft);
+}
+
 .target-command-input {
   min-height: 42px;
   padding: 0 4px;
@@ -883,6 +890,13 @@ summary:focus-visible {
 
 .magic-pill .suggestion-input {
   min-width: 0;
+}
+
+.magic-pill:has(textarea:focus-visible) {
+  border-color: var(--focus-ring);
+  box-shadow:
+    var(--shadow-inset),
+    0 0 0 2px var(--focus-ring-soft);
 }
 
 .magic-pill textarea {

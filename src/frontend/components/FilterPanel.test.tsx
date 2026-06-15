@@ -175,7 +175,7 @@ describe("FilterPanel", () => {
     ).not.toBeInTheDocument();
     expect(
       screen
-        .getByRole("button", { name: "关于 GlobalTrace" })
+        .getByRole("link", { name: "关于 GlobalTrace" })
         .closest(".attribution-action-surface[data-liquid-glass]"),
     ).not.toBeNull();
     const advancedParamsButton = screen.getByRole("button", {
@@ -957,7 +957,7 @@ describe("FilterPanel", () => {
     fireEvent.click(screen.getByLabelText("记住 NextTrace 到本机"));
     fireEvent.click(screen.getByLabelText("液态玻璃效果"));
     fireEvent.click(screen.getByRole("button", { name: "主题：Dark" }));
-    fireEvent.click(screen.getByRole("button", { name: "关于 GlobalTrace" }));
+    fireEvent.click(screen.getByRole("link", { name: "关于 GlobalTrace" }));
 
     expect(
       screen.getByText("Globalping Token 已记住到本机浏览器"),
@@ -982,9 +982,22 @@ describe("FilterPanel", () => {
     const onNavigateHome = vi.fn();
     renderPanel({ onNavigateHome });
 
-    fireEvent.click(screen.getByRole("link", { name: "返回首页" }));
+    const homeLink = screen.getByRole("link", { name: "返回首页" });
+    expect(homeLink).toHaveAttribute("href", "/");
+    fireEvent.click(homeLink);
 
     expect(onNavigateHome).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a semantic about link", () => {
+    const onNavigateAbout = vi.fn();
+    renderPanel({ onNavigateAbout });
+
+    const aboutLink = screen.getByRole("link", { name: "关于 GlobalTrace" });
+    expect(aboutLink).toHaveAttribute("href", "/about");
+    fireEvent.click(aboutLink);
+
+    expect(onNavigateAbout).toHaveBeenCalledTimes(1);
   });
 });
 
