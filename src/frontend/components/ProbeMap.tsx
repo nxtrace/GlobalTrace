@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import type { FeatureCollection, Point } from "geojson";
 import { compactText, normalizeAsn } from "../../shared/filters";
 import type { GlobalpingProbe } from "../../shared/types";
+import { ProbePicker } from "./probe-map/ProbePicker";
+import { useProbeBoxSelection } from "./probe-map/useProbeBoxSelection";
+import type { ProbeMapAsnSelection, ProbePickerGroup, ProbePickerState } from "./probe-map/types";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -24,14 +26,7 @@ const PROBE_MAP_FIT_DURATION_MS = 420;
 const PROBE_PICKER_WIDTH = 286;
 const PROBE_PICKER_MAX_HEIGHT = 360;
 
-export interface ProbeMapAsnSelection {
-  magic: string;
-  city: string;
-  country: string;
-  asn: string;
-  network: string;
-  count: number;
-}
+export type { ProbeMapAsnSelection } from "./probe-map/types";
 
 interface ProbeMapProps {
   probes: GlobalpingProbe[];
@@ -41,20 +36,6 @@ interface ProbeMapProps {
   onPickAsn: (selection: ProbeMapAsnSelection) => void;
   onBoxSelect: (probes: GlobalpingProbe[]) => void;
   onClearSelection: () => void;
-}
-
-interface ProbePickerGroup extends ProbeMapAsnSelection {
-  key: string;
-}
-
-interface ProbePickerState {
-  city: string;
-  country: string;
-  total: number;
-  groups: ProbePickerGroup[];
-  left: number;
-  top: number;
-  pinned: boolean;
 }
 
 export function ProbeMap({
@@ -222,85 +203,14 @@ export function ProbeMap({
     });
   };
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !boxMode) return;
-    let start: { x: number; y: number } | null = null;
-    const canvas = map.getCanvas();
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) return;
-      const point = pointerPoint(event, canvas);
-      start = point;
-      map.dragPan.disable();
-      canvas.setPointerCapture?.(event.pointerId);
-      if (boxRef.current) {
-        boxRef.current.style.display = "block";
-        boxRef.current.style.left = `${point.x}px`;
-        boxRef.current.style.top = `${point.y}px`;
-        boxRef.current.style.width = "0px";
-        boxRef.current.style.height = "0px";
-      }
-    };
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (!start || !boxRef.current) return;
-      const current = pointerPoint(event, canvas);
-      const minX = Math.min(start.x, current.x);
-      const minY = Math.min(start.y, current.y);
-      const maxX = Math.max(start.x, current.x);
-      const maxY = Math.max(start.y, current.y);
-      boxRef.current.style.left = `${minX}px`;
-      boxRef.current.style.top = `${minY}px`;
-      boxRef.current.style.width = `${maxX - minX}px`;
-      boxRef.current.style.height = `${maxY - minY}px`;
-    };
-
-    const finishSelection = (event: PointerEvent) => {
-      if (!start) return;
-      const current = pointerPoint(event, canvas);
-      const minX = Math.min(start.x, current.x);
-      const minY = Math.min(start.y, current.y);
-      const maxX = Math.max(start.x, current.x);
-      const maxY = Math.max(start.y, current.y);
-      const projected = validProbes(probesRef.current).map((probe) => ({
-        city: probe.location.city,
-        point: projectedProbePoint(map, probe, (minX + maxX) / 2),
-      }));
-      const selected = validProbes(probesRef.current).filter((probe) => {
-        const point = projectedProbePoint(map, probe, (minX + maxX) / 2);
-        return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
-      });
-      if (import.meta.env.DEV) {
-        (canvas as HTMLCanvasElement & { __globalTraceLastBox?: unknown }).__globalTraceLastBox = {
-          minX,
-          minY,
-          maxX,
-          maxY,
-          projected,
-          selected: selected.map((probe) => probe.location.city),
-        };
-      }
-      onBoxSelectRef.current(selected);
-      start = null;
-      map.dragPan.enable();
-      if (boxRef.current) boxRef.current.style.display = "none";
-      setBoxMode(false);
-    };
-
-    canvas.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", finishSelection);
-    window.addEventListener("pointercancel", finishSelection);
-    return () => {
-      canvas.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", finishSelection);
-      window.removeEventListener("pointercancel", finishSelection);
-      map.dragPan.enable();
-      if (boxRef.current) boxRef.current.style.display = "none";
-    };
-  }, [boxMode]);
+  useProbeBoxSelection({
+    boxMode,
+    boxRef,
+    mapRef,
+    onBoxSelectRef,
+    probesRef,
+    setBoxMode,
+  });
 
   return (
     <Surface asChild className="map-section" aria-label="probe map">
@@ -361,48 +271,12 @@ export function ProbeMap({
         </div>
         <div className="map-container" ref={containerRef} />
         {picker && (
-          <div
-            className={picker.pinned ? "probe-picker pinned" : "probe-picker"}
-            style={{ left: picker.left, top: picker.top }}
-            role="dialog"
-            aria-label={`${locationTitle(picker)} probe candidates`}
-          >
-            <header className="probe-picker-header">
-              <div>
-                <strong>{locationTitle(picker)}</strong>
-                {picker.country && <span>{picker.country}</span>}
-              </div>
-              <Badge variant="accent">+ {picker.total}</Badge>
-              {picker.pinned && (
-                <button
-                  type="button"
-                  className="probe-picker-close"
-                  aria-label="关闭 probe 候选列表"
-                  onClick={() => setPicker(null)}
-                >
-                  <X size={17} />
-                </button>
-              )}
-            </header>
-            <div className="probe-picker-list" role="listbox" aria-label="probe ASN candidates">
-              {picker.groups.map((group) => (
-                <button
-                  type="button"
-                  role="option"
-                  aria-label={`${group.network} ${group.asn} ×${group.count}`}
-                  aria-selected={selectedProbeGroupKey === group.key}
-                  className="probe-picker-row"
-                  key={group.key}
-                  onClick={() => pickAsnGroup(group)}
-                >
-                  <span title={group.network}>{group.network}</span>
-                  <small>
-                    {group.asn} ×{group.count}
-                  </small>
-                </button>
-              ))}
-            </div>
-          </div>
+          <ProbePicker
+            picker={picker}
+            selectedProbeGroupKey={selectedProbeGroupKey}
+            onClose={() => setPicker(null)}
+            onPickGroup={pickAsnGroup}
+          />
         )}
         {status === "ready" && probes.length === 0 && (
           <LiquidGlassSurface variant="panel" className="liquid-glass-coverage map-empty-surface">
@@ -528,14 +402,6 @@ function probeBounds(probes: GlobalpingProbe[]): [[number, number], [number, num
   ];
 }
 
-function pointerPoint(event: PointerEvent, element: HTMLElement): { x: number; y: number } {
-  const rect = element.getBoundingClientRect();
-  return {
-    x: clamp(event.clientX - rect.left, 0, rect.width),
-    y: clamp(event.clientY - rect.top, 0, rect.height),
-  };
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -634,8 +500,4 @@ function probePickerPosition(map: maplibregl.Map, anchor: { x: number; y: number
     left: Math.round(clamp(anchor.x + 18, 10, maxLeft)),
     top: Math.round(clamp(anchor.y - 26, 10, maxTop)),
   };
-}
-
-function locationTitle(location: Pick<ProbePickerState, "city" | "country">): string {
-  return location.city || location.country || "Globalping";
 }

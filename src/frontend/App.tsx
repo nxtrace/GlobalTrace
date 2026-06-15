@@ -1,12 +1,8 @@
 import { AlertCircle, Eye, Loader2, Map as MapIcon, Table2 } from "lucide-react";
 import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
-  createTrace,
-  enrichTrace,
   fetchBackgroundImage,
-  fetchCachedTrace,
   fetchConfig,
-  fetchGlobalpingMeasurement,
   fetchLimits,
   fetchProbes,
   type AppConfig,
@@ -17,10 +13,6 @@ import { GlassOverlay } from "./components/GlassOverlay";
 import {
   LiquidGlassPreferenceProvider,
   LiquidGlassSurface,
-  readStoredLiquidGlassIntensity,
-  readStoredLiquidGlassEnabled,
-  writeStoredLiquidGlassIntensity,
-  writeStoredLiquidGlassEnabled,
 } from "./components/LiquidGlassSurface";
 import { ProbeTable } from "./components/ProbeTable";
 import { Badge } from "./components/ui/badge";
@@ -29,6 +21,13 @@ import { Surface } from "./components/ui/surface";
 import type { MapProjection, ResultContentOrder } from "./components/mapProjection";
 import type { ProbeMapAsnSelection } from "./components/ProbeMap";
 import { deferUntilIdle } from "./lib/defer";
+import { usePersistentAppSettings } from "./hooks/usePersistentAppSettings";
+import {
+  useTraceLifecycle,
+  userFacingErrorMessage,
+  type MeasurementLoadingState,
+  type WorkspaceMode,
+} from "./hooks/useTraceLifecycle";
 import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
 import {
   appendMagicFilters,
@@ -39,8 +38,6 @@ import {
   probeFilterSuggestions,
   probeToMagic,
 } from "../shared/filters";
-import { measurementToTraceResponse } from "../shared/transform";
-import type { GlobalpingMeasurement } from "../shared/globalping";
 import {
   DEFAULT_MAP_STYLE_URL,
   DEFAULT_PROBE_LIMIT,
@@ -54,30 +51,16 @@ import {
   type TraceProtocol,
   type TraceResultResponse,
 } from "../shared/types";
-import { nextThemeMode, type ThemeMode } from "./theme";
 import "./styles.css";
 
-export const POLL_DELAY_MS = 1000;
-export const ENRICH_AFTER_FINISHED_DELAY_MS = 500;
-export const TRACE_MAX_POLL_ATTEMPTS = 120;
+export { ENRICH_AFTER_FINISHED_DELAY_MS, POLL_DELAY_MS, TRACE_MAX_POLL_ATTEMPTS } from "./hooks/useTraceLifecycle";
 const PROBE_MAP_BROWSER_DELAY_MS = 800;
 const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
-const THEME_STORAGE_KEY = "globaltrace.themeMode";
-const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
-const RESULT_CONTENT_ORDER_STORAGE_KEY = "globaltrace.resultLayout";
 const TRACE_PORT_STORAGE_KEY = "globaltrace.tracePort";
 const TRACE_PACKETS_STORAGE_KEY = "globaltrace.tracePackets";
 
-type WorkspaceMode = "select" | "result";
 type AppRoute = "/" | "/about";
-type TraceLoadSource = "created" | "shared";
-type TraceEnrichmentMode = "worker" | "nexttraceToken";
-
-interface MeasurementLoadingState {
-  source: TraceLoadSource;
-  measurementId?: string;
-}
 
 interface StoredTokenState {
   token: string;
@@ -90,13 +73,19 @@ const ResultsView = lazy(() => import("./components/ResultsView").then((module) 
 
 export function App() {
   const [route, setRoute] = useState<AppRoute>(currentRoute);
-  const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
-  const [liquidGlassEnabled, setLiquidGlassEnabled] = useState(readStoredLiquidGlassEnabled);
-  const [liquidGlassIntensity, setLiquidGlassIntensity] = useState(readStoredLiquidGlassIntensity);
-  const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
-  const [storedResultContentOrder] = useState<ResultContentOrder | null>(() => readStoredResultContentOrder());
-  const [resultContentOrder, setResultContentOrder] = useState<ResultContentOrder>(storedResultContentOrder ?? "map-first");
-  const [resultContentOrderPromptOpen, setResultContentOrderPromptOpen] = useState(storedResultContentOrder === null);
+  const {
+    themeMode,
+    liquidGlassEnabled,
+    liquidGlassIntensity,
+    resultMapProjection,
+    setResultMapProjection,
+    resultContentOrder,
+    resultContentOrderPromptOpen,
+    cycleThemeMode,
+    updateLiquidGlassEnabled,
+    updateLiquidGlassIntensity,
+    updateResultContentOrder,
+  } = usePersistentAppSettings();
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
   const [storedGlobalpingToken] = useState(readStoredGlobalpingToken);
   const [globalpingToken, setGlobalpingToken] = useState(storedGlobalpingToken.token);
@@ -129,12 +118,32 @@ export function App() {
   const [message, setMessage] = useState("");
   const [selectionNotice, setSelectionNotice] = useState("");
   const [mapSelectionActive, setMapSelectionActive] = useState(false);
-  const pollAbortRef = useRef<AbortController | null>(null);
   const bootstrappedRef = useRef(false);
-  const createdMeasurementIdRef = useRef("");
-  const sharedTraceStartedRef = useRef("");
   const mapSelectionLimitBeforeRef = useRef<number | null>(null);
   const mapSelectionLimitManuallyChangedRef = useRef(false);
+  const {
+    abortTraceLoading,
+    cancelMeasurementLoading,
+    createdMeasurementIdRef,
+    createAndLoadTrace,
+    loadTrace,
+    sharedTraceStartedRef,
+  } = useTraceLifecycle({
+    filters,
+    globalpingToken,
+    ipVersion,
+    limit,
+    packets,
+    port,
+    probes,
+    protocol,
+    target,
+    setLoading,
+    setMeasurementLoading,
+    setMessage,
+    setResult,
+    setWorkspaceMode,
+  });
 
   const finalResult = result?.status === "in-progress" ? null : result;
   const resultPriority = workspaceMode === "result" || Boolean(measurementLoading);
@@ -179,15 +188,6 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = themeMode;
-    writeStoredThemeMode(themeMode);
-  }, [themeMode]);
-
-  useEffect(() => {
-    writeStoredResultMapProjection(resultMapProjection);
-  }, [resultMapProjection]);
-
-  useEffect(() => {
     if (bootstrappedRef.current) return;
     bootstrappedRef.current = true;
     void bootstrap();
@@ -219,82 +219,6 @@ export function App() {
     });
   }, [globalpingToken]);
 
-  const loadTrace = useCallback(async (
-    measurementId: string,
-    poll: boolean,
-    nextGlobalpingToken: string,
-    nextEnrichmentToken: string,
-    source: TraceLoadSource,
-    enrichmentMode: TraceEnrichmentMode = "worker",
-  ) => {
-    pollAbortRef.current?.abort();
-    const controller = new AbortController();
-    pollAbortRef.current = controller;
-    setLoading(true);
-    setMeasurementLoading({ source, measurementId });
-    if (source === "shared") {
-      setWorkspaceMode("select");
-      setResult(null);
-      setMessage("");
-    }
-    try {
-      if (enrichmentMode === "worker") {
-        const cached = await fetchCachedTrace(measurementId, controller.signal);
-        if (controller.signal.aborted) return;
-        if (cached) {
-          setResult(cached);
-          setMessage("");
-          if (cached.status !== "in-progress") {
-            setWorkspaceMode("result");
-          }
-          return;
-        }
-      }
-
-      let measurement = await fetchGlobalpingMeasurement(measurementId, nextGlobalpingToken, controller.signal);
-      if (controller.signal.aborted) return;
-      let current = mtrMeasurementToTraceResponse(measurement);
-      setResult(current);
-      let attempts = 0;
-      while (poll && current.status === "in-progress" && attempts < TRACE_MAX_POLL_ATTEMPTS) {
-        attempts += 1;
-        await sleep(POLL_DELAY_MS, controller.signal);
-        measurement = await fetchGlobalpingMeasurement(measurementId, nextGlobalpingToken, controller.signal);
-        if (controller.signal.aborted) return;
-        current = mtrMeasurementToTraceResponse(measurement);
-        setResult(current);
-      }
-
-      if (current.status === "in-progress") {
-        setMessage("measurement 仍在运行，请稍后通过分享 URL 重新打开。");
-        return;
-      }
-
-      const enriched =
-        enrichmentMode === "worker"
-          ? await enrichTraceAfterGlobalpingCooldown(measurementId, controller.signal)
-          : await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      setResult(enriched);
-      setMessage("");
-      if (enriched.status !== "in-progress") {
-        setWorkspaceMode("result");
-      }
-    } catch (error) {
-      if (isAbortError(error)) return;
-      if (isNonMtrMeasurementError(error)) {
-        setResult(null);
-      }
-      setMessage(userFacingErrorMessage(error, "加载 measurement 失败"));
-    } finally {
-      if (pollAbortRef.current === controller) {
-        pollAbortRef.current = null;
-        setMeasurementLoading(null);
-        setLoading(false);
-      }
-    }
-  }, []);
-
   useEffect(() => {
     if (route !== "/" || !configReady) return;
     const id = new URL(window.location.href).searchParams.get("measurement");
@@ -305,7 +229,7 @@ export function App() {
     void loadTrace(id, true, "", "", "shared");
   }, [configReady, loadTrace, result, route]);
 
-  useEffect(() => () => pollAbortRef.current?.abort(), []);
+  useEffect(() => () => abortTraceLoading(), [abortTraceLoading]);
 
   const bootstrap = async () => {
     const nextConfig = await fetchConfig().catch(() => null);
@@ -338,58 +262,6 @@ export function App() {
       setLimitsStatus("error");
     }
   };
-
-  const createAndLoadTrace = useCallback(async (
-    enrichmentMode: TraceEnrichmentMode = "worker",
-    activeNexttraceToken = "",
-  ) => {
-    pollAbortRef.current?.abort();
-    const controller = new AbortController();
-    pollAbortRef.current = controller;
-    setLoading(true);
-    setMeasurementLoading({ source: "created" });
-    setMessage("");
-    setWorkspaceMode("select");
-    try {
-      const traceFilters = normalizeMagicFiltersForProbes(filters, probes, MAX_TRACE_PROBES);
-      const created = await createTrace(
-        {
-          target,
-          protocol,
-          ipVersion,
-          port: port.trim() ? Number(port) : undefined,
-          packets,
-          limit,
-          filters: traceFilters,
-        },
-        globalpingToken,
-        controller.signal,
-      );
-      if (controller.signal.aborted) return;
-      createdMeasurementIdRef.current = created.measurementId;
-      const url = new URL(window.location.href);
-      url.searchParams.set("measurement", created.measurementId);
-      window.history.replaceState(null, "", url);
-      setMeasurementLoading({ source: "created", measurementId: created.measurementId });
-      await loadTrace(
-        created.measurementId,
-        true,
-        globalpingToken,
-        enrichmentMode === "nexttraceToken" ? activeNexttraceToken : "",
-        "created",
-        enrichmentMode,
-      );
-    } catch (error) {
-      if (isAbortError(error)) return;
-      setMessage(userFacingErrorMessage(error, "创建 trace 失败"));
-    } finally {
-      if (pollAbortRef.current === controller) {
-        pollAbortRef.current = null;
-        setMeasurementLoading(null);
-        setLoading(false);
-      }
-    }
-  }, [filters, globalpingToken, ipVersion, limit, loadTrace, packets, port, probes, protocol, target]);
 
   const submit = useCallback(() => {
     if (!configReady) return;
@@ -513,16 +385,6 @@ export function App() {
     setWorkspaceMode("select");
   }, []);
 
-  const cancelMeasurementLoading = useCallback(() => {
-    pollAbortRef.current?.abort();
-    pollAbortRef.current = null;
-    setLoading(false);
-    setMeasurementLoading(null);
-    setWorkspaceMode("select");
-    setMessage("");
-    sharedTraceStartedRef.current = "";
-  }, []);
-
   const saveGlobalpingToken = useCallback(() => {
     const trimmed = globalpingTokenDraft.trim();
     setGlobalpingToken(trimmed);
@@ -572,34 +434,13 @@ export function App() {
     writeStoredNexttraceToken(nexttraceToken, remembered);
   }, [nexttraceToken]);
 
-  const cycleThemeMode = useCallback(() => {
-    setThemeMode((current) => nextThemeMode(current));
-  }, []);
-
-  const updateLiquidGlassEnabled = useCallback((enabled: boolean) => {
-    setLiquidGlassEnabled(enabled);
-    writeStoredLiquidGlassEnabled(enabled);
-  }, []);
-
-  const updateLiquidGlassIntensity = useCallback((intensity: number) => {
-    setLiquidGlassIntensity(intensity);
-    writeStoredLiquidGlassIntensity(intensity);
-  }, []);
-
-  const updateResultContentOrder = useCallback((order: ResultContentOrder) => {
-    setResultContentOrder(order);
-    writeStoredResultContentOrder(order);
-    setResultContentOrderPromptOpen(false);
-  }, []);
-
   const navigateAbout = useCallback(() => {
     window.history.pushState(null, "", "/about");
     setRoute("/about");
   }, []);
 
   const navigateHome = useCallback(() => {
-    pollAbortRef.current?.abort();
-    pollAbortRef.current = null;
+    abortTraceLoading();
     window.history.pushState(null, "", "/");
     setWorkspaceMode("select");
     setMeasurementLoading(null);
@@ -607,7 +448,7 @@ export function App() {
     setMessage("");
     setLoading(false);
     setRoute("/");
-  }, []);
+  }, [abortTraceLoading, sharedTraceStartedRef]);
 
   return (
     <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled} intensity={liquidGlassIntensity}>
@@ -1011,56 +852,6 @@ function writeStoredTracePackets(packets: number): void {
   }
 }
 
-function readStoredThemeMode(): ThemeMode {
-  try {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
-  } catch {
-    return "system";
-  }
-}
-
-function writeStoredThemeMode(mode: ThemeMode): void {
-  try {
-    window.localStorage.setItem(THEME_STORAGE_KEY, mode);
-  } catch {
-    // Theme persistence is best-effort.
-  }
-}
-
-function readStoredResultMapProjection(): MapProjection {
-  try {
-    return window.localStorage.getItem(RESULT_MAP_PROJECTION_STORAGE_KEY) === "3d" ? "globe" : "mercator";
-  } catch {
-    return "mercator";
-  }
-}
-
-function writeStoredResultMapProjection(projection: MapProjection): void {
-  try {
-    window.localStorage.setItem(RESULT_MAP_PROJECTION_STORAGE_KEY, projection === "globe" ? "3d" : "2d");
-  } catch {
-    // Result map projection persistence is best-effort.
-  }
-}
-
-function readStoredResultContentOrder(): ResultContentOrder | null {
-  try {
-    const stored = window.localStorage.getItem(RESULT_CONTENT_ORDER_STORAGE_KEY);
-    return stored === "map-first" || stored === "table-first" ? stored : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredResultContentOrder(order: ResultContentOrder): void {
-  try {
-    window.localStorage.setItem(RESULT_CONTENT_ORDER_STORAGE_KEY, order);
-  } catch {
-    // Result layout persistence is best-effort.
-  }
-}
-
 function deferProbeMapLoad(callback: () => void): () => void {
   if (!("requestIdleCallback" in window) || typeof window.requestIdleCallback !== "function") {
     return deferUntilIdle(callback);
@@ -1073,51 +864,4 @@ function deferProbeMapLoad(callback: () => void): () => void {
     cancelIdle();
     if (timerId !== undefined) window.clearTimeout(timerId);
   };
-}
-
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new DOMException("Aborted", "AbortError"));
-      return;
-    }
-
-    const timer = window.setTimeout(resolve, ms);
-    signal.addEventListener(
-      "abort",
-      () => {
-        window.clearTimeout(timer);
-        reject(new DOMException("Aborted", "AbortError"));
-      },
-      { once: true },
-    );
-  });
-}
-
-async function enrichTraceAfterGlobalpingCooldown(measurementId: string, signal: AbortSignal): Promise<TraceResultResponse> {
-  await sleep(ENRICH_AFTER_FINISHED_DELAY_MS, signal);
-  return enrichTrace(measurementId, signal);
-}
-
-function mtrMeasurementToTraceResponse(measurement: GlobalpingMeasurement): TraceResultResponse {
-  if (measurement.type !== "mtr") {
-    throw new Error("measurement.type must be mtr");
-  }
-  return measurementToTraceResponse(measurement);
-}
-
-function isNonMtrMeasurementError(error: unknown): boolean {
-  return error instanceof Error && error.message === "measurement.type must be mtr";
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
-}
-
-function userFacingErrorMessage(error: unknown, fallback: string): string {
-  const message = error instanceof Error ? error.message : fallback;
-  if (/parameter validation failed/i.test(message)) {
-    return `Globalping 筛选条件无效：${message} 请重置筛选，或改用国家/地区、城市、ASN 等较短条件。`;
-  }
-  return message;
 }
