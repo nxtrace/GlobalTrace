@@ -67,6 +67,58 @@ curl -fsSL https://<private-hostname>/api/config
 
 生产发布由 Cloudflare Workers Builds 完成。`npm run deploy:private` 只作为手动 fallback，除非用户明确要求，不要本机直接部署生产。
 
+## 预览发布（仅按需）
+
+只有当用户明确要求“发布预览”“上预览”“给预览 URL”时，才执行本节流程；这不是每次修改、测试、提交或生产发布的默认步骤。
+
+预览发布必须使用独立 Worker，不要碰生产 Worker `globaltrace`、`lg.nxtrace.org` 或 `wrangler.private.jsonc`：
+
+1. 确认当前分支和工作区状态：
+
+```bash
+git status --short --branch
+```
+
+2. 构建当前代码：
+
+```bash
+npm run build
+```
+
+3. 使用临时 Wrangler 配置发布预览。临时配置必须：
+   - 使用独立 Worker 名称，例如 `codex-<branch-slug>-globaltrace`。
+   - 设置 `workers_dev: true`。
+   - 不包含 `routes`、`custom_domain` 或生产域名。
+   - `assets.directory` 指向当前仓库的 `dist`。
+   - `vars.APP_ENV` 使用 `preview` 或 `development`，不要写入 secret。
+
+4. 执行预览部署：
+
+```bash
+npx wrangler deploy --config <temporary-preview-wrangler-config> --message "Preview <commit> <summary>"
+```
+
+5. 验证预览 URL：
+
+```bash
+curl -fsSI https://<preview-worker>.<account-subdomain>.workers.dev/
+curl -fsSL https://<preview-worker>.<account-subdomain>.workers.dev/api/config
+curl -fsSL https://<preview-worker>.<account-subdomain>.workers.dev/ | rg -o 'assets/[^" ]+'
+```
+
+6. 汇报预览 URL、当前分支、commit、验证结果，以及是否出现 Wrangler 本机日志 `EPERM` 噪音。
+
+撤销预览时，只删除对应的独立 preview Worker，不要碰生产 Worker：
+
+```bash
+npx wrangler delete <preview-worker-name> --config <temporary-preview-wrangler-config> --dry-run
+npx wrangler delete <preview-worker-name> --config <temporary-preview-wrangler-config> --force
+curl -fsSI https://<preview-worker>.<account-subdomain>.workers.dev/
+curl -fsSI https://lg.nxtrace.org/
+```
+
+预览 URL 删除后应返回 404 或不可访问；生产首页仍应返回 200。
+
 ## 已知本机问题
 
 - Playwright/Chromium smoke 如果在沙箱里报 `bootstrap_check_in ... Permission denied (1100)`，先在非沙箱/提权环境重跑同一 smoke；不要直接判定为应用回归。
