@@ -4461,15 +4461,6 @@ html.ambient-photo-ready body::before {
   background: var(--photo-filter-panel-bg);
 }
 
-.app-shell.ambient-photo-ready:has(.filter-summary-surface[data-liquid-glass-mode="liquid"]) .filter-panel {
-  --tw-backdrop-blur: ;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
 .control-section,
 .filter-summary,
 .advanced-panel,
@@ -4564,6 +4555,23 @@ textarea:hover {
 .attribution-glass-surface .liquid-glass-content,
 .about-panel-surface .liquid-glass-content {
   display: block;
+}
+
+.filter-summary-surface[data-liquid-glass-mode="liquid"],
+.attribution-glass-surface[data-liquid-glass-mode="liquid"] {
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.filter-summary-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.filter-summary-surface[data-liquid-glass-mode="liquid"] .glass,
+.filter-summary-surface[data-liquid-glass-mode="liquid"] .glass__warp,
+.filter-summary-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.attribution-glass-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.attribution-glass-surface[data-liquid-glass-mode="liquid"] .glass,
+.attribution-glass-surface[data-liquid-glass-mode="liquid"] .glass__warp,
+.attribution-glass-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+  border-radius: inherit;
 }
 
 .liquid-glass-panel,
