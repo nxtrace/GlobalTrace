@@ -1248,6 +1248,49 @@ test("liquid glass surfaces expose reference-strength optics at max intensity", 
   expect(consoleErrors).toEqual([]);
 });
 
+test("liquid glass filter summary keeps exact filters below it on short desktop", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1512, height: 760 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page);
+  await page.addInitScript(() => {
+    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
+    window.localStorage.setItem("globaltrace.liquidGlassIntensity", "100");
+  });
+
+  await page.goto("/");
+  await expect(
+    page.locator('.filter-summary-surface[data-liquid-glass-mode="liquid"]'),
+  ).toHaveCount(1);
+
+  const state = await page.evaluate(() => {
+    const summarySurface = document.querySelector(
+      ".filter-summary-surface",
+    ) as HTMLElement | null;
+    const summaryContent = document.querySelector(
+      ".filter-summary-surface .liquid-glass-content",
+    ) as HTMLElement | null;
+    const exactFilters = document.querySelector(
+      ".advanced-panel",
+    ) as HTMLElement | null;
+    const summarySurfaceRect = summarySurface?.getBoundingClientRect();
+    const summaryContentRect = summaryContent?.getBoundingClientRect();
+    const exactFiltersRect = exactFilters?.getBoundingClientRect();
+    return {
+      summarySurfaceHeight: summarySurfaceRect?.height ?? 0,
+      summaryContentBottom: summaryContentRect?.bottom ?? 0,
+      exactFiltersTop: exactFiltersRect?.top ?? 0,
+    };
+  });
+
+  expect(state.summarySurfaceHeight).toBeGreaterThan(0);
+  expect(
+    state.exactFiltersTop - state.summaryContentBottom,
+  ).toBeGreaterThanOrEqual(10);
+  expect(consoleErrors).toEqual([]);
+});
+
 test.describe("partial displacement browser liquid glass path", () => {
   test.use({
     userAgent:

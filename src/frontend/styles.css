@@ -4564,6 +4564,10 @@ textarea:hover {
   border-radius: 18px;
 }
 
+.filter-summary-surface[data-liquid-glass-mode="liquid"] {
+  min-height: max-content;
+}
+
 .panel-action-surface[data-liquid-glass-mode="liquid"] {
   border-radius: 999px;
 }
