@@ -4558,9 +4558,14 @@ textarea:hover {
 }
 
 .filter-summary-surface[data-liquid-glass-mode="liquid"],
-.attribution-glass-surface[data-liquid-glass-mode="liquid"] {
+.attribution-glass-surface[data-liquid-glass-mode="liquid"],
+.panel-action-surface[data-liquid-glass-mode="liquid"] {
   overflow: hidden;
   border-radius: 18px;
+}
+
+.panel-action-surface[data-liquid-glass-mode="liquid"] {
+  border-radius: 999px;
 }
 
 .filter-summary-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
@@ -4570,7 +4575,11 @@ textarea:hover {
 .attribution-glass-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
 .attribution-glass-surface[data-liquid-glass-mode="liquid"] .glass,
 .attribution-glass-surface[data-liquid-glass-mode="liquid"] .glass__warp,
-.attribution-glass-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
+.attribution-glass-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content,
+.panel-action-surface[data-liquid-glass-mode="liquid"] .liquid-glass-package,
+.panel-action-surface[data-liquid-glass-mode="liquid"] .glass,
+.panel-action-surface[data-liquid-glass-mode="liquid"] .glass__warp,
+.panel-action-surface[data-liquid-glass-mode="liquid"] .liquid-glass-content {
   border-radius: inherit;
 }
 

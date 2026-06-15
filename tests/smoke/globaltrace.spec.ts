@@ -1870,6 +1870,7 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
       const glass = surface?.querySelector(".glass");
       const warp = surface?.querySelector(".glass__warp");
       const content = surface?.querySelector(".liquid-glass-content");
+      const surfaceStyle = surface ? window.getComputedStyle(surface) : null;
       const glassStyle = glass ? window.getComputedStyle(glass) : null;
       const warpStyle = warp ? window.getComputedStyle(warp) : null;
       const contentStyle = content ? window.getComputedStyle(content) : null;
@@ -1886,6 +1887,8 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
           surface?.getAttribute("data-liquid-glass-demo-intensity") ?? "",
         liquidIntensity:
           surface?.getAttribute("data-liquid-glass-intensity") ?? "",
+        surfaceBorderRadius: surfaceStyle?.borderRadius ?? "",
+        surfaceOverflow: surfaceStyle?.overflow ?? "",
         glassBackgroundColor: glassStyle?.backgroundColor ?? "",
         glassBackgroundAlpha: alphaOf(glassStyle?.backgroundColor ?? ""),
         glassBoxShadow: glassStyle?.boxShadow ?? "",
@@ -1996,6 +1999,8 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
     expect(liquidState?.contentBoxShadow).not.toBe("none");
     expect(liquidState?.opticalLayerOpacity).toBeGreaterThanOrEqual(0.85);
   }
+  expect(state.panelActionLiquid?.surfaceBorderRadius).toBe("999px");
+  expect(state.panelActionLiquid?.surfaceOverflow).toBe("hidden");
   expect(state.probeTable?.backgroundAlpha).toBeGreaterThanOrEqual(0.34);
   expect(state.tableScroll?.backgroundAlpha).toBeGreaterThanOrEqual(0.48);
   expect(state.resultsSection).toBeNull();
