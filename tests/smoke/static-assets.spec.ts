@@ -13,6 +13,7 @@ test("serves the built Vite app through Worker Static Assets", async ({
   const html = await response.text();
   expect(response.ok()).toBe(true);
   expect(html).toContain("/assets/");
+  expect(html).toContain('href="/favicon.ico"');
   expect(html).toContain('name="description"');
   expectSecurityHeaders(response.headers());
 
