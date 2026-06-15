@@ -1970,8 +1970,8 @@ async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
   );
   expect(state.bodyTextureOpacity).toBeLessThanOrEqual(0.01);
   expect(state.shellTextureOpacity).toBeLessThanOrEqual(0.01);
-  expect(state.filterPanel?.backgroundAlpha).toBeLessThanOrEqual(0.4);
-  expect(state.filterPanel?.backdropFilter).toContain("blur(30px)");
+  expect(state.filterPanel?.backgroundAlpha).toBeLessThanOrEqual(0.02);
+  expect(state.filterPanel?.backdropFilter).toBe("none");
   expect(state.primaryControls?.backgroundAlpha).toBeLessThanOrEqual(0.22);
   expect(state.filterSummary?.backgroundAlpha).toBeLessThanOrEqual(0.18);
   expect(state.statusBar?.backgroundAlpha).toBeLessThanOrEqual(0.24);

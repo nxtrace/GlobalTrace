@@ -4461,6 +4461,15 @@ html.ambient-photo-ready body::before {
   background: var(--photo-filter-panel-bg);
 }
 
+.app-shell.ambient-photo-ready:has(.filter-summary-surface[data-liquid-glass-mode="liquid"]) .filter-panel {
+  --tw-backdrop-blur: ;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 .control-section,
 .filter-summary,
 .advanced-panel,
