@@ -1,4 +1,5 @@
 import { buildMagicFromFilters } from "./filters";
+import { isIpAddress } from "./ip";
 import {
   DEFAULT_PROBE_LIMIT,
   DEFAULT_TRACE_PACKETS,
@@ -95,7 +96,7 @@ export function validateTraceCreate(input: TraceCreateRequest): ValidatedTraceCr
     throw new Error(`packets must be within range ${MIN_TRACE_PACKETS}-${MAX_TRACE_PACKETS}`);
   }
 
-  const ipVersion = input.ipVersion;
+  const ipVersion = isIpAddress(target) ? undefined : input.ipVersion;
   if (ipVersion !== undefined && ipVersion !== 4 && ipVersion !== 6) {
     throw new Error("ipVersion must be 4 or 6");
   }

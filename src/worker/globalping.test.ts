@@ -57,6 +57,11 @@ describe("Globalping client and validation", () => {
     });
   });
 
+  it("omits ipVersion when the target is already an IP address", () => {
+    expect(validateTraceCreate({ target: "1.1.1.1", ipVersion: 4 }).ipVersion).toBeUndefined();
+    expect(validateTraceCreate({ target: "2606:4700:4700::1111", ipVersion: 6 }).ipVersion).toBeUndefined();
+  });
+
   it("lists probes from the Globalping API", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify([{ location: {}, tags: [] }])));
     const client = new GlobalpingClient({ baseUrl: "https://globalping.test", fetcher });

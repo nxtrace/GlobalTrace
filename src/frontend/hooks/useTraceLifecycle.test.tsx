@@ -38,7 +38,7 @@ describe("useTraceLifecycle", () => {
         new Error("parameter validation failed: locations are invalid"),
         "fallback",
       ),
-    ).toBe("Globalping 筛选条件无效：parameter validation failed: locations are invalid 请重置筛选，或改用国家/地区、城市、ASN 等较短条件。");
+    ).toBe("Globalping 请求参数无效：parameter validation failed: locations are invalid 请检查目标、筛选条件或高级参数。");
     expect(userFacingErrorMessage("unknown", "fallback")).toBe("fallback");
   });
 

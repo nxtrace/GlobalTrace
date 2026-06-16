@@ -6,11 +6,21 @@ export function isPublicIp(ip: string): boolean {
   return isPublicIpv4(ip);
 }
 
+export function isIpAddress(ip: string): boolean {
+  const value = ip.trim();
+  return value.includes(":") ? isValidIpv6(value) : isValidIpv4(value);
+}
+
+function isValidIpv4(ip: string): boolean {
+  const parts = ip.split(".");
+  return parts.length === 4 && parts.every((part) => /^\d+$/.test(part) && Number(part) <= 255);
+}
+
 function isPublicIpv4(ip: string): boolean {
-  const parts = ip.split(".").map((part) => Number(part));
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+  if (!isValidIpv4(ip)) {
     return false;
   }
+  const parts = ip.split(".").map((part) => Number(part));
   const [a, b] = parts;
   if (a === 10 || a === 127 || a === 0) return false;
   if (a === 100 && b >= 64 && b <= 127) return false;
@@ -43,6 +53,10 @@ function isPublicIpv6(ip: string): boolean {
   if ((first & 0xffc0) === 0xfec0) return false;
   if (first === 0x2001 && hextets[1] === 0x0db8) return false;
   return true;
+}
+
+function isValidIpv6(ip: string): boolean {
+  return Boolean(expandIpv6(ip.toLowerCase().split("%")[0]));
 }
 
 function expandIpv6(ip: string): number[] | null {

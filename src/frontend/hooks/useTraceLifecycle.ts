@@ -251,7 +251,7 @@ function isAbortError(error: unknown): boolean {
 export function userFacingErrorMessage(error: unknown, fallback: string): string {
   const message = error instanceof Error ? error.message : fallback;
   if (/parameter validation failed/i.test(message)) {
-    return `Globalping 筛选条件无效：${message} 请重置筛选，或改用国家/地区、城市、ASN 等较短条件。`;
+    return `Globalping 请求参数无效：${message} 请检查目标、筛选条件或高级参数。`;
   }
   return message;
 }

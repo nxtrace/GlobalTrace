@@ -906,6 +906,34 @@ describe("App", () => {
     expect(traceCreateBodies(fetchMock)[0].measurementOptions).toMatchObject({ packets: 5 });
   });
 
+  it("submits literal IP targets without a redundant ipVersion option", async () => {
+    const fetchMock = mockApi();
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.change(screen.getByLabelText("目标"), { target: { value: "1.1.1.1" } });
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+
+    expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(traceCreateBodies(fetchMock)[0]).toMatchObject({ target: "1.1.1.1" });
+    expect(traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion).toBeUndefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "关闭结果" }));
+    fireEvent.click(screen.getByRole("button", { name: "IPv4" }));
+    fireEvent.change(screen.getByLabelText("目标"), {
+      target: { value: "2606:4700:4700::1111" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
+
+    await waitFor(() => {
+      expect(traceCreateBodies(fetchMock)).toHaveLength(2);
+    });
+    expect(traceCreateBodies(fetchMock)[1]).toMatchObject({
+      target: "2606:4700:4700::1111",
+    });
+    expect(traceCreateBodies(fetchMock)[1].measurementOptions.ipVersion).toBeUndefined();
+  });
+
   it("keeps the share URL contract when switching the result map to 3D", async () => {
     const fetchMock = mockApi();
     render(<App />);
@@ -1244,8 +1272,8 @@ describe("App", () => {
     await screen.findByText("2 / 2 probes 匹配");
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
-    expect(await screen.findByText(/Globalping 筛选条件无效：Parameter validation failed\./)).toBeInTheDocument();
-    expect(screen.getByText(/请重置筛选/)).toBeInTheDocument();
+    expect(await screen.findByText(/Globalping 请求参数无效：Parameter validation failed\./)).toBeInTheDocument();
+    expect(screen.getByText(/请检查目标、筛选条件或高级参数/)).toBeInTheDocument();
   });
 });
 
