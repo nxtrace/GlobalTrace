@@ -802,7 +802,7 @@ test("about page exposes provider attribution links", async ({ page }) => {
     aboutDialog.getByRole("link", { name: /Globalping OpenAPI spec/ }),
   ).toHaveAttribute("href", "https://api.globalping.io/v1/spec.yaml");
   await expect(
-    aboutDialog.getByRole("link", { name: /NextTrace/ }),
+    aboutDialog.getByRole("link", { name: "NextTrace", exact: true }),
   ).toHaveAttribute("href", "https://www.nxtrace.org/");
   await expect(
     aboutDialog.getByRole("link", { name: /NextTrace Github/ }),
