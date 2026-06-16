@@ -71,7 +71,7 @@ test("serves the built Vite app through Worker Static Assets", async ({
     page.getByRole("link", { name: /Globalping API docs/ }),
   ).toHaveAttribute("href", "https://globalping.io/docs/api.globalping.io");
   await expect(
-    page.getByRole("link", { name: /NTrace-core GitHub/ }),
+    page.getByRole("link", { name: /NextTrace Github/ }),
   ).toHaveAttribute("href", "https://github.com/nxtrace/NTrace-core");
   expect(consoleErrors).toEqual([]);
 });

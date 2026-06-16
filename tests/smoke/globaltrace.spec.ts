@@ -77,7 +77,9 @@ for (const viewport of viewports) {
     await page.getByRole("button", { name: "关闭高级参数" }).click();
     await page.getByRole("button", { name: "主题：Light" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(page.getByText("Globalping credits 控制诊断创建")).toBeVisible();
+    await expect(
+      page.getByText("Globalping credits 控制诊断创建"),
+    ).toBeVisible();
     await expect(page.getByText("可创建诊断 249/250（当前 IP）")).toBeVisible();
     await expect(
       page.getByText("从全球探针发起 MTR，展示跳点延迟、丢包与地理信息"),
@@ -94,7 +96,9 @@ for (const viewport of viewports) {
     await expect(page.getByLabel("Limit")).toHaveText("3");
     await expect(page.getByText("目标", { exact: true })).toHaveCount(0);
     await expect(page.getByText("协议", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("magic string", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("magic string", { exact: true })).toHaveCount(
+      0,
+    );
     for (const label of ["目标", "端口", "Packets", "Limit", "magic string"]) {
       await expect(page.getByLabel(label)).toHaveCSS(
         "background-color",
@@ -251,7 +255,9 @@ for (const viewport of viewports) {
     if (viewport.name === "1440x1000") {
       await boxSelectLosAngelesWithOutsideRelease(page);
       await expect(page.getByText("已添加框选 1 个 probes")).toBeVisible();
-      await expect(page.getByLabel("probe map").getByText("已添加框选 1 个 probes")).toHaveCount(0);
+      await expect(
+        page.getByLabel("probe map").getByText("已添加框选 1 个 probes"),
+      ).toHaveCount(0);
       await expect(
         page.getByRole("button", { name: "取消地图筛选" }),
       ).toBeVisible();
@@ -272,7 +278,9 @@ for (const viewport of viewports) {
         "Comcast AS7922 ×1",
       );
       await expect(page.getByText("已添加 Los Angeles · AS7922")).toBeVisible();
-      await expect(page.getByLabel("probe map").getByText("已添加 Los Angeles · AS7922")).toHaveCount(0);
+      await expect(
+        page.getByLabel("probe map").getByText("已添加 Los Angeles · AS7922"),
+      ).toHaveCount(0);
       await expect(page.getByText("1 / 3 probes 匹配")).toBeVisible();
       await expect(page.getByTestId("filter-chips")).not.toContainText(
         "Comcast",
@@ -367,13 +375,13 @@ test("first-time result layout dialog stays above shared result links", async ({
   await expect(dialog).toHaveCount(0);
   await expect
     .poll(() =>
-      page.evaluate(() => window.localStorage.getItem("globaltrace.resultLayout")),
+      page.evaluate(() =>
+        window.localStorage.getItem("globaltrace.resultLayout"),
+      ),
     )
     .toBe("map-first");
 
-  await expect(
-    page.getByText("finished · 1 probes · m-smoke"),
-  ).toBeVisible();
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   const resultZIndex = await page
     .locator(".glass-overlay-result")
     .evaluate((overlay) =>
@@ -542,12 +550,16 @@ test("map ASN picker groups same-city probes by ASN and submits ASN-only magic",
   await expectMapContainsCoordinate(page, [-121.89, 37.34]);
   await selectMapAsnAtCoordinate(page, [-121.89, 37.34], "Oracle AS31898 ×2");
   await expect(page.getByText("已添加 San Jose · AS31898")).toBeVisible();
-  await expect(page.getByLabel("probe map").getByText("已添加 San Jose · AS31898")).toHaveCount(0);
+  await expect(
+    page.getByLabel("probe map").getByText("已添加 San Jose · AS31898"),
+  ).toHaveCount(0);
   await expect(page.getByText("2 / 4 probes 匹配")).toBeVisible();
   await expect(page.getByTestId("filter-chips")).not.toContainText("Oracle");
   await selectMapAsnAtCoordinate(page, [-121.89, 37.34], "LeaseWeb AS7203 ×1");
   await expect(page.getByText("已添加 San Jose · AS7203")).toBeVisible();
-  await expect(page.getByLabel("probe map").getByText("已添加 San Jose · AS7203")).toHaveCount(0);
+  await expect(
+    page.getByLabel("probe map").getByText("已添加 San Jose · AS7203"),
+  ).toHaveCount(0);
   await expect(page.getByText("3 / 4 probes 匹配")).toBeVisible();
   await expect(page.getByTestId("filter-chips")).not.toContainText("LeaseWeb");
 
@@ -793,7 +805,7 @@ test("about page exposes provider attribution links", async ({ page }) => {
     aboutDialog.getByRole("link", { name: /NextTrace/ }),
   ).toHaveAttribute("href", "https://www.nxtrace.org/");
   await expect(
-    aboutDialog.getByRole("link", { name: /NTrace-core GitHub/ }),
+    aboutDialog.getByRole("link", { name: /NextTrace Github/ }),
   ).toHaveAttribute("href", "https://github.com/nxtrace/NTrace-core");
   await expect(
     aboutDialog.getByRole("link", { name: /GlobalTrace GitHub/ }),
@@ -1201,7 +1213,9 @@ test("liquid glass surfaces expose reference-strength optics at max intensity", 
   await ensureExactFiltersOpen(page);
   await page.getByLabel("国家/地区").fill("ZZ");
   await expect(page.getByText("0 / 3 probes 匹配")).toBeVisible();
-  await expect(page.getByLabel("probe map").getByText("0 / 3 probes")).toHaveCount(0);
+  await expect(
+    page.getByLabel("probe map").getByText("0 / 3 probes"),
+  ).toHaveCount(0);
   await expect(page.locator(".map-empty-surface")).toHaveCount(0);
   await page.getByLabel("国家/地区").fill("");
   await page.getByRole("button", { name: "打开高级参数" }).click();
@@ -2291,7 +2305,10 @@ async function expectResultHopTableWheelChaining(page: Page): Promise<void> {
           safeBottom >= safeTop
             ? Math.min(
                 safeBottom,
-                Math.max(safeTop, visibleTop + (visibleBottom - visibleTop) / 2),
+                Math.max(
+                  safeTop,
+                  visibleTop + (visibleBottom - visibleTop) / 2,
+                ),
               )
             : Math.min(rect.bottom - 1, Math.max(rect.top + 1, rect.top + 44)),
       };
@@ -2953,7 +2970,9 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       };
     });
     const cardPacketGroups = cardElements.map((card) => {
-      const group = card.querySelector(".hop-card-packets") as HTMLElement | null;
+      const group = card.querySelector(
+        ".hop-card-packets",
+      ) as HTMLElement | null;
       const style = group ? window.getComputedStyle(group) : null;
       return {
         dotCount: group?.querySelectorAll(".hop-card-packet-dot").length ?? 0,
@@ -3457,9 +3476,7 @@ async function expectResultRouteData(
   }
 }
 
-async function resultRouteState(
-  page: Page,
-): Promise<{
+async function resultRouteState(page: Page): Promise<{
   labels: string[];
   lineLength: number;
   lineLngSpan: number;

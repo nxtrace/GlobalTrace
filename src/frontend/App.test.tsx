@@ -1,6 +1,18 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, ENRICH_AFTER_FINISHED_DELAY_MS, POLL_DELAY_MS, TRACE_MAX_POLL_ATTEMPTS } from "./App";
+import {
+  App,
+  ENRICH_AFTER_FINISHED_DELAY_MS,
+  POLL_DELAY_MS,
+  TRACE_MAX_POLL_ATTEMPTS,
+} from "./App";
 import { measurementToTraceResponse } from "../shared/transform";
 import type { GlobalpingProbe, TraceResultResponse } from "../shared/types";
 import type { GlobalpingMeasurement } from "../shared/globalping";
@@ -8,7 +20,14 @@ import type { GlobalpingMeasurement } from "../shared/globalping";
 vi.mock("./components/ProbeMap", () => ({
   ProbeMap: (props: {
     probes: GlobalpingProbe[];
-    onPickAsn: (selection: { magic: string; city: string; country: string; asn: string; network: string; count: number }) => void;
+    onPickAsn: (selection: {
+      magic: string;
+      city: string;
+      country: string;
+      asn: string;
+      network: string;
+      count: number;
+    }) => void;
     onBoxSelect: (probes: GlobalpingProbe[]) => void;
   }) => {
     const pickProbeAt = (index: number) => {
@@ -34,7 +53,10 @@ vi.mock("./components/ProbeMap", () => ({
         <button type="button" onClick={() => pickProbeAt(1)}>
           pick second probe
         </button>
-        <button type="button" onClick={() => props.onBoxSelect(repeatProbes(props.probes[0], 12))}>
+        <button
+          type="button"
+          onClick={() => props.onBoxSelect(repeatProbes(props.probes[0], 12))}
+        >
           box many probes
         </button>
       </section>
@@ -60,10 +82,18 @@ vi.mock("./components/ResultsView", () => ({
       {result ? `result:${result.status}:${result.measurementId}` : "no result"}
       <span>{`projection:${mapProjection || "mercator"}`}</span>
       <span>{`layout:${resultContentOrder || "table-first"}`}</span>
-      <button type="button" aria-pressed={mapProjection === "mercator"} onClick={() => onMapProjectionChange?.("mercator")}>
+      <button
+        type="button"
+        aria-pressed={mapProjection === "mercator"}
+        onClick={() => onMapProjectionChange?.("mercator")}
+      >
         切换结果地图到 2D
       </button>
-      <button type="button" aria-pressed={mapProjection === "globe"} onClick={() => onMapProjectionChange?.("globe")}>
+      <button
+        type="button"
+        aria-pressed={mapProjection === "globe"}
+        onClick={() => onMapProjectionChange?.("globe")}
+      >
         切换结果地图到 3D
       </button>
       {onClose && (
@@ -85,7 +115,10 @@ beforeEach(() => {
     value: createMemoryStorage(),
   });
   window.localStorage.setItem("globaltrace.resultLayout", "table-first");
-  setNavigatorDevice({ userAgent: "Mozilla/5.0 (X11; Linux x86_64)", platform: "Linux x86_64" });
+  setNavigatorDevice({
+    userAgent: "Mozilla/5.0 (X11; Linux x86_64)",
+    platform: "Linux x86_64",
+  });
 });
 
 afterEach(() => {
@@ -100,7 +133,9 @@ afterEach(() => {
 });
 
 const openExactFilters = () => {
-  const panel = screen.getByText("精确筛选").closest("details") as HTMLDetailsElement | null;
+  const panel = screen
+    .getByText("精确筛选")
+    .closest("details") as HTMLDetailsElement | null;
   if (!panel?.open) fireEvent.click(screen.getByText("精确筛选"));
 };
 
@@ -124,10 +159,16 @@ describe("App", () => {
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(screen.getByText("probe-projection:mercator")).toBeInTheDocument();
     expect(screen.getByText("box:on")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "切换到 3D 视图" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "切换到 3D 视图" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
-    expect(screen.getByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
-    expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
+    expect(
+      screen.getByText("Globalping credits 控制诊断创建"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("可创建诊断 249/250（当前 IP）"),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toHaveValue("");
     expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
     expect(document.documentElement.dataset.theme).toBe("system");
@@ -139,11 +180,17 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
-    const backgroundLayer = document.querySelector(".ambient-background") as HTMLElement | null;
+    const backgroundLayer = document.querySelector(
+      ".ambient-background",
+    ) as HTMLElement | null;
     expect(backgroundLayer).not.toBeNull();
     expect(document.documentElement).toHaveClass("ambient-photo-ready");
-    expect(document.querySelector(".app-shell")).toHaveClass("ambient-photo-ready");
-    expect(backgroundLayer?.getAttribute("style")).toContain("--ambient-background-image: url(\"/api/background/image\")");
+    expect(document.querySelector(".app-shell")).toHaveClass(
+      "ambient-photo-ready",
+    );
+    expect(backgroundLayer?.getAttribute("style")).toContain(
+      '--ambient-background-image: url("/api/background/image")',
+    );
     expect(screen.queryByText(/背景：岁月的层峦/)).not.toBeInTheDocument();
   });
 
@@ -155,7 +202,9 @@ describe("App", () => {
     expect(await screen.findByText("2 / 2 probes 匹配")).toBeInTheDocument();
     expect(document.querySelector(".ambient-background")).toBeNull();
     expect(document.documentElement).not.toHaveClass("ambient-photo-ready");
-    expect(document.querySelector(".app-shell")).not.toHaveClass("ambient-photo-ready");
+    expect(document.querySelector(".app-shell")).not.toHaveClass(
+      "ambient-photo-ready",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
@@ -168,16 +217,26 @@ describe("App", () => {
 
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(window.localStorage.getItem("globaltrace.viewMode")).toBe("2d");
-    expect(screen.queryByRole("button", { name: "切换结果地图到 3D" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "切换结果地图到 3D" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
-    expect(await screen.findByText("result:finished:m123", {}, { timeout: 3_000 })).toBeInTheDocument();
+    expect(
+      await screen.findByText("result:finished:m123", {}, { timeout: 3_000 }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
     const resultDialog = screen.getByRole("dialog", { name: "诊断结果" });
     expect(resultDialog).toHaveClass("glass-overlay-bare-surface");
-    expect(document.querySelector(".glass-overlay-result .glass-overlay-header")).toBeNull();
-    expect(document.querySelector(".glass-overlay-result .glass-overlay-body")).toBeNull();
-    expect(document.querySelector(".glass-overlay-result .glass-overlay-panel")).toBeNull();
+    expect(
+      document.querySelector(".glass-overlay-result .glass-overlay-header"),
+    ).toBeNull();
+    expect(
+      document.querySelector(".glass-overlay-result .glass-overlay-body"),
+    ).toBeNull();
+    expect(
+      document.querySelector(".glass-overlay-result .glass-overlay-panel"),
+    ).toBeNull();
     expect(screen.getByText("projection:mercator")).toBeInTheDocument();
     expect(screen.getByText("layout:table-first")).toBeInTheDocument();
 
@@ -203,12 +262,16 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: "表格优先" }));
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("table-first");
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe(
+        "table-first",
+      );
     });
 
     fireEvent.click(screen.getByRole("radio", { name: "地图优先" }));
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("map-first");
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe(
+        "map-first",
+      );
     });
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
@@ -223,18 +286,28 @@ describe("App", () => {
     render(<App />);
 
     const dialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
-    expect(within(dialog).getByText("后续如果还想改，可以在高级参数中修改。")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("后续如果还想改，可以在高级参数中修改。"),
+    ).toBeInTheDocument();
     expect(dialog.closest(".glass-overlay-blocking")).not.toBeNull();
-    expect(screen.queryByRole("button", { name: "关闭结果页面显示顺序" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "关闭结果页面显示顺序" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.getByRole("dialog", { name: "结果页面显示顺序" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "结果页面显示顺序" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "表格优先" }));
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("table-first");
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe(
+        "table-first",
+      );
     });
-    expect(screen.queryByRole("dialog", { name: "结果页面显示顺序" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "结果页面显示顺序" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps first-time result order choice above shared result links", async () => {
@@ -244,23 +317,33 @@ describe("App", () => {
 
     render(<App />);
 
-    const initialChoiceDialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
+    const initialChoiceDialog = screen.getByRole("dialog", {
+      name: "结果页面显示顺序",
+    });
     fireEvent.keyDown(window, { key: "Escape" });
     expect(initialChoiceDialog).toBeInTheDocument();
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     const resultDialog = screen.getByRole("dialog", { name: "诊断结果" });
-    const choiceDialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
+    const choiceDialog = screen.getByRole("dialog", {
+      name: "结果页面显示顺序",
+    });
     expect(resultDialog.closest(".glass-overlay-result")).not.toBeNull();
     expect(choiceDialog.closest(".glass-overlay-blocking")).not.toBeNull();
     expect(screen.getByText("layout:map-first")).toBeInTheDocument();
 
-    fireEvent.click(within(choiceDialog).getByRole("button", { name: "地图优先" }));
+    fireEvent.click(
+      within(choiceDialog).getByRole("button", { name: "地图优先" }),
+    );
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("map-first");
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe(
+        "map-first",
+      );
     });
     expect(screen.getByText("result:finished:m123")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "结果页面显示顺序" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "结果页面显示顺序" }),
+    ).not.toBeInTheDocument();
   });
 
   it("uses first-time map-first selection for the result page", async () => {
@@ -272,7 +355,9 @@ describe("App", () => {
     const dialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
     fireEvent.click(within(dialog).getByRole("button", { name: "地图优先" }));
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("map-first");
+      expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe(
+        "map-first",
+      );
     });
 
     await screen.findByText("2 / 2 probes 匹配");
@@ -290,7 +375,9 @@ describe("App", () => {
       render(<App />);
 
       await screen.findByText("2 / 2 probes 匹配");
-      expect(screen.queryByRole("dialog", { name: "结果页面显示顺序" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: "结果页面显示顺序" }),
+      ).not.toBeInTheDocument();
     },
   );
 
@@ -335,7 +422,10 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(traceCreateBodies(fetchMock)[0].measurementOptions).toMatchObject({ port: 8443, packets: 7 });
+    expect(traceCreateBodies(fetchMock)[0].measurementOptions).toMatchObject({
+      port: 8443,
+      packets: 7,
+    });
   });
 
   it("falls back from invalid stored packets and reset clears stored trace parameters", async () => {
@@ -360,15 +450,22 @@ describe("App", () => {
 
   it("persists liquid glass preference locally", async () => {
     mockApi();
-    setNavigatorDevice({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel" });
+    setNavigatorDevice({
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      platform: "MacIntel",
+    });
 
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
 
-    const liquidGlassSwitch = screen.getByRole("switch", { name: "液态玻璃效果" });
-    const liquidGlassIntensity = screen.getByLabelText("液态玻璃强度") as HTMLInputElement;
+    const liquidGlassSwitch = screen.getByRole("switch", {
+      name: "液态玻璃效果",
+    });
+    const liquidGlassIntensity = screen.getByLabelText(
+      "液态玻璃强度",
+    ) as HTMLInputElement;
     expect(liquidGlassSwitch).not.toBeChecked();
     expect(liquidGlassIntensity).toHaveValue("70");
     expect(liquidGlassIntensity).toBeDisabled();
@@ -376,42 +473,57 @@ describe("App", () => {
 
     fireEvent.click(liquidGlassSwitch);
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe("enabled");
+      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe(
+        "enabled",
+      );
     });
     expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
     expect(screen.getByLabelText("液态玻璃强度")).not.toBeDisabled();
 
     fireEvent.change(liquidGlassIntensity, { target: { value: "85" } });
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.liquidGlassIntensity")).toBe("85");
+      expect(
+        window.localStorage.getItem("globaltrace.liquidGlassIntensity"),
+      ).toBe("85");
     });
 
     fireEvent.click(liquidGlassSwitch);
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe("disabled");
+      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe(
+        "disabled",
+      );
     });
-    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).not.toBeChecked();
+    expect(
+      screen.getByRole("switch", { name: "液态玻璃效果" }),
+    ).not.toBeChecked();
     expect(screen.getByLabelText("液态玻璃强度")).toBeDisabled();
     expect(screen.getByLabelText("液态玻璃强度")).toHaveValue("85");
     expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
 
     fireEvent.click(screen.getByRole("switch", { name: "液态玻璃效果" }));
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe("enabled");
+      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe(
+        "enabled",
+      );
     });
     expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
   });
 
   it("defaults liquid glass off on non-Apple devices", async () => {
     mockApi();
-    setNavigatorDevice({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", platform: "Win32" });
+    setNavigatorDevice({
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      platform: "Win32",
+    });
 
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
 
-    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).not.toBeChecked();
+    expect(
+      screen.getByRole("switch", { name: "液态玻璃效果" }),
+    ).not.toBeChecked();
     expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
   });
 
@@ -421,20 +533,30 @@ describe("App", () => {
 
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
-    fireEvent.change(screen.getByLabelText("Globalping Token"), { target: { value: "  gp-token  " } });
+    fireEvent.change(screen.getByLabelText("Globalping Token"), {
+      target: { value: "  gp-token  " },
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
 
     await waitFor(() => {
-      expect(window.sessionStorage.getItem("globaltrace.globalpingToken")).toBe("gp-token");
-      expect(window.localStorage.getItem("globaltrace.globalpingToken")).toBeNull();
+      expect(window.sessionStorage.getItem("globaltrace.globalpingToken")).toBe(
+        "gp-token",
+      );
+      expect(
+        window.localStorage.getItem("globaltrace.globalpingToken"),
+      ).toBeNull();
       expect(fetchMock).toHaveBeenCalledWith(
         "https://api.globalping.io/v1/limits",
         expect.objectContaining({
-          headers: expect.objectContaining({ Authorization: "Bearer gp-token" }),
+          headers: expect.objectContaining({
+            Authorization: "Bearer gp-token",
+          }),
         }),
       );
     });
-    expect(screen.getByText("Globalping Token 仅当前会话可用")).toBeInTheDocument();
+    expect(
+      screen.getByText("Globalping Token 仅当前会话可用"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     await waitFor(() => {
@@ -442,11 +564,19 @@ describe("App", () => {
       expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
     });
     const traceCall = fetchMock.mock.calls.find(
-      ([path, init]) => path === "https://api.globalping.io/v1/measurements" && init?.method === "POST",
+      ([path, init]) =>
+        path === "https://api.globalping.io/v1/measurements" &&
+        init?.method === "POST",
     );
-    const enrichCall = fetchMock.mock.calls.find(([path, init]) => path === "/api/trace/enrich" && init?.method === "POST");
-    expect(traceCall?.[1]?.headers).toEqual(expect.objectContaining({ Authorization: "Bearer gp-token" }));
-    expect(enrichCall?.[1]?.headers).not.toEqual(expect.objectContaining({ Authorization: expect.any(String) }));
+    const enrichCall = fetchMock.mock.calls.find(
+      ([path, init]) => path === "/api/trace/enrich" && init?.method === "POST",
+    );
+    expect(traceCall?.[1]?.headers).toEqual(
+      expect.objectContaining({ Authorization: "Bearer gp-token" }),
+    );
+    expect(enrichCall?.[1]?.headers).not.toEqual(
+      expect.objectContaining({ Authorization: expect.any(String) }),
+    );
   });
 
   it("remembers tokens locally only when the user opts in", async () => {
@@ -456,20 +586,36 @@ describe("App", () => {
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
     fireEvent.click(screen.getByLabelText("记住 Globalping 到本机"));
-    fireEvent.change(screen.getByLabelText("Globalping Token"), { target: { value: "gp-token" } });
+    fireEvent.change(screen.getByLabelText("Globalping Token"), {
+      target: { value: "gp-token" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
     fireEvent.click(screen.getByLabelText("记住 NextTrace 到本机"));
-    fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: "nt-token" } });
+    fireEvent.change(screen.getByLabelText("NextTrace API Token"), {
+      target: { value: "nt-token" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
 
     await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.globalpingToken")).toBe("gp-token");
-      expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBe("nt-token");
+      expect(window.localStorage.getItem("globaltrace.globalpingToken")).toBe(
+        "gp-token",
+      );
+      expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBe(
+        "nt-token",
+      );
     });
-    expect(window.sessionStorage.getItem("globaltrace.globalpingToken")).toBeNull();
-    expect(window.sessionStorage.getItem("globaltrace.nexttraceApiToken")).toBeNull();
-    expect(screen.getByText("Globalping Token 已记住到本机浏览器")).toBeInTheDocument();
-    expect(screen.getByText("NextTrace Token 已记住到本机浏览器")).toBeInTheDocument();
+    expect(
+      window.sessionStorage.getItem("globaltrace.globalpingToken"),
+    ).toBeNull();
+    expect(
+      window.sessionStorage.getItem("globaltrace.nexttraceApiToken"),
+    ).toBeNull();
+    expect(
+      screen.getByText("Globalping Token 已记住到本机浏览器"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("NextTrace Token 已记住到本机浏览器"),
+    ).toBeInTheDocument();
   });
 
   it("reads legacy localStorage tokens as remembered", async () => {
@@ -483,11 +629,23 @@ describe("App", () => {
     openAdvancedParams();
 
     expect(screen.getByLabelText("Globalping Token")).toHaveValue("legacy-gp");
-    expect(screen.getByLabelText("NextTrace API Token")).toHaveValue("legacy-nt");
-    expect(screen.getByLabelText("记住 Globalping 到本机")).toHaveAttribute("data-state", "checked");
-    expect(screen.getByLabelText("记住 NextTrace 到本机")).toHaveAttribute("data-state", "checked");
-    expect(screen.getByText("Globalping Token 已记住到本机浏览器")).toBeInTheDocument();
-    expect(screen.getByText("NextTrace Token 已记住到本机浏览器")).toBeInTheDocument();
+    expect(screen.getByLabelText("NextTrace API Token")).toHaveValue(
+      "legacy-nt",
+    );
+    expect(screen.getByLabelText("记住 Globalping 到本机")).toHaveAttribute(
+      "data-state",
+      "checked",
+    );
+    expect(screen.getByLabelText("记住 NextTrace 到本机")).toHaveAttribute(
+      "data-state",
+      "checked",
+    );
+    expect(
+      screen.getByText("Globalping Token 已记住到本机浏览器"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("NextTrace Token 已记住到本机浏览器"),
+    ).toBeInTheDocument();
   });
 
   it("saves a NextTrace token for the current session and uses it without server enrichment", async () => {
@@ -496,23 +654,37 @@ describe("App", () => {
 
     await screen.findByText("2 / 2 probes 匹配");
     openAdvancedParams();
-    fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: "  nt-token  " } });
+    fireEvent.change(screen.getByLabelText("NextTrace API Token"), {
+      target: { value: "  nt-token  " },
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
 
     await waitFor(() => {
-      expect(window.sessionStorage.getItem("globaltrace.nexttraceApiToken")).toBe("nt-token");
-      expect(window.localStorage.getItem("globaltrace.nexttraceApiToken")).toBeNull();
+      expect(
+        window.sessionStorage.getItem("globaltrace.nexttraceApiToken"),
+      ).toBe("nt-token");
+      expect(
+        window.localStorage.getItem("globaltrace.nexttraceApiToken"),
+      ).toBeNull();
     });
-    expect(screen.getByText("NextTrace Token 仅当前会话可用")).toBeInTheDocument();
-    expect(await screen.findByText("NextTrace API Token 直连已启用")).toBeInTheDocument();
-    expect(screen.getByText("可创建诊断 249/250（当前 IP）")).toBeInTheDocument();
+    expect(
+      screen.getByText("NextTrace Token 仅当前会话可用"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("NextTrace API Token 直连已启用"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("可创建诊断 249/250（当前 IP）"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(traceCreateBodies(fetchMock)).toHaveLength(1);
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
-    expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
+    expect(nexttraceBatchBodies(fetchMock)).toEqual([
+      { ips: [FALLBACK_HOP_IP] },
+    ]);
     expect(nexttraceBatchCalls(fetchMock)[0]?.[1]?.headers).toEqual(
       expect.objectContaining({
         Accept: "application/json",
@@ -520,11 +692,16 @@ describe("App", () => {
         "X-NextTrace-Token": "nt-token",
       }),
     );
-    expect(JSON.stringify(nexttraceBatchCalls(fetchMock)[0]?.[1]?.headers)).not.toContain("User-Agent");
+    expect(
+      JSON.stringify(nexttraceBatchCalls(fetchMock)[0]?.[1]?.headers),
+    ).not.toContain("User-Agent");
   });
 
   it("reruns the current finished result through a newly saved NextTrace token", async () => {
-    const fetchMock = mockApi({ enrichmentStatus: "partial", measurement: globalpingMeasurementWithHop });
+    const fetchMock = mockApi({
+      enrichmentStatus: "partial",
+      measurement: globalpingMeasurementWithHop,
+    });
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
@@ -535,13 +712,21 @@ describe("App", () => {
     expect(nexttraceBatchBodies(fetchMock)).toHaveLength(0);
 
     openAdvancedParams();
-    fireEvent.change(screen.getByLabelText("NextTrace API Token"), { target: { value: " nt-token " } });
+    fireEvent.change(screen.getByLabelText("NextTrace API Token"), {
+      target: { value: " nt-token " },
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
 
     await waitFor(() => {
-      expect(nexttraceBatchBodies(fetchMock)).toEqual([{ ips: [FALLBACK_HOP_IP] }]);
+      expect(nexttraceBatchBodies(fetchMock)).toEqual([
+        { ips: [FALLBACK_HOP_IP] },
+      ]);
     });
-    expect(fetchMock.mock.calls.filter(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toHaveLength(1);
+    expect(
+      fetchMock.mock.calls.filter(
+        ([path]) => path === "https://api.globalping.io/v1/measurements/m123",
+      ),
+    ).toHaveLength(1);
     expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
   });
 
@@ -559,7 +744,11 @@ describe("App", () => {
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]);
     expect(nexttraceBatchBodies(fetchMock)).toHaveLength(0);
-    expect(fetchMock.mock.calls.find(([path]) => path === "https://api.globalping.io/v1/measurements/m123")?.[1]?.headers).not.toEqual(
+    expect(
+      fetchMock.mock.calls.find(
+        ([path]) => path === "https://api.globalping.io/v1/measurements/m123",
+      )?.[1]?.headers,
+    ).not.toEqual(
       expect.objectContaining({ Authorization: expect.any(String) }),
     );
   });
@@ -574,7 +763,9 @@ describe("App", () => {
           status: "partial",
           cached: 0,
           fetched: 0,
-          errors: [{ ips: [FALLBACK_HOP_IP], message: "stale nxtrace batch failed" }],
+          errors: [
+            { ips: [FALLBACK_HOP_IP], message: "stale nxtrace batch failed" },
+          ],
         },
       },
       traceStatus: () => "finished",
@@ -584,7 +775,11 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toBe(false);
+    expect(
+      fetchMock.mock.calls.some(
+        ([path]) => path === "https://api.globalping.io/v1/measurements/m123",
+      ),
+    ).toBe(false);
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
     expect(nexttraceBatchBodies(fetchMock)).toHaveLength(0);
   });
@@ -595,44 +790,69 @@ describe("App", () => {
 
     render(<App />);
 
-    const aboutDialog = await screen.findByRole("dialog", { name: "关于 GlobalTrace" });
+    const aboutDialog = await screen.findByRole("dialog", {
+      name: "关于 GlobalTrace",
+    });
     expect(aboutDialog).toHaveClass("glass-overlay-bare-surface");
-    expect(document.querySelector(".glass-overlay-about .glass-overlay-header")).toBeNull();
-    expect(document.querySelector(".glass-overlay-about .glass-overlay-body")).toBeNull();
-    expect(document.querySelector(".glass-overlay-about .glass-overlay-panel")).toBeNull();
-    expect(await within(aboutDialog).findByRole("heading", { name: "GlobalTrace" })).toBeInTheDocument();
-    expect(aboutDialog.querySelector(".about-panel-surface[data-liquid-glass]")).not.toBeNull();
+    expect(
+      document.querySelector(".glass-overlay-about .glass-overlay-header"),
+    ).toBeNull();
+    expect(
+      document.querySelector(".glass-overlay-about .glass-overlay-body"),
+    ).toBeNull();
+    expect(
+      document.querySelector(".glass-overlay-about .glass-overlay-panel"),
+    ).toBeNull();
+    expect(
+      await within(aboutDialog).findByRole("heading", { name: "GlobalTrace" }),
+    ).toBeInTheDocument();
+    expect(
+      aboutDialog.querySelector(".about-panel-surface[data-liquid-glass]"),
+    ).not.toBeNull();
     expect(aboutDialog.querySelector(".about-panel")).not.toBeNull();
     expect(
       within(aboutDialog).getByText(
         "GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping 遍布全球的 Probe 发起路由追踪，并结合 NextTrace 骨干网 IP 数据库增强地理位置与网络归属信息。",
       ),
     ).toBeInTheDocument();
-    expect(within(aboutDialog).getByRole("link", { name: /Globalping API docs/ })).toHaveAttribute(
-      "href",
-      "https://globalping.io/docs/api.globalping.io",
-    );
-    expect(within(aboutDialog).getByRole("link", { name: /NTrace-core GitHub/ })).toHaveAttribute(
-      "href",
-      "https://github.com/nxtrace/NTrace-core",
-    );
-    expect(within(aboutDialog).getByRole("link", { name: /GlobalTrace GitHub/ })).toHaveAttribute(
-      "href",
-      "https://github.com/nxtrace/GlobalTrace",
-    );
-    expect(within(aboutDialog).getByRole("heading", { name: "开源协议" })).toBeInTheDocument();
-    expect(within(aboutDialog).getByText("GlobalTrace 以 GPL-3.0-or-later 开源发布。")).toBeInTheDocument();
-    expect(within(aboutDialog).getByRole("link", { name: /GPL-3.0-or-later/ })).toHaveAttribute(
+    expect(
+      within(aboutDialog).getByRole("link", { name: /Globalping API docs/ }),
+    ).toHaveAttribute("href", "https://globalping.io/docs/api.globalping.io");
+    expect(
+      within(aboutDialog).getByRole("link", { name: /NextTrace Github/ }),
+    ).toHaveAttribute("href", "https://github.com/nxtrace/NTrace-core");
+    expect(
+      within(aboutDialog).getByRole("link", { name: /GlobalTrace GitHub/ }),
+    ).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
+    expect(
+      within(aboutDialog).getByRole("heading", { name: "开源协议" }),
+    ).toBeInTheDocument();
+    expect(
+      within(aboutDialog).getByText(
+        "GlobalTrace 以 GPL-3.0-or-later 开源发布。",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(aboutDialog).getByRole("link", { name: /GPL-3.0-or-later/ }),
+    ).toHaveAttribute(
       "href",
       "https://github.com/nxtrace/GlobalTrace/blob/master/LICENSE",
     );
-    expect(within(aboutDialog).getByRole("link", { name: "源码" })).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
-    expect(within(aboutDialog).getByText(/背景：岁月的层峦/).closest("a")).toHaveAttribute(
+    expect(
+      within(aboutDialog).getByRole("link", { name: "源码" }),
+    ).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
+    expect(
+      within(aboutDialog)
+        .getByText(/背景：岁月的层峦/)
+        .closest("a"),
+    ).toHaveAttribute(
       "href",
       "https://www.bing.com/search?q=%E6%81%B6%E5%9C%B0",
     );
     expect(document.documentElement).toHaveClass("ambient-photo-ready");
-    expect(document.querySelector(".app-shell")).toHaveClass("ambient-photo-ready");
+    expect(document.querySelector(".app-shell")).toHaveClass(
+      "ambient-photo-ready",
+    );
   });
 
   it("updates filters when a map probe is selected", async () => {
@@ -640,10 +860,14 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(await screen.findByRole("button", { name: "pick first probe" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "pick first probe" }),
+    );
 
     await waitFor(() => {
-      expect(screen.getAllByText("已添加 Los Angeles · AS7922").length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText("已添加 Los Angeles · AS7922").length,
+      ).toBeGreaterThan(0);
     });
     expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
     expect(screen.getByText("map-probe-count:2")).toBeInTheDocument();
@@ -653,7 +877,9 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "pick second probe" }));
     await waitFor(() => {
-      expect(screen.getAllByText("已添加 Falkenstein · AS24940").length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText("已添加 Falkenstein · AS24940").length,
+      ).toBeGreaterThan(0);
     });
     expect(screen.getByText("2 / 2 probes 匹配")).toBeInTheDocument();
     expect(screen.getByText("map-probe-count:2")).toBeInTheDocument();
@@ -667,15 +893,21 @@ describe("App", () => {
 
     await screen.findByText("2 / 2 probes 匹配");
     openExactFilters();
-    fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "US" } });
+    fireEvent.change(screen.getByLabelText("国家/地区"), {
+      target: { value: "US" },
+    });
     await waitFor(() => {
       expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "pick second probe" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "pick second probe" }),
+    );
 
     await waitFor(() => {
-      expect(screen.getAllByText("已添加 Falkenstein · AS24940").length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText("已添加 Falkenstein · AS24940").length,
+      ).toBeGreaterThan(0);
     });
     expect(screen.getByText("2 / 2 probes 匹配")).toBeInTheDocument();
     const chips = screen.getByTestId("filter-chips");
@@ -699,8 +931,12 @@ describe("App", () => {
     fireEvent.blur(countryInput);
     fireEvent.focus(screen.getByLabelText("network"));
     const networkListbox = screen.getByRole("listbox", { name: "候选列表" });
-    expect(within(networkListbox).getByRole("option", { name: "Comcast" })).toBeInTheDocument();
-    expect(within(networkListbox).queryByRole("option", { name: "Hetzner Online" })).not.toBeInTheDocument();
+    expect(
+      within(networkListbox).getByRole("option", { name: "Comcast" }),
+    ).toBeInTheDocument();
+    expect(
+      within(networkListbox).queryByRole("option", { name: "Hetzner Online" }),
+    ).not.toBeInTheDocument();
   });
 
   it("connects online probe suggestions to the magic string input", async () => {
@@ -712,13 +948,21 @@ describe("App", () => {
     expect(magicInput).toHaveValue("");
 
     fireEvent.focus(magicInput);
-    expect(screen.queryByRole("listbox", { name: "候选列表" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("listbox", { name: "候选列表" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.change(magicInput, { target: { value: "US+Com" } });
     const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
-    expect(within(magicListbox).getByRole("option", { name: "US+Comcast" })).toBeInTheDocument();
-    expect(within(magicListbox).getByRole("option", { name: "US+AS7922+Comcast" })).toBeInTheDocument();
-    fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "US+Comcast" }));
+    expect(
+      within(magicListbox).getByRole("option", { name: "US+Comcast" }),
+    ).toBeInTheDocument();
+    expect(
+      within(magicListbox).getByRole("option", { name: "US+AS7922+Comcast" }),
+    ).toBeInTheDocument();
+    fireEvent.mouseDown(
+      within(magicListbox).getByRole("option", { name: "US+Comcast" }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
@@ -745,17 +989,33 @@ describe("App", () => {
       expect(screen.getByText("4 / 4 probes 匹配")).toBeInTheDocument();
     });
     const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
-    expect(within(magicListbox).getByRole("option", { name: "CN+AS4134" })).toBeInTheDocument();
-    expect(within(magicListbox).getByRole("option", { name: "Shenzhen+CN+AS4134+eyeball-network" })).toBeInTheDocument();
-    expect(within(magicListbox).getByRole("option", { name: "Nanning+CN+AS4134+eyeball-network" })).toBeInTheDocument();
+    expect(
+      within(magicListbox).getByRole("option", { name: "CN+AS4134" }),
+    ).toBeInTheDocument();
+    expect(
+      within(magicListbox).getByRole("option", {
+        name: "Shenzhen+CN+AS4134+eyeball-network",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(magicListbox).getByRole("option", {
+        name: "Nanning+CN+AS4134+eyeball-network",
+      }),
+    ).toBeInTheDocument();
 
     fireEvent.change(magicInput, { target: { value: "China Telecom+Sh" } });
 
     await waitFor(() => {
       expect(screen.getByText("2 / 4 probes 匹配")).toBeInTheDocument();
     });
-    const networkMagicListbox = screen.getByRole("listbox", { name: "候选列表" });
-    expect(within(networkMagicListbox).getByRole("option", { name: "Shenzhen+CN+AS4134+China Telecom" })).toBeInTheDocument();
+    const networkMagicListbox = screen.getByRole("listbox", {
+      name: "候选列表",
+    });
+    expect(
+      within(networkMagicListbox).getByRole("option", {
+        name: "Shenzhen+CN+AS4134+China Telecom",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("shows generic magic suggestions for partial city tokens", async () => {
@@ -770,8 +1030,14 @@ describe("App", () => {
       expect(screen.getByText("1 / 4 probes 匹配")).toBeInTheDocument();
     });
     const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
-    expect(within(magicListbox).getByRole("option", { name: "CN+Shanghai" })).toBeInTheDocument();
-    expect(within(magicListbox).getByRole("option", { name: "Shanghai+CN+AS4134+eyeball-network" })).toBeInTheDocument();
+    expect(
+      within(magicListbox).getByRole("option", { name: "CN+Shanghai" }),
+    ).toBeInTheDocument();
+    expect(
+      within(magicListbox).getByRole("option", {
+        name: "Shanghai+CN+AS4134+eyeball-network",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("auto-expands probe limit when selecting a generic magic suggestion", async () => {
@@ -783,7 +1049,9 @@ describe("App", () => {
     fireEvent.change(magicInput, { target: { value: "AS4134+CN" } });
 
     const magicListbox = screen.getByRole("listbox", { name: "候选列表" });
-    fireEvent.mouseDown(within(magicListbox).getByRole("option", { name: "CN+AS4134" }));
+    fireEvent.mouseDown(
+      within(magicListbox).getByRole("option", { name: "CN+AS4134" }),
+    );
 
     await waitFor(() => {
       expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
@@ -804,9 +1072,13 @@ describe("App", () => {
       expect(screen.getByText("1 / 2 probes 匹配")).toBeInTheDocument();
     });
     const tagListbox = screen.getByRole("listbox", { name: "候选列表" });
-    expect(within(tagListbox).getByRole("option", { name: "eyeball-network" })).toBeInTheDocument();
+    expect(
+      within(tagListbox).getByRole("option", { name: "eyeball-network" }),
+    ).toBeInTheDocument();
 
-    fireEvent.mouseDown(within(tagListbox).getByRole("option", { name: "eyeball-network" }));
+    fireEvent.mouseDown(
+      within(tagListbox).getByRole("option", { name: "eyeball-network" }),
+    );
 
     await waitFor(() => {
       expect(tagInput).toHaveValue("eyeball-network");
@@ -821,13 +1093,17 @@ describe("App", () => {
     expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
 
     openExactFilters();
-    fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
+    fireEvent.change(screen.getByLabelText("国家/地区"), {
+      target: { value: "CN" },
+    });
 
     await waitFor(() => {
       expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
     });
 
-    fireEvent.change(screen.getByLabelText("城市"), { target: { value: "Shenzhen" } });
+    fireEvent.change(screen.getByLabelText("城市"), {
+      target: { value: "Shenzhen" },
+    });
 
     await waitFor(() => {
       expect(screen.getByText("1 / 5 probes 匹配")).toBeInTheDocument();
@@ -841,7 +1117,9 @@ describe("App", () => {
 
     await screen.findByText("12 / 12 probes 匹配");
     openExactFilters();
-    fireEvent.change(screen.getByLabelText("国家/地区"), { target: { value: "CN" } });
+    fireEvent.change(screen.getByLabelText("国家/地区"), {
+      target: { value: "CN" },
+    });
 
     await waitFor(() => {
       expect(screen.getByLabelText("Limit")).toHaveTextContent("10");
@@ -853,7 +1131,9 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("4 / 4 probes 匹配");
-    fireEvent.change(screen.getByLabelText("magic string"), { target: { value: "AS4134+CN" } });
+    fireEvent.change(screen.getByLabelText("magic string"), {
+      target: { value: "AS4134+CN" },
+    });
 
     await waitFor(() => {
       expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
@@ -876,10 +1156,14 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.click(await screen.findByRole("button", { name: "box many probes" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "box many probes" }),
+    );
 
     await waitFor(() => {
-      expect(screen.getAllByText("已添加框选 12 个 probes，保留最近 10 个").length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText("已添加框选 12 个 probes，保留最近 10 个").length,
+      ).toBeGreaterThan(0);
     });
     expect(screen.getByLabelText("Limit")).toHaveTextContent("10");
 
@@ -899,11 +1183,20 @@ describe("App", () => {
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "诊断结果" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "诊断结果" }),
+    ).toBeInTheDocument();
     expect(window.location.search).toBe("?measurement=m123");
-    expect(fetchMock).toHaveBeenCalledWith("https://api.globalping.io/v1/measurements", expect.objectContaining({ method: "POST" }));
-    expect(traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion).toBe(4);
-    expect(traceCreateBodies(fetchMock)[0].measurementOptions).toMatchObject({ packets: 5 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.globalping.io/v1/measurements",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion).toBe(
+      4,
+    );
+    expect(traceCreateBodies(fetchMock)[0].measurementOptions).toMatchObject({
+      packets: 5,
+    });
   });
 
   it("submits literal IP targets without a redundant ipVersion option", async () => {
@@ -911,12 +1204,18 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    fireEvent.change(screen.getByLabelText("目标"), { target: { value: "1.1.1.1" } });
+    fireEvent.change(screen.getByLabelText("目标"), {
+      target: { value: "1.1.1.1" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(traceCreateBodies(fetchMock)[0]).toMatchObject({ target: "1.1.1.1" });
-    expect(traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion).toBeUndefined();
+    expect(traceCreateBodies(fetchMock)[0]).toMatchObject({
+      target: "1.1.1.1",
+    });
+    expect(
+      traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion,
+    ).toBeUndefined();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭结果" }));
     fireEvent.click(screen.getByRole("button", { name: "IPv4" }));
@@ -931,7 +1230,9 @@ describe("App", () => {
     expect(traceCreateBodies(fetchMock)[1]).toMatchObject({
       target: "2606:4700:4700::1111",
     });
-    expect(traceCreateBodies(fetchMock)[1].measurementOptions.ipVersion).toBeUndefined();
+    expect(
+      traceCreateBodies(fetchMock)[1].measurementOptions.ipVersion,
+    ).toBeUndefined();
   });
 
   it("keeps the share URL contract when switching the result map to 3D", async () => {
@@ -950,7 +1251,10 @@ describe("App", () => {
   });
 
   it("starts directly when legacy config includes a Turnstile site key", async () => {
-    const fetchMock = mockApi({ traceStatus: () => "finished", legacyTurnstileSiteKey: "site-key" });
+    const fetchMock = mockApi({
+      traceStatus: () => "finished",
+      legacyTurnstileSiteKey: "site-key",
+    });
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
@@ -959,34 +1263,59 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]));
+    await waitFor(() =>
+      expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]),
+    );
   });
 
   it("waits after Globalping reports finished before worker enrichment", async () => {
-    const fetchMock = mockApi({ traceStatus: (polls) => (polls === 1 ? "in-progress" : "finished") });
+    const fetchMock = mockApi({
+      traceStatus: (polls) => (polls === 1 ? "in-progress" : "finished"),
+    });
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     await waitFor(() => {
-      expect(fetchMock.mock.calls.filter(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toHaveLength(1);
+      expect(
+        fetchMock.mock.calls.filter(
+          ([path]) => path === "https://api.globalping.io/v1/measurements/m123",
+        ),
+      ).toHaveLength(1);
     });
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
 
-    await waitFor(() => {
-      expect(fetchMock.mock.calls.filter(([path]) => path === "https://api.globalping.io/v1/measurements/m123")).toHaveLength(2);
-    }, { timeout: POLL_DELAY_MS + 500 });
+    await waitFor(
+      () => {
+        expect(
+          fetchMock.mock.calls.filter(
+            ([path]) =>
+              path === "https://api.globalping.io/v1/measurements/m123",
+          ),
+        ).toHaveLength(2);
+      },
+      { timeout: POLL_DELAY_MS + 500 },
+    );
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
 
     await waitMs(ENRICH_AFTER_FINISHED_DELAY_MS - 100);
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
 
-    await waitFor(() => expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]), { timeout: 500 });
+    await waitFor(
+      () =>
+        expect(traceEnrichBodies(fetchMock)).toEqual([
+          { measurementId: "m123" },
+        ]),
+      { timeout: 500 },
+    );
   });
 
   it("opens shared results directly when legacy config includes a Turnstile site key", async () => {
-    const fetchMock = mockApi({ traceStatus: () => "finished", legacyTurnstileSiteKey: "site-key" });
+    const fetchMock = mockApi({
+      traceStatus: () => "finished",
+      legacyTurnstileSiteKey: "site-key",
+    });
     window.history.replaceState(null, "", "/?measurement=m123");
 
     render(<App />);
@@ -999,13 +1328,18 @@ describe("App", () => {
   it("rejects shared non-MTR measurements without rendering a temporary result", async () => {
     const fetchMock = mockApi({
       traceStatus: () => "finished",
-      measurement: (status) => ({ ...globalpingMeasurement(status), type: "ping" }),
+      measurement: (status) => ({
+        ...globalpingMeasurement(status),
+        type: "ping",
+      }),
     });
     window.history.replaceState(null, "", "/?measurement=m123");
 
     render(<App />);
 
-    expect(await screen.findByText("measurement.type must be mtr")).toBeInTheDocument();
+    expect(
+      await screen.findByText("measurement.type must be mtr"),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
   });
@@ -1033,15 +1367,23 @@ describe("App", () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input);
         if (path === "/api/config") return json({ mapStyleUrl: "about:blank" });
-        if (path === "/api/probes") return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
+        if (path === "/api/probes")
+          return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
         if (path === "https://api.globalping.io/v1/limits") {
           return json({
-            rateLimit: { measurements: { create: { type: "ip", limit: 250, remaining: 249, reset: 60 } } },
+            rateLimit: {
+              measurements: {
+                create: { type: "ip", limit: 250, remaining: 249, reset: 60 },
+              },
+            },
           });
         }
-        if (path === "/api/trace/m123") return new Response(null, { status: 204 });
-        if (path === "https://api.globalping.io/v1/measurements/m123") return measurementResponse.promise;
-        if (path === "/api/trace/enrich" && init?.method === "POST") return json(traceResult("finished"));
+        if (path === "/api/trace/m123")
+          return new Response(null, { status: 204 });
+        if (path === "https://api.globalping.io/v1/measurements/m123")
+          return measurementResponse.promise;
+        if (path === "/api/trace/enrich" && init?.method === "POST")
+          return json(traceResult("finished"));
         throw new Error(`unexpected fetch: ${path}`);
       }),
     );
@@ -1049,9 +1391,17 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("dialog", { name: "读取诊断结果" })).toBeInTheDocument();
-    expect(screen.getByRole("status", { name: "正在读取 measurement" })).toBeInTheDocument();
-    expect(screen.getByText("正在读取 Globalping measurement，完成后会自动展示结果。")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "读取诊断结果" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: "正在读取 measurement" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "正在读取 Globalping measurement，完成后会自动展示结果。",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText("m123")).toBeInTheDocument();
     expect(screen.getByText("网络路径诊断")).toBeInTheDocument();
     expect(document.querySelector(".shared-result-loading")).toBeNull();
@@ -1068,9 +1418,15 @@ describe("App", () => {
     await screen.findByText("2 / 2 probes 匹配");
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
-    expect(await screen.findByRole("dialog", { name: "读取诊断结果" })).toBeInTheDocument();
-    expect(screen.getByRole("status", { name: "正在读取 measurement" })).toBeInTheDocument();
-    expect(screen.queryByText("正在读取 measurement，完成后会自动展示结果。")).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "读取诊断结果" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("status", { name: "正在读取 measurement" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("正在读取 measurement，完成后会自动展示结果。"),
+    ).not.toBeInTheDocument();
     expect(document.querySelector(".loading-strip")).toBeNull();
   });
 
@@ -1080,20 +1436,32 @@ describe("App", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input);
-        if (path === "/api/background") return new Response(null, { status: 204 });
+        if (path === "/api/background")
+          return new Response(null, { status: 204 });
         if (path === "/api/config") return json({ mapStyleUrl: "about:blank" });
-        if (path === "/api/probes") return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
+        if (path === "/api/probes")
+          return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
         if (path === "https://api.globalping.io/v1/limits") {
           return json({
-            rateLimit: { measurements: { create: { type: "ip", limit: 250, remaining: 249, reset: 60 } } },
+            rateLimit: {
+              measurements: {
+                create: { type: "ip", limit: 250, remaining: 249, reset: 60 },
+              },
+            },
           });
         }
-        if (path === "https://api.globalping.io/v1/measurements" && init?.method === "POST") {
+        if (
+          path === "https://api.globalping.io/v1/measurements" &&
+          init?.method === "POST"
+        ) {
           return json({ id: "m123", probesCount: 1 }, 202);
         }
-        if (path === "/api/trace/m123") return new Response(null, { status: 204 });
-        if (path === "https://api.globalping.io/v1/measurements/m123") return measurementResponse.promise;
-        if (path === "/api/trace/enrich" && init?.method === "POST") return json(traceResult("finished"));
+        if (path === "/api/trace/m123")
+          return new Response(null, { status: 204 });
+        if (path === "https://api.globalping.io/v1/measurements/m123")
+          return measurementResponse.promise;
+        if (path === "/api/trace/enrich" && init?.method === "POST")
+          return json(traceResult("finished"));
         throw new Error(`unexpected fetch: ${path}`);
       }),
     );
@@ -1102,17 +1470,23 @@ describe("App", () => {
 
     await screen.findByText("2 / 2 probes 匹配");
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
-    expect(await screen.findByRole("dialog", { name: "读取诊断结果" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "读取诊断结果" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭读取诊断结果" }));
-    expect(screen.queryByRole("dialog", { name: "读取诊断结果" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "读取诊断结果" }),
+    ).not.toBeInTheDocument();
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
 
     measurementResponse.resolve(json(globalpingMeasurement("finished")));
 
     await waitFor(() => {
       expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
-      expect(screen.queryByRole("dialog", { name: "诊断结果" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: "诊断结果" }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -1122,17 +1496,26 @@ describe("App", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input);
-        if (path === "/api/background") return new Response(null, { status: 204 });
+        if (path === "/api/background")
+          return new Response(null, { status: 204 });
         if (path === "/api/config") return json({ mapStyleUrl: "about:blank" });
-        if (path === "/api/probes") return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
+        if (path === "/api/probes")
+          return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
         if (path === "https://api.globalping.io/v1/limits") {
           return json({
-            rateLimit: { measurements: { create: { type: "ip", limit: 250, remaining: 249, reset: 60 } } },
+            rateLimit: {
+              measurements: {
+                create: { type: "ip", limit: 250, remaining: 249, reset: 60 },
+              },
+            },
           });
         }
-        if (path === "/api/trace/m123") return new Response(null, { status: 204 });
-        if (path === "https://api.globalping.io/v1/measurements/m123") return measurementResponse.promise;
-        if (path === "/api/trace/enrich" && init?.method === "POST") return json(traceResult("finished"));
+        if (path === "/api/trace/m123")
+          return new Response(null, { status: 204 });
+        if (path === "https://api.globalping.io/v1/measurements/m123")
+          return measurementResponse.promise;
+        if (path === "/api/trace/enrich" && init?.method === "POST")
+          return json(traceResult("finished"));
         throw new Error(`unexpected fetch: ${path}`);
       }),
     );
@@ -1140,16 +1523,22 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("dialog", { name: "读取诊断结果" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "读取诊断结果" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "关闭读取诊断结果" }));
-    expect(screen.queryByRole("dialog", { name: "读取诊断结果" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "读取诊断结果" }),
+    ).not.toBeInTheDocument();
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
 
     measurementResponse.resolve(json(globalpingMeasurement("finished")));
 
     await waitFor(() => {
       expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
-      expect(screen.queryByRole("dialog", { name: "诊断结果" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: "诊断结果" }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -1164,7 +1553,9 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion).toBe(6);
+    expect(traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion).toBe(
+      6,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
@@ -1174,29 +1565,46 @@ describe("App", () => {
     await waitFor(() => {
       expect(traceCreateBodies(fetchMock)).toHaveLength(2);
     });
-    expect(traceCreateBodies(fetchMock)[1].measurementOptions.ipVersion).toBe(4);
+    expect(traceCreateBodies(fetchMock)[1].measurementOptions.ipVersion).toBe(
+      4,
+    );
   });
 
   it("keeps probe selection visible while polling, then lets users close and reopen results", async () => {
-    const fetchMock = mockApi({ traceStatus: (polls) => (polls === 1 ? "in-progress" : "finished") });
+    const fetchMock = mockApi({
+      traceStatus: (polls) => (polls === 1 ? "in-progress" : "finished"),
+    });
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("https://api.globalping.io/v1/measurements/m123", expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.globalping.io/v1/measurements/m123",
+        expect.anything(),
+      );
     });
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "查看结果" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "查看结果" }),
+    ).not.toBeInTheDocument();
 
-    expect(await screen.findByText("result:finished:m123", {}, { timeout: POLL_DELAY_MS + ENRICH_AFTER_FINISHED_DELAY_MS + 1000 })).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "result:finished:m123",
+        {},
+        { timeout: POLL_DELAY_MS + ENRICH_AFTER_FINISHED_DELAY_MS + 1000 },
+      ),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "关闭结果" }));
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "查看结果" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "查看结果" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "查看结果" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
@@ -1217,7 +1625,9 @@ describe("App", () => {
       });
     }
 
-    expect(screen.getByText("measurement 仍在运行，请稍后通过分享 URL 重新打开。")).toBeInTheDocument();
+    expect(
+      screen.getByText("measurement 仍在运行，请稍后通过分享 URL 重新打开。"),
+    ).toBeInTheDocument();
     expect(window.location.search).toBe("?measurement=m123");
     expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
@@ -1244,7 +1654,9 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("probes down")).toBeInTheDocument();
-    expect(await screen.findByText("Globalping credits 控制诊断创建")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Globalping credits 控制诊断创建"),
+    ).toBeInTheDocument();
     expect(await screen.findByText("诊断额度暂不可用")).toBeInTheDocument();
   });
 
@@ -1254,13 +1666,21 @@ describe("App", () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input);
         if (path === "/api/config") return json({ mapStyleUrl: "about:blank" });
-        if (path === "/api/probes") return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
+        if (path === "/api/probes")
+          return json({ probes, fetchedAt: "2026-06-09T00:00:00.000Z" });
         if (path === "https://api.globalping.io/v1/limits") {
           return json({
-            rateLimit: { measurements: { create: { type: "ip", limit: 250, remaining: 249, reset: 60 } } },
+            rateLimit: {
+              measurements: {
+                create: { type: "ip", limit: 250, remaining: 249, reset: 60 },
+              },
+            },
           });
         }
-        if (path === "https://api.globalping.io/v1/measurements" && init?.method === "POST") {
+        if (
+          path === "https://api.globalping.io/v1/measurements" &&
+          init?.method === "POST"
+        ) {
           return json({ message: "Parameter validation failed." }, 400);
         }
         throw new Error(`unexpected fetch: ${path}`);
@@ -1272,8 +1692,14 @@ describe("App", () => {
     await screen.findByText("2 / 2 probes 匹配");
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
-    expect(await screen.findByText(/Globalping 请求参数无效：Parameter validation failed\./)).toBeInTheDocument();
-    expect(screen.getByText(/请检查目标、筛选条件或高级参数/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        /Globalping 请求参数无效：Parameter validation failed\./,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/请检查目标、筛选条件或高级参数/),
+    ).toBeInTheDocument();
   });
 });
 
@@ -1284,77 +1710,110 @@ function mockApi(
     traceStatus?: (polls: number) => TraceResultResponse["status"];
     legacyTurnstileSiteKey?: string;
     enrichmentStatus?: TraceResultResponse["enrichment"]["status"];
-    measurement?: (status: TraceResultResponse["status"]) => GlobalpingMeasurement;
+    measurement?: (
+      status: TraceResultResponse["status"],
+    ) => GlobalpingMeasurement;
     cachedTrace?: TraceResultResponse;
     probes?: GlobalpingProbe[];
   } = {},
 ) {
   let tracePolls = 0;
   const mockProbes = options.probes || probes;
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const path = String(input);
-    if (path === "/api/background") {
-      if (options.backgroundStatus) return json({ error: { message: "background unavailable" } }, options.backgroundStatus);
-      if (options.backgroundImage) return json(options.backgroundImage);
-      return new Response(null, { status: 204 });
-    }
-    if (path === "/api/config") {
-      return json({ turnstileSiteKey: options.legacyTurnstileSiteKey || undefined, mapStyleUrl: "about:blank" });
-    }
-    if (path === "/api/probes") {
-      return json({ probes: mockProbes, fetchedAt: "2026-06-09T00:00:00.000Z" });
-    }
-    if (path === "https://api.globalping.io/v1/limits") {
-      return json({
-        rateLimit: { measurements: { create: { type: "ip", limit: 250, remaining: 249, reset: 60 } } },
-      });
-    }
-    if (path === "https://api.globalping.io/v1/measurements" && init?.method === "POST") {
-      return json({ id: "m123", probesCount: 1 }, 202);
-    }
-    if (path === "/api/trace/m123") {
-      if (options.cachedTrace) return json(options.cachedTrace);
-      return new Response(null, { status: 204 });
-    }
-    if (path === "https://api.globalping.io/v1/measurements/m123") {
-      tracePolls += 1;
-      const status = options.traceStatus?.(tracePolls) ?? "finished";
-      return json((options.measurement || globalpingMeasurement)(status));
-    }
-    if (path === "/api/trace/enrich" && init?.method === "POST") {
-      return json(traceResultFromMeasurement(options.measurement?.("finished"), options.enrichmentStatus));
-    }
-    if (path === `https://ipinfo.io/${FALLBACK_HOP_IP}`) {
-      return json({
-        ip: FALLBACK_HOP_IP,
-        city: "Englewood",
-        region: "Colorado",
-        country: "US",
-        loc: "39.6123,-104.8799",
-      });
-    }
-    if (path.startsWith("https://stat.ripe.net/data/prefix-overview/data.json")) {
-      expect(new URL(path).searchParams.get("resource")).toBe(FALLBACK_HOP_IP);
-      return json({
-        status: "ok",
-        data: {
-          resource: "206.83.141.0/24",
-          asns: [{ asn: 64500, holder: "EXAMPLE - Example Network" }],
-        },
-      });
-    }
-    if (path === "https://api.nxtrace.org/v4/ipGeo/batch" && init?.method === "POST") {
-      const ips = JSON.parse(String(init.body)).ips as string[];
-      return json({
-        results: ips.map((ip) => ({
-          ip,
-          ok: true,
-          data: { ip, asnumber: "AS64500", source: "mock-nexttrace" },
-        })),
-      });
-    }
-    throw new Error(`unexpected fetch: ${path}`);
-  });
+  const fetchMock = vi.fn(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input);
+      if (path === "/api/background") {
+        if (options.backgroundStatus)
+          return json(
+            { error: { message: "background unavailable" } },
+            options.backgroundStatus,
+          );
+        if (options.backgroundImage) return json(options.backgroundImage);
+        return new Response(null, { status: 204 });
+      }
+      if (path === "/api/config") {
+        return json({
+          turnstileSiteKey: options.legacyTurnstileSiteKey || undefined,
+          mapStyleUrl: "about:blank",
+        });
+      }
+      if (path === "/api/probes") {
+        return json({
+          probes: mockProbes,
+          fetchedAt: "2026-06-09T00:00:00.000Z",
+        });
+      }
+      if (path === "https://api.globalping.io/v1/limits") {
+        return json({
+          rateLimit: {
+            measurements: {
+              create: { type: "ip", limit: 250, remaining: 249, reset: 60 },
+            },
+          },
+        });
+      }
+      if (
+        path === "https://api.globalping.io/v1/measurements" &&
+        init?.method === "POST"
+      ) {
+        return json({ id: "m123", probesCount: 1 }, 202);
+      }
+      if (path === "/api/trace/m123") {
+        if (options.cachedTrace) return json(options.cachedTrace);
+        return new Response(null, { status: 204 });
+      }
+      if (path === "https://api.globalping.io/v1/measurements/m123") {
+        tracePolls += 1;
+        const status = options.traceStatus?.(tracePolls) ?? "finished";
+        return json((options.measurement || globalpingMeasurement)(status));
+      }
+      if (path === "/api/trace/enrich" && init?.method === "POST") {
+        return json(
+          traceResultFromMeasurement(
+            options.measurement?.("finished"),
+            options.enrichmentStatus,
+          ),
+        );
+      }
+      if (path === `https://ipinfo.io/${FALLBACK_HOP_IP}`) {
+        return json({
+          ip: FALLBACK_HOP_IP,
+          city: "Englewood",
+          region: "Colorado",
+          country: "US",
+          loc: "39.6123,-104.8799",
+        });
+      }
+      if (
+        path.startsWith("https://stat.ripe.net/data/prefix-overview/data.json")
+      ) {
+        expect(new URL(path).searchParams.get("resource")).toBe(
+          FALLBACK_HOP_IP,
+        );
+        return json({
+          status: "ok",
+          data: {
+            resource: "206.83.141.0/24",
+            asns: [{ asn: 64500, holder: "EXAMPLE - Example Network" }],
+          },
+        });
+      }
+      if (
+        path === "https://api.nxtrace.org/v4/ipGeo/batch" &&
+        init?.method === "POST"
+      ) {
+        const ips = JSON.parse(String(init.body)).ips as string[];
+        return json({
+          results: ips.map((ip) => ({
+            ip,
+            ok: true,
+            data: { ip, asnumber: "AS64500", source: "mock-nexttrace" },
+          })),
+        });
+      }
+      throw new Error(`unexpected fetch: ${path}`);
+    },
+  );
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
@@ -1365,29 +1824,46 @@ function traceCreateBodies(fetchMock: ReturnType<typeof mockApi>): Array<{
   measurementOptions: { ipVersion?: 4 | 6; packets?: number; port?: number };
 }> {
   return fetchMock.mock.calls
-    .filter(([path, init]) => path === "https://api.globalping.io/v1/measurements" && init?.method === "POST")
+    .filter(
+      ([path, init]) =>
+        path === "https://api.globalping.io/v1/measurements" &&
+        init?.method === "POST",
+    )
     .map(([, init]) => JSON.parse(String(init?.body)));
 }
 
-function traceEnrichBodies(fetchMock: ReturnType<typeof mockApi>): Array<{ measurementId?: string }> {
+function traceEnrichBodies(
+  fetchMock: ReturnType<typeof mockApi>,
+): Array<{ measurementId?: string }> {
   return fetchMock.mock.calls
-    .filter(([path, init]) => path === "/api/trace/enrich" && init?.method === "POST")
+    .filter(
+      ([path, init]) => path === "/api/trace/enrich" && init?.method === "POST",
+    )
     .map(([, init]) => JSON.parse(String(init?.body)));
 }
 
 function nexttraceBatchCalls(fetchMock: ReturnType<typeof mockApi>) {
-  return fetchMock.mock.calls.filter(([path, init]) => path === "https://api.nxtrace.org/v4/ipGeo/batch" && init?.method === "POST");
+  return fetchMock.mock.calls.filter(
+    ([path, init]) =>
+      path === "https://api.nxtrace.org/v4/ipGeo/batch" &&
+      init?.method === "POST",
+  );
 }
 
-function nexttraceBatchBodies(fetchMock: ReturnType<typeof mockApi>): Array<{ ips: string[] }> {
-  return nexttraceBatchCalls(fetchMock).map(([, init]) => JSON.parse(String(init?.body)));
+function nexttraceBatchBodies(
+  fetchMock: ReturnType<typeof mockApi>,
+): Array<{ ips: string[] }> {
+  return nexttraceBatchCalls(fetchMock).map(([, init]) =>
+    JSON.parse(String(init?.body)),
+  );
 }
 
 function bingBackgroundImage() {
   return {
     imageUrl: "/api/background/image",
     title: "岁月的层峦",
-    copyright: "落日，恶地国家公园，南达科他州，美国 (© Troy Harrison/Getty Images)",
+    copyright:
+      "落日，恶地国家公园，南达科他州，美国 (© Troy Harrison/Getty Images)",
     copyrightLink: "https://www.bing.com/search?q=%E6%81%B6%E5%9C%B0",
     source: "bing",
   };
@@ -1433,16 +1909,29 @@ function setNavigatorDevice({
   maxTouchPoints?: number;
   userAgentDataPlatform?: string;
 }): void {
-  Object.defineProperty(window.navigator, "userAgent", { configurable: true, get: () => userAgent });
-  Object.defineProperty(window.navigator, "platform", { configurable: true, get: () => platform });
-  Object.defineProperty(window.navigator, "maxTouchPoints", { configurable: true, get: () => maxTouchPoints });
+  Object.defineProperty(window.navigator, "userAgent", {
+    configurable: true,
+    get: () => userAgent,
+  });
+  Object.defineProperty(window.navigator, "platform", {
+    configurable: true,
+    get: () => platform,
+  });
+  Object.defineProperty(window.navigator, "maxTouchPoints", {
+    configurable: true,
+    get: () => maxTouchPoints,
+  });
   Object.defineProperty(window.navigator, "userAgentData", {
     configurable: true,
-    get: () => (userAgentDataPlatform ? { platform: userAgentDataPlatform } : undefined),
+    get: () =>
+      userAgentDataPlatform ? { platform: userAgentDataPlatform } : undefined,
   });
 }
 
-function repeatProbes(probe: GlobalpingProbe, count: number): GlobalpingProbe[] {
+function repeatProbes(
+  probe: GlobalpingProbe,
+  count: number,
+): GlobalpingProbe[] {
   return Array.from({ length: count }, (_, index) => ({
     ...probe,
     location: {
@@ -1477,12 +1966,16 @@ function makeShanghaiProbes(): GlobalpingProbe[] {
     ...probe,
     location: {
       ...probe.location,
-      city: ["Shanghai", "Beijing", "Guangzhou", "Shenzhen"][index] || probe.location.city,
+      city:
+        ["Shanghai", "Beijing", "Guangzhou", "Shenzhen"][index] ||
+        probe.location.city,
     },
   }));
 }
 
-function globalpingMeasurement(status: TraceResultResponse["status"]): GlobalpingMeasurement {
+function globalpingMeasurement(
+  status: TraceResultResponse["status"],
+): GlobalpingMeasurement {
   return {
     id: "m123",
     type: "mtr",
@@ -1519,7 +2012,9 @@ function traceResultFromMeasurement(
   };
 }
 
-function globalpingMeasurementWithHop(status: TraceResultResponse["status"]): GlobalpingMeasurement {
+function globalpingMeasurementWithHop(
+  status: TraceResultResponse["status"],
+): GlobalpingMeasurement {
   const measurement = globalpingMeasurement(status);
   if (status !== "finished") return measurement;
   return {
@@ -1541,7 +2036,15 @@ function globalpingMeasurementWithHop(status: TraceResultResponse["status"]): Gl
               resolvedAddress: FALLBACK_HOP_IP,
               resolvedHostname: null,
               timings: [{ rtt: 1.2 }],
-              stats: { min: 1, avg: 1.2, max: 2, total: 1, rcv: 1, drop: 0, loss: 0 },
+              stats: {
+                min: 1,
+                avg: 1.2,
+                max: 2,
+                total: 1,
+                rcv: 1,
+                drop: 0,
+                loss: 0,
+              },
             },
           ],
         },
