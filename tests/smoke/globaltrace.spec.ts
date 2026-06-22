@@ -601,7 +601,7 @@ test("desktop filter summary constrains long magic content and keeps run control
   expect(consoleErrors).toEqual([]);
 });
 
-test("probe result tabs keep horizontal scrollbar clear of route choices", async ({
+test("probe result tabs expose a draggable horizontal scrollbar", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -1919,12 +1919,13 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.activeSurfaceBorderRadius).toBe(state.activeButtonBorderRadius);
   expect(["auto", "scroll"]).toContain(state.overflowX);
   expect(state.scrollWidth).toBeGreaterThan(state.clientWidth);
-  expect(state.paddingBottom).toBeLessThanOrEqual(1);
-  expect(state.bottomGap).toBeLessThanOrEqual(2);
+  expect(state.paddingBottom).toBeGreaterThanOrEqual(8);
+  expect(state.bottomGap).toBeGreaterThanOrEqual(8);
+  expect(state.scrollbarColor).not.toBe("auto");
   expect(state.buttonMinHeight).toBe("52px");
   expect(state.buttonPaddingTop).toBe("6px");
   expect(state.buttonPaddingRight).toBe("10px");
-  expect(state.scrollbarWidth).toBe("none");
+  expect(state.scrollbarWidth).toBe("thin");
 }
 
 async function expectNoResultSummaryMetrics(page: Page): Promise<void> {
