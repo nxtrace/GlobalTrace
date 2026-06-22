@@ -12,6 +12,7 @@ import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { useI18n } from "../i18n";
 
 const PROBE_MAP_MAX_ZOOM = 5.2;
 const PROBE_MAP_FIT_PADDING = { top: 68, right: 42, bottom: 42, left: 42 };
@@ -47,6 +48,7 @@ export function ProbeMap({
   onBoxSelect,
   onClearSelection,
 }: ProbeMapProps) {
+  const messages = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -213,7 +215,7 @@ export function ProbeMap({
   });
 
   return (
-    <Surface asChild className="map-section" aria-label="probe map">
+    <Surface asChild className="map-section" aria-label={messages.probeMap}>
       <section>
         <div className="map-toolbar">
           <LiquidGlassSurface variant="toolbar" className="map-toolbar-surface">
@@ -231,14 +233,14 @@ export function ProbeMap({
                     size="sm"
                     className={boxMode ? "tool-button active" : "tool-button"}
                     type="button"
-                    title="框选 probes"
+                    title={messages.boxSelectProbes}
                     aria-pressed={boxMode}
                   >
                     {boxMode ? <MousePointer2 size={17} /> : <BoxSelect size={17} />}
-                    {boxMode ? "拖拽选择" : "框选"}
+                    {boxMode ? messages.dragSelect : messages.boxSelect}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>拖拽地图区域生成 magic probe 筛选</TooltipContent>
+                <TooltipContent>{messages.dragSelectHint}</TooltipContent>
               </Tooltip>
             </LiquidGlassSurface>
             {selectionActive && (
@@ -256,14 +258,14 @@ export function ProbeMap({
                       size="sm"
                       className="tool-button"
                       type="button"
-                      title="取消地图筛选"
-                      aria-label="取消地图筛选"
+                      title={messages.cancelMapFilter}
+                      aria-label={messages.cancelMapFilter}
                     >
                       <X size={17} />
-                      取消
+                      {messages.cancel}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>清除地图点选或框选生成的 probe 筛选</TooltipContent>
+                  <TooltipContent>{messages.clearMapFilterHint}</TooltipContent>
                 </Tooltip>
               </LiquidGlassSurface>
             )}
@@ -281,8 +283,8 @@ export function ProbeMap({
         {status === "ready" && probes.length === 0 && (
           <LiquidGlassSurface variant="panel" className="liquid-glass-coverage map-empty-surface">
             <div className="map-empty">
-              <strong>没有匹配的在线 probe</strong>
-              <span>放宽国家/地区、城市、ASN、network 或 tag 条件。</span>
+              <strong>{messages.noMatchingProbes}</strong>
+              <span>{messages.relaxProbeFilters}</span>
             </div>
           </LiquidGlassSurface>
         )}

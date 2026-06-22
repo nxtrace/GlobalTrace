@@ -21,6 +21,7 @@ import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import type { MapProjection, ResultContentOrder } from "./mapProjection";
+import { useI18n, type Messages } from "../i18n";
 
 export { buildPacketFeatureCollection, buildResultMapData } from "../lib/resultMapData";
 
@@ -71,6 +72,7 @@ export function ResultsView({
   renderMap = true,
   onClose,
 }: ResultsViewProps) {
+  const messages = useI18n();
   const [selected, setSelected] = useState(0);
   const [selectedRouteNodeId, setSelectedRouteNodeId] = useState<string | null>(null);
   const [mapFocusRequest, setMapFocusRequest] = useState(0);
@@ -85,7 +87,7 @@ export function ResultsView({
 
   useEffect(() => {
     if (!result) return;
-    const label = enrichmentLabel(result.enrichment.status);
+    const label = messages.enrichmentLabel(result.enrichment.status);
     console.debug(
       `[GlobalTrace] GeoIP ${label} · cache ${result.enrichment.cached} · fetch ${result.enrichment.fetched}`,
       {
@@ -96,7 +98,7 @@ export function ResultsView({
         errors: result.enrichment.errors,
       },
     );
-  }, [result]);
+  }, [messages, result]);
 
   const selectProbe = (index: number) => {
     setSelected(index);
@@ -121,8 +123,8 @@ export function ResultsView({
           <div className="empty-hero">
             <Route size={20} />
             <div>
-              <h2>等待网络路径诊断</h2>
-              <p>创建 measurement 后，这里显示 probe、route summary、hop 明细和原始输出。</p>
+              <h2>{messages.waitingTrace}</h2>
+              <p>{messages.waitingTraceDescription}</p>
             </div>
           </div>
           </section>
@@ -138,6 +140,7 @@ export function ResultsView({
       mapProjection={mapProjection}
       selectedRouteNodeId={selectedRouteNodeId}
       mapFocusRequest={mapFocusRequest}
+      messages={messages}
       onSelectRoute={selectProbe}
     />
   ) : null;
@@ -146,10 +149,11 @@ export function ResultsView({
       active={active}
       mapData={mapData}
       selectedRouteNodeId={selectedRouteNodeId}
+      messages={messages}
       onSelectHop={selectHop}
     />
   ) : (
-    <p className="muted">暂无 probe result。</p>
+    <p className="muted">{messages.noProbeResult}</p>
   );
 
   return (
@@ -171,8 +175,8 @@ export function ResultsView({
                 interactive
                 className="result-command-surface"
                 onClick={onClose}
-                title="关闭结果"
-                ariaLabel="关闭结果"
+                title={messages.closeResult}
+                ariaLabel={messages.closeResult}
               >
                 <Button
                   variant="glass"
@@ -182,7 +186,7 @@ export function ResultsView({
                 >
                   <span>
                     <X size={16} />
-                    关闭结果
+                    {messages.closeResult}
                   </span>
                 </Button>
               </LiquidGlassSurface>
@@ -195,7 +199,7 @@ export function ResultsView({
             <div className="probe-tabs-frame">
               <TabsList unstyled className="probe-tabs" aria-label="probe results">
                 {result.results.map((item, index) => {
-                  const targetMetrics = routeTargetMetrics(item);
+                  const targetMetrics = routeTargetMetrics(item, messages);
                   return (
                     <LiquidGlassSurface
                       variant="tab"
@@ -215,7 +219,7 @@ export function ResultsView({
                           </span>
                           <span
                             className="probe-tab-targets"
-                            aria-label={`目标延迟 ${targetMetrics.latency}，目标丢包 ${targetMetrics.loss}`}
+                            aria-label={messages.targetLatencyLoss(targetMetrics.latency, targetMetrics.loss)}
                           >
                             <strong className="probe-tab-target-latency">{targetMetrics.latency}</strong>
                             {renderPacketDots(targetMetrics.dots, {
@@ -237,7 +241,7 @@ export function ResultsView({
               <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage polling-state-surface">
                 <Surface variant="flat" className="polling-state">
                   <Clock3 size={16} />
-                  measurement 正在运行，轮询完成后会补齐 hop 和 GeoIP。
+                  {messages.pollingState}
                 </Surface>
               </LiquidGlassSurface>
             )}
@@ -268,8 +272,9 @@ function ResultMapToolbar({
   mapProjection: MapProjection;
   onMapProjectionChange?: (value: MapProjection) => void;
 }) {
+  const messages = useI18n();
   return (
-    <div className="result-map-toolbar" role="group" aria-label="结果地图视图">
+    <div className="result-map-toolbar" role="group" aria-label={messages.resultMapView}>
       <LiquidGlassSurface variant="toolbar" className="result-map-toolbar-surface">
         <div className="result-map-view-switch">
           <LiquidGlassSurface
@@ -286,7 +291,7 @@ function ResultMapToolbar({
               className="result-view-button"
               type="button"
               aria-pressed={mapProjection === "mercator"}
-              aria-label="切换结果地图到 2D"
+              aria-label={messages.switchResultMap2d}
               disabled={!onMapProjectionChange && mapProjection !== "mercator"}
             >
               <MapIcon size={16} />
@@ -307,7 +312,7 @@ function ResultMapToolbar({
               className="result-view-button"
               type="button"
               aria-pressed={mapProjection === "globe"}
-              aria-label="切换结果地图到 3D"
+              aria-label={messages.switchResultMap3d}
               disabled={!onMapProjectionChange && mapProjection !== "globe"}
             >
               <Globe2 size={16} />
@@ -321,6 +326,7 @@ function ResultMapToolbar({
 }
 
 function ShareButton({ measurementId }: { measurementId: string }) {
+  const messages = useI18n();
   const [copied, setCopied] = useState(false);
   const shareUrl = useMemo(() => {
     const url = new URL(window.location.href);
@@ -342,7 +348,7 @@ function ShareButton({ measurementId }: { measurementId: string }) {
       onClick={() => {
         void copy();
       }}
-      title="分享诊断链接"
+      title={messages.shareTraceLink}
     >
       <Button
         variant="glass"
@@ -352,7 +358,7 @@ function ShareButton({ measurementId }: { measurementId: string }) {
       >
         <span>
           <Share2 size={16} />
-          {copied ? "已复制" : "分享"}
+          {copied ? messages.copied : messages.share}
         </span>
       </Button>
     </LiquidGlassSurface>
@@ -363,11 +369,13 @@ function HopTable({
   active,
   mapData,
   selectedRouteNodeId,
+  messages,
   onSelectHop,
 }: {
   active: TraceProbeResult;
   mapData: ResultMapData;
   selectedRouteNodeId: string | null;
+  messages: Messages;
   onSelectHop: (ttl: number) => void;
 }) {
   const rowRefs = useRef<Record<number, HTMLTableRowElement | null>>({});
@@ -391,7 +399,7 @@ function HopTable({
   }, []);
 
   if (!active.hops.length) {
-    const failure = active.status === "failed" && active.rawOutput ? `该 probe 失败：${active.rawOutput}` : "该 probe 还没有 hop 数据。";
+    const failure = active.status === "failed" && active.rawOutput ? messages.failedProbe(active.rawOutput) : messages.noHopData;
     return <div className="table-empty">{failure}</div>;
   }
 
@@ -428,7 +436,7 @@ function HopTable({
                   data-route-node-id={routeNodeId || undefined}
                   aria-selected={selected}
                   tabIndex={0}
-                  title={linked ? `定位 TTL ${hop.ttl}` : `TTL ${hop.ttl} 没有可定位 GeoIP`}
+                  title={linked ? messages.focusTtl(hop.ttl) : messages.ttlNoGeo(hop.ttl)}
                   onClick={() => onSelectHop(hop.ttl)}
                   onKeyDown={(event) => {
                     if (event.key !== "Enter" && event.key !== " ") return;
@@ -437,7 +445,7 @@ function HopTable({
                   }}
                 >
                   <TableCell>{hop.ttl}</TableCell>
-                  <TableCell className="endpoint-cell">{renderEndpoint(hop, { showPeerLink: true })}</TableCell>
+                  <TableCell className="endpoint-cell">{renderEndpoint(hop, { showPeerLink: true, messages })}</TableCell>
                   <TableCell>{formatPercent(hop.stats?.loss)}</TableCell>
                   <TableCell>{formatMs(hop.stats?.avg)}</TableCell>
                   <TableCell>{formatMs(hop.stats?.min)}</TableCell>
@@ -467,20 +475,20 @@ function HopTable({
               className={`hop-card${linked ? " map-linked" : ""}${selected ? " selected" : ""}`}
               data-ttl={hop.ttl}
               data-route-node-id={routeNodeId || undefined}
-              title={linked ? `定位 TTL ${hop.ttl}` : `TTL ${hop.ttl} 没有可定位 GeoIP`}
+              title={linked ? messages.focusTtl(hop.ttl) : messages.ttlNoGeo(hop.ttl)}
             >
               <button
                 className="hop-card-button"
                 type="button"
                 data-ttl={hop.ttl}
                 data-route-node-id={routeNodeId || undefined}
-                aria-label={linked ? `定位 TTL ${hop.ttl}` : `TTL ${hop.ttl} 没有可定位 GeoIP`}
+                aria-label={linked ? messages.focusTtl(hop.ttl) : messages.ttlNoGeo(hop.ttl)}
                 aria-pressed={selected}
-                title={linked ? `定位 TTL ${hop.ttl}` : `TTL ${hop.ttl} 没有可定位 GeoIP`}
+                title={linked ? messages.focusTtl(hop.ttl) : messages.ttlNoGeo(hop.ttl)}
                 onClick={() => onSelectHop(hop.ttl)}
               />
               <span className="hop-card-ttl">TTL {hop.ttl}</span>
-              <span className="hop-card-endpoint">{renderEndpoint(hop, { showPeerLink: true })}</span>
+              <span className="hop-card-endpoint">{renderEndpoint(hop, { showPeerLink: true, messages })}</span>
               <span className="hop-card-stat">
                 <span>loss</span>
                 <strong>{formatPercent(hop.stats?.loss)}</strong>
@@ -498,7 +506,7 @@ function HopTable({
               {renderPacketDots(dots, {
                 containerClassName: "hop-card-packets",
                 dotClassName: "hop-card-packet-dot",
-                label: `TTL ${hop.ttl} 包状态 ${dots.length} 个，丢包 ${formatPercent(hop.stats?.loss)}`,
+                label: messages.packetStatus(hop.ttl, dots.length, formatPercent(hop.stats?.loss)),
               })}
             </div>
           );
@@ -563,6 +571,7 @@ function ResultMap({
   mapProjection,
   selectedRouteNodeId,
   mapFocusRequest,
+  messages,
   onSelectRoute,
 }: {
   data: ResultMapData;
@@ -570,6 +579,7 @@ function ResultMap({
   mapProjection: MapProjection;
   selectedRouteNodeId: string | null;
   mapFocusRequest: number;
+  messages: Messages;
   onSelectRoute: (routeIndex: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -693,6 +703,7 @@ function ResultMap({
         selectedRouteNodeId: selectedRouteNodeIdRef.current,
         expandedGroupId: null,
         popupRef,
+        messages,
         onPreviewRouteNode: previewRouteNode,
         setPinnedGroupId,
       });
@@ -731,7 +742,7 @@ function ResultMap({
       map.remove();
       mapRef.current = null;
     };
-  }, [mapProjection, mapStyleUrl]);
+  }, [mapProjection, mapStyleUrl, messages]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -758,10 +769,11 @@ function ResultMap({
       selectedRouteNodeId,
       expandedGroupId,
       popupRef,
+      messages,
       onPreviewRouteNode: previewRouteNode,
       setPinnedGroupId,
     });
-  }, [data, expandedGroupId, selectedRouteNodeId]);
+  }, [data, expandedGroupId, messages, selectedRouteNodeId]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -787,10 +799,10 @@ function routeTabStyle(index: number): CSSProperties {
   return { "--route-color": resultRouteColor(index) } as CSSProperties;
 }
 
-function routeTargetMetrics(result: TraceProbeResult): TargetRouteMetrics {
+function routeTargetMetrics(result: TraceProbeResult, messages: Messages): TargetRouteMetrics {
   const targetHop = findTargetHop(result);
   if (!targetHop) {
-    return { latency: "N/A", loss: "N/A", dots: [], packetLabel: "目标包状态不可用" };
+    return { latency: "N/A", loss: "N/A", dots: [], packetLabel: messages.targetPacketUnavailable };
   }
 
   const latency =
@@ -804,7 +816,7 @@ function routeTargetMetrics(result: TraceProbeResult): TargetRouteMetrics {
     latency,
     loss,
     dots,
-    packetLabel: `目标包状态 ${dots.length} 个，丢包 ${loss}`,
+    packetLabel: messages.targetPacketStatus(dots.length, loss),
   };
 }
 
@@ -871,6 +883,7 @@ function renderResultRouteMarkers({
   selectedRouteNodeId,
   expandedGroupId,
   popupRef,
+  messages,
   onPreviewRouteNode,
   setPinnedGroupId,
 }: {
@@ -880,6 +893,7 @@ function renderResultRouteMarkers({
   selectedRouteNodeId: string | null;
   expandedGroupId: string | null;
   popupRef: MutableRefObject<maplibregl.Popup | null>;
+  messages: Messages;
   onPreviewRouteNode: (node: ResultRouteNode) => void;
   setPinnedGroupId: GroupStateSetter;
 }): void {
@@ -893,6 +907,7 @@ function renderResultRouteMarkers({
       expanded,
       map,
       popupRef,
+      messages,
       onPreviewRouteNode,
       setPinnedGroupId,
     });
@@ -947,6 +962,7 @@ function createRouteGroupMarkerElement({
   expanded,
   map,
   popupRef,
+  messages,
   onPreviewRouteNode,
   setPinnedGroupId,
 }: {
@@ -955,6 +971,7 @@ function createRouteGroupMarkerElement({
   expanded: boolean;
   map: maplibregl.Map;
   popupRef: MutableRefObject<maplibregl.Popup | null>;
+  messages: Messages;
   onPreviewRouteNode: (node: ResultRouteNode) => void;
   setPinnedGroupId: GroupStateSetter;
 }): HTMLElement {
@@ -1006,6 +1023,7 @@ function createRouteGroupMarkerElement({
         size: 28,
         map,
         popupRef,
+        messages,
         onPreviewRouteNode,
         setPinnedGroupId,
       }),
@@ -1014,7 +1032,7 @@ function createRouteGroupMarkerElement({
   }
 
   const selected = group.nodeIds.includes(selectedRouteNodeId || "");
-  const collapsedButton = createRouteGroupButton(group, selected);
+  const collapsedButton = createRouteGroupButton(group, selected, messages);
   collapsedButton.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -1032,6 +1050,7 @@ function createRouteGroupMarkerElement({
         size: 25,
         map,
         popupRef,
+        messages,
         onPreviewRouteNode,
         setPinnedGroupId,
       }),
@@ -1041,12 +1060,12 @@ function createRouteGroupMarkerElement({
   return element;
 }
 
-function createRouteGroupButton(group: ResultRouteGroup, selected: boolean): HTMLButtonElement {
+function createRouteGroupButton(group: ResultRouteGroup, selected: boolean, messages: Messages): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "result-route-marker-button result-route-marker-group";
   button.dataset.routeGroupId = group.groupId;
-  button.setAttribute("aria-label", `展开 TTL ${group.label}`);
+  button.setAttribute("aria-label", messages.expandTtl(group.label));
   button.textContent = group.label;
   applyRouteMarkerButtonStyle(button, {
     color: group.color,
@@ -1066,6 +1085,7 @@ function createRouteNodeButton({
   size,
   map,
   popupRef,
+  messages,
   onPreviewRouteNode,
   setPinnedGroupId,
 }: {
@@ -1076,6 +1096,7 @@ function createRouteNodeButton({
   size: number;
   map: maplibregl.Map;
   popupRef: MutableRefObject<maplibregl.Popup | null>;
+  messages: Messages;
   onPreviewRouteNode: (node: ResultRouteNode) => void;
   setPinnedGroupId: GroupStateSetter;
 }): HTMLButtonElement {
@@ -1084,7 +1105,7 @@ function createRouteNodeButton({
   button.className = "result-route-marker-button result-route-marker-node";
   button.dataset.routeNodeId = node.nodeId;
   button.dataset.routeGroupId = node.groupId;
-  button.setAttribute("aria-label", `选择 TTL ${node.label}`);
+  button.setAttribute("aria-label", messages.selectTtl(node.label));
   button.textContent = label;
   applyRouteMarkerButtonStyle(button, { color: node.color, active: node.active, selected, offset, size });
   button.addEventListener("click", (event) => {
@@ -1266,29 +1287,30 @@ function formatMs(value: number | null | undefined): string {
   return typeof value === "number" ? `${value.toFixed(1)} ms` : "-";
 }
 
-function renderEndpoint(hop: TraceHop, options: { showPeerLink?: boolean } = {}) {
+function renderEndpoint(hop: TraceHop, options: { showPeerLink?: boolean; messages?: Messages } = {}) {
   const ip = hop.ip || "*";
   const hostname = displayHostname(hop.hostname, ip);
   return (
     <div className="endpoint-stack">
       <span className="endpoint-address-row">
         <span className="mono-cell">{ip}</span>
-        {options.showPeerLink && hop.ip && renderPeerLink(hop.ip)}
+        {options.showPeerLink && hop.ip && renderPeerLink(hop.ip, "peer-link", options.messages)}
       </span>
       {hostname && <span className="endpoint-hostname">{hostname}</span>}
     </div>
   );
 }
 
-function renderPeerLink(ip: string, className = "peer-link") {
+function renderPeerLink(ip: string, className = "peer-link", messages?: Messages) {
+  const label = messages?.viewPeerAs(ip) ?? `View ${ip} on peer.as`;
   return (
     <a
-      aria-label={`在 peer.as 查看 ${ip}`}
+      aria-label={label}
       className={className}
       href={peerAsUrl(ip)}
       rel="noopener noreferrer"
       target="_blank"
-      title={`在 peer.as 查看 ${ip}`}
+      title={label}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
@@ -1355,10 +1377,4 @@ function findTargetHop(active: TraceProbeResult | null): TraceHop | null {
   const targetIp = active?.resolvedAddress?.trim();
   if (!targetIp) return null;
   return active?.hops.find((hop) => hop.ip === targetIp) || null;
-}
-
-function enrichmentLabel(status: TraceResultResponse["enrichment"]["status"]): string {
-  if (status === "complete") return "完成";
-  if (status === "partial") return "部分完成";
-  return "跳过";
 }

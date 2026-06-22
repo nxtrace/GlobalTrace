@@ -20,6 +20,7 @@ import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
 import type { ResultContentOrder } from "./components/mapProjection";
 import type { ProbeMapAsnSelection } from "./components/ProbeMap";
+import { I18nProvider, messagesByLocale, useI18n } from "./i18n";
 import { deferUntilIdle } from "./lib/defer";
 import { usePersistentAppSettings } from "./hooks/usePersistentAppSettings";
 import {
@@ -80,11 +81,14 @@ export function App() {
     setResultMapProjection,
     resultContentOrder,
     resultContentOrderPromptOpen,
+    locale,
     cycleThemeMode,
     updateLiquidGlassEnabled,
     updateLiquidGlassIntensity,
     updateResultContentOrder,
+    updateLocale,
   } = usePersistentAppSettings();
+  const messages = messagesByLocale[locale];
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
   const [storedGlobalpingToken] = useState(readStoredGlobalpingToken);
   const [globalpingToken, setGlobalpingToken] = useState(storedGlobalpingToken.token);
@@ -132,6 +136,7 @@ export function App() {
     globalpingToken,
     ipVersion,
     limit,
+    messages,
     packets,
     port,
     probes,
@@ -170,15 +175,19 @@ export function App() {
     () => probeFilterSuggestions(probes, filterSuggestionFilters),
     [filterSuggestionFilters, probes],
   );
-  const chips = useMemo(() => filterChips(filters), [filters]);
+  const chips = useMemo(() => filterChips(filters, messages.filterChipLabels), [filters, messages]);
   const quotaLabel = useMemo(() => {
-    if (limitsStatus === "loading") return "诊断额度读取中";
-    if (limitsStatus === "error" || !limits) return "诊断额度暂不可用";
-    return `可创建诊断 ${limits.measurements.create.remaining}/${limits.measurements.create.limit}（${globalpingToken ? "Globalping Token" : "当前 IP"}）`;
-  }, [globalpingToken, limits, limitsStatus]);
+    if (limitsStatus === "loading") return messages.quotaLoading;
+    if (limitsStatus === "error" || !limits) return messages.quotaUnavailable;
+    return messages.quotaAvailable(
+      limits.measurements.create.remaining,
+      limits.measurements.create.limit,
+      globalpingToken ? "Globalping Token" : messages.currentIp,
+    );
+  }, [globalpingToken, limits, limitsStatus, messages]);
   const diagnosisControlLabel = nexttraceToken
-    ? "NextTrace API Token 直连已启用"
-    : "Globalping credits 控制诊断创建";
+    ? messages.nexttraceDirectEnabled
+    : messages.globalpingCreditsControl;
 
   useEffect(() => {
     const onPopState = () => setRoute(currentRoute());
@@ -245,7 +254,7 @@ export function App() {
       setProbesStatus("ready");
     } catch (error) {
       setProbesStatus("error");
-      setMessage(userFacingErrorMessage(error, "初始化失败"));
+      setMessage(userFacingErrorMessage(error, messages.initFailed, messages));
     }
 
   };
@@ -295,19 +304,19 @@ export function App() {
     if (!mapSelectionActive) resetMapSelectionLimitTracking();
     appendSelectionFilters(probeToMagic(probe));
     setMapSelectionActive(true);
-    setSelectionNotice(`已添加 ${probe.location.city || probe.location.country} · AS${probe.location.asn}`);
-  }, [appendSelectionFilters, mapSelectionActive, resetMapSelectionLimitTracking]);
+    setSelectionNotice(messages.addedProbe(probe.location.city || probe.location.country, probe.location.asn));
+  }, [appendSelectionFilters, mapSelectionActive, messages, resetMapSelectionLimitTracking]);
 
   const pickMapAsn = useCallback((selection: ProbeMapAsnSelection) => {
     if (!mapSelectionActive) resetMapSelectionLimitTracking();
     appendSelectionFilters(selection.magic);
     setMapSelectionActive(true);
-    setSelectionNotice(`已添加 ${selection.city || selection.country} · ${selection.asn}`);
-  }, [appendSelectionFilters, mapSelectionActive, resetMapSelectionLimitTracking]);
+    setSelectionNotice(messages.addedProbe(selection.city || selection.country, selection.asn.replace(/^AS/i, "")));
+  }, [appendSelectionFilters, mapSelectionActive, messages, resetMapSelectionLimitTracking]);
 
   const boxSelect = useCallback((selected: GlobalpingProbe[]) => {
     if (!selected.length) {
-      setSelectionNotice("框选范围内没有可用 probe");
+      setSelectionNotice(messages.noBoxProbes);
       return;
     }
     const selection = magicFromSelectedProbes(selected, 10);
@@ -320,10 +329,10 @@ export function App() {
     setMapSelectionActive(true);
     setSelectionNotice(
       selection.capped
-        ? `已添加框选 ${selected.length} 个 probes，保留最近 10 个`
-        : `已添加框选 ${selection.selectedCount} 个 probes`,
+        ? messages.addedBoxCapped(selected.length)
+        : messages.addedBox(selection.selectedCount),
     );
-  }, [appendSelectionFilters, limit, mapSelectionActive]);
+  }, [appendSelectionFilters, limit, mapSelectionActive, messages]);
 
   const clearMapSelection = useCallback(() => {
     setFilters({ magic: "world" });
@@ -416,11 +425,11 @@ export function App() {
           setWorkspaceMode("result");
         })
         .catch((error: unknown) => {
-          setMessage(userFacingErrorMessage(error, "加载 measurement 失败"));
+          setMessage(userFacingErrorMessage(error, messages.measurementLoadFailed, messages));
         })
         .finally(() => setLoading(false));
     }
-  }, [nexttraceTokenDraft, nexttraceTokenRemembered, result]);
+  }, [messages, nexttraceTokenDraft, nexttraceTokenRemembered, result]);
 
   const clearNexttraceToken = useCallback(() => {
     setNexttraceToken("");
@@ -450,6 +459,7 @@ export function App() {
   }, [abortTraceLoading, sharedTraceStartedRef]);
 
   return (
+    <I18nProvider locale={locale}>
     <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled} intensity={liquidGlassIntensity}>
       <BackgroundLayer backgroundImage={backgroundImage} />
       <main className={`app-shell${backgroundImage ? " ambient-photo-ready" : ""}${resultPriority ? " result-priority" : ""}`}>
@@ -476,6 +486,7 @@ export function App() {
           nexttraceTokenSaved={Boolean(nexttraceToken)}
           nexttraceTokenRemembered={nexttraceTokenRemembered}
           themeMode={themeMode}
+          locale={locale}
           liquidGlassEnabled={liquidGlassEnabled}
           liquidGlassIntensity={liquidGlassIntensity}
           resultContentOrder={resultContentOrder}
@@ -495,6 +506,7 @@ export function App() {
           onClearNexttraceToken={clearNexttraceToken}
           onNexttraceTokenRememberedChange={updateNexttraceTokenRemembered}
           onCycleThemeMode={cycleThemeMode}
+          onLocaleChange={updateLocale}
           onLiquidGlassEnabledChange={updateLiquidGlassEnabled}
           onLiquidGlassIntensityChange={updateLiquidGlassIntensity}
           onResultContentOrderChange={updateResultContentOrder}
@@ -508,7 +520,7 @@ export function App() {
           <LiquidGlassSurface variant="toolbar" fullWidth className="status-surface">
             <header className="status-bar">
               <div>
-                <strong>网络路径诊断</strong>
+                <strong>{messages.workspaceTitle}</strong>
               </div>
               <div className="status-actions">
                 <Badge variant="accent" className="quota-chip">
@@ -521,12 +533,12 @@ export function App() {
                     interactive
                     className="result-command-surface status-action-surface"
                     onClick={showResult}
-                    ariaLabel="查看结果"
+                    ariaLabel={messages.viewResult}
                   >
                     <Button variant="glass" size="sm" className="result-command-button status-action-button" asChild>
                       <span>
                         <Eye size={16} />
-                        查看结果
+                        {messages.viewResult}
                       </span>
                     </Button>
                   </LiquidGlassSurface>
@@ -567,7 +579,7 @@ export function App() {
 
       <GlassOverlay
         open={route === "/about"}
-        title="关于 GlobalTrace"
+        title={messages.aboutTitle}
         size="about"
         chrome="bare"
         placement="center"
@@ -586,7 +598,7 @@ export function App() {
 
       <GlassOverlay
         open={workspaceMode === "result" && Boolean(finalResult)}
-        title="诊断结果"
+        title={messages.resultsTitle}
         size="result"
         chrome="bare"
         placement="center"
@@ -613,6 +625,7 @@ export function App() {
         onSelect={updateResultContentOrder}
       />
     </LiquidGlassPreferenceProvider>
+    </I18nProvider>
   );
 }
 
@@ -625,13 +638,14 @@ function BackgroundLayer({ backgroundImage }: { backgroundImage: BackgroundImage
 }
 
 function AboutPageFallback() {
+  const messages = useI18n();
   return (
     <Surface asChild className="about-panel">
-      <section role="status" aria-live="polite" aria-label="正在加载关于页面">
+      <section role="status" aria-live="polite" aria-label={messages.loadingAbout}>
         <div className="empty-hero">
           <Loader2 size={20} className="spin" />
           <div>
-            <h2>正在加载关于页面</h2>
+            <h2>{messages.loadingAbout}</h2>
           </div>
         </div>
       </section>
@@ -640,12 +654,13 @@ function AboutPageFallback() {
 }
 
 function ProbeMapFallback() {
+  const messages = useI18n();
   return (
-    <Surface asChild className="map-section" aria-label="正在加载 probe map">
+    <Surface asChild className="map-section" aria-label={messages.loadingProbeMap}>
       <section role="status" aria-live="polite">
         <div className="map-container map-loading-placeholder">
           <Loader2 size={22} className="spin" />
-          <span>正在加载地图</span>
+          <span>{messages.loadingMap}</span>
         </div>
       </section>
     </Surface>
@@ -653,14 +668,15 @@ function ProbeMapFallback() {
 }
 
 function ResultsViewFallback() {
+  const messages = useI18n();
   return (
     <Surface asChild className="result-empty">
-      <section role="status" aria-live="polite" aria-label="正在加载结果视图">
+      <section role="status" aria-live="polite" aria-label={messages.loadingResults}>
         <div className="empty-hero">
           <Loader2 size={20} className="spin" />
           <div>
-            <h2>正在加载结果视图</h2>
-            <p>地图与 hop 明细加载完成后会自动显示。</p>
+            <h2>{messages.loadingResults}</h2>
+            <p>{messages.loadingResultsDescription}</p>
           </div>
         </div>
       </section>
@@ -677,11 +693,12 @@ function MeasurementLoadingDialog({
   measurementId?: string;
   onCancel: () => void;
 }) {
+  const messages = useI18n();
   return (
-    <GlassOverlay open={open} title="读取诊断结果" size="compact" placement="center" onClose={onCancel}>
-      <section className="measurement-loading" role="status" aria-live="polite" aria-label="正在读取 measurement">
+    <GlassOverlay open={open} title={messages.readingResults} size="compact" placement="center" onClose={onCancel}>
+      <section className="measurement-loading" role="status" aria-live="polite" aria-label={messages.readingMeasurement}>
         <Loader2 size={24} className="spin" />
-        <p>正在读取 Globalping measurement，完成后会自动展示结果。</p>
+        <p>{messages.readingMeasurementDescription}</p>
         {measurementId && <span>{measurementId}</span>}
       </section>
     </GlassOverlay>
@@ -695,10 +712,11 @@ function ResultContentOrderDialog({
   open: boolean;
   onSelect: (value: ResultContentOrder) => void;
 }) {
+  const messages = useI18n();
   return (
     <GlassOverlay
       open={open}
-      title="结果页面显示顺序"
+      title={messages.resultOrderPrompt}
       size="compact"
       placement="center"
       dismissible={false}
@@ -707,19 +725,19 @@ function ResultContentOrderDialog({
       surfaceCornerRadius={18}
       onClose={() => undefined}
     >
-      <section className="result-layout-choice" aria-label="结果页面显示顺序">
-        <p>后续如果还想改，可以在高级参数中修改。</p>
-        <div className="result-layout-choice-actions" aria-label="结果页面显示顺序">
+      <section className="result-layout-choice" aria-label={messages.resultOrderPrompt}>
+        <p>{messages.resultOrderHint}</p>
+        <div className="result-layout-choice-actions" aria-label={messages.resultOrderPrompt}>
           <LiquidGlassSurface variant="button" interactive actionRole="none" cornerRadius={14} className="result-layout-choice-surface">
             <Button variant="glass" type="button" className="result-layout-choice-button" onClick={() => onSelect("map-first")}>
               <MapIcon size={16} aria-hidden="true" />
-              地图优先
+              {messages.mapFirst}
             </Button>
           </LiquidGlassSurface>
           <LiquidGlassSurface variant="button" interactive actionRole="none" cornerRadius={14} className="result-layout-choice-surface">
             <Button variant="glass" type="button" className="result-layout-choice-button" onClick={() => onSelect("table-first")}>
               <Table2 size={16} aria-hidden="true" />
-              表格优先
+              {messages.tableFirst}
             </Button>
           </LiquidGlassSurface>
         </div>

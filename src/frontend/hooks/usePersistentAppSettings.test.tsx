@@ -8,11 +8,21 @@ describe("usePersistentAppSettings", () => {
       configurable: true,
       value: createLocalStorage(),
     });
+    Object.defineProperty(navigator, "languages", {
+      configurable: true,
+      value: ["en-US"],
+    });
+    Object.defineProperty(navigator, "language", {
+      configurable: true,
+      value: "en-US",
+    });
     delete document.documentElement.dataset.theme;
   });
 
   afterEach(() => {
     Reflect.deleteProperty(window, "localStorage");
+    Reflect.deleteProperty(navigator, "languages");
+    Reflect.deleteProperty(navigator, "language");
     delete document.documentElement.dataset.theme;
   });
 
@@ -25,6 +35,7 @@ describe("usePersistentAppSettings", () => {
     expect(result.current.resultMapProjection).toBe("mercator");
     expect(result.current.resultContentOrder).toBe("map-first");
     expect(result.current.resultContentOrderPromptOpen).toBe(true);
+    expect(result.current.locale).toBe("en-US");
     expect(document.documentElement.dataset.theme).toBe("system");
 
     act(() => result.current.cycleThemeMode());
@@ -36,16 +47,19 @@ describe("usePersistentAppSettings", () => {
     act(() => result.current.updateLiquidGlassIntensity(85));
     act(() => result.current.setResultMapProjection("globe"));
     act(() => result.current.updateResultContentOrder("table-first"));
+    act(() => result.current.updateLocale("zh-CN"));
 
     expect(result.current.liquidGlassEnabled).toBe(true);
     expect(result.current.liquidGlassIntensity).toBe(85);
     expect(result.current.resultMapProjection).toBe("globe");
     expect(result.current.resultContentOrder).toBe("table-first");
     expect(result.current.resultContentOrderPromptOpen).toBe(false);
+    expect(result.current.locale).toBe("zh-CN");
     expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe("enabled");
     expect(window.localStorage.getItem("globaltrace.liquidGlassIntensity")).toBe("85");
     expect(window.localStorage.getItem("globaltrace.viewMode")).toBe("3d");
     expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe("table-first");
+    expect(window.localStorage.getItem("globaltrace.locale")).toBe("zh-CN");
   });
 
   it("loads stored settings and ignores invalid stored values", () => {
@@ -54,6 +68,7 @@ describe("usePersistentAppSettings", () => {
     window.localStorage.setItem("globaltrace.liquidGlassIntensity", "150");
     window.localStorage.setItem("globaltrace.viewMode", "3d");
     window.localStorage.setItem("globaltrace.resultLayout", "table-first");
+    window.localStorage.setItem("globaltrace.locale", "zh-CN");
 
     const { result, unmount } = renderHook(() => usePersistentAppSettings());
 
@@ -63,6 +78,7 @@ describe("usePersistentAppSettings", () => {
     expect(result.current.resultMapProjection).toBe("globe");
     expect(result.current.resultContentOrder).toBe("table-first");
     expect(result.current.resultContentOrderPromptOpen).toBe(false);
+    expect(result.current.locale).toBe("zh-CN");
 
     unmount();
     window.localStorage.setItem("globaltrace.themeMode", "sepia");
@@ -70,6 +86,7 @@ describe("usePersistentAppSettings", () => {
     window.localStorage.setItem("globaltrace.liquidGlassIntensity", "not-a-number");
     window.localStorage.setItem("globaltrace.viewMode", "flat");
     window.localStorage.setItem("globaltrace.resultLayout", "split");
+    window.localStorage.setItem("globaltrace.locale", "fr-FR");
 
     const invalid = renderHook(() => usePersistentAppSettings());
 
@@ -79,6 +96,22 @@ describe("usePersistentAppSettings", () => {
     expect(invalid.result.current.resultMapProjection).toBe("mercator");
     expect(invalid.result.current.resultContentOrder).toBe("map-first");
     expect(invalid.result.current.resultContentOrderPromptOpen).toBe(true);
+    expect(invalid.result.current.locale).toBe("en-US");
+  });
+
+  it("uses browser Chinese locale when no stored locale exists", () => {
+    Object.defineProperty(navigator, "languages", {
+      configurable: true,
+      value: ["zh-CN", "en-US"],
+    });
+    Object.defineProperty(navigator, "language", {
+      configurable: true,
+      value: "zh-CN",
+    });
+
+    const { result } = renderHook(() => usePersistentAppSettings());
+
+    expect(result.current.locale).toBe("zh-CN");
   });
 });
 

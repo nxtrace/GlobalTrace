@@ -6,6 +6,7 @@ import { measurementToTraceResponse } from "../../shared/transform";
 import { MAX_TRACE_PROBES, type GlobalpingProbe, type TraceFilters, type TraceProtocol, type TraceResultResponse } from "../../shared/types";
 import type { GlobalpingMeasurement } from "../../shared/globalping";
 import type { IpVersionSelection } from "../components/FilterPanel";
+import { messagesByLocale, type Messages } from "../i18n";
 
 export const POLL_DELAY_MS = 1000;
 export const ENRICH_AFTER_FINISHED_DELAY_MS = 500;
@@ -30,6 +31,7 @@ interface UseTraceLifecycleArgs {
   probes: GlobalpingProbe[];
   protocol: TraceProtocol;
   target: string;
+  messages?: Messages;
   setLoading: Dispatch<SetStateAction<boolean>>;
   setMeasurementLoading: Dispatch<SetStateAction<MeasurementLoadingState | null>>;
   setMessage: Dispatch<SetStateAction<string>>;
@@ -47,6 +49,7 @@ export function useTraceLifecycle({
   probes,
   protocol,
   target,
+  messages = messagesByLocale["zh-CN"],
   setLoading,
   setMeasurementLoading,
   setMessage,
@@ -104,7 +107,7 @@ export function useTraceLifecycle({
       }
 
       if (current.status === "in-progress") {
-        setMessage("measurement 仍在运行，请稍后通过分享 URL 重新打开。");
+        setMessage(messages.traceStillRunning);
         return;
       }
 
@@ -123,7 +126,7 @@ export function useTraceLifecycle({
       if (isNonMtrMeasurementError(error)) {
         setResult(null);
       }
-      setMessage(userFacingErrorMessage(error, "加载 measurement 失败"));
+      setMessage(userFacingErrorMessage(error, messages.measurementLoadFailed, messages));
     } finally {
       if (pollAbortRef.current === controller) {
         pollAbortRef.current = null;
@@ -131,7 +134,7 @@ export function useTraceLifecycle({
         setLoading(false);
       }
     }
-  }, [setLoading, setMeasurementLoading, setMessage, setResult, setWorkspaceMode]);
+  }, [messages, setLoading, setMeasurementLoading, setMessage, setResult, setWorkspaceMode]);
 
   const createAndLoadTrace = useCallback(async (
     enrichmentMode: TraceEnrichmentMode = "worker",
@@ -175,7 +178,7 @@ export function useTraceLifecycle({
       );
     } catch (error) {
       if (isAbortError(error)) return;
-      setMessage(userFacingErrorMessage(error, "创建 trace 失败"));
+      setMessage(userFacingErrorMessage(error, messages.traceCreateFailed, messages));
     } finally {
       if (pollAbortRef.current === controller) {
         pollAbortRef.current = null;
@@ -183,7 +186,7 @@ export function useTraceLifecycle({
         setLoading(false);
       }
     }
-  }, [filters, globalpingToken, ipVersion, limit, loadTrace, packets, port, probes, protocol, setLoading, setMeasurementLoading, setMessage, setWorkspaceMode, target]);
+  }, [filters, globalpingToken, ipVersion, limit, loadTrace, messages, packets, port, probes, protocol, setLoading, setMeasurementLoading, setMessage, setWorkspaceMode, target]);
 
   const abortTraceLoading = useCallback(() => {
     pollAbortRef.current?.abort();
@@ -248,10 +251,10 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export function userFacingErrorMessage(error: unknown, fallback: string): string {
+export function userFacingErrorMessage(error: unknown, fallback: string, messages?: Pick<Messages, "invalidGlobalpingParams">): string {
   const message = error instanceof Error ? error.message : fallback;
   if (/parameter validation failed/i.test(message)) {
-    return `Globalping 请求参数无效：${message} 请检查目标、筛选条件或高级参数。`;
+    return messages?.invalidGlobalpingParams(message) ?? `Globalping 请求参数无效：${message} 请检查目标、筛选条件或高级参数。`;
   }
   return message;
 }

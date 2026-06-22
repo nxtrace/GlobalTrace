@@ -24,6 +24,12 @@ const mobileResultViewports = [
   { name: "844x390", width: 844, height: 390 },
 ];
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("globaltrace.locale", "zh-CN");
+  });
+});
+
 for (const viewport of viewports) {
   test(`deterministic trace flow at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({

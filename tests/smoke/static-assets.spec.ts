@@ -56,6 +56,9 @@ test("serves the built Vite app through Worker Static Assets", async ({
   expectSecurityHeaders(configResponse.headers());
 
   const consoleErrors = collectConsoleErrors(page);
+  await page.addInitScript(() => {
+    window.localStorage.setItem("globaltrace.locale", "zh-CN");
+  });
   await installStaticAssetMocks(page);
   await page.goto("/");
 

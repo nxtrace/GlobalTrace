@@ -115,6 +115,7 @@ beforeEach(() => {
     value: createMemoryStorage(),
   });
   window.localStorage.setItem("globaltrace.resultLayout", "table-first");
+  window.localStorage.setItem("globaltrace.locale", "zh-CN");
   setNavigatorDevice({
     userAgent: "Mozilla/5.0 (X11; Linux x86_64)",
     platform: "Linux x86_64",
@@ -167,7 +168,7 @@ describe("App", () => {
       screen.getByText("Globalping credits 控制诊断创建"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("可创建诊断 249/250（当前 IP）"),
+      await screen.findByText("可创建诊断 249/250（当前 IP）"),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toHaveValue("");
     expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
@@ -398,6 +399,25 @@ describe("App", () => {
     await waitFor(() => {
       expect(document.documentElement.dataset.theme).toBe("dark");
     });
+  });
+
+  it("switches locale and persists the selection", async () => {
+    mockApi();
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    fireEvent.click(screen.getByRole("button", { name: "切换到 English" }));
+
+    expect(await screen.findByText("Global route tracing")).toBeInTheDocument();
+    expect(screen.getByText("Current filters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Theme: System" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Target")).toHaveAttribute(
+      "placeholder",
+      "Target IP or domain, such as 1.1.1.1 or github.com",
+    );
+    expect(document.documentElement.lang).toBe("en-US");
+    expect(window.localStorage.getItem("globaltrace.locale")).toBe("en-US");
   });
 
   it("restores and persists advanced trace port and packets locally", async () => {
@@ -674,7 +694,7 @@ describe("App", () => {
       await screen.findByText("NextTrace API Token 直连已启用"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("可创建诊断 249/250（当前 IP）"),
+      await screen.findByText("可创建诊断 249/250（当前 IP）"),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));

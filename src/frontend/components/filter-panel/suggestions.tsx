@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { compactText, normalizeAsn } from "../../../shared/filters";
 import { Input, Textarea } from "../ui/input";
+import { useI18n } from "../../i18n";
 
 const MAX_VISIBLE_SUGGESTIONS = 8;
 const MAGIC_PLACEHOLDER =
@@ -26,6 +27,7 @@ export function MagicSuggestionTextarea({
   options: string[];
   onChange: (value: string) => void;
 }) {
+  const messages = useI18n();
   const listboxId = useId();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -150,7 +152,7 @@ export function MagicSuggestionTextarea({
           id={listboxId}
           className="suggestion-popover"
           role="listbox"
-          aria-label="候选列表"
+          aria-label={messages.suggestionList}
         >
           {visibleOptions.map((option, index) => (
             <div
@@ -181,6 +183,7 @@ export function SuggestionInput({
   options: string[];
   onChange: (value: string) => void;
 }) {
+  const messages = useI18n();
   const listboxId = useId();
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -267,7 +270,7 @@ export function SuggestionInput({
           id={listboxId}
           className="suggestion-popover"
           role="listbox"
-          aria-label="候选列表"
+          aria-label={messages.suggestionList}
         >
           {visibleOptions.map((option, index) => (
             <div

@@ -7,6 +7,11 @@ import {
 } from "../components/LiquidGlassSurface";
 import type { MapProjection, ResultContentOrder } from "../components/mapProjection";
 import { nextThemeMode, type ThemeMode } from "../theme";
+import {
+  readStoredLocale,
+  writeStoredLocale,
+  type Locale,
+} from "../i18n";
 
 const THEME_STORAGE_KEY = "globaltrace.themeMode";
 const RESULT_MAP_PROJECTION_STORAGE_KEY = "globaltrace.viewMode";
@@ -20,6 +25,7 @@ export function usePersistentAppSettings() {
   const [storedResultContentOrder] = useState<ResultContentOrder | null>(() => readStoredResultContentOrder());
   const [resultContentOrder, setResultContentOrder] = useState<ResultContentOrder>(storedResultContentOrder ?? "map-first");
   const [resultContentOrderPromptOpen, setResultContentOrderPromptOpen] = useState(storedResultContentOrder === null);
+  const [locale, setLocale] = useState<Locale>(readStoredLocale);
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode;
@@ -50,6 +56,11 @@ export function usePersistentAppSettings() {
     setResultContentOrderPromptOpen(false);
   }, []);
 
+  const updateLocale = useCallback((nextLocale: Locale) => {
+    setLocale(nextLocale);
+    writeStoredLocale(nextLocale);
+  }, []);
+
   return {
     themeMode,
     liquidGlassEnabled,
@@ -58,10 +69,12 @@ export function usePersistentAppSettings() {
     setResultMapProjection,
     resultContentOrder,
     resultContentOrderPromptOpen,
+    locale,
     cycleThemeMode,
     updateLiquidGlassEnabled,
     updateLiquidGlassIntensity,
     updateResultContentOrder,
+    updateLocale,
   };
 }
 

@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { useI18n } from "../i18n";
 
 interface ProbeTableProps {
   probes: GlobalpingProbe[];
@@ -14,14 +15,15 @@ interface ProbeTableProps {
 }
 
 export function ProbeTable({ probes, totalProbes, status, onPick }: ProbeTableProps) {
+  const messages = useI18n();
   const visibleRows = probes.slice(0, 160);
   return (
     <Surface asChild className="probe-table-section">
       <section>
       <div className="section-header">
         <div>
-          <h2>在线 probes</h2>
-          <p>{tableSubtitle(status, probes.length, totalProbes)}</p>
+          <h2>{messages.onlineProbes}</h2>
+          <p>{tableSubtitle(status, probes.length, totalProbes, messages)}</p>
         </div>
         <Badge variant="accent">{probes.length}</Badge>
       </div>
@@ -29,11 +31,11 @@ export function ProbeTable({ probes, totalProbes, status, onPick }: ProbeTablePr
         <Table className="probe-table">
           <TableHeader>
             <TableRow>
-              <TableHead>位置</TableHead>
+              <TableHead>{messages.location}</TableHead>
               <TableHead>ASN</TableHead>
               <TableHead>network</TableHead>
               <TableHead>tag</TableHead>
-              <TableHead aria-label="select" />
+              <TableHead aria-label={messages.select} />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -52,8 +54,8 @@ export function ProbeTable({ probes, totalProbes, status, onPick }: ProbeTablePr
                     variant="ghost"
                     size="icon"
                     type="button"
-                    title={`选择 ${probeToMagic(probe)}`}
-                    aria-label={`选择 ${probe.location.city || probe.location.country} AS${probe.location.asn}`}
+                    title={messages.selectProbeTitle(probeToMagic(probe))}
+                    aria-label={messages.selectProbeLabel(probe.location.city || probe.location.country, probe.location.asn)}
                     onClick={() => onPick(probe)}
                   >
                     <MapPin size={16} />
@@ -65,10 +67,10 @@ export function ProbeTable({ probes, totalProbes, status, onPick }: ProbeTablePr
         </Table>
       </div>
       {status === "ready" && probes.length === 0 && (
-        <div className="table-empty">当前筛选没有匹配在线 probe。</div>
+        <div className="table-empty">{messages.noTableProbes}</div>
       )}
       {probes.length > visibleRows.length && (
-        <div className="table-note">已显示前 {visibleRows.length} 条；运行时按 probes 上限选择。</div>
+        <div className="table-note">{messages.tableLimitNote(visibleRows.length)}</div>
       )}
       </section>
     </Surface>
@@ -97,7 +99,8 @@ function ProbeTags({ probe }: { probe: GlobalpingProbe }) {
   );
 }
 
-function tableSubtitle(status: "loading" | "ready" | "error", visible: number, total: number): string {
+function tableSubtitle(status: "loading" | "ready" | "error", visible: number, total: number, messages?: ReturnType<typeof useI18n>): string {
+  if (messages) return messages.tableSubtitle(status, visible, total);
   if (status === "loading") return "正在读取 Globalping probes";
   if (status === "error") return "读取失败，保留当前筛选";
   return `${visible} 匹配 / ${total} 在线`;

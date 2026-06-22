@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Button } from "./ui/button";
+import { useI18n } from "../i18n";
 
 interface GlassOverlayProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function GlassOverlay({
   priority = "default",
   surfaceCornerRadius,
 }: GlassOverlayProps) {
+  const messages = useI18n();
   const titleId = useId();
   const dialogRef = useRef<HTMLElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -124,7 +126,7 @@ export function GlassOverlay({
                 onClick={onClose}
                 className="liquid-glass-coverage overlay-close-surface"
               >
-                <Button variant="ghost" size="icon" type="button" aria-label={`关闭${title}`}>
+                <Button variant="ghost" size="icon" type="button" aria-label={messages.closeTitle(title)}>
                   <X size={18} />
                 </Button>
               </LiquidGlassSurface>

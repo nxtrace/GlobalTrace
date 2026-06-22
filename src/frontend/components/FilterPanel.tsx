@@ -7,6 +7,7 @@ import {
 import {
   Filter,
   Info,
+  Languages,
   Monitor,
   Moon,
   Play,
@@ -21,6 +22,7 @@ import {
 import type { TraceFilters, TraceProtocol } from "../../shared/types";
 import type { ResultContentOrder } from "./mapProjection";
 import { themeModeLabel, type ThemeMode } from "../theme";
+import { useI18n, type Locale } from "../i18n";
 import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { GlassOverlay } from "./GlassOverlay";
 import { Badge } from "./ui/badge";
@@ -57,6 +59,7 @@ export interface FilterPanelProps {
   nexttraceTokenSaved: boolean;
   nexttraceTokenRemembered: boolean;
   themeMode: ThemeMode;
+  locale?: Locale;
   liquidGlassEnabled: boolean;
   liquidGlassIntensity: number;
   resultContentOrder: ResultContentOrder;
@@ -76,6 +79,7 @@ export interface FilterPanelProps {
   onClearNexttraceToken: () => void;
   onNexttraceTokenRememberedChange: (remembered: boolean) => void;
   onCycleThemeMode: () => void;
+  onLocaleChange?: (locale: Locale) => void;
   onLiquidGlassEnabledChange: (enabled: boolean) => void;
   onLiquidGlassIntensityChange: (intensity: number) => void;
   onResultContentOrderChange: (value: ResultContentOrder) => void;
@@ -103,6 +107,7 @@ function readExactFiltersDefaultOpen(): boolean {
 }
 
 export function FilterPanel(props: FilterPanelProps) {
+  const messages = useI18n();
   const filterSuggestions = props.filterSuggestions ?? EMPTY_FILTER_SUGGESTIONS;
   const [advancedParamsOpen, setAdvancedParamsOpen] = useState(false);
   const exactFiltersTouchedRef = useRef(false);
@@ -117,6 +122,9 @@ export function FilterPanel(props: FilterPanelProps) {
 
   const markExactFiltersTouched = () => {
     exactFiltersTouchedRef.current = true;
+  };
+  const switchLocale = () => {
+    props.onLocaleChange?.((props.locale ?? "zh-CN") === "zh-CN" ? "en-US" : "zh-CN");
   };
 
   useEffect(() => {
@@ -165,19 +173,38 @@ export function FilterPanel(props: FilterPanelProps) {
               className="brand-home-link"
               href="/"
               onClick={(event) => handleSpaLinkClick(event, props.onNavigateHome)}
-              aria-label="返回首页"
+              aria-label={messages.home}
             >
               <h1>GlobalTrace</h1>
-              <p>全球路由追踪</p>
+              <p>{messages.brandSubtitle}</p>
             </a>
             <div className="panel-title-actions">
               <LiquidGlassSurface
                 variant="iconButton"
                 interactive
                 className="panel-action-surface"
+                onClick={switchLocale}
+                title={messages.switchLanguage}
+                ariaLabel={messages.switchLanguage}
+              >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="panel-action-button"
+                  asChild
+                >
+                  <span>
+                    <Languages size={18} />
+                  </span>
+                </Button>
+              </LiquidGlassSurface>
+              <LiquidGlassSurface
+                variant="iconButton"
+                interactive
+                className="panel-action-surface"
                 onClick={props.onCycleThemeMode}
-                title={`主题：${themeModeLabel(props.themeMode)}`}
-                ariaLabel={`主题：${themeModeLabel(props.themeMode)}`}
+                title={messages.theme(themeModeLabel(props.themeMode))}
+                ariaLabel={messages.theme(themeModeLabel(props.themeMode))}
               >
                 <Button
                   variant="ghost"
@@ -195,8 +222,8 @@ export function FilterPanel(props: FilterPanelProps) {
                 interactive
                 className="panel-action-surface"
                 onClick={openAdvancedParams}
-                title="高级参数"
-                ariaLabel="打开高级参数"
+                title={messages.advancedParams}
+                ariaLabel={messages.openAdvancedParams}
               >
                 <Button
                   variant="ghost"
@@ -214,8 +241,8 @@ export function FilterPanel(props: FilterPanelProps) {
                 interactive
                 className="panel-action-surface"
                 onClick={props.onReset}
-                title="重置筛选"
-                ariaLabel="重置筛选"
+                title={messages.resetFilters}
+                ariaLabel={messages.resetFilters}
               >
                 <Button
                   variant="ghost"
@@ -234,7 +261,7 @@ export function FilterPanel(props: FilterPanelProps) {
           <Surface asChild variant="flat" className="primary-controls-surface">
             <section
               className="control-section primary-controls"
-              aria-label="基础参数"
+              aria-label={messages.basicParams}
             >
               <div className="target-command-row">
                 <Button
@@ -245,7 +272,7 @@ export function FilterPanel(props: FilterPanelProps) {
                   onClick={() =>
                     props.onIpVersionChange(props.ipVersion === 4 ? 6 : 4)
                   }
-                  title="切换 IPv4 / IPv6"
+                  title={messages.switchIpVersion}
                 >
                   {props.ipVersion === 4 ? "IPv4" : "IPv6"}
                 </Button>
@@ -253,9 +280,9 @@ export function FilterPanel(props: FilterPanelProps) {
                   className="target-command-input border-0 bg-transparent shadow-none backdrop-blur-none hover:bg-transparent focus-visible:ring-0"
                   value={props.target}
                   onChange={(event) => props.onTargetChange(event.target.value)}
-                  placeholder="目标 IP 或域名，如 1.1.1.1、github.com"
+                  placeholder={messages.targetPlaceholder}
                   maxLength={253}
-                  aria-label="目标"
+                  aria-label={messages.target}
                 />
                 <LiquidGlassSurface
                   variant="button"
@@ -263,7 +290,7 @@ export function FilterPanel(props: FilterPanelProps) {
                   disabled={props.loading || !props.canSubmit}
                   className="run-action-surface target-run-surface"
                   onClick={props.onSubmit}
-                  ariaLabel="开始网络路径诊断"
+                  ariaLabel={messages.startTrace}
                 >
                   <Button
                     variant="primary"
@@ -279,7 +306,7 @@ export function FilterPanel(props: FilterPanelProps) {
               </div>
 
               <div className="parameter-pill-grid">
-                <div className="parameter-pill protocol-pill" aria-label="协议">
+                <div className="parameter-pill protocol-pill" aria-label={messages.protocol}>
                   {(["ICMP", "TCP", "UDP"] as TraceProtocol[]).map(
                     (protocol) => (
                       <button
@@ -299,15 +326,15 @@ export function FilterPanel(props: FilterPanelProps) {
                   )}
                 </div>
                 <label className="parameter-pill port-pill">
-                  <span className="parameter-pill-label">端口</span>
+                  <span className="parameter-pill-label">{messages.port}</span>
                   <span
                     className="parameter-pill-editable port-pill-value"
                     role="textbox"
                     contentEditable
                     suppressContentEditableWarning
                     inputMode="numeric"
-                    data-placeholder="自动"
-                    aria-label="端口"
+                    data-placeholder={messages.auto}
+                    aria-label={messages.port}
                     onInput={(event) =>
                       props.onPortChange(
                         sanitizeEditableDigits(event.currentTarget),
@@ -373,10 +400,10 @@ export function FilterPanel(props: FilterPanelProps) {
             fullWidth
             className="filter-summary-surface"
           >
-            <section className="filter-summary" aria-label="当前筛选">
+            <section className="filter-summary" aria-label={messages.currentFilters}>
               <div className="summary-title">
                 <Filter size={16} />
-                <span>当前筛选</span>
+                <span>{messages.currentFilters}</span>
               </div>
               <div className="chip-row" data-testid="filter-chips">
                 {props.chips.map((chip) =>
@@ -398,6 +425,7 @@ export function FilterPanel(props: FilterPanelProps) {
                     props.probesStatus,
                     props.visibleProbes,
                     props.totalProbes,
+                    messages,
                   )}
                 </span>
                 {props.selectionNotice && (
@@ -423,24 +451,24 @@ export function FilterPanel(props: FilterPanelProps) {
                 }}
               >
                 <Filter size={16} />
-                精确筛选
+                {messages.exactFilters}
               </summary>
 
               <div className="advanced-panel-body">
                 <div className="control-grid">
                   <label className="field-label">
-                    <span>国家/地区</span>
+                    <span>{messages.countryRegion}</span>
                     <SuggestionInput
-                      label="国家/地区"
+                      label={messages.countryRegion}
                       value={props.filters.country || ""}
                       options={filterSuggestions.countries}
                       onChange={(value) => setFilter("country", value)}
                     />
                   </label>
                   <label className="field-label">
-                    <span>城市</span>
+                    <span>{messages.city}</span>
                     <SuggestionInput
-                      label="城市"
+                      label={messages.city}
                       value={props.filters.city || ""}
                       options={filterSuggestions.cities}
                       onChange={(value) => setFilter("city", value)}
@@ -476,7 +504,7 @@ export function FilterPanel(props: FilterPanelProps) {
                   />
                 </label>
 
-                <div className="segmented" aria-label="网络类型">
+                <div className="segmented" aria-label={messages.networkType}>
                   <label className={props.filters.eyeball ? "selected" : ""}>
                     <span>eyeball</span>
                     <Switch
@@ -504,7 +532,7 @@ export function FilterPanel(props: FilterPanelProps) {
 
           <GlassOverlay
             open={advancedParamsOpen}
-            title="高级参数"
+            title={messages.advancedParams}
             size="compact"
             chrome="default"
             placement="center"
@@ -551,11 +579,11 @@ export function FilterPanel(props: FilterPanelProps) {
                   asChild
                   variant="ghost"
                   size="sm"
-                  aria-label="关于 GlobalTrace"
+                  aria-label={messages.aboutGlobalTrace}
                 >
                   <a href="/about" onClick={(event) => handleSpaLinkClick(event, props.onNavigateAbout)}>
                     <Info size={15} />
-                    关于
+                    {messages.about}
                   </a>
                 </Button>
               </LiquidGlassSurface>
@@ -614,7 +642,9 @@ function probeStatusText(
   status: "loading" | "ready" | "error",
   visible: number,
   total: number,
+  messages?: ReturnType<typeof useI18n>,
 ): string {
+  if (messages) return messages.probeStatus(status, visible, total);
   if (status === "loading") return "probes 加载中";
   if (status === "error") return "probes 读取失败";
   return `${visible} / ${total} probes 匹配`;

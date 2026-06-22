@@ -276,7 +276,21 @@ export interface FilterChip {
   value: string;
 }
 
-export function filterChips(filters: TraceFilters | undefined): FilterChip[] {
+export interface FilterChipLabelOptions {
+  country: string;
+  city: string;
+  type: string;
+  scope: string;
+}
+
+const DEFAULT_FILTER_CHIP_LABELS: FilterChipLabelOptions = {
+  country: "国家/地区",
+  city: "城市",
+  type: "类型",
+  scope: "范围",
+};
+
+export function filterChips(filters: TraceFilters | undefined, labels: FilterChipLabelOptions = DEFAULT_FILTER_CHIP_LABELS): FilterChip[] {
   const out: FilterChip[] = [];
   const magic = activeMagic(filters);
   if (magic) {
@@ -284,19 +298,19 @@ export function filterChips(filters: TraceFilters | undefined): FilterChip[] {
     return out;
   }
 
-  addChip(out, "country", "国家/地区", filters?.country);
-  addChip(out, "city", "城市", filters?.city);
+  addChip(out, "country", labels.country, filters?.country);
+  addChip(out, "city", labels.city, filters?.city);
   addChip(out, "asn", "ASN", normalizeAsn(filters?.asn));
   addChip(out, "network", "network", filters?.network);
   addChip(out, "tag", "tag", filters?.tag);
-  if (filters?.eyeball) out.push({ key: "eyeball", label: "类型", value: "eyeball" });
-  if (filters?.datacenter) out.push({ key: "datacenter", label: "类型", value: "datacenter" });
-  if (out.length === 0) out.push({ key: WORLD_MAGIC, label: "范围", value: WORLD_MAGIC });
+  if (filters?.eyeball) out.push({ key: "eyeball", label: labels.type, value: "eyeball" });
+  if (filters?.datacenter) out.push({ key: "datacenter", label: labels.type, value: "datacenter" });
+  if (out.length === 0) out.push({ key: WORLD_MAGIC, label: labels.scope, value: WORLD_MAGIC });
   return out;
 }
 
-export function filterSummaryText(filters: TraceFilters | undefined): string {
-  return filterChips(filters)
+export function filterSummaryText(filters: TraceFilters | undefined, labels?: FilterChipLabelOptions): string {
+  return filterChips(filters, labels)
     .map((chip) => `${chip.label}: ${chip.value}`)
     .join(" / ");
 }

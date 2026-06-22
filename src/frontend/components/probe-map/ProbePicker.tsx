@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { Badge } from "../ui/badge";
 import type { ProbePickerGroup, ProbePickerState } from "./types";
+import { useI18n } from "../../i18n";
 
 interface ProbePickerProps {
   picker: ProbePickerState;
@@ -15,16 +16,18 @@ export function ProbePicker({
   onClose,
   onPickGroup,
 }: ProbePickerProps) {
+  const messages = useI18n();
+  const title = locationTitle(picker);
   return (
     <div
       className={picker.pinned ? "probe-picker pinned" : "probe-picker"}
       style={{ left: picker.left, top: picker.top }}
       role="dialog"
-      aria-label={`${locationTitle(picker)} probe candidates`}
+      aria-label={messages.probeCandidates(title)}
     >
       <header className="probe-picker-header">
         <div>
-          <strong>{locationTitle(picker)}</strong>
+          <strong>{title}</strong>
           {picker.country && <span>{picker.country}</span>}
         </div>
         <Badge variant="accent">+ {picker.total}</Badge>
@@ -32,14 +35,14 @@ export function ProbePicker({
           <button
             type="button"
             className="probe-picker-close"
-            aria-label="关闭 probe 候选列表"
+            aria-label={messages.closeProbeCandidates}
             onClick={onClose}
           >
             <X size={17} />
           </button>
         )}
       </header>
-      <div className="probe-picker-list" role="listbox" aria-label="probe ASN candidates">
+      <div className="probe-picker-list" role="listbox" aria-label={messages.probeAsnCandidates}>
         {picker.groups.map((group) => (
           <button
             type="button"
