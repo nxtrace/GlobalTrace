@@ -468,6 +468,34 @@ describe("App", () => {
     expect(window.localStorage.getItem("globaltrace.tracePackets")).toBeNull();
   });
 
+  it("warns and can reduce a manually raised probe limit", async () => {
+    mockApi();
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    expect(
+      screen.queryByText("Probe 越多，结果获取通常越慢。"),
+    ).not.toBeInTheDocument();
+
+    editTextControl("Limit", "4");
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
+      expect(
+        screen.getByText("Probe 越多，结果获取通常越慢。"),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "降到 3" }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
+      expect(
+        screen.queryByText("Probe 越多，结果获取通常越慢。"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it("persists liquid glass preference locally", async () => {
     mockApi();
     setNavigatorDevice({
@@ -1144,6 +1172,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("Limit")).toHaveTextContent("10");
     });
+    expect(screen.getByText("Probe 越多，结果获取通常越慢。")).toBeInTheDocument();
   });
 
   it("normalizes reversed magic filters before creating a trace", async () => {
@@ -1158,6 +1187,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("Limit")).toHaveTextContent("4");
     });
+    expect(screen.getByText("Probe 越多，结果获取通常越慢。")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();

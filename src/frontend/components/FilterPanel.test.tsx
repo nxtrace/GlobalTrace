@@ -905,6 +905,27 @@ describe("FilterPanel", () => {
     ).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("warns when the probe limit is above the default and can reduce it", () => {
+    const onLimitChange = vi.fn();
+    const first = renderPanel({ limit: 4, onLimitChange });
+
+    expect(
+      screen.getByText("Probe 越多，结果获取通常越慢。"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "降到 3" }));
+    expect(onLimitChange).toHaveBeenCalledWith(3);
+
+    first.unmount();
+    renderPanel({ limit: 3 });
+
+    expect(
+      screen.queryByText("Probe 越多，结果获取通常越慢。"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "降到 3" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("updates token controls, theme, and about actions", () => {
     const onGlobalpingTokenDraftChange = vi.fn();
     const onSaveGlobalpingToken = vi.fn();

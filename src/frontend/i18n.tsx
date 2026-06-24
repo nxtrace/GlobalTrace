@@ -38,6 +38,8 @@ export interface Messages {
   aboutGlobalTrace: string;
   about: string;
   probeStatus: (status: "loading" | "ready" | "error", visible: number, total: number) => string;
+  probeLimitSlowNotice: string;
+  reduceProbeLimit: (limit: number) => string;
   filterChipLabels: FilterChipLabels;
   uiEffects: string;
   liquidGlassEffect: string;
@@ -174,6 +176,8 @@ const zhCN: Messages = {
     if (status === "error") return "probes 读取失败";
     return `${visible} / ${total} probes 匹配`;
   },
+  probeLimitSlowNotice: "Probe 越多，结果获取通常越慢。",
+  reduceProbeLimit: (limit) => `降到 ${limit}`,
   filterChipLabels: { country: "国家/地区", city: "城市", type: "类型", scope: "范围" },
   uiEffects: "界面效果",
   liquidGlassEffect: "液态玻璃效果",
@@ -315,6 +319,8 @@ const enUS: Messages = {
     if (status === "error") return "Failed to load probes";
     return `${visible} / ${total} probes matched`;
   },
+  probeLimitSlowNotice: "More probes usually take longer to fetch.",
+  reduceProbeLimit: (limit) => `Use ${limit}`,
   filterChipLabels: { country: "Country/Region", city: "City", type: "Type", scope: "Scope" },
   uiEffects: "Interface effects",
   liquidGlassEffect: "Liquid glass effect",

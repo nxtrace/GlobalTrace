@@ -19,7 +19,11 @@ import {
   type FilterChip,
   type ProbeFilterSuggestions,
 } from "../../shared/filters";
-import type { TraceFilters, TraceProtocol } from "../../shared/types";
+import {
+  DEFAULT_PROBE_LIMIT,
+  type TraceFilters,
+  type TraceProtocol,
+} from "../../shared/types";
 import type { ResultContentOrder } from "./mapProjection";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { useI18n, type Locale } from "../i18n";
@@ -392,6 +396,20 @@ export function FilterPanel(props: FilterPanelProps) {
                   />
                 </label>
               </div>
+              {props.limit > DEFAULT_PROBE_LIMIT && (
+                <div className="limit-warning" role="status">
+                  <span>{messages.probeLimitSlowNotice}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    className="limit-warning-action"
+                    onClick={() => props.onLimitChange(DEFAULT_PROBE_LIMIT)}
+                  >
+                    {messages.reduceProbeLimit(DEFAULT_PROBE_LIMIT)}
+                  </Button>
+                </div>
+              )}
             </section>
           </Surface>
 
