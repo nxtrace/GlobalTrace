@@ -30,7 +30,7 @@
     "clsx": "^2.1.1",
     "hono": "^4.12.25",
     "liquid-glass-react": "^1.1.1",
-    "lucide-react": "^1.21.0",
+    "lucide-react": "^1.23.0",
     "maplibre-gl": "^5.24.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
