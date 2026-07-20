@@ -28,7 +28,7 @@
     "@radix-ui/react-tooltip": "^1.2.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "hono": "^4.12.30",
+    "hono": "^4.12.31",
     "liquid-glass-react": "^1.1.1",
     "lucide-react": "^1.23.0",
     "maplibre-gl": "^5.24.0",
