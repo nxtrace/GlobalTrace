@@ -61,6 +61,9 @@
     "wrangler": "^4.105.0"
   },
   "overrides": {
-    "esbuild": "0.28.1"
+    "esbuild": "0.28.1",
+    "miniflare": {
+      "sharp": "0.35.3"
+    }
   }
 }
