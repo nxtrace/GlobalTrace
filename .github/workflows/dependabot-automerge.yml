@@ -30,8 +30,39 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check grouped patch updates
+        id: grouped
+        env:
+          DEPENDENCY_GROUP: ${{ steps.metadata.outputs.dependency-group }}
+          DEPENDENCY_NAMES: ${{ steps.metadata.outputs.dependency-names }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const expected = (process.env.DEPENDENCY_NAMES ?? '')
+            .split(',')
+            .map((name) => name.trim())
+            .filter(Boolean)
+          const updates = [...(process.env.PR_BODY ?? '').matchAll(
+            /^Updates `([^`]+)` from v?(\d+)\.(\d+)\.(\d+) to v?(\d+)\.(\d+)\.(\d+)$/gm,
+          )]
+          const names = new Set(updates.map(([, name]) => name))
+          const patchOnly = Boolean(process.env.DEPENDENCY_GROUP) &&
+            expected.length > 0 &&
+            updates.length === expected.length &&
+            expected.every((name) => names.has(name)) &&
+            updates.every(([, , fromMajor, fromMinor, fromPatch, toMajor, toMinor, toPatch]) =>
+              fromMajor === toMajor &&
+              fromMinor === toMinor &&
+              Number(toPatch) > Number(fromPatch),
+            )
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `patch-only=${patchOnly}\n`)
+          NODE
+
       - name: Enable auto-merge for patch updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.grouped.outputs.patch-only == 'true'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
