@@ -58,12 +58,9 @@
     "typescript-eslint": "^8.62.0",
     "vite": "^8.1.5",
     "vitest": "^4.1.10",
-    "wrangler": "^4.105.0"
+    "wrangler": "^4.114.0"
   },
   "overrides": {
-    "esbuild": "0.28.1",
-    "miniflare": {
-      "sharp": "0.35.3"
-    }
+    "esbuild": "0.28.1"
   }
 }
