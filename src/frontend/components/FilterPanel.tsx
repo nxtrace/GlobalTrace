@@ -36,7 +36,7 @@ import { Surface } from "./ui/surface";
 import { AdvancedParamsPanel } from "./filter-panel/AdvancedParamsPanel";
 import { ExactFiltersForm } from "./filter-panel/ExactFiltersForm";
 import { QuotaMeter, type QuotaState } from "./filter-panel/QuotaMeter";
-import { MagicSuggestionTextarea, SuggestionInput } from "./filter-panel/suggestions";
+import { MagicSuggestionTextarea } from "./filter-panel/suggestions";
 import { handleSpaLinkClick } from "./spaNavigation";
 import { countrySuggestionLabel } from "../lib/countryNames";
 
