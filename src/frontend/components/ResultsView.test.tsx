@@ -26,7 +26,7 @@ const maplibreMock = vi.hoisted(() => {
     readonly sources = new Map<string, FakeSource>();
     readonly styleLayers = FakeMap.styleLayers.map((layer) => ({ ...layer }));
     readonly layers: Record<string, unknown>[] = [];
-    readonly eventHandlers = new Map<string, () => void>();
+    readonly eventHandlers = new Map<string, (event?: unknown) => void>();
     readonly layerEventHandlers = new Map<string, (event: { features?: Array<{ properties?: Record<string, unknown> }> }) => void>();
     readonly fitBoundsCalls: unknown[] = [];
     readonly easeToCalls: unknown[] = [];
@@ -61,7 +61,7 @@ const maplibreMock = vi.hoisted(() => {
         if (handler) this.layerEventHandlers.set(`${event}:${layerOrHandler}`, handler);
         return this;
       }
-      this.eventHandlers.set(event, layerOrHandler);
+      this.eventHandlers.set(event, layerOrHandler as (event?: unknown) => void);
       return this;
     }
 
@@ -146,8 +146,8 @@ const maplibreMock = vi.hoisted(() => {
       this.eventHandlers.get("load")?.();
     }
 
-    triggerError() {
-      this.eventHandlers.get("error")?.();
+    triggerError(url = "about:blank") {
+      this.eventHandlers.get("error")?.({ error: { message: "map resource failed", url } });
     }
 
     triggerLayerClick(layer: string, properties: Record<string, unknown>) {
@@ -238,9 +238,11 @@ vi.mock("maplibre-gl", () => ({
 }));
 
 let consoleDebugSpy: ReturnType<typeof vi.spyOn>;
+let originalClipboardDescriptor: PropertyDescriptor | undefined;
 
 beforeEach(() => {
   consoleDebugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+  originalClipboardDescriptor = Object.getOwnPropertyDescriptor(window.navigator, "clipboard");
 });
 
 afterEach(() => {
@@ -248,6 +250,11 @@ afterEach(() => {
   maplibreMock.FakeMap.instances = [];
   maplibreMock.FakeMarker.instances = [];
   maplibreMock.FakePopup.instances = [];
+  if (originalClipboardDescriptor) {
+    Object.defineProperty(window.navigator, "clipboard", originalClipboardDescriptor);
+  } else {
+    delete (window.navigator as unknown as { clipboard?: Clipboard }).clipboard;
+  }
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -675,10 +682,14 @@ describe("ResultsView", () => {
     expect(map.setProjectionCalls).toEqual([{ type: "mercator" }]);
   });
 
-  it("reveals an accessible error when result map startup fails and clears it after load", async () => {
+  it("ignores resource errors but reveals a result style failure until load", async () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" />);
     const map = await latestMap();
     const container = screen.getByLabelText("trace result map");
+
+    act(() => map.triggerError("https://tiles.example.test/0/0/0.png"));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
     act(() => map.triggerError());
 

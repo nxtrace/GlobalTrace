@@ -20,6 +20,7 @@ import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { addMapAttribution } from "./mapAttribution";
+import { isInitialMapStyleLoadError } from "./mapLoadError";
 import { applyMapPalette, subscribeMapPaletteScheme } from "./mapPalette";
 import type { MapProjection } from "./mapProjection";
 import { useI18n, type Messages } from "../i18n";
@@ -585,8 +586,8 @@ function ResultMap({
     });
     addMapAttribution(map);
     let stopPackets: (() => void) | null = null;
-    const handleMapError = () => {
-      if (loadedRef.current) return;
+    const handleMapError = (event: unknown) => {
+      if (loadedRef.current || !isInitialMapStyleLoadError(event, mapStyleUrl)) return;
       container.classList.add("is-map-ready");
       setMapLoadError(true);
     };

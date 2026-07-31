@@ -48,7 +48,7 @@ const maplibreMock = vi.hoisted(() => {
     readonly sources = new Map<string, FakeSource>();
     readonly layers: Record<string, unknown>[] = [];
     readonly layerHandlers = new Map<string, FakeLayerHandler>();
-    readonly eventHandlers = new Map<string, () => void>();
+    readonly eventHandlers = new Map<string, (event?: unknown) => void>();
     readonly options: Record<string, unknown>;
     readonly fitBoundsCalls: unknown[] = [];
     readonly cameraForBoundsCalls: unknown[] = [];
@@ -102,7 +102,7 @@ const maplibreMock = vi.hoisted(() => {
       if (typeof layerOrHandler === "string" && handler) {
         this.layerHandlers.set(`${event}:${layerOrHandler}`, handler);
       } else if (typeof layerOrHandler === "function") {
-        this.eventHandlers.set(event, layerOrHandler as () => void);
+        this.eventHandlers.set(event, layerOrHandler as (event?: unknown) => void);
       }
       return this;
     }
@@ -199,8 +199,8 @@ const maplibreMock = vi.hoisted(() => {
       this.eventHandlers.get("load")?.();
     }
 
-    triggerError() {
-      this.eventHandlers.get("error")?.();
+    triggerError(url = "/mock-style.json") {
+      this.eventHandlers.get("error")?.({ error: { message: "map resource failed", url } });
     }
 
     triggerLayer(event: string, layer: string, point = { x: 10, y: 10 }) {
@@ -244,10 +244,14 @@ describe("ProbeMap", () => {
     expect(document.querySelector(".maplibregl-canvas")).not.toBeNull();
   });
 
-  it("reveals an accessible error when startup fails and clears it if load later succeeds", () => {
+  it("ignores resource errors but reveals an initial style failure until load succeeds", () => {
     renderMap();
     const map = latestMap();
     const container = screen.getByLabelText("probe map").querySelector(".map-container");
+
+    act(() => map.triggerError("/tiles/0/0/0.png"));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
     act(() => map.triggerError());
 

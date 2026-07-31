@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FeatureCollection, Point } from "geojson";
 import { compactText, normalizeAsn } from "../../shared/filters";
 import { addMapAttribution } from "./mapAttribution";
+import { isInitialMapStyleLoadError } from "./mapLoadError";
 import {
   applyMapPalette,
   applyProbeMarkerPalette,
@@ -112,8 +113,8 @@ export function ProbeMap({
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     addMapAttribution(map);
     mapIntroPlayedRef.current = false;
-    const handleMapError = () => {
-      if (mapIntroPlayedRef.current) return;
+    const handleMapError = (event: unknown) => {
+      if (mapIntroPlayedRef.current || !isInitialMapStyleLoadError(event, mapStyleUrl)) return;
       container.classList.add("is-map-ready");
       setMapLoadError(true);
     };
