@@ -6,7 +6,7 @@ import type {
 } from "../../src/shared/types";
 
 const screenshotPrefix =
-  process.env.GLOBALTRACE_SCREENSHOT_PREFIX || "globaltrace-liquid-glass";
+  process.env.GLOBALTRACE_SCREENSHOT_PREFIX || "globaltrace";
 
 const viewports = [
   { name: "1440x1000", width: 1440, height: 1000 },
@@ -65,7 +65,7 @@ for (const viewport of viewports) {
     );
     await page.getByRole("button", { name: "打开高级参数" }).click();
     await expect(page.getByRole("dialog", { name: "高级参数" })).toBeVisible();
-    await expectGlassOverlayStructure(page, "高级参数");
+    await expectOverlayStructure(page, "高级参数");
     await expect(page.getByLabel("Globalping Token")).toBeVisible();
     await expect(
       page.getByRole("dialog", { name: "高级参数" }).getByLabel("Packets"),
@@ -83,10 +83,12 @@ for (const viewport of viewports) {
     await page.getByRole("button", { name: "关闭高级参数" }).click();
     await page.getByRole("button", { name: "主题：Light" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    const quotaMeter = page.getByLabel("诊断额度");
     await expect(
-      page.getByText("Globalping credits 控制诊断创建"),
+      quotaMeter.getByText("Globalping credits 控制诊断创建"),
     ).toBeVisible();
-    await expect(page.getByText("可创建诊断 249/250（当前 IP）")).toBeVisible();
+    await expect(quotaMeter.getByText("249 / 250")).toBeVisible();
+    await expect(quotaMeter.getByText("当前 IP")).toBeVisible();
     await expect(
       page.getByText("从全球探针发起 MTR，展示跳点延迟、丢包与地理信息"),
     ).toHaveCount(0);
@@ -131,16 +133,24 @@ for (const viewport of viewports) {
       "rgba(0, 0, 0, 0)",
     );
     await expect(attributionPanel).toHaveCSS("box-shadow", "none");
-    const parameterPillsTop = await Promise.all(
-      [".protocol-pill", ".port-pill", ".packets-pill", ".limit-pill"].map(
+    // Protocol shares a row with IP version; port/packets/limit share the next row.
+    const numericPillsTop = await Promise.all(
+      [".port-pill", ".packets-pill", ".limit-pill"].map(
         async (selector) =>
           (await page.locator(selector).boundingBox())?.y ?? Number.NaN,
       ),
     );
-    const firstParameterPillTop = parameterPillsTop[0];
-    for (const pillTop of parameterPillsTop) {
-      expect(Math.abs(pillTop - firstParameterPillTop)).toBeLessThanOrEqual(1);
+    for (const pillTop of numericPillsTop) {
+      expect(Number.isFinite(pillTop)).toBe(true);
     }
+    const firstNumericPillTop = numericPillsTop[0] ?? Number.NaN;
+    for (const pillTop of numericPillsTop) {
+      expect(Math.abs(pillTop - firstNumericPillTop)).toBeLessThanOrEqual(1);
+    }
+    const protocolTop =
+      (await page.locator(".protocol-pill").boundingBox())?.y ?? Number.NaN;
+    expect(Number.isFinite(protocolTop)).toBe(true);
+    expect(protocolTop).toBeLessThan(firstNumericPillTop);
     const protocolOptionGaps = await page.evaluate(() => {
       const optionBoxes = Array.from(
         document.querySelectorAll(".protocol-pill-option"),
@@ -226,15 +236,16 @@ for (const viewport of viewports) {
         fullPage: true,
       });
     }
-    await expect(page.locator("[data-liquid-glass]").first()).toBeVisible();
-    await expect(page.locator("[data-liquid-glass]").first()).toHaveAttribute(
-      "data-liquid-glass-mode",
-      /^(liquid|fallback)$/,
-    );
     await expect.poll(mocks.styleRequests).toBe(1);
-    await expect(page.getByRole("button", { name: "IPv4" })).toBeVisible();
-    await page.getByRole("button", { name: "IPv4" }).click();
-    await expect(page.getByRole("button", { name: "IPv6" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "IPv4" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.getByRole("button", { name: "IPv6" }).click();
+    await expect(page.getByRole("button", { name: "IPv6" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     await ensureExactFiltersOpen(page);
     await page.getByLabel("国家/地区").fill("US");
@@ -255,6 +266,8 @@ for (const viewport of viewports) {
     await expectSuggestionPopoverReadable(networkSuggestions);
     await page.keyboard.press("Escape");
     await expect.poll(mocks.styleRequests).toBe(1);
+    // Default probe camera stays Asia-centric for worldwide sets; locate LA first.
+    await locateProbeOnMap(page, "Los Angeles", 7922);
     await expectMapContainsCoordinate(page, [-118.24, 34.05]);
     await expectMapProjectsCoordinateInsideCanvas(page, [-118.24, 34.05]);
 
@@ -265,17 +278,17 @@ for (const viewport of viewports) {
         page.getByLabel("probe map").getByText("已添加框选 1 个 probes"),
       ).toHaveCount(0);
       await expect(
-        page.getByRole("button", { name: "取消地图筛选" }),
+        page.getByRole("button", { name: "清空已选" }),
       ).toBeVisible();
       await expect(page.getByLabel("Limit")).toHaveText("1");
-      await page.getByRole("button", { name: "取消地图筛选" }).click();
+      await page.getByRole("button", { name: "清空已选" }).click();
       await expect(page.getByText("3 / 3 probes 匹配")).toBeVisible();
       await expect(page.getByTestId("filter-chips")).toContainText("world");
       await expect(
         page.getByLabel("probe map").getByText("点选地图选择筛选条件"),
       ).toHaveCount(0);
       await expect(
-        page.getByRole("button", { name: "取消地图筛选" }),
+        page.getByRole("button", { name: "清空已选" }),
       ).toHaveCount(0);
       await expect(page.getByLabel("Limit")).toHaveText("3");
       await selectMapAsnAtCoordinate(
@@ -295,13 +308,14 @@ for (const viewport of viewports) {
 
     await page.getByRole("button", { name: "开始网络路径诊断" }).click();
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "读取诊断结果" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "诊断结果", exact: true })).toBeVisible();
     await expectBareResultOverlay(page);
     await expect(page.getByRole("link", { name: "打开" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "分享" })).toBeVisible();
     await expect(page.getByLabel("probe map")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "在线 probes" }),
+      page.getByRole("heading", { name: "在线 Probes" }),
     ).toBeVisible();
     await expectVisibleHopText(page, "AS15169");
     await expectVisibleHopText(page, "Google LLC / Google");
@@ -310,7 +324,7 @@ for (const viewport of viewports) {
       await expectPeerAsHopLink(page);
     }
     await expect(page.getByLabel("trace result map")).toBeVisible();
-    await expectMapCanvasPainted(page);
+    await expectResultMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
     await expectResultMapContainsCoordinate(page, [-118.24, 34.05]);
     await expectResultMapContainsCoordinate(page, [-122.08, 37.39]);
@@ -326,19 +340,19 @@ for (const viewport of viewports) {
     await page.getByRole("button", { name: "关闭结果" }).click();
     await expect(page.getByLabel("probe map")).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "在线 probes" }),
+      page.getByRole("heading", { name: "在线 Probes" }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "查看结果" })).toBeVisible();
     await page.getByRole("button", { name: "查看结果" }).click();
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
-    await expectMapCanvasPainted(page);
+    await expectResultMapCanvasPainted(page);
     await expectResultMapStyleLoaded(page);
 
     await page.goto("/?measurement=m-smoke");
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
 
     await expectNoPageOverflow(page);
-    await expectMapCanvasPainted(page);
+    await expectResultMapCanvasPainted(page);
     expect(consoleErrors).toEqual([]);
 
     await page.screenshot({
@@ -359,20 +373,20 @@ test("first-time result layout dialog stays above shared result links", async ({
 
   await page.goto("/?measurement=m-smoke");
 
-  const dialog = page.getByRole("dialog", { name: "结果页面显示顺序" });
+  const dialog = page.getByRole("dialog", { name: "显示模式" });
   await expect(dialog).toBeVisible();
   await expect(
     dialog.getByText("后续如果还想改，可以在高级参数中修改。"),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "关闭结果页面显示顺序" }),
+    page.getByRole("button", { name: "关闭显示模式" }),
   ).toHaveCount(0);
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
 
   const blockingZIndex = await page
-    .locator(".glass-overlay-blocking")
+    .locator(".overlay-blocking")
     .evaluate((overlay) =>
       Number.parseInt(window.getComputedStyle(overlay).zIndex, 10),
     );
@@ -389,7 +403,7 @@ test("first-time result layout dialog stays above shared result links", async ({
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   const resultZIndex = await page
-    .locator(".glass-overlay-result")
+    .locator(".result-slideover")
     .evaluate((overlay) =>
       Number.parseInt(window.getComputedStyle(overlay).zIndex, 10),
     );
@@ -430,29 +444,31 @@ for (const viewport of [
     await page.getByRole("button", { name: "开始网络路径诊断" }).click();
 
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+    const resultPanel = page.locator(".result-slideover");
+    await resultPanel.getByRole("group", { name: "结果地图视图" }).scrollIntoViewIfNeeded();
     await expect(
-      page.getByRole("group", { name: "结果地图视图" }),
+      resultPanel.getByRole("group", { name: "结果地图视图" }),
     ).toBeVisible();
     await expectResultHeaderActions(page);
     await expectNoResultSummaryMetrics(page);
     await expect(
-      page.getByRole("button", { name: "切换结果地图到 2D" }),
+      resultPanel.getByRole("button", { name: "切换结果地图到 2D" }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(
       page.getByRole("tab", { name: /Los Angeles/ }),
     ).toHaveAttribute("aria-selected", "true");
     await expectHopTableColumns(page);
     await expectVisibleHopText(page, "8.8.8.8");
-    await expect(page.getByLabel("trace result map")).toBeVisible();
-    await expectMapCanvasPainted(page);
+    await expect(resultPanel.getByLabel("trace result map")).toBeVisible();
+    await expectResultMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
     await expectResultMapHeight(page);
 
-    await page.getByRole("button", { name: "切换结果地图到 3D" }).click();
+    await resultPanel.getByRole("button", { name: "切换结果地图到 3D" }).click();
 
     await expectResultMapProjection(page, "globe");
     await expect(
-      page.getByRole("button", { name: "切换结果地图到 3D" }),
+      resultPanel.getByRole("button", { name: "切换结果地图到 3D" }),
     ).toHaveAttribute("aria-pressed", "true");
     await expectResultMapHasCountryLabelStyle(page);
     await expectResultMapGlobeLineStyle(page);
@@ -507,33 +523,37 @@ for (const viewport of mobileResultViewports) {
     await page.goto("/?measurement=m-smoke");
 
     await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+    const resultPanel = page.locator(".result-slideover");
+    await resultPanel.getByRole("group", { name: "结果地图视图" }).scrollIntoViewIfNeeded();
     await expect(
-      page.getByRole("group", { name: "结果地图视图" }),
+      resultPanel.getByRole("group", { name: "结果地图视图" }),
     ).toBeVisible();
     await expectResultHeaderActions(page);
     await expect(
-      page.getByRole("button", { name: "切换结果地图到 2D" }),
+      resultPanel.getByRole("button", { name: "切换结果地图到 2D" }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "分享" })).toBeVisible();
     await expect(page.getByRole("button", { name: "关闭结果" })).toBeVisible();
     await expect(
       page.getByRole("tab", { name: /Los Angeles/ }),
     ).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByLabel("trace result map")).toBeVisible();
-    await expectMapCanvasPainted(page);
+    await expect(resultPanel.getByLabel("trace result map")).toBeVisible();
+    await expectResultMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
 
-    await page.getByRole("button", { name: "切换结果地图到 3D" }).click();
+    await resultPanel.getByRole("button", { name: "切换结果地图到 3D" }).click();
 
     await expectResultMapProjection(page, "globe");
     await expect(
-      page.getByRole("button", { name: "切换结果地图到 3D" }),
+      resultPanel.getByRole("button", { name: "切换结果地图到 3D" }),
     ).toHaveAttribute("aria-pressed", "true");
     await expectResultMapStyleLoaded(page);
-    await page.getByText("raw output").click();
-    await page.getByText("whois / source details").click();
+    await resultPanel.getByText("raw output").scrollIntoViewIfNeeded();
+    await resultPanel.getByText("raw output").click();
+    await resultPanel.getByText("whois / source details").click();
     await expect(page.getByText("Host Loss% Avg")).toBeVisible();
     await expect(page.getByText(/google-whois/)).toBeVisible();
+    await resultPanel.getByLabel("trace result map").scrollIntoViewIfNeeded();
     await expectMobileResultLayout(page);
     await expectNoPageOverflow(page);
     expect(consoleErrors).toEqual([]);
@@ -705,6 +725,8 @@ test("generic magic and tag suggestions come from visible mock probes", async ({
     }),
   ).toBeVisible();
 
+  await page.keyboard.press("Escape");
+  await expect(magicSuggestions).toHaveCount(0);
   await page.getByRole("button", { name: "重置筛选" }).click();
   await expect(magicInput).toHaveValue("");
   await ensureExactFiltersOpen(page);
@@ -729,7 +751,7 @@ test("saved NextTrace token sends browser batch request", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByText("NextTrace API Token 直连已启用")).toBeVisible();
-  await expect(page.getByText("可创建诊断 249/250（当前 IP）")).toBeVisible();
+  await expect(page.getByLabel("诊断额度").getByText("249 / 250")).toBeVisible();
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
@@ -863,7 +885,7 @@ test("shared measurement link shows loading while Globalping responds", async ({
   await expect(
     page.getByRole("status", { name: "正在读取 measurement" }),
   ).toBeVisible();
-  await expectGlassOverlayStructure(page, "读取诊断结果");
+  await expectOverlayStructure(page, "读取诊断结果");
   await expect(
     page.getByText("正在读取 Globalping measurement，完成后会自动展示结果。"),
   ).toBeVisible();
@@ -874,7 +896,7 @@ test("shared measurement link shows loading while Globalping responds", async ({
   releaseMeasurement();
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "诊断结果", exact: true })).toBeVisible();
   await expectBareResultOverlay(page);
   await expect(page.getByRole("link", { name: "打开" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "分享" })).toBeVisible();
@@ -913,16 +935,194 @@ test("created measurement loading dialog can be cancelled", async ({
   await expect(page.locator(".loading-strip")).toHaveCount(0);
   await expect(page).toHaveURL(/measurement=m-smoke/);
 
+  // Backdrop clicks must not abort an in-flight measurement load.
+  await page.locator(".overlay").click({ position: { x: 8, y: 8 } });
+  await expect(
+    page.getByRole("dialog", { name: "读取诊断结果" }),
+  ).toBeVisible();
+
   await page.getByRole("button", { name: "关闭读取诊断结果" }).click();
   await expect(page.getByRole("dialog", { name: "读取诊断结果" })).toHaveCount(
     0,
   );
+  await expect(page).not.toHaveURL(/measurement=/);
   await expect(page.getByLabel("probe map")).toBeVisible();
 
   releaseMeasurement();
 
-  await expect(page.getByRole("dialog", { name: "诊断结果" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "诊断结果", exact: true })).toHaveCount(0);
   await expect(page.getByText("finished · 1 probes · m-smoke")).toHaveCount(0);
+  await expectNoPageOverflow(page);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("map-first workspace fills the viewport and keeps the probe list in a drawer", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page, { resultLayoutPreference: "map-first" });
+
+  await page.goto("/");
+
+  await expect(page.getByLabel("probe map")).toBeVisible();
+  await expect(page.locator(".map-toolbar")).toBeVisible();
+  const layout = await page.evaluate(() => {
+    const shell = document.querySelector(".app-shell") as HTMLElement;
+    const map = document.querySelector(".map-container") as HTMLElement;
+    const panel = document.querySelector(".filter-panel") as HTMLElement;
+    const toolbar = document.querySelector(".map-toolbar") as HTMLElement;
+    const mapRect = map.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    return {
+      immersive: shell.classList.contains("map-immersive"),
+      mapTop: mapRect.top,
+      mapHeight: mapRect.height,
+      mapWidth: mapRect.width,
+      panelPosition: window.getComputedStyle(panel).position,
+      panelLeft: panelRect.left,
+      panelRight: panelRect.right,
+      panelBottom: panelRect.bottom,
+      toolbarLeft: toolbar.getBoundingClientRect().left,
+      viewportHeight: window.innerHeight,
+      viewportWidth: window.innerWidth,
+    };
+  });
+
+  expect(layout.immersive).toBe(true);
+  expect(layout.mapTop).toBeLessThanOrEqual(0);
+  expect(layout.mapHeight).toBeGreaterThanOrEqual(layout.viewportHeight - 1);
+  expect(layout.mapWidth).toBeGreaterThanOrEqual(layout.viewportWidth - 1);
+  expect(layout.panelPosition).toBe("absolute");
+  expect(layout.panelLeft).toBeGreaterThan(0);
+  expect(layout.panelBottom).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.toolbarLeft).toBeGreaterThanOrEqual(layout.panelRight);
+
+  const drawer = page.locator(".probe-drawer");
+  const probeListHeading = page.getByRole("heading", { name: "在线 Probes" });
+  await expect(drawer).toHaveAttribute("data-open", "false");
+  await expect(probeListHeading).toBeHidden();
+
+  const drawerToggle = page.getByRole("button", {
+    name: "在线 Probes",
+    exact: true,
+  });
+  await expect(drawerToggle).toBeVisible();
+  await drawerToggle.click();
+
+  await expect(drawer).toHaveAttribute("data-open", "true");
+  await expect(
+    page.getByRole("button", { name: "在线 Probes", exact: true }),
+  ).toHaveCount(0);
+  await expect(probeListHeading).toBeVisible();
+  await expect(page.locator(".app-shell")).toHaveClass(/probe-drawer-open/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const map = document.querySelector(".map-section") as HTMLElement | null;
+        return map ? window.getComputedStyle(map).pointerEvents : "";
+      }),
+    )
+    .toBe("none");
+
+  const drawerGeometry = await page.evaluate(() => {
+    const drawerRect = document
+      .querySelector(".probe-drawer")!
+      .getBoundingClientRect();
+    const panelRect = document
+      .querySelector(".filter-panel")!
+      .getBoundingClientRect();
+    return {
+      drawerLeft: drawerRect.left,
+      drawerTop: drawerRect.top,
+      panelRight: panelRect.right,
+    };
+  });
+  expect(drawerGeometry.drawerLeft).toBeGreaterThanOrEqual(
+    drawerGeometry.panelRight,
+  );
+  expect(drawerGeometry.drawerTop).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "关闭在线 Probes", exact: true }).click();
+  await expect(drawer).toHaveAttribute("data-open", "false");
+  await expect(probeListHeading).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "在线 Probes", exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "在线 Probes", exact: true }).click();
+  await expect(probeListHeading).toBeVisible();
+  await page.getByRole("button", { name: "下拉关闭在线 Probes" }).click();
+  await expect(drawer).toHaveAttribute("data-open", "false");
+
+  await page.getByRole("button", { name: "在线 Probes", exact: true }).click();
+  await expect(probeListHeading).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(drawer).toHaveAttribute("data-open", "false");
+
+  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await page.getByRole("button", { name: "关闭结果" }).click();
+  await expect(page.locator(".result-slideover")).toHaveAttribute(
+    "data-open",
+    "false",
+  );
+  await expect(page.getByRole("button", { name: "查看结果" })).toBeVisible();
+  // Wait until the peek strip finishes sliding to the viewport edge.
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const peek = document
+          .querySelector(".result-slideover-peek")
+          ?.getBoundingClientRect();
+        if (!peek) return Number.POSITIVE_INFINITY;
+        return window.innerWidth - peek.left;
+      }),
+    )
+    .toBeLessThanOrEqual(42);
+  await page.getByRole("button", { name: "在线 Probes", exact: true }).click();
+  await expect(probeListHeading).toBeVisible();
+  const peekClearance = await page.evaluate(() => {
+    const drawerRect = document
+      .querySelector(".probe-drawer")!
+      .getBoundingClientRect();
+    const peekRect = document
+      .querySelector(".result-slideover-peek")!
+      .getBoundingClientRect();
+    return {
+      drawerRight: drawerRect.right,
+      peekLeft: peekRect.left,
+    };
+  });
+  expect(peekClearance.drawerRight).toBeLessThanOrEqual(
+    peekClearance.peekLeft + 1,
+  );
+
+  await expectNoPageOverflow(page);
+  await expectMapCanvasPainted(page);
+  expect(consoleErrors).toEqual([]);
+});
+
+test("map-first workspace keeps the stacked layout on narrow viewports", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page, { resultLayoutPreference: "map-first" });
+
+  await page.goto("/");
+
+  await expect(page.getByLabel("probe map")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "在线 Probes" }),
+  ).toBeVisible();
+  await expect(page.locator(".probe-drawer-toggle")).toBeHidden();
+  await expect(page.locator(".filter-panel")).toBeVisible();
+  const panelPosition = await page
+    .locator(".filter-panel")
+    .evaluate((node) => window.getComputedStyle(node).position);
+  expect(panelPosition).toBe("relative");
+
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
@@ -938,7 +1138,7 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect(page.getByLabel("trace result map")).toBeVisible();
-  await expectMapCanvasPainted(page);
+  await expectResultMapCanvasPainted(page);
   await expectResultRouteData(page, {
     labels: ["1-2", "5"],
     minLineLength: 2,
@@ -1003,7 +1203,7 @@ test("result route map switches route when an inactive route marker is clicked",
 
   await expect(page.getByText("finished · 2 probes · m-smoke")).toBeVisible();
   await expect(page.getByLabel("trace result map")).toBeVisible();
-  await expectMapCanvasPainted(page);
+  await expectResultMapCanvasPainted(page);
   await expectResultRouteData(page, {
     labels: ["1-2", "5"],
     minLineLength: 2,
@@ -1042,7 +1242,7 @@ test("result route map switches route when an inactive route marker is clicked",
   expect(consoleErrors).toEqual([]);
 });
 
-test("result overlay chains vertical wheel scrolling from hop table boundaries", async ({
+test("result panel scrolls as a whole when the hop table has no nested vertical scroll", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
@@ -1052,7 +1252,7 @@ test("result overlay chains vertical wheel scrolling from hop table boundaries",
   await page.goto("/?measurement=m-smoke");
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "诊断结果", exact: true })).toBeVisible();
   await expect(page.getByLabel("trace result map")).toBeVisible();
   await expectBareResultOverlay(page);
   await expectResultHopTableWheelChaining(page);
@@ -1069,7 +1269,7 @@ test("result route map normalizes antimeridian paths", async ({ page }) => {
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect(page.getByLabel("trace result map")).toBeVisible();
-  await expectMapCanvasPainted(page);
+  await expectResultMapCanvasPainted(page);
   await expectResultRouteData(page, {
     labels: ["1", "2", "4-5"],
     minLineLength: 3,
@@ -1102,7 +1302,7 @@ test("mobile advanced panel starts trace without an auth dialog", async ({
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect.poll(mocks.enrichRequests).toBe(1);
-  await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "诊断结果", exact: true })).toBeVisible();
   await expectBareResultOverlay(page);
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
@@ -1120,186 +1320,24 @@ test("shared result opens directly from measurement ID", async ({ page }) => {
     page.getByText(`finished · 1 probes · ${measurementId}`),
   ).toBeVisible();
   await expect.poll(mocks.enrichRequests).toBe(1);
-  await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "诊断结果", exact: true })).toBeVisible();
   await expectBareResultOverlay(page);
-  await expectNoLiquidTableRows(page);
   await expectNoPageOverflow(page);
   expect(consoleErrors).toEqual([]);
 });
-test("forced Liquid Glass fallback remains usable", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const consoleErrors = collectConsoleErrors(page);
-  await installMocks(page);
-
-  await page.goto("/?forceGlassFallback=1");
-
-  await expect(page.locator("html.liquid-glass-force-fallback")).toHaveCount(1);
-  await expect(
-    page
-      .locator('[data-liquid-glass][data-liquid-glass-mode="fallback"]')
-      .first(),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "开始网络路径诊断" }),
-  ).toBeVisible();
-  await expectFallbackCoverageNeutral(page);
-
-  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
-  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
-  expect(consoleErrors).toEqual([]);
-
-  await page.screenshot({
-    path: `/tmp/${screenshotPrefix}-fallback-390x844.png`,
-    fullPage: true,
-  });
-});
-
-test("default liquid glass off keeps coverage wrappers visually neutral", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const consoleErrors = collectConsoleErrors(page);
-  await installMocks(page);
-  await page.addInitScript(() => {
-    window.localStorage.setItem("globaltrace.liquidGlass", "disabled");
-  });
-
-  await page.goto("/");
-
-  await expect(page.locator("html.liquid-glass-force-fallback")).toHaveCount(1);
-  await expect(
-    page
-      .locator('[data-liquid-glass][data-liquid-glass-mode="fallback"]')
-      .first(),
-  ).toBeVisible();
-  await expectFallbackCoverageNeutral(page);
-  expect(consoleErrors).toEqual([]);
-});
-
-test("liquid glass surfaces expose reference-strength optics at max intensity", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  const consoleErrors = collectConsoleErrors(page);
-  await installMocks(page);
-  await page.addInitScript(() => {
-    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
-    window.localStorage.setItem("globaltrace.liquidGlassIntensity", "100");
-  });
-
-  await page.goto("/");
-
-  await expect(page.locator(".primary-controls-surface")).toBeVisible({
-    timeout: 8000,
-  });
-  await expect(
-    page
-      .locator('.panel-action-surface[data-liquid-glass-mode="liquid"]')
-      .first(),
-  ).toBeVisible();
-  await expect(
-    page
-      .locator('.panel-action-surface[data-liquid-glass-mode="liquid"]')
-      .first(),
-  ).toHaveAttribute("data-liquid-glass-intensity", "100");
-  await expect(
-    page.locator('.filter-summary-surface[data-liquid-glass-mode="liquid"]'),
-  ).toBeVisible();
-  await expect(
-    page.locator('.run-action-surface[data-liquid-glass-interactive="true"]'),
-  ).toBeVisible();
-  await expect(page.locator(".map-status-surface")).toHaveCount(0);
-  await expect(
-    page
-      .locator('.attribution-action-surface[data-liquid-glass-mode="liquid"]')
-      .filter({
-        has: page.getByRole("link", { name: "关于 GlobalTrace" }),
-      }),
-  ).toBeVisible();
-  await ensureExactFiltersOpen(page);
-  await page.getByLabel("国家/地区").fill("ZZ");
-  await expect(page.getByText("0 / 3 probes 匹配")).toBeVisible();
-  await expect(
-    page.getByLabel("probe map").getByText("0 / 3 probes"),
-  ).toHaveCount(0);
-  await expect(page.locator(".map-empty-surface")).toHaveCount(0);
-  await page.getByLabel("国家/地区").fill("");
-  await page.getByRole("button", { name: "打开高级参数" }).click();
-  await expect(
-    page.locator('.overlay-close-surface[data-liquid-glass-mode="liquid"]'),
-  ).toBeVisible();
-  await expect(
-    page
-      .locator('.token-action-surface[data-liquid-glass-mode="liquid"]')
-      .filter({
-        has: page.getByRole("button", { name: "保存 Globalping" }),
-      }),
-  ).toBeVisible();
-  await expect(
-    page
-      .locator('.token-action-surface[data-liquid-glass-mode="liquid"]')
-      .filter({
-        has: page.getByRole("button", { name: "清除 NextTrace" }),
-      }),
-  ).toBeVisible();
-  await expect(
-    page
-      .locator('.token-help-surface[data-liquid-glass-mode="liquid"]')
-      .filter({
-        has: page.getByRole("link", { name: "获取 NextTrace API Token" }),
-      }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "关闭高级参数" }).click();
-  await page.getByRole("link", { name: "关于 GlobalTrace" }).click();
-  await expect(
-    page.getByRole("dialog", { name: "关于 GlobalTrace" }),
-  ).toBeVisible();
-  await expect(
-    page
-      .locator('.about-action-surface[data-liquid-glass-mode="liquid"]')
-      .first(),
-  ).toBeVisible();
-  await expect(
-    page.locator('.about-card-surface[data-liquid-glass-mode="liquid"]'),
-  ).toHaveCount(3);
-  await expect(
-    page
-      .locator('.about-link-surface[data-liquid-glass-mode="liquid"]')
-      .first(),
-  ).toBeVisible();
-  await expect(
-    page.locator(
-      '.about-background-credit-surface[data-liquid-glass-mode="liquid"]',
-    ),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "返回诊断" }).click();
-  await expect(page.getByText(/背景：岁月的层峦/)).toBeHidden();
-  await expectLiquidGlassVisualStructure(page);
-  expect(consoleErrors).toEqual([]);
-});
-
-test("liquid glass filter summary keeps exact filters below it on short desktop", async ({
+test("filter summary keeps exact filters below it on short desktop", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1512, height: 760 });
   const consoleErrors = collectConsoleErrors(page);
   await installMocks(page);
-  await page.addInitScript(() => {
-    window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
-    window.localStorage.setItem("globaltrace.liquidGlassIntensity", "100");
-  });
 
   await page.goto("/");
-  await expect(
-    page.locator('.filter-summary-surface[data-liquid-glass-mode="liquid"]'),
-  ).toHaveCount(1);
+  await expect(page.locator(".filter-summary")).toHaveCount(1);
 
   const state = await page.evaluate(() => {
-    const summarySurface = document.querySelector(
-      ".filter-summary-surface",
-    ) as HTMLElement | null;
-    const summaryContent = document.querySelector(
-      ".filter-summary-surface .liquid-glass-content",
+    const summary = document.querySelector(
+      ".filter-summary",
     ) as HTMLElement | null;
     const exactFilters = document.querySelector(
       ".advanced-panel",
@@ -1308,15 +1346,13 @@ test("liquid glass filter summary keeps exact filters below it on short desktop"
     const probeMatchRow = document.querySelector(
       ".probe-match-row",
     ) as HTMLElement | null;
-    const summarySurfaceRect = summarySurface?.getBoundingClientRect();
-    const summaryContentRect = summaryContent?.getBoundingClientRect();
+    const summaryRect = summary?.getBoundingClientRect();
     const exactFiltersRect = exactFilters?.getBoundingClientRect();
     const chipRowRect = chipRow?.getBoundingClientRect();
     const probeMatchRowRect = probeMatchRow?.getBoundingClientRect();
     return {
-      summarySurfaceHeight: summarySurfaceRect?.height ?? 0,
-      summarySurfaceBottom: summarySurfaceRect?.bottom ?? 0,
-      summaryContentBottom: summaryContentRect?.bottom ?? 0,
+      summaryHeight: summaryRect?.height ?? 0,
+      summaryBottom: summaryRect?.bottom ?? 0,
       chipRowHeight: chipRowRect?.height ?? 0,
       chipRowBottom: chipRowRect?.bottom ?? 0,
       probeMatchRowHeight: probeMatchRowRect?.height ?? 0,
@@ -1325,54 +1361,13 @@ test("liquid glass filter summary keeps exact filters below it on short desktop"
     };
   });
 
-  expect(state.summarySurfaceHeight).toBeGreaterThan(0);
+  expect(state.summaryHeight).toBeGreaterThan(0);
   expect(state.chipRowHeight).toBeGreaterThan(0);
   expect(state.probeMatchRowHeight).toBeGreaterThan(0);
-  expect(state.chipRowBottom).toBeLessThanOrEqual(state.summarySurfaceBottom);
-  expect(state.probeMatchRowBottom).toBeLessThanOrEqual(
-    state.summarySurfaceBottom,
-  );
-  expect(
-    state.exactFiltersTop - state.summaryContentBottom,
-  ).toBeGreaterThanOrEqual(10);
+  expect(state.chipRowBottom).toBeLessThanOrEqual(state.summaryBottom);
+  expect(state.probeMatchRowBottom).toBeLessThanOrEqual(state.summaryBottom);
+  expect(state.exactFiltersTop - state.summaryBottom).toBeGreaterThanOrEqual(10);
   expect(consoleErrors).toEqual([]);
-});
-
-test.describe("partial displacement browser liquid glass path", () => {
-  test.use({
-    userAgent:
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-  });
-
-  test("keeps liquid mode and applies the Safari optical enhancement marker", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    const consoleErrors = collectConsoleErrors(page);
-    await installMocks(page);
-    await page.addInitScript(() => {
-      window.localStorage.setItem("globaltrace.liquidGlass", "enabled");
-      window.localStorage.setItem("globaltrace.liquidGlassIntensity", "100");
-    });
-
-    await page.goto("/");
-
-    const actionSurface = page
-      .locator('.panel-action-surface[data-liquid-glass-mode="liquid"]')
-      .first();
-    await expect(actionSurface).toBeVisible({ timeout: 8000 });
-    await expect(actionSurface).toHaveAttribute(
-      "data-liquid-glass-partial-displacement",
-      "true",
-    );
-    await expect(actionSurface).toHaveClass(
-      /liquid-glass-partial-displacement/,
-    );
-    await expect(page.locator("html.liquid-glass-force-fallback")).toHaveCount(
-      0,
-    );
-    expect(consoleErrors).toEqual([]);
-  });
 });
 
 function collectConsoleErrors(page: Page): string[] {
@@ -1386,79 +1381,6 @@ function collectConsoleErrors(page: Page): string[] {
     errors.push(error.message);
   });
   return errors;
-}
-
-async function expectFallbackCoverageNeutral(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "打开高级参数" }).click();
-  const state = await page.evaluate(() => {
-    const alphaOf = (value: string) => {
-      const match = value.match(/rgba?\(([^)]+)\)/);
-      if (!match) return 1;
-      const parts = match[1].split(",").map((part) => part.trim());
-      return parts.length === 4 ? Number.parseFloat(parts[3]) : 1;
-    };
-    const read = (surfaceSelector: string, controlSelector: string) => {
-      const surface = document.querySelector(
-        surfaceSelector,
-      ) as HTMLElement | null;
-      const content = surface?.querySelector(
-        ".liquid-glass-fallback-content",
-      ) as HTMLElement | null;
-      const control = document.querySelector(
-        controlSelector,
-      ) as HTMLElement | null;
-      const surfaceRect = surface?.getBoundingClientRect();
-      const controlRect = control?.getBoundingClientRect();
-      const contentStyle = content ? window.getComputedStyle(content) : null;
-      const controlStyle = control ? window.getComputedStyle(control) : null;
-      return {
-        mode: surface?.getAttribute("data-liquid-glass-mode") ?? "",
-        contentBackgroundAlpha: alphaOf(contentStyle?.backgroundColor ?? ""),
-        contentBorderTopWidth: contentStyle?.borderTopWidth ?? "",
-        controlBackgroundAlpha: alphaOf(controlStyle?.backgroundColor ?? ""),
-        sameWidth:
-          surfaceRect && controlRect
-            ? Math.abs(surfaceRect.width - controlRect.width) <= 2
-            : false,
-        sameHeight:
-          surfaceRect && controlRect
-            ? Math.abs(surfaceRect.height - controlRect.height) <= 2
-            : false,
-      };
-    };
-    return {
-      close: read(
-        ".overlay-close-surface",
-        'button[aria-label="关闭高级参数"]',
-      ),
-      saveToken: read(
-        ".token-action-surface",
-        'button[aria-label="保存 Globalping"]',
-      ),
-      tokenHelp: read(
-        ".token-help-surface",
-        'a[aria-label="获取 NextTrace API Token"]',
-      ),
-    };
-  });
-
-  for (const item of [state.close, state.saveToken, state.tokenHelp]) {
-    expect(item.mode).toBe("fallback");
-    expect(item.contentBackgroundAlpha).toBeLessThanOrEqual(0.01);
-    expect(item.contentBorderTopWidth).toBe("0px");
-    expect(item.sameWidth).toBe(true);
-    expect(item.sameHeight).toBe(true);
-  }
-  expect(state.saveToken.controlBackgroundAlpha).toBeGreaterThan(0.02);
-  await page.getByRole("button", { name: "关闭高级参数" }).click();
-}
-
-async function expectNoLiquidTableRows(page: Page): Promise<void> {
-  await expect(page.locator("tbody tr[data-liquid-glass]")).toHaveCount(0);
-  await expect(
-    page.locator(".hop-table-scroll[data-liquid-glass]"),
-  ).toHaveCount(0);
-  await expect(page.locator(".raw-output[data-liquid-glass]")).toHaveCount(0);
 }
 
 interface MockHandles {
@@ -1735,22 +1657,24 @@ async function expectFocusStyleChanges(
   wrapperSelector: string,
 ): Promise<void> {
   const wrapper = page.locator(wrapperSelector).first();
-  const before = await wrapper.evaluate((node) => {
-    const style = window.getComputedStyle(node);
-    return {
-      borderColor: style.borderColor,
-      boxShadow: style.boxShadow,
-    };
-  });
-  await target.focus();
-  const after = await wrapper.evaluate((node) => {
-    const style = window.getComputedStyle(node);
-    return {
-      borderColor: style.borderColor,
-      boxShadow: style.boxShadow,
-    };
-  });
-  expect(after).not.toEqual(before);
+  const readStyle = () =>
+    wrapper.evaluate((node) => {
+      const style = window.getComputedStyle(node);
+      return {
+        borderColor: style.borderColor,
+        boxShadow: style.boxShadow,
+        outlineStyle: style.outlineStyle,
+        outlineWidth: style.outlineWidth,
+      };
+    });
+  const before = await readStyle();
+  await target.click();
+  await expect
+    .poll(async () => {
+      const after = await readStyle();
+      return JSON.stringify(after) !== JSON.stringify(before);
+    })
+    .toBe(true);
 }
 
 async function expectFilterSummaryConstrainsLongChips(
@@ -1800,21 +1724,7 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
       buttons.find(
         (button) => button.getAttribute("aria-selected") === "true",
       ) ?? null;
-    const activeSurface = activeButton?.closest(
-      ".probe-tab-surface",
-    ) as HTMLElement | null;
-    const activeSurfaceContent = activeSurface?.querySelector(
-      ".liquid-glass-content",
-    ) as HTMLElement | null;
-    const frameSurface = tabs.closest(
-      ".probe-tabs-frame-surface",
-    ) as HTMLElement | null;
-    const frameContent = frameSurface?.querySelector(
-      ".probe-tabs-frame",
-    ) as HTMLElement | null;
-    const frameSurfaceContent = frameSurface?.querySelector(
-      ".liquid-glass-content",
-    ) as HTMLElement | null;
+    const frame = tabs.closest(".probe-tabs-frame") as HTMLElement | null;
     const tabsRect = tabs.getBoundingClientRect();
     const buttonBottom = Math.max(
       ...buttons.map((button) => button.getBoundingClientRect().bottom),
@@ -1825,15 +1735,7 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
     const activeButtonStyle = activeButton
       ? window.getComputedStyle(activeButton)
       : null;
-    const activeSurfaceContentStyle = activeSurfaceContent
-      ? window.getComputedStyle(activeSurfaceContent)
-      : null;
-    const frameContentStyle = frameContent
-      ? window.getComputedStyle(frameContent)
-      : null;
-    const frameSurfaceContentStyle = frameSurfaceContent
-      ? window.getComputedStyle(frameSurfaceContent)
-      : null;
+    const frameStyle = frame ? window.getComputedStyle(frame) : null;
     const styles = window.getComputedStyle(tabs);
     const radiusValue = (value: string) =>
       Number.parseFloat(value.split(" ")[0] || "0");
@@ -1846,51 +1748,24 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
       buttonPaddingRight: firstButtonStyle?.paddingRight ?? "",
       buttonPaddingTop: firstButtonStyle?.paddingTop ?? "",
       activeButtonBackgroundColor: activeButtonStyle?.backgroundColor ?? "",
-      activeButtonBorderRadius: activeButtonStyle?.borderRadius ?? "",
       activeButtonBorderTopWidth: activeButtonStyle?.borderTopWidth ?? "",
       activeButtonBoxShadow: activeButtonStyle?.boxShadow ?? "",
       activeButtonClassName: activeButton?.className ?? "",
-      activeSurfaceBackgroundImage:
-        activeSurfaceContentStyle?.backgroundImage ?? "",
-      activeSurfaceBorderRadius: activeSurfaceContentStyle?.borderRadius ?? "",
-      activeSurfaceBoxShadow: activeSurfaceContentStyle?.boxShadow ?? "",
-      activeSurfaceClassName: activeSurface?.className ?? "",
-      frameBackgroundColor: frameContentStyle?.backgroundColor ?? "",
-      frameBackgroundImage: frameContentStyle?.backgroundImage ?? "",
-      frameBorderRadius: frameContentStyle?.borderRadius ?? "",
-      frameBorderTopWidth: frameContentStyle?.borderTopWidth ?? "",
-      frameBoxShadow: frameContentStyle?.boxShadow ?? "",
-      frameClassName: frameSurface?.className ?? "",
-      frameSurfaceMode:
-        frameSurface?.getAttribute("data-liquid-glass-mode") ?? "",
-      frameSurfaceIntensity:
-        frameSurface?.getAttribute("data-liquid-glass-intensity") ?? "",
-      frameSurfaceBackgroundColor:
-        frameSurfaceContentStyle?.backgroundColor ?? "",
-      frameSurfaceBackgroundImage:
-        frameSurfaceContentStyle?.backgroundImage ?? "",
-      frameSurfaceBorderTopWidth:
-        frameSurfaceContentStyle?.borderTopWidth ?? "",
-      frameSurfaceBoxShadow: frameSurfaceContentStyle?.boxShadow ?? "",
-      frameRadiusValue: radiusValue(frameContentStyle?.borderRadius ?? "0"),
-      activeSurfaceRadiusValue: radiusValue(
-        activeSurfaceContentStyle?.borderRadius ?? "0",
+      activeButtonRadiusValue: radiusValue(
+        activeButtonStyle?.borderRadius ?? "0",
       ),
+      frameBackgroundColor: frameStyle?.backgroundColor ?? "",
+      frameBorderTopWidth: frameStyle?.borderTopWidth ?? "",
+      frameBoxShadow: frameStyle?.boxShadow ?? "",
+      frameRadiusValue: radiusValue(frameStyle?.borderRadius ?? "0"),
+      frameCount: document.querySelectorAll(".probe-tabs-frame").length,
       clientWidth: tabs.clientWidth,
       flexWrap: styles.flexWrap,
       overflowX: styles.overflowX,
       paddingBottom: Number.parseFloat(styles.paddingBottom),
-      probeTabsFrameSurfaceCount: document.querySelectorAll(
-        ".probe-tabs-frame-surface[data-liquid-glass]",
-      ).length,
-      probeTabsSurfaceCount: document.querySelectorAll(".probe-tabs-surface")
-        .length,
       scrollbarColor: styles.scrollbarColor,
       scrollbarWidth: styles.scrollbarWidth,
       scrollWidth: tabs.scrollWidth,
-      tabSurfaceCount: tabs.querySelectorAll(
-        ".probe-tab-surface[data-liquid-glass]",
-      ).length,
       tabButtonCount: buttons.length,
     };
   });
@@ -1898,39 +1773,40 @@ async function expectProbeTabsScrollbarLayout(page: Page): Promise<void> {
   expect(state.borderTopWidth).toBe("0px");
   expect(state.backgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.boxShadow).toBe("none");
-  expect(state.probeTabsSurfaceCount).toBe(0);
-  expect(state.probeTabsFrameSurfaceCount).toBe(1);
-  expect(state.frameClassName).toContain("probe-tabs-frame-surface");
-  expect(state.frameSurfaceMode).toMatch(/^(liquid|fallback)$/);
-  expect(state.frameSurfaceIntensity).toBe("70");
-  expect(state.frameSurfaceBackgroundImage).not.toBe("none");
-  expect(state.frameSurfaceBorderTopWidth).toBe("1px");
-  expect(state.frameSurfaceBoxShadow).not.toBe("none");
-  expect(state.frameBackgroundColor).toBe("rgba(0, 0, 0, 0)");
-  expect(state.frameBackgroundImage).toBe("none");
-  expect(state.frameBorderTopWidth).toBe("0px");
-  expect(state.frameBoxShadow).toBe("none");
+  expect(state.frameCount).toBe(1);
+  expect(state.frameBackgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(state.frameBorderTopWidth).toBe("1px");
   expect(state.frameRadiusValue).toBeGreaterThanOrEqual(
-    state.activeSurfaceRadiusValue,
+    state.activeButtonRadiusValue,
   );
-  expect(state.tabSurfaceCount).toBe(state.tabButtonCount);
+  expect(state.tabButtonCount).toBeGreaterThan(0);
   expect(state.activeButtonClassName).toContain("probe-tab-button");
-  expect(state.activeButtonClassName).not.toContain("data-[state=active]");
-  expect(state.activeSurfaceClassName).toContain("is-active");
-  expect(state.activeButtonBackgroundColor).toBe("rgba(0, 0, 0, 0)");
-  expect(state.activeButtonBorderTopWidth).toBe("0px");
-  expect(state.activeButtonBoxShadow).toBe("none");
-  expect(state.activeSurfaceBackgroundImage).not.toBe("none");
-  expect(state.activeSurfaceBoxShadow).not.toContain("inset 3px");
-  expect(state.activeSurfaceBorderRadius).toBe(state.activeButtonBorderRadius);
-  expect(["auto", "scroll"]).toContain(state.overflowX);
-  expect(state.scrollWidth).toBeGreaterThan(state.clientWidth);
-  expect(state.paddingBottom).toBeGreaterThanOrEqual(8);
-  expect(state.bottomGap).toBeGreaterThanOrEqual(8);
-  expect(state.scrollbarColor).not.toBe("auto");
-  expect(state.buttonMinHeight).toBe("52px");
-  expect(state.buttonPaddingTop).toBe("6px");
-  expect(state.buttonPaddingRight).toBe("10px");
+  expect(state.activeButtonClassName).toContain("is-active");
+  expect(state.activeButtonBackgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(state.activeButtonBorderTopWidth).toBe("1px");
+  expect(state.activeButtonBoxShadow).not.toContain("inset 3px");
+  // Result slideover uses a vertical compact tab list with vertical scroll.
+  const inSlideover = await page.evaluate(() =>
+    Boolean(document.querySelector(".result-slideover .probe-tabs")),
+  );
+  if (inSlideover) {
+    expect(["auto", "scroll", "hidden"]).toContain(state.overflowX);
+    expect(["auto", "scroll"]).toContain(
+      await page.locator(".result-slideover .probe-tabs").evaluate((node) => {
+        return window.getComputedStyle(node).overflowY;
+      }),
+    );
+  } else {
+    expect(state.frameBoxShadow).not.toBe("none");
+    expect(["auto", "scroll"]).toContain(state.overflowX);
+    expect(state.scrollWidth).toBeGreaterThan(state.clientWidth);
+    expect(state.paddingBottom).toBeGreaterThanOrEqual(8);
+    expect(state.bottomGap).toBeGreaterThanOrEqual(8);
+    expect(state.scrollbarColor).not.toBe("auto");
+    expect(state.buttonMinHeight).toBe("52px");
+    expect(state.buttonPaddingTop).toBe("8px");
+    expect(state.buttonPaddingRight).toBe("12px");
+  }
   expect(state.scrollbarWidth).toBe("thin");
 }
 
@@ -1944,203 +1820,37 @@ async function expectLightModePanelBoundaries(page: Page): Promise<void> {
     const rootStyles = window.getComputedStyle(document.documentElement);
     const panelStyles = window.getComputedStyle(node);
     return {
-      glassBorder: rootStyles.getPropertyValue("--glass-border").trim(),
+      line: rootStyles.getPropertyValue("--line").trim(),
       mutedBorder: rootStyles.getPropertyValue("--muted-border").trim(),
       tableBorder: rootStyles.getPropertyValue("--table-border").trim(),
       panelBorderColor: panelStyles.borderColor,
       panelBorderWidth: panelStyles.borderTopWidth,
     };
   });
-  expect(state.glassBorder).toBe("rgba(45, 72, 82, 0.22)");
-  expect(state.mutedBorder).toBe("rgba(45, 72, 82, 0.18)");
-  expect(state.tableBorder).toBe("rgba(45, 72, 82, 0.16)");
-  expect(state.panelBorderColor).not.toBe("rgba(255, 255, 255, 0.62)");
+  expect(state.line).toBe("#ebebeb");
+  expect(state.mutedBorder).toBe("#ebebeb");
+  expect(state.tableBorder).toBe("#ebebeb");
   expect(state.panelBorderWidth).toBe("1px");
 }
 
-async function expectLiquidGlassVisualStructure(page: Page): Promise<void> {
-  const state = await page.evaluate(() => {
-    const alphaOf = (value: string) => {
-      const match = value.match(/rgba?\(([^)]+)\)/);
-      if (!match) return 1;
-      const parts = match[1].split(",").map((part) => part.trim());
-      if (parts.length < 4) return 1;
-      return Number.parseFloat(parts[3]) || 0;
-    };
-    const read = (selector: string) => {
-      const element = document.querySelector(selector);
-      if (!element) return null;
-      const style = window.getComputedStyle(element);
-      return {
-        backgroundColor: style.backgroundColor,
-        backgroundAlpha: alphaOf(style.backgroundColor),
-        backdropFilter:
-          style.backdropFilter ||
-          style.getPropertyValue("-webkit-backdrop-filter"),
-        boxShadow: style.boxShadow,
-      };
-    };
-    const readLiquidInternals = (selector: string) => {
-      const surface = document.querySelector(selector);
-      const glass = surface?.querySelector(".glass");
-      const warp = surface?.querySelector(".glass__warp");
-      const content = surface?.querySelector(".liquid-glass-content");
-      const surfaceStyle = surface ? window.getComputedStyle(surface) : null;
-      const glassStyle = glass ? window.getComputedStyle(glass) : null;
-      const warpStyle = warp ? window.getComputedStyle(warp) : null;
-      const contentStyle = content ? window.getComputedStyle(content) : null;
-      const beforeStyle = content
-        ? window.getComputedStyle(content, "::before")
-        : null;
-      const blurMatch = (
-        warpStyle?.backdropFilter ||
-        warpStyle?.getPropertyValue("-webkit-backdrop-filter") ||
-        ""
-      ).match(/blur\(([\d.]+)px\)/);
-      return {
-        demoIntensity:
-          surface?.getAttribute("data-liquid-glass-demo-intensity") ?? "",
-        liquidIntensity:
-          surface?.getAttribute("data-liquid-glass-intensity") ?? "",
-        surfaceBorderRadius: surfaceStyle?.borderRadius ?? "",
-        surfaceOverflow: surfaceStyle?.overflow ?? "",
-        glassBackgroundColor: glassStyle?.backgroundColor ?? "",
-        glassBackgroundAlpha: alphaOf(glassStyle?.backgroundColor ?? ""),
-        glassBoxShadow: glassStyle?.boxShadow ?? "",
-        warpBackdropFilter:
-          warpStyle?.backdropFilter ||
-          warpStyle?.getPropertyValue("-webkit-backdrop-filter") ||
-          "",
-        warpBlurPx: blurMatch ? Number.parseFloat(blurMatch[1]) : 0,
-        warpDisplay: warpStyle?.display ?? "",
-        warpOpacity: Number.parseFloat(warpStyle?.opacity || "0") || 0,
-        contentBackgroundColor: contentStyle?.backgroundColor ?? "",
-        contentBackgroundAlpha: alphaOf(contentStyle?.backgroundColor ?? ""),
-        contentBackgroundImage: contentStyle?.backgroundImage ?? "",
-        contentBorderTopWidth: contentStyle?.borderTopWidth ?? "",
-        contentBoxShadow: contentStyle?.boxShadow ?? "",
-        opticalLayerBackgroundImage: beforeStyle?.backgroundImage ?? "",
-        opticalLayerOpacity:
-          Number.parseFloat(beforeStyle?.opacity || "0") || 0,
-      };
-    };
-    return {
-      ambientBackground: (() => {
-        const element = document.querySelector(".ambient-background");
-        if (!element) return null;
-        const style = window.getComputedStyle(element, "::before");
-        return {
-          filter: style.filter,
-          backgroundImage: style.backgroundImage,
-          opacity: Number.parseFloat(style.opacity || "0") || 0,
-        };
-      })(),
-      htmlReady: document.documentElement.classList.contains(
-        "ambient-photo-ready",
-      ),
-      bodyTextureOpacity:
-        Number.parseFloat(
-          window.getComputedStyle(document.body, "::before").opacity || "0",
-        ) || 0,
-      shellTextureOpacity:
-        Number.parseFloat(
-          window.getComputedStyle(
-            document.querySelector(".app-shell") as Element,
-            "::before",
-          ).opacity || "0",
-        ) || 0,
-      shellReady:
-        document
-          .querySelector(".app-shell")
-          ?.classList.contains("ambient-photo-ready") ?? false,
-      filterPanel: read(".filter-panel"),
-      primaryControls: read(".primary-controls-surface"),
-      filterSummary: read(
-        '.filter-summary-surface[data-liquid-glass-mode="liquid"]',
-      ),
-      statusBar: read('.status-surface[data-liquid-glass-mode="liquid"]'),
-      runActionButton: read(
-        '.run-action-surface[data-liquid-glass-mode="liquid"]',
-      ),
-      panelActionLiquid: readLiquidInternals(
-        '.panel-action-surface[data-liquid-glass-mode="liquid"]',
-      ),
-      runActionLiquid: readLiquidInternals(
-        '.run-action-surface[data-liquid-glass-mode="liquid"]',
-      ),
-      statusLiquid: readLiquidInternals(
-        '.status-surface[data-liquid-glass-mode="liquid"]',
-      ),
-      probeTable: read(".probe-table-section"),
-      tableScroll: read(".table-scroll"),
-      resultsSection: read(".results-section"),
-    };
-  });
-
-  expect(state.htmlReady).toBe(true);
-  expect(state.shellReady).toBe(true);
-  expect(state.ambientBackground?.filter).not.toContain("blur(");
-  expect(state.ambientBackground?.filter).toContain("saturate(1.12)");
-  expect(state.ambientBackground?.filter).toContain("contrast(1.04)");
-  expect(state.ambientBackground?.opacity).toBeGreaterThanOrEqual(0.96);
-  expect(state.ambientBackground?.backgroundImage).toContain(
-    "/api/background/image",
-  );
-  expect(state.bodyTextureOpacity).toBeLessThanOrEqual(0.01);
-  expect(state.shellTextureOpacity).toBeLessThanOrEqual(0.01);
-  expect(state.filterPanel?.backgroundAlpha).toBeLessThanOrEqual(0.4);
-  expect(state.filterPanel?.backdropFilter).toContain("blur(30px)");
-  expect(state.primaryControls?.backgroundAlpha).toBeLessThanOrEqual(0.22);
-  expect(state.filterSummary?.backgroundAlpha).toBeLessThanOrEqual(0.18);
-  expect(state.statusBar?.backgroundAlpha).toBeLessThanOrEqual(0.24);
-  expect(state.runActionButton?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
-  for (const liquidState of [
-    state.panelActionLiquid,
-    state.runActionLiquid,
-    state.statusLiquid,
-  ]) {
-    expect(liquidState?.warpDisplay).not.toBe("none");
-    expect(liquidState?.warpOpacity).toBeGreaterThanOrEqual(0.95);
-    expect(liquidState?.warpBackdropFilter).toContain("blur(");
-    expect(liquidState?.warpBlurPx).toBeGreaterThanOrEqual(12);
-    expect(liquidState?.warpBlurPx).toBeLessThanOrEqual(22);
-    expect(liquidState?.demoIntensity).toBe("true");
-    expect(liquidState?.liquidIntensity).toBe("100");
-    expect(liquidState?.glassBackgroundColor).toBe("rgba(0, 0, 0, 0)");
-    expect(liquidState?.glassBackgroundAlpha).toBeLessThanOrEqual(0.015);
-    expect(liquidState?.contentBackgroundAlpha).toBeLessThanOrEqual(0.02);
-    expect(liquidState?.opticalLayerBackgroundImage).not.toBe("none");
-    expect(liquidState?.contentBorderTopWidth).toBe("1px");
-    expect(liquidState?.contentBoxShadow).not.toBe("none");
-    expect(liquidState?.opticalLayerOpacity).toBeGreaterThanOrEqual(0.85);
-  }
-  expect(state.panelActionLiquid?.surfaceBorderRadius).toBe("999px");
-  expect(state.panelActionLiquid?.surfaceOverflow).toBe("hidden");
-  expect(state.probeTable?.backgroundAlpha).toBeGreaterThanOrEqual(0.34);
-  expect(state.tableScroll?.backgroundAlpha).toBeGreaterThanOrEqual(0.48);
-  expect(state.resultsSection).toBeNull();
-  expect(state.filterPanel?.boxShadow).not.toMatch(/\b(?:58|70)px\b/);
-  expect(state.primaryControls?.boxShadow).not.toMatch(/\b(?:58|70)px\b/);
-}
-
-async function expectGlassOverlayStructure(
+async function expectOverlayStructure(
   page: Page,
   name: string,
 ): Promise<void> {
   await expect(page.getByRole("dialog", { name })).toBeVisible();
   const state = await page.evaluate(() => {
     const overlay = document.querySelector(
-      ".glass-overlay",
+      ".overlay",
     ) as HTMLElement | null;
     const panel = overlay?.querySelector(
       '[role="dialog"]',
     ) as HTMLElement | null;
-    const surface = overlay?.querySelector(
-      ".glass-overlay-surface",
+    const body = overlay?.querySelector(
+      ".overlay-body",
     ) as HTMLElement | null;
     const overlayStyle = overlay ? window.getComputedStyle(overlay) : null;
     const panelStyle = panel ? window.getComputedStyle(panel) : null;
-    const surfaceStyle = surface ? window.getComputedStyle(surface) : null;
+    const bodyStyle = body ? window.getComputedStyle(body) : null;
     const rect = panel?.getBoundingClientRect();
     const alphaOf = (value: string) => {
       const match = value.match(/rgba?\(([^)]+)\)/);
@@ -2157,7 +1867,7 @@ async function expectGlassOverlayStructure(
       panelBackdropFilter:
         panelStyle?.backdropFilter ||
         panelStyle?.getPropertyValue("-webkit-backdrop-filter"),
-      surfaceMaxHeight: surfaceStyle?.maxHeight,
+      bodyOverflow: bodyStyle?.overflow,
       panelMaxHeight: panelStyle?.maxHeight,
       panelCenterX: rect ? rect.left + rect.width / 2 : 0,
       panelCenterY: rect ? rect.top + rect.height / 2 : 0,
@@ -2168,12 +1878,12 @@ async function expectGlassOverlayStructure(
     };
   });
   expect(state.overlayPosition).toBe("fixed");
-  expect(state.overlayClassName).toContain("glass-overlay-center");
-  expect(state.overlayClassName).not.toContain("glass-overlay-sheet");
+  expect(state.overlayClassName).toContain("overlay-center");
+  expect(state.overlayClassName).not.toContain("overlay-sheet");
   expect(state.overlayZIndex).toBeGreaterThanOrEqual(300);
-  expect(state.panelBackgroundAlpha).toBeLessThanOrEqual(0.5);
-  expect(state.panelBackdropFilter).toContain("blur(34px)");
-  expect(state.surfaceMaxHeight).not.toBe("none");
+  expect(state.panelBackgroundAlpha).toBe(1);
+  expect(state.panelBackdropFilter).toBe("none");
+  expect(state.bodyOverflow).toBe("auto");
   expect(state.panelMaxHeight).not.toBe("none");
   expect(
     Math.abs(state.panelCenterX - state.viewportCenterX),
@@ -2182,7 +1892,7 @@ async function expectGlassOverlayStructure(
     Math.abs(state.panelCenterY - state.viewportCenterY),
   ).toBeLessThanOrEqual(Math.max(4, state.viewportCenterY * 0.08));
   if (
-    state.overlayClassName.includes("glass-overlay-compact") &&
+    state.overlayClassName.includes("overlay-compact") &&
     state.viewportWidth <= 820
   ) {
     expect(state.panelWidth).toBeLessThanOrEqual(state.viewportWidth - 20);
@@ -2198,43 +1908,37 @@ async function ensureExactFiltersOpen(page: Page): Promise<void> {
 }
 
 async function expectBareResultOverlay(page: Page): Promise<void> {
-  await expect(page.getByRole("dialog", { name: "诊断结果" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "诊断结果", exact: true })).toBeVisible();
   const state = await page.evaluate(() => {
-    const overlay = document.querySelector(
-      ".glass-overlay-result",
+    const slideover = document.querySelector(
+      ".result-slideover",
     ) as HTMLElement | null;
-    const dialog = overlay?.querySelector(
+    const dialog = slideover?.querySelector(
       '[role="dialog"]',
     ) as HTMLElement | null;
-    const firstChild = dialog?.firstElementChild as HTMLElement | null;
-    const overlayStyle = overlay ? window.getComputedStyle(overlay) : null;
-    const dialogStyle = dialog ? window.getComputedStyle(dialog) : null;
+    const body = slideover?.querySelector(
+      ".result-slideover-body",
+    ) as HTMLElement | null;
+    const firstChild = body?.firstElementChild as HTMLElement | null;
+    const slideoverStyle = slideover ? window.getComputedStyle(slideover) : null;
     return {
-      overlayClassName: overlay?.className || "",
+      open: slideover?.dataset.open || "",
+      slideoverClassName: slideover?.className || "",
       dialogClassName: dialog?.className || "",
-      overlayPosition: overlayStyle?.position || "",
-      overlayZIndex: Number.parseInt(overlayStyle?.zIndex || "0", 10),
-      dialogBackground: dialogStyle?.backgroundColor || "",
-      dialogBoxShadow: dialogStyle?.boxShadow || "",
-      hasHeader: Boolean(overlay?.querySelector(".glass-overlay-header")),
-      hasBody: Boolean(overlay?.querySelector(".glass-overlay-body")),
-      hasPanel: Boolean(overlay?.querySelector(".glass-overlay-panel")),
+      slideoverPosition: slideoverStyle?.position || "",
+      slideoverZIndex: Number.parseInt(slideoverStyle?.zIndex || "0", 10),
+      hasResize: Boolean(slideover?.querySelector(".result-slideover-resize")),
       firstChildClassName: firstChild?.className || "",
-      resultSurfaceMode:
-        firstChild?.getAttribute("data-liquid-glass-mode") || "",
     };
   });
-  expect(state.overlayPosition).toBe("fixed");
-  expect(state.overlayZIndex).toBeGreaterThanOrEqual(300);
-  expect(state.overlayClassName).toContain("glass-overlay-chrome-bare");
-  expect(state.dialogClassName).toContain("glass-overlay-bare-surface");
-  expect(state.dialogBackground).toBe("rgba(0, 0, 0, 0)");
-  expect(state.dialogBoxShadow).toBe("none");
-  expect(state.hasHeader).toBe(false);
-  expect(state.hasBody).toBe(false);
-  expect(state.hasPanel).toBe(false);
-  expect(state.firstChildClassName).toContain("results-section-surface");
-  expect(state.resultSurfaceMode).toMatch(/^(liquid|fallback)$/);
+  expect(state.slideoverPosition).toBe("fixed");
+  expect(state.slideoverZIndex).toBeGreaterThanOrEqual(250);
+  expect(state.slideoverZIndex).toBeLessThan(300);
+  expect(state.open).toBe("true");
+  expect(state.slideoverClassName).toContain("result-slideover");
+  expect(state.dialogClassName).toContain("result-slideover-panel");
+  expect(state.hasResize).toBe(true);
+  expect(state.firstChildClassName).toContain("results-section");
 }
 
 async function expectResultHopTableWheelChaining(page: Page): Promise<void> {
@@ -2244,7 +1948,7 @@ async function expectResultHopTableWheelChaining(page: Page): Promise<void> {
   const readState = () =>
     page.evaluate(() => {
       const dialog = document.querySelector(
-        ".glass-overlay-result .glass-overlay-bare-surface",
+        ".result-slideover-body",
       ) as HTMLElement | null;
       const tableScroll = document.querySelector(
         ".hop-table-scroll",
@@ -2264,39 +1968,19 @@ async function expectResultHopTableWheelChaining(page: Page): Promise<void> {
         tableMaxScroll: tableScroll
           ? tableScroll.scrollHeight - tableScroll.clientHeight
           : 0,
+        tableMaxHeight: tableStyle?.maxHeight ?? "",
         tableOverscrollX: tableStyle?.overscrollBehaviorX ?? "",
-        tableOverscrollY: tableStyle?.overscrollBehaviorY ?? "",
         tableOverflowX: tableStyle?.overflowX ?? "",
-        tableOverflowY: tableStyle?.overflowY ?? "",
         tableScrollTop: tableScroll?.scrollTop ?? 0,
         windowScrollY: window.scrollY,
       };
     });
 
-  const positionTableInDialog = async () => {
-    await table.evaluate((node) => {
-      const tableScroll = node as HTMLElement;
-      const dialog = tableScroll.closest(
-        ".glass-overlay-bare-surface",
-      ) as HTMLElement | null;
-      if (!dialog) return;
-      const dialogRect = dialog.getBoundingClientRect();
-      const tableRect = tableScroll.getBoundingClientRect();
-      const nextScrollTop =
-        dialog.scrollTop + tableRect.top - dialogRect.top - 24;
-      const maxScrollTop = dialog.scrollHeight - dialog.clientHeight;
-      dialog.scrollTop = Math.min(
-        nextScrollTop,
-        Math.max(0, maxScrollTop - 120),
-      );
-    });
-  };
-
   const moveMouseToTable = async () => {
     const point = await table.evaluate((node) => {
       const rect = node.getBoundingClientRect();
       const dialog = node.closest(
-        ".glass-overlay-bare-surface",
+        ".result-slideover-body",
       ) as HTMLElement | null;
       const dialogRect = dialog?.getBoundingClientRect();
       const visibleTop = Math.max(rect.top, dialogRect?.top ?? rect.top);
@@ -2323,57 +2007,41 @@ async function expectResultHopTableWheelChaining(page: Page): Promise<void> {
     await page.mouse.move(point.x, point.y);
   };
 
-  await positionTableInDialog();
-  await moveMouseToTable();
-
   const initial = await readState();
   expect(initial.dialogMaxScroll).toBeGreaterThan(0);
-  expect(initial.tableMaxScroll).toBeGreaterThan(0);
+  expect(initial.tableMaxScroll).toBeLessThanOrEqual(1);
+  expect(initial.tableMaxHeight).toBe("none");
   expect(initial.dialogOverflowY).toBe("scroll");
   expect(initial.dialogOverscrollX).toBe("contain");
   expect(initial.dialogOverscrollY).toBe("contain");
   expect(initial.dialogScrollbarGutter).toContain("stable");
   expect(initial.dialogScrollbarWidth).toBe("auto");
   expect(initial.tableOverflowX).toBe("auto");
-  expect(initial.tableOverflowY).toBe("auto");
   expect(initial.tableOverscrollX).toBe("contain");
-  expect(initial.tableOverscrollY).toBe("auto");
 
-  await table.evaluate((node) => {
-    (node as HTMLElement).scrollTop = 0;
+  await page.evaluate(() => {
+    const dialog = document.querySelector(
+      ".result-slideover-body",
+    ) as HTMLElement | null;
+    if (dialog) dialog.scrollTop = 0;
   });
-  const beforeTableScroll = await readState();
-  await page.mouse.wheel(0, 180);
-  await expect
-    .poll(async () => (await readState()).tableScrollTop)
-    .toBeGreaterThan(beforeTableScroll.tableScrollTop + 20);
-  const afterTableScroll = await readState();
-  expect(afterTableScroll.dialogScrollTop).toBeLessThanOrEqual(
-    beforeTableScroll.dialogScrollTop + 2,
-  );
-
-  await table.evaluate((node) => {
-    const tableScroll = node as HTMLElement;
-    tableScroll.scrollTop = tableScroll.scrollHeight;
-  });
-  const beforeDownChain = await readState();
+  await moveMouseToTable();
+  const beforeDown = await readState();
   await page.mouse.wheel(0, 360);
   await expect
     .poll(async () => (await readState()).dialogScrollTop)
-    .toBeGreaterThan(beforeDownChain.dialogScrollTop + 20);
+    .toBeGreaterThan(beforeDown.dialogScrollTop + 20);
+  expect((await readState()).tableScrollTop).toBe(0);
 
-  await table.evaluate((node) => {
-    (node as HTMLElement).scrollTop = 0;
-  });
-  await moveMouseToTable();
-  const beforeUpChain = await readState();
-  expect(beforeUpChain.dialogScrollTop).toBeGreaterThan(20);
+  const beforeUp = await readState();
+  expect(beforeUp.dialogScrollTop).toBeGreaterThan(20);
   await page.mouse.wheel(0, -360);
   await expect
     .poll(async () => (await readState()).dialogScrollTop)
-    .toBeLessThan(beforeUpChain.dialogScrollTop - 20);
+    .toBeLessThan(beforeUp.dialogScrollTop - 20);
 
   const final = await readState();
+  expect(final.tableScrollTop).toBe(0);
   expect(final.windowScrollY).toBe(0);
 }
 
@@ -2383,7 +2051,7 @@ async function expectBareAboutOverlay(page: Page): Promise<void> {
   ).toBeVisible();
   const state = await page.evaluate(() => {
     const overlay = document.querySelector(
-      ".glass-overlay-about",
+      ".overlay-about",
     ) as HTMLElement | null;
     const dialog = overlay?.querySelector(
       '[role="dialog"]',
@@ -2395,14 +2063,14 @@ async function expectBareAboutOverlay(page: Page): Promise<void> {
       dialogClassName: dialog?.className || "",
       dialogBackground: dialogStyle?.backgroundColor || "",
       dialogBoxShadow: dialogStyle?.boxShadow || "",
-      hasHeader: Boolean(overlay?.querySelector(".glass-overlay-header")),
-      hasBody: Boolean(overlay?.querySelector(".glass-overlay-body")),
-      hasPanel: Boolean(overlay?.querySelector(".glass-overlay-panel")),
+      hasHeader: Boolean(overlay?.querySelector(".overlay-header")),
+      hasBody: Boolean(overlay?.querySelector(".overlay-body")),
+      hasPanel: Boolean(overlay?.querySelector(".overlay-panel")),
       firstChildClassName: firstChild?.className || "",
     };
   });
-  expect(state.overlayClassName).toContain("glass-overlay-chrome-bare");
-  expect(state.dialogClassName).toContain("glass-overlay-bare-surface");
+  expect(state.overlayClassName).toContain("overlay-chrome-bare");
+  expect(state.dialogClassName).toContain("overlay-bare-panel");
   expect(state.dialogBackground).toBe("rgba(0, 0, 0, 0)");
   expect(state.dialogBoxShadow).toBe("none");
   expect(state.hasHeader).toBe(false);
@@ -2456,18 +2124,19 @@ async function expectSuggestionPopoverOnTop(popover: Locator): Promise<void> {
 }
 
 async function expectDarkMapControls(page: Page): Promise<void> {
-  await expect(page.locator(".tool-button").first()).toBeVisible();
+  await expect(page.locator(".map-mode-switch").first()).toBeVisible();
+  await expect(page.locator(".map-mode-button").first()).toBeVisible();
   await expect(
     page.locator(".maplibregl-ctrl-group button").first(),
   ).toBeVisible();
   await expect
     .poll(async () =>
       page
-        .locator(".tool-button")
+        .locator(".map-mode-button.is-active")
         .first()
-        .evaluate((node) => window.getComputedStyle(node).backgroundColor),
+        .evaluate((node) => window.getComputedStyle(node).color),
     )
-    .toBe("rgba(9, 18, 28, 0.84)");
+    .toBe("rgb(237, 237, 237)");
   const state = await page.evaluate(() => {
     const read = (selector: string) => {
       const element = document.querySelector(selector);
@@ -2480,33 +2149,59 @@ async function expectDarkMapControls(page: Page): Promise<void> {
         filter: style.filter,
       };
     };
-    const root = window.getComputedStyle(document.documentElement);
+    // Resolve tokens through a probe element so every value comes back in rgb() form.
+    const resolveColorToken = (token: string) => {
+      const probe = document.createElement("span");
+      probe.style.color = `var(${token})`;
+      document.body.append(probe);
+      const value = window.getComputedStyle(probe).color;
+      probe.remove();
+      return value;
+    };
+    const resolveBgToken = (token: string) => {
+      const probe = document.createElement("span");
+      probe.style.backgroundColor = `var(${token})`;
+      document.body.append(probe);
+      const value = window.getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return value;
+    };
     return {
-      controlBg: root.getPropertyValue("--map-control-bg").trim(),
-      controlFg: root.getPropertyValue("--map-control-fg").trim(),
-      controlBorder: root.getPropertyValue("--map-control-border").trim(),
-      toolbar: read(".tool-button"),
+      controlBg: resolveColorToken("--map-control-bg"),
+      controlFg: resolveColorToken("--map-control-fg"),
+      controlBorder: resolveColorToken("--map-control-border"),
+      modeGlass: resolveBgToken("--map-mode-glass"),
+      modeGlassFgActive: resolveColorToken("--map-mode-glass-fg-active"),
+      modeSwitch: read(".map-mode-switch"),
+      modeButton: read(".map-mode-button.is-active"),
       zoomGroup: read(".maplibregl-ctrl-group"),
       zoomIcon: read(".maplibregl-ctrl-group button .maplibregl-ctrl-icon"),
       attribution: read(".maplibregl-ctrl-attrib"),
       attributionButton: read(".maplibregl-ctrl-attrib-button"),
     };
   });
-  expect(state.controlBg).toBe("rgba(9, 18, 28, 0.84)");
-  expect(state.controlFg).toBe("rgba(245, 251, 255, 0.92)");
-  expect(state.controlBorder).toBe("rgba(114, 220, 255, 0.24)");
-  expect(state.toolbar?.backgroundColor).toBe(state.controlBg);
-  expect(state.toolbar?.color).toBe(state.controlFg);
+  expect(state.controlBg).toBe("rgb(10, 10, 10)");
+  expect(state.controlFg).toBe("rgb(237, 237, 237)");
+  expect(state.controlBorder).toBe("rgb(38, 38, 38)");
+  expect(state.modeSwitch?.backgroundColor).toBe(state.modeGlass);
+  expect(state.modeButton?.color).toBe(state.modeGlassFgActive);
   expect(state.zoomGroup?.backgroundColor).toBe(state.controlBg);
   expect(state.zoomGroup?.borderColor).toBe(state.controlBorder);
   expect(state.zoomIcon?.filter).not.toBe("none");
-  expect(state.attribution?.backgroundColor).toBe(state.controlBg);
-  expect(state.attribution?.borderColor).toBe(state.controlBorder);
-  expect(state.attributionButton?.backgroundColor).toBe(state.controlBg);
+  // Attribution sits chrome-less on the map (text-shadow only).
+  expect(state.attribution?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(state.attribution?.color).toBe(state.controlFg);
+  expect(state.attributionButton?.backgroundColor).toBe("rgba(0, 0, 0, 0)");
 }
 
-async function expectMapCanvasPainted(page: Page): Promise<void> {
-  const canvas = page.locator(".maplibregl-canvas").first();
+async function expectMapCanvasPainted(
+  page: Page,
+  options?: { root?: string; minWidth?: number; minHeight?: number },
+): Promise<void> {
+  const root = options?.root;
+  const canvas = root
+    ? page.locator(`${root} .maplibregl-canvas`).first()
+    : page.locator(".maplibregl-canvas").first();
   await expect(canvas).toBeVisible();
   const state = await canvas.evaluate((node) => {
     const item = node as HTMLCanvasElement;
@@ -2517,9 +2212,20 @@ async function expectMapCanvasPainted(page: Page): Promise<void> {
       dataUrlLength: item.toDataURL("image/png").length,
     };
   });
-  expect(state.width).toBeGreaterThan(250);
-  expect(state.height).toBeGreaterThan(250);
+  const minWidth = options?.minWidth ?? 250;
+  const minHeight = options?.minHeight ?? 250;
+  expect(state.width).toBeGreaterThan(minWidth);
+  expect(state.height).toBeGreaterThan(minHeight);
   expect(state.dataUrlLength).toBeGreaterThan(1000);
+}
+
+async function expectResultMapCanvasPainted(page: Page): Promise<void> {
+  // Compact slideover / stacked result maps are shorter than the home probe map.
+  await expectMapCanvasPainted(page, {
+    root: ".result-map",
+    minWidth: 180,
+    minHeight: 180,
+  });
 }
 
 async function expectProbeMapProjection(
@@ -2602,9 +2308,12 @@ async function expectResultMapHeight(page: Page): Promise<void> {
     return {
       height: rect.height,
       computedHeight: window.getComputedStyle(element).height,
+      viewportWidth: window.innerWidth,
     };
   });
-  expect(state.height).toBeGreaterThanOrEqual(300);
+  // Result slideover keeps a compact map; standalone layouts can be taller.
+  const minHeight = state.viewportWidth <= 820 ? 180 : 220;
+  expect(state.height).toBeGreaterThanOrEqual(minHeight);
   expect(
     Math.abs(Number.parseFloat(state.computedHeight) - state.height),
   ).toBeLessThanOrEqual(1);
@@ -2679,58 +2388,51 @@ async function expectResultMapGlobeLineStyle(page: Page): Promise<void> {
 
 async function expectResultHeaderActions(page: Page): Promise<void> {
   const actions = page.locator(".result-header-actions");
-  await expect(
-    actions.getByRole("group", { name: "结果地图视图" }),
-  ).toBeVisible();
-  await expect(
-    actions.getByRole("button", { name: "切换结果地图到 2D" }),
-  ).toBeVisible();
-  await expect(
-    actions.getByRole("button", { name: "切换结果地图到 3D" }),
-  ).toBeVisible();
   await expect(actions.getByRole("button", { name: "分享" })).toBeVisible();
   await expect(actions.getByRole("button", { name: "关闭结果" })).toBeVisible();
-  const state = await actions.evaluate((node) => {
-    const rect = (node as HTMLElement).getBoundingClientRect();
-    const toolbar = node.querySelector(
+  const resultRoot = page.locator(".result-slideover, .results-section").first();
+  const mapView = resultRoot.getByRole("group", { name: "结果地图视图" });
+  await mapView.scrollIntoViewIfNeeded();
+  await expect(mapView).toBeVisible();
+  await expect(
+    resultRoot.getByRole("button", { name: "切换结果地图到 2D" }),
+  ).toBeVisible();
+  await expect(
+    resultRoot.getByRole("button", { name: "切换结果地图到 3D" }),
+  ).toBeVisible();
+  const state = await page.evaluate(() => {
+    const actionsNode = document.querySelector(
+      ".result-header-actions",
+    ) as HTMLElement | null;
+    const rect = actionsNode?.getBoundingClientRect();
+    const resultShell = document.querySelector(
+      ".result-slideover .result-map-shell, .results-section .result-map-shell",
+    ) as HTMLElement | null;
+    const toolbar = resultShell?.querySelector(
       ".result-map-toolbar",
     ) as HTMLElement | null;
-    const switchSurface = node.querySelector(
-      ".result-map-toolbar-surface",
+    const switchBase = resultShell?.querySelector(
+      ".map-mode-switch",
     ) as HTMLElement | null;
-    const switchBase = node.querySelector(
-      ".result-map-toolbar-surface .liquid-glass-content",
+    const switchButton = switchBase?.querySelector(
+      "button",
     ) as HTMLElement | null;
-    const switchButton = node.querySelector(
-      ".result-map-view-switch button",
-    ) as HTMLElement | null;
-    const copyButton = node.querySelector(
+    const copyButton = actionsNode?.querySelector(
       '[title="分享诊断链接"]',
     ) as HTMLElement | null;
-    const closeButton = node.querySelector(
+    const closeButton = actionsNode?.querySelector(
       '[aria-label="关闭结果"]',
     ) as HTMLElement | null;
     const switchBaseStyle = switchBase
       ? window.getComputedStyle(switchBase)
       : null;
-    const children = Array.from(node.children).map((child) => {
-      const childRect = child.getBoundingClientRect();
-      const button = child.querySelector(".result-command-button, button");
-      return {
-        className: child.className,
-        buttonClassName: button?.className || "",
-        left: childRect.left,
-        right: childRect.right,
-      };
-    });
+    const children = Array.from(actionsNode?.children || []).map((child) => ({
+      className: (child as HTMLElement).className,
+    }));
     return {
-      right: rect.right,
+      right: rect?.right ?? 0,
       documentClient: document.documentElement.clientWidth,
-      viewportHeight: window.innerHeight,
       children,
-      switchSurfaceClassName: switchSurface?.className || "",
-      switchSurfaceMode:
-        switchSurface?.getAttribute("data-liquid-glass-mode") || "",
       toolbarHeight: toolbar?.getBoundingClientRect().height ?? 0,
       switchBaseHeight: switchBase?.getBoundingClientRect().height ?? 0,
       switchBaseBackgroundColor: switchBaseStyle?.backgroundColor ?? "",
@@ -2738,51 +2440,32 @@ async function expectResultHeaderActions(page: Page): Promise<void> {
       switchBaseBorderStyle: switchBaseStyle?.borderTopStyle ?? "",
       switchBaseBorderWidth:
         Number.parseFloat(switchBaseStyle?.borderTopWidth ?? "0") || 0,
-      closeHeight: closeButton?.getBoundingClientRect().height ?? 0,
       switchButtonHeight: switchButton?.getBoundingClientRect().height ?? 0,
       copyButtonHeight: copyButton?.getBoundingClientRect().height ?? 0,
       closeButtonHeight: closeButton?.getBoundingClientRect().height ?? 0,
     };
   });
   expect(state.right).toBeLessThanOrEqual(state.documentClient);
-  expect(state.children[0]?.className).toContain("result-map-toolbar");
-  expect(state.children[1]?.className).toContain("result-command-surface");
-  expect(state.children[2]?.className).toContain("result-command-surface");
-  expect(state.children[1]?.buttonClassName).toContain("result-command-button");
-  expect(state.children[2]?.buttonClassName).toContain("result-command-button");
-  expect(state.switchSurfaceClassName).toContain("result-map-toolbar-surface");
-  expect(state.switchSurfaceMode).toMatch(/^(liquid|fallback)$/);
-  if (state.switchSurfaceMode === "fallback") {
-    expect(state.switchBaseBorderStyle).toBe("solid");
-    expect(state.switchBaseBorderWidth).toBeGreaterThanOrEqual(1);
-    expect(["transparent", "rgba(0, 0, 0, 0)"]).not.toContain(
-      state.switchBaseBorderColor,
-    );
-    expect(["transparent", "rgba(0, 0, 0, 0)"]).not.toContain(
-      state.switchBaseBackgroundColor,
-    );
-  }
-  if (
-    state.documentClient > 820 &&
-    !(state.documentClient <= 900 && state.viewportHeight <= 560)
-  ) {
-    const heights = [
-      state.toolbarHeight,
-      state.copyButtonHeight,
-      state.closeHeight,
-    ];
-    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(2);
-  } else {
-    expect(state.switchBaseHeight).toBeGreaterThanOrEqual(44);
-    expect(state.switchButtonHeight).toBeGreaterThanOrEqual(36);
-    expect(state.switchButtonHeight).toBeLessThan(state.switchBaseHeight);
-    expect(state.copyButtonHeight).toBeGreaterThanOrEqual(44);
-    expect(state.closeButtonHeight).toBeGreaterThanOrEqual(44);
-  }
+  expect(state.children).toHaveLength(2);
+  expect(state.children[0]?.className).toContain("result-command-button");
+  expect(state.children[1]?.className).toContain("result-command-button");
+  expect(state.toolbarHeight).toBeGreaterThan(0);
+  expect(state.switchBaseBorderStyle).toBe("solid");
+  expect(state.switchBaseBorderWidth).toBeGreaterThanOrEqual(1);
+  expect(["transparent", "rgba(0, 0, 0, 0)"]).not.toContain(
+    state.switchBaseBorderColor,
+  );
+  expect(["transparent", "rgba(0, 0, 0, 0)"]).not.toContain(
+    state.switchBaseBackgroundColor,
+  );
+  expect(state.switchBaseHeight).toBeGreaterThanOrEqual(28);
+  expect(state.switchButtonHeight).toBeGreaterThanOrEqual(28);
+  expect(state.copyButtonHeight).toBeGreaterThanOrEqual(32);
+  expect(state.closeButtonHeight).toBeGreaterThanOrEqual(32);
 }
 
 async function expectResultMapGlobeDesktopSize(page: Page): Promise<void> {
-  const state = await page.locator(".result-map").evaluate((node) => {
+  const state = await page.locator(".result-slideover .result-map").evaluate((node) => {
     const element = node as HTMLElement;
     const rect = element.getBoundingClientRect();
     return {
@@ -2791,7 +2474,9 @@ async function expectResultMapGlobeDesktopSize(page: Page): Promise<void> {
       projection: element.dataset.mapProjection,
     };
   });
-  expect(state.height).toBeGreaterThanOrEqual(600);
+  // Compact height inside the result slideover (not the old full-page globe).
+  expect(state.height).toBeGreaterThanOrEqual(220);
+  expect(state.height).toBeLessThanOrEqual(360);
   expect(state.className).toContain("result-map-globe");
   expect(state.projection).toBe("globe");
 }
@@ -2800,6 +2485,9 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   const state = await page.evaluate(() => {
     const doc = document.documentElement;
     const body = document.body;
+    const slideover = document.querySelector(
+      ".result-slideover",
+    ) as HTMLElement | null;
     const result = document.querySelector(
       ".results-section",
     ) as HTMLElement | null;
@@ -2809,22 +2497,22 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const headerActions = document.querySelector(
       ".result-header-actions",
     ) as HTMLElement | null;
-    const toolbar = document.querySelector(
+    const resultShell = document.querySelector(
+      ".result-slideover .result-map-shell, .results-section .result-map-shell",
+    ) as HTMLElement | null;
+    const toolbar = resultShell?.querySelector(
       ".result-map-toolbar",
     ) as HTMLElement | null;
-    const viewSwitchBase = document.querySelector(
-      ".result-map-toolbar-surface .liquid-glass-content",
+    const viewSwitch = resultShell?.querySelector(
+      ".map-mode-switch",
     ) as HTMLElement | null;
-    const viewSwitch = document.querySelector(
-      ".result-map-view-switch",
+    const switchButton = viewSwitch?.querySelector(
+      "button",
     ) as HTMLElement | null;
-    const switchButton = document.querySelector(
-      ".result-map-view-switch button",
-    ) as HTMLElement | null;
-    const twoDimensionalButton = document.querySelector(
+    const twoDimensionalButton = resultShell?.querySelector(
       '[aria-label="切换结果地图到 2D"]',
     ) as HTMLElement | null;
-    const threeDimensionalButton = document.querySelector(
+    const threeDimensionalButton = resultShell?.querySelector(
       '[aria-label="切换结果地图到 3D"]',
     ) as HTMLElement | null;
     const copyButton = document.querySelector(
@@ -2833,27 +2521,9 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const closeButton = document.querySelector(
       '.result-header-actions [aria-label="关闭结果"]',
     ) as HTMLElement | null;
-    const copyVisualButton = copyButton?.querySelector(
-      ".result-command-button",
-    ) as HTMLElement | null;
-    const closeVisualButton = closeButton?.querySelector(
-      ".result-command-button",
-    ) as HTMLElement | null;
-    const copySurface = copyButton
-      ?.closest(".result-command-surface")
-      ?.querySelector(".liquid-glass-content") as HTMLElement | null;
-    const closeSurface = closeButton
-      ?.closest(".result-command-surface")
-      ?.querySelector(".liquid-glass-content") as HTMLElement | null;
     const tabs = document.querySelector(".probe-tabs") as HTMLElement | null;
     const tabsFrame = tabs?.closest(
-      ".probe-tabs-frame-surface",
-    ) as HTMLElement | null;
-    const tabsFrameContent = tabsFrame?.querySelector(
       ".probe-tabs-frame",
-    ) as HTMLElement | null;
-    const tabsFrameSurfaceContent = tabsFrame?.querySelector(
-      ".liquid-glass-content",
     ) as HTMLElement | null;
     const routeTabs = Array.from(
       document.querySelectorAll(".probe-tabs [role='tab']"),
@@ -2862,13 +2532,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       routeTabs.find(
         (button) => button.getAttribute("aria-selected") === "true",
       ) ?? null;
-    const activeRouteSurface = activeRouteTab?.closest(
-      ".probe-tab-surface",
-    ) as HTMLElement | null;
-    const activeRouteSurfaceContent = activeRouteSurface?.querySelector(
-      ".liquid-glass-content",
-    ) as HTMLElement | null;
-    const map = document.querySelector(".result-map") as HTMLElement | null;
+    const map = (resultShell?.querySelector(".result-map") ||
+      document.querySelector(".result-map")) as HTMLElement | null;
     const table = document.querySelector(
       ".hop-table-scroll",
     ) as HTMLElement | null;
@@ -2902,17 +2567,12 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       const beforeStyle = element
         ? window.getComputedStyle(element, "::before")
         : null;
-      const glass = element
-        ?.closest("[data-liquid-glass]")
-        ?.querySelector(".glass") as HTMLElement | null;
-      const glassStyle = glass ? window.getComputedStyle(glass) : null;
       return {
         backgroundColor: style?.backgroundColor ?? "",
         backgroundImage: style?.backgroundImage ?? "",
         borderColor: style?.borderColor ?? "",
         borderTopWidth: style?.borderTopWidth ?? "",
         boxShadow: style?.boxShadow ?? "",
-        glassBoxShadow: glassStyle?.boxShadow ?? "",
         opticalLayerOpacity:
           Number.parseFloat(beforeStyle?.opacity || "0") || 0,
       };
@@ -2997,23 +2657,31 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     const activeRouteTabStyle = activeRouteTab
       ? window.getComputedStyle(activeRouteTab)
       : null;
-    const activeRouteSurfaceStyle = activeRouteSurfaceContent
-      ? window.getComputedStyle(activeRouteSurfaceContent)
-      : null;
-    const tabsFrameStyle = tabsFrameContent
-      ? window.getComputedStyle(tabsFrameContent)
-      : null;
-    const tabsFrameSurfaceStyle = tabsFrameSurfaceContent
-      ? window.getComputedStyle(tabsFrameSurfaceContent)
+    const tabsFrameStyle = tabsFrame
+      ? window.getComputedStyle(tabsFrame)
       : null;
     const radiusValue = (value: string) =>
       Number.parseFloat(value.split(" ")[0] || "0");
+    const slideoverRect = slideover?.getBoundingClientRect();
     return {
       documentScroll: doc.scrollWidth,
       documentClient: doc.clientWidth,
       bodyScroll: body.scrollWidth,
       bodyClient: body.clientWidth,
+      viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
+      slideoverOpen: slideover?.dataset.open || "",
+      slideoverMobile: slideover?.dataset.mobile || "",
+      slideoverLeft: slideoverRect?.left ?? -1,
+      slideoverRight: slideoverRect?.right ?? -1,
+      slideoverTop: slideoverRect?.top ?? -1,
+      slideoverBottom: slideoverRect?.bottom ?? -1,
+      slideoverWidth: slideoverRect?.width ?? 0,
+      slideoverHeight: slideoverRect?.height ?? 0,
+      slideoverPanelHeight: Number.parseInt(
+        slideover?.style.getPropertyValue("--result-panel-height") || "0",
+        10,
+      ),
       resultLeft: resultRect.left,
       resultRight: resultRect.right,
       resultWidth: resultRect.width,
@@ -3027,7 +2695,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       toolbarWidth: toolbarRect?.width ?? 0,
       toolbarRight: toolbarRect?.right ?? 0,
       toolbarBottom: toolbarRect?.bottom ?? 0,
-      viewSwitchBaseRect: rectFor(viewSwitchBase),
+      viewSwitchBaseRect: rectFor(viewSwitch),
       viewSwitchWidth: viewSwitchRect?.width ?? 0,
       buttonHeight: buttonRect?.height ?? 0,
       copyButtonHeight: copyButtonRect?.height ?? 0,
@@ -3054,23 +2722,9 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
         className: tabsFrame?.className ?? "",
         radiusValue: radiusValue(tabsFrameStyle?.borderRadius ?? "0"),
       },
-      tabsFrameSurfaceStyle: {
-        backgroundColor: tabsFrameSurfaceStyle?.backgroundColor ?? "",
-        backgroundImage: tabsFrameSurfaceStyle?.backgroundImage ?? "",
-        borderTopWidth: tabsFrameSurfaceStyle?.borderTopWidth ?? "",
-        boxShadow: tabsFrameSurfaceStyle?.boxShadow ?? "",
-        mode: tabsFrame?.getAttribute("data-liquid-glass-mode") ?? "",
-        intensity: tabsFrame?.getAttribute("data-liquid-glass-intensity") ?? "",
-      },
-      probeTabsSurfaceCount: document.querySelectorAll(".probe-tabs-surface")
+      probeTabsFrameCount: document.querySelectorAll(".probe-tabs-frame")
         .length,
-      probeTabsFrameSurfaceCount: document.querySelectorAll(
-        ".probe-tabs-frame-surface[data-liquid-glass]",
-      ).length,
       routeTabCount: routeTabs.length,
-      routeTabSurfaceCount: document.querySelectorAll(
-        ".probe-tabs .probe-tab-surface[data-liquid-glass]",
-      ).length,
       activeRouteTabStyle: {
         backgroundColor: activeRouteTabStyle?.backgroundColor ?? "",
         borderRadius: activeRouteTabStyle?.borderRadius ?? "",
@@ -3078,14 +2732,9 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
         boxShadow: activeRouteTabStyle?.boxShadow ?? "",
         className: activeRouteTab?.className ?? "",
       },
-      activeRouteSurfaceStyle: {
-        backgroundColor: activeRouteSurfaceStyle?.backgroundColor ?? "",
-        backgroundImage: activeRouteSurfaceStyle?.backgroundImage ?? "",
-        borderRadius: activeRouteSurfaceStyle?.borderRadius ?? "",
-        boxShadow: activeRouteSurfaceStyle?.boxShadow ?? "",
-        className: activeRouteSurface?.className ?? "",
-        radiusValue: radiusValue(activeRouteSurfaceStyle?.borderRadius ?? "0"),
-      },
+      activeRouteTabRadiusValue: radiusValue(
+        activeRouteTabStyle?.borderRadius ?? "0",
+      ),
       mapHeight: mapRect?.height ?? 0,
       tableDisplay: table ? window.getComputedStyle(table).display : "",
       tableOverflowX: table ? window.getComputedStyle(table).overflowX : "",
@@ -3101,12 +2750,12 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
       actionButtonStyles: {
         twoDimensional: buttonStyleFor(twoDimensionalButton),
         threeDimensional: buttonStyleFor(threeDimensionalButton),
-        copy: buttonStyleFor(copyVisualButton),
-        close: buttonStyleFor(closeVisualButton),
+        copy: buttonStyleFor(copyButton),
+        close: buttonStyleFor(closeButton),
       },
       actionSurfaceStyles: {
-        copy: surfaceStyleFor(copySurface),
-        close: surfaceStyleFor(closeSurface),
+        copy: surfaceStyleFor(copyButton),
+        close: surfaceStyleFor(closeButton),
       },
       viewButtonRects: [twoDimensionalButton, threeDimensionalButton].map(
         (button) => ({
@@ -3120,6 +2769,23 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   });
   expect(state.documentScroll).toBeLessThanOrEqual(state.documentClient);
   expect(state.bodyScroll).toBeLessThanOrEqual(state.bodyClient);
+  expect(state.slideoverOpen).toBe("true");
+  if (state.viewportWidth <= 820) {
+    expect(state.slideoverMobile).toBe("true");
+    expect(state.slideoverLeft).toBeLessThanOrEqual(1);
+    expect(state.slideoverRight).toBeGreaterThanOrEqual(state.viewportWidth - 1);
+    expect(state.slideoverWidth).toBeGreaterThanOrEqual(state.viewportWidth - 2);
+    expect(state.slideoverHeight).toBeGreaterThan(0);
+    expect(state.slideoverHeight).toBeLessThan(state.viewportHeight);
+    expect(state.slideoverBottom).toBeGreaterThanOrEqual(
+      state.viewportHeight - 2,
+    );
+    expect(state.slideoverTop).toBeGreaterThan(8);
+    expect(state.slideoverPanelHeight).toBeGreaterThan(0);
+    expect(state.slideoverPanelHeight).toBeLessThan(state.viewportHeight);
+  } else {
+    expect(state.slideoverMobile).toBe("false");
+  }
   expect(state.resultLeft).toBeGreaterThanOrEqual(0);
   expect(state.resultRight).toBeLessThanOrEqual(state.documentClient);
   expect(state.sectionHeaderLeft).toBeGreaterThanOrEqual(state.resultLeft);
@@ -3135,9 +2801,8 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     Math.min(280, state.documentClient - 40),
   );
   expect(state.headerWidth).toBeLessThanOrEqual(state.resultWidth);
-  expect(state.toolbarWidth).toBeGreaterThanOrEqual(state.headerWidth - 1);
-  expect(state.viewSwitchWidth).toBeGreaterThanOrEqual(state.toolbarWidth - 10);
-  expect(state.buttonRects).toHaveLength(4);
+  expect(state.viewSwitchWidth).toBeGreaterThan(0);
+  expect(state.buttonRects).toHaveLength(2);
   expect(state.overlaps).toEqual([]);
   for (const rect of state.buttonRects) {
     expect(rect.left).toBeGreaterThanOrEqual(state.resultLeft);
@@ -3145,21 +2810,19 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     expect(rect.right).toBeLessThanOrEqual(state.documentClient);
   }
   expect(state.viewSwitchBaseRect.width).toBeGreaterThan(0);
-  expect(state.viewSwitchBaseRect.height).toBeGreaterThanOrEqual(44);
+  expect(state.viewSwitchBaseRect.height).toBeGreaterThanOrEqual(28);
   expect(state.viewSwitchBaseRect.right).toBeLessThanOrEqual(state.resultRight);
   for (const rect of state.viewButtonRects) {
-    expect(rect.left).toBeGreaterThanOrEqual(state.viewSwitchBaseRect.left + 2);
-    expect(rect.right).toBeLessThanOrEqual(state.viewSwitchBaseRect.right - 2);
-    expect(rect.top).toBeGreaterThanOrEqual(state.viewSwitchBaseRect.top + 2);
-    expect(rect.bottom).toBeLessThanOrEqual(
-      state.viewSwitchBaseRect.bottom - 2,
-    );
-    expect(rect.height).toBeLessThan(state.viewSwitchBaseRect.height);
+    expect(rect.left).toBeGreaterThanOrEqual(state.viewSwitchBaseRect.left);
+    expect(rect.right).toBeLessThanOrEqual(state.viewSwitchBaseRect.right);
+    expect(rect.top).toBeGreaterThanOrEqual(state.viewSwitchBaseRect.top);
+    expect(rect.bottom).toBeLessThanOrEqual(state.viewSwitchBaseRect.bottom);
+    expect(rect.height).toBeLessThanOrEqual(state.viewSwitchBaseRect.height);
   }
-  expect(state.buttonHeight).toBeGreaterThanOrEqual(36);
-  expect(state.buttonHeight).toBeLessThan(state.viewSwitchBaseRect.height);
-  expect(state.copyButtonHeight).toBeGreaterThanOrEqual(44);
-  expect(state.closeButtonHeight).toBeGreaterThanOrEqual(44);
+  expect(state.buttonHeight).toBeGreaterThanOrEqual(28);
+  expect(state.buttonHeight).toBeLessThanOrEqual(state.viewSwitchBaseRect.height);
+  expect(state.copyButtonHeight).toBeGreaterThanOrEqual(32);
+  expect(state.closeButtonHeight).toBeGreaterThanOrEqual(32);
   expect(state.actionButtonStyles.copy.className).toContain(
     "result-command-button",
   );
@@ -3167,10 +2830,10 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     "result-command-button",
   );
   expect(state.actionButtonStyles.twoDimensional.className).toContain(
-    "result-view-button",
+    "map-mode-button",
   );
   expect(state.actionButtonStyles.threeDimensional.className).toContain(
-    "result-view-button",
+    "map-mode-button",
   );
   expect(state.actionButtonStyles.copy.backgroundColor).toBe(
     state.actionButtonStyles.close.backgroundColor,
@@ -3185,55 +2848,31 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
     state.actionSurfaceStyles.copy,
     state.actionSurfaceStyles.close,
   ]) {
-    expect(actionSurfaceStyle.backgroundColor).not.toBe("rgb(255, 255, 255)");
-    expect(actionSurfaceStyle.backgroundColor).not.toBe(
-      "rgba(255, 255, 255, 0.9)",
+    expect(actionSurfaceStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(actionSurfaceStyle.borderTopWidth).toBe("1px");
+    expect(["transparent", "rgba(0, 0, 0, 0)"]).not.toContain(
+      actionSurfaceStyle.borderColor,
     );
-    expect(
-      actionSurfaceStyle.borderTopWidth === "1px" ||
-        actionSurfaceStyle.boxShadow !== "none" ||
-        actionSurfaceStyle.glassBoxShadow !== "none",
-    ).toBe(true);
-    expect(
-      actionSurfaceStyle.opticalLayerOpacity > 0 ||
-        actionSurfaceStyle.glassBoxShadow !== "none",
-    ).toBe(true);
   }
-  expect(state.probeTabsSurfaceCount).toBe(0);
-  expect(state.probeTabsFrameSurfaceCount).toBe(1);
-  expect(state.routeTabSurfaceCount).toBe(state.routeTabCount);
+  expect(state.probeTabsFrameCount).toBe(1);
+  expect(state.routeTabCount).toBeGreaterThan(0);
   expect(state.tabsBackgroundColor).toBe("rgba(0, 0, 0, 0)");
   expect(state.tabsBorderTopWidth).toBe("0px");
   expect(state.tabsBoxShadow).toBe("none");
-  expect(state.tabsFrameStyle.className).toContain("probe-tabs-frame-surface");
-  expect(state.tabsFrameSurfaceStyle.mode).toMatch(/^(liquid|fallback)$/);
-  expect(state.tabsFrameSurfaceStyle.intensity).toBe("70");
-  expect(state.tabsFrameSurfaceStyle.backgroundImage).not.toBe("none");
-  expect(state.tabsFrameSurfaceStyle.borderTopWidth).toBe("1px");
-  expect(state.tabsFrameSurfaceStyle.boxShadow).not.toBe("none");
-  expect(state.tabsFrameStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
-  expect(state.tabsFrameStyle.backgroundImage).toBe("none");
-  expect(state.tabsFrameStyle.borderTopWidth).toBe("0px");
-  expect(state.tabsFrameStyle.boxShadow).toBe("none");
+  expect(state.tabsFrameStyle.className).toContain("probe-tabs-frame");
+  expect(state.tabsFrameStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(state.tabsFrameStyle.borderTopWidth).toBe("1px");
   expect(state.tabsFrameStyle.radiusValue).toBeGreaterThanOrEqual(
-    state.activeRouteSurfaceStyle.radiusValue,
+    state.activeRouteTabRadiusValue,
   );
   expect(state.activeRouteTabStyle.className).toContain("probe-tab-button");
-  expect(state.activeRouteTabStyle.className).not.toContain(
-    "data-[state=active]",
+  expect(state.activeRouteTabStyle.className).toContain("is-active");
+  expect(state.activeRouteTabStyle.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(state.activeRouteTabStyle.backgroundColor).not.toBe(
+    state.tabsFrameStyle.backgroundColor,
   );
-  expect(state.activeRouteSurfaceStyle.className).toContain("is-active");
-  expect(state.activeRouteTabStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
-  expect(state.activeRouteTabStyle.borderTopWidth).toBe("0px");
-  expect(state.activeRouteTabStyle.boxShadow).toBe("none");
-  expect(state.activeRouteSurfaceStyle.backgroundColor).not.toBe(
-    "rgb(255, 255, 255)",
-  );
-  expect(state.activeRouteSurfaceStyle.backgroundImage).not.toBe("none");
-  expect(state.activeRouteSurfaceStyle.boxShadow).not.toContain("inset 3px");
-  expect(state.activeRouteSurfaceStyle.borderRadius).toBe(
-    state.activeRouteTabStyle.borderRadius,
-  );
+  expect(state.activeRouteTabStyle.borderTopWidth).toBe("1px");
+  expect(state.activeRouteTabStyle.boxShadow).not.toContain("inset 3px");
   const viewButtonStyles = [
     state.actionButtonStyles.twoDimensional,
     state.actionButtonStyles.threeDimensional,
@@ -3249,51 +2888,39 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(activeViewButtonStyle?.backgroundColor).not.toBe(
     inactiveViewButtonStyle?.backgroundColor,
   );
-  expect(activeViewButtonStyle?.backgroundColor).not.toBe(
-    state.actionButtonStyles.copy.backgroundColor,
-  );
+  expect(activeViewButtonStyle?.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
   expect(activeViewButtonStyle?.color).not.toBe(inactiveViewButtonStyle?.color);
   expect(
     Math.abs(state.copyButtonTop - state.closeButtonTop),
   ).toBeLessThanOrEqual(2);
-  expect(state.copyButtonTop).toBeGreaterThanOrEqual(state.toolbarBottom - 1);
-  if (state.documentClient <= 560) {
-    expect(state.tabsFlexWrap).toBe("wrap");
-    expect(state.tabsOverflowX).toBe("visible");
-  } else {
-    expect(["auto", "scroll"]).toContain(state.tabsOverflowX);
-    expect(state.tabsScrollWidth).toBeGreaterThanOrEqual(state.tabsClientWidth);
-  }
-  expect(state.mapHeight).toBeGreaterThanOrEqual(300);
-  expect(state.mapHeight).toBeLessThanOrEqual(480);
-  expect(state.tableDisplay).toBe("none");
-  expect(state.cardListDisplay).toBe("grid");
-  expect(state.cardRects.length).toBeGreaterThan(0);
-  for (const [index, rect] of state.cardRects.entries()) {
-    expect(rect.left).toBeGreaterThanOrEqual(state.resultLeft);
-    expect(rect.right).toBeLessThanOrEqual(state.resultRight);
-    expect(rect.width).toBeGreaterThan(0);
-    expect(rect.height).toBeGreaterThan(44);
-
-    const peerLink = state.cardPeerLinks[index];
-    expect(peerLink.href).toContain("https://peer.as/?q=");
-    expect(peerLink.target).toBe("_blank");
-    expect(peerLink.rel).toContain("noopener");
-    expect(peerLink.rel).toContain("noreferrer");
-    expect(peerLink.width).toBeGreaterThan(0);
-    expect(peerLink.height).toBeGreaterThan(0);
-    expect(peerLink.left).toBeGreaterThanOrEqual(rect.left);
-    expect(peerLink.right).toBeLessThanOrEqual(rect.right);
-
-    const packetGroup = state.cardPacketGroups[index];
-    expect(packetGroup.dotCount).toBeGreaterThan(0);
-    expect(packetGroup.lostCount).toBeGreaterThanOrEqual(0);
-    expect(packetGroup.pointerEvents).toBe("none");
-    expect(packetGroup.position).toBe("absolute");
-    expect(packetGroup.text).toBe("");
-    expect(packetGroup.right).toBeLessThanOrEqual(rect.right);
-    expect(packetGroup.bottom).toBeLessThanOrEqual(rect.bottom);
-  }
+  expect(state.toolbarBottom).toBeGreaterThan(state.copyButtonTop);
+  expect(state.tabsFlexWrap).toBe("nowrap");
+  expect(["auto", "scroll", "hidden"]).toContain(state.tabsOverflowX);
+  expect(state.mapHeight).toBeGreaterThanOrEqual(180);
+  expect(state.mapHeight).toBeLessThanOrEqual(320);
+  expect(["block", "flex"]).toContain(state.tableDisplay);
+  expect(["auto", "scroll"]).toContain(state.tableOverflowX);
+  expect(state.tableScrollWidth).toBeGreaterThan(state.tableClientWidth);
+  expect(state.cardListDisplay).toBe("none");
+  const tableCellWrap = await page.evaluate(() => {
+    const cell = document.querySelector(
+      ".result-slideover .hop-table td",
+    ) as HTMLElement | null;
+    return cell ? window.getComputedStyle(cell).whiteSpace : "";
+  });
+  expect(tableCellWrap).toBe("nowrap");
+  const peerLink = await page
+    .locator(".result-slideover .hop-table .peer-link")
+    .first()
+    .evaluate((node) => ({
+      href: (node as HTMLAnchorElement).getAttribute("href") ?? "",
+      target: (node as HTMLAnchorElement).getAttribute("target") ?? "",
+      rel: (node as HTMLAnchorElement).getAttribute("rel") ?? "",
+    }));
+  expect(peerLink.href).toContain("https://peer.as/?q=");
+  expect(peerLink.target).toBe("_blank");
+  expect(peerLink.rel).toContain("noopener");
+  expect(peerLink.rel).toContain("noreferrer");
   expect(state.rawMaxHeights).toHaveLength(2);
   for (const maxHeight of state.rawMaxHeights) {
     expect(maxHeight).toContain("px");
@@ -3391,6 +3018,18 @@ async function clickVisibleHop(page: Page, ttl: number): Promise<void> {
     return;
   }
   await page.locator(`.hop-table tr[data-ttl="${ttl}"]`).click();
+}
+
+async function locateProbeOnMap(
+  page: Page,
+  city: string,
+  asn: number,
+): Promise<void> {
+  const locate = page.getByRole("button", {
+    name: `在地图上定位 ${city} AS${asn}`,
+  });
+  await expect(locate).toBeVisible();
+  await locate.click();
 }
 
 async function expectMapContainsCoordinate(

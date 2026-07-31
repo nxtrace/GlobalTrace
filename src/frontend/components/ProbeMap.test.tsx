@@ -25,9 +25,18 @@ const maplibreMock = vi.hoisted(() => {
     constructor(_options: unknown) {}
   }
 
+  class FakeAttributionControl {
+    constructor(_options: unknown) {}
+  }
+
   class FakeMap {
     static instances: FakeMap[] = [];
     static canvasRect = { width: 1000, height: 500 };
+    static styleLayers: Array<{ id: string; type: string }> = [
+      { id: "background", type: "background" },
+      { id: "water", type: "fill" },
+      { id: "natural_earth", type: "raster" },
+    ];
     static cameraForBoundsResult: { center: [number, number]; zoom: number; bearing: number } | undefined = {
       center: [12, 30],
       zoom: 0.92,
@@ -45,6 +54,7 @@ const maplibreMock = vi.hoisted(() => {
     readonly easeToCalls: unknown[] = [];
     readonly removeCalls: unknown[] = [];
     readonly setPaintPropertyCalls: unknown[] = [];
+    readonly setLayoutPropertyCalls: unknown[] = [];
     readonly setProjectionCalls: unknown[] = [];
     readonly dragPan = {
       disable: () => undefined,
@@ -76,6 +86,10 @@ const maplibreMock = vi.hoisted(() => {
       options.container.appendChild(this.canvas);
     }
 
+    getContainer() {
+      return this.options.container as HTMLElement;
+    }
+
     addControl() {}
 
     setProjection(projection: unknown) {
@@ -105,8 +119,25 @@ const maplibreMock = vi.hoisted(() => {
       this.layers.push(layer);
     }
 
+    getLayer(id: string) {
+      return this.layers.find((layer) => layer.id === id);
+    }
+
     setPaintProperty(...args: unknown[]) {
       this.setPaintPropertyCalls.push(args);
+      return this;
+    }
+
+    setLayoutProperty(...args: unknown[]) {
+      this.setLayoutPropertyCalls.push(args);
+      return this;
+    }
+
+    getStyle() {
+      return { layers: FakeMap.styleLayers };
+    }
+
+    setStyle(_style: unknown, _options?: unknown) {
       return this;
     }
 
@@ -171,6 +202,7 @@ const maplibreMock = vi.hoisted(() => {
   return {
     FakeMap,
     FakeNavigationControl,
+    FakeAttributionControl,
   };
 });
 
@@ -178,9 +210,11 @@ vi.mock("maplibre-gl", () => ({
   default: {
     Map: maplibreMock.FakeMap,
     NavigationControl: maplibreMock.FakeNavigationControl,
+    AttributionControl: maplibreMock.FakeAttributionControl,
   },
   Map: maplibreMock.FakeMap,
   NavigationControl: maplibreMock.FakeNavigationControl,
+  AttributionControl: maplibreMock.FakeAttributionControl,
 }));
 
 afterEach(() => {
@@ -192,21 +226,21 @@ afterEach(() => {
 });
 
 describe("ProbeMap", () => {
-  it("keeps empty state liquid surface separate from the map canvas", () => {
+  it("keeps the empty state overlay separate from the map canvas", () => {
     renderMap({ probes: [], status: "ready" });
 
-    expect(document.querySelector(".map-status-surface[data-liquid-glass]")).toBeNull();
-    expect(screen.getByText("没有匹配的在线 probe").closest(".map-empty-surface[data-liquid-glass]")).not.toBeNull();
-    expect(document.querySelector(".map-container[data-liquid-glass]")).toBeNull();
-    expect(document.querySelector(".maplibregl-canvas[data-liquid-glass]")).toBeNull();
+    expect(screen.getByText("没有匹配的在线 probe").closest(".map-empty")).not.toBeNull();
+    expect(document.querySelector(".map-container .map-empty")).toBeNull();
+    expect(document.querySelector(".maplibregl-canvas")).not.toBeNull();
   });
 
-  it("fits multiple probes and renders unclustered glow points after load", () => {
+  it("keeps the curated default center for worldwide probes and renders unclustered glow points", () => {
     renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
     const map = latestMap();
 
     act(() => map.triggerLoad());
 
+    expect(map.options).toMatchObject({ center: [90, 36], zoom: 0.95 });
     expect(map.sources.get("probes")?.options).toMatchObject({ type: "geojson" });
     expect(map.sources.get("probes")?.options).not.toHaveProperty("cluster");
     expect(map.layers.map((layer) => layer.id)).toEqual([
@@ -214,29 +248,29 @@ describe("ProbeMap", () => {
       "probe-selected-halo",
       "probe-points",
     ]);
-    expect(map.fitBoundsCalls.at(-1)).toEqual([
-      [
-        [-118.24, 34.05],
-        [139.76, 50.48],
-      ],
-      expect.objectContaining({ maxZoom: 5.2 }),
-    ]);
+    expect(map.easeToCalls.at(-1)).toMatchObject({
+      center: [90, 36],
+      zoom: 1.2,
+      duration: 1100,
+      essential: true,
+    });
+    expect(map.fitBoundsCalls).toHaveLength(0);
     expect(map.setProjectionCalls).toEqual([{ type: "mercator" }]);
   });
 
-  it("uses a tighter 1000p desktop overview zoom after fitting probes", () => {
+  it("uses a tighter 1000p desktop overview zoom after fitting regional probes", () => {
     setWindowSize(1440, 1000);
     maplibreMock.FakeMap.canvasRect = { width: 1000, height: 340 };
-    maplibreMock.FakeMap.cameraForBoundsResult = { center: [12, 30], zoom: 0.92, bearing: 0 };
-    renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
+    maplibreMock.FakeMap.cameraForBoundsResult = { center: [8, 51], zoom: 0.92, bearing: 0 };
+    renderMap({ probes: [deProbe, amsterdamProbe] });
     const map = latestMap();
 
     act(() => map.triggerLoad());
 
     expect(map.cameraForBoundsCalls.at(-1)).toEqual([
       [
-        [-118.24, 34.05],
-        [139.76, 50.48],
+        [4.9, 50.48],
+        [12.37, 52.37],
       ],
       {
         padding: { top: 48, right: 24, bottom: 28, left: 24 },
@@ -244,7 +278,7 @@ describe("ProbeMap", () => {
       },
     ]);
     expect(map.easeToCalls.at(-1)).toMatchObject({
-      center: [12, 30],
+      center: [8, 51],
       zoom: 1.15,
       duration: 420,
       essential: true,
@@ -255,8 +289,8 @@ describe("ProbeMap", () => {
   it("keeps the fitted desktop camera when it is already tighter than the 1000p zoom floor", () => {
     setWindowSize(1440, 1000);
     maplibreMock.FakeMap.canvasRect = { width: 1000, height: 340 };
-    maplibreMock.FakeMap.cameraForBoundsResult = { center: [12, 30], zoom: 1.3, bearing: 0 };
-    renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
+    maplibreMock.FakeMap.cameraForBoundsResult = { center: [8, 51], zoom: 1.3, bearing: 0 };
+    renderMap({ probes: [deProbe, amsterdamProbe] });
     const map = latestMap();
 
     act(() => map.triggerLoad());
@@ -265,7 +299,7 @@ describe("ProbeMap", () => {
     expect(map.fitBoundsCalls).toHaveLength(0);
   });
 
-  it("keeps the standard fit on mobile and non-1000p desktop viewports", () => {
+  it("keeps the standard fit on mobile and non-1000p desktop viewports for regional probes", () => {
     for (const viewport of [
       { width: 390, height: 844, canvas: { width: 390, height: 354 } },
       { width: 1280, height: 800, canvas: { width: 900, height: 300 } },
@@ -274,7 +308,7 @@ describe("ProbeMap", () => {
       maplibreMock.FakeMap.instances = [];
       setWindowSize(viewport.width, viewport.height);
       maplibreMock.FakeMap.canvasRect = viewport.canvas;
-      renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
+      renderMap({ probes: [deProbe, amsterdamProbe] });
       const map = latestMap();
 
       act(() => map.triggerLoad());
@@ -282,8 +316,8 @@ describe("ProbeMap", () => {
       expect(map.cameraForBoundsCalls).toHaveLength(0);
       expect(map.fitBoundsCalls.at(-1)).toEqual([
         [
-          [-118.24, 34.05],
-          [139.76, 50.48],
+          [4.9, 50.48],
+          [12.37, 52.37],
         ],
         expect.objectContaining({
           padding: { top: 68, right: 42, bottom: 42, left: 42 },
@@ -333,9 +367,36 @@ describe("ProbeMap", () => {
       network: "Oracle",
       count: 2,
     });
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "San Jose probe candidates" })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "San Jose probe candidates" })).toBeVisible();
+    const addedOption = screen.getByRole("option", { name: "Oracle AS31898 ×2 已添加" });
+    expect(addedOption).toHaveAttribute("aria-selected", "true");
+    expect(addedOption.querySelector(".probe-picker-added")).toBeVisible();
+    expect(screen.getByRole("button", { name: "移除 Oracle AS31898" })).toBeVisible();
+  });
+
+  it("removes an added ASN from the picker", async () => {
+    const onPickAsn = vi.fn();
+    const onRemoveAsn = vi.fn();
+    renderMap({ probes: sanJoseProbes, onPickAsn, onRemoveAsn, selectionActive: true });
+    const map = latestMap();
+    act(() => map.triggerLoad());
+    map.renderedFeatures = [{ properties: { index: 0 }, geometry: { type: "Point", coordinates: [-121.89, 37.34] } }];
+
+    act(() => {
+      void map.triggerLayer("click", "probe-points");
     });
+    fireEvent.click(screen.getByRole("option", { name: "Oracle AS31898 ×2" }));
+    fireEvent.click(screen.getByRole("button", { name: "移除 Oracle AS31898" }));
+
+    expect(onRemoveAsn).toHaveBeenCalledWith({
+      magic: "San Jose+US+AS31898",
+      city: "San Jose",
+      country: "US",
+      asn: "AS31898",
+      network: "Oracle",
+      count: 2,
+    });
+    expect(screen.queryByRole("button", { name: "移除 Oracle AS31898" })).toBeNull();
   });
 
   it("keeps same-location ASN candidates available after filtering to one ASN", () => {
@@ -391,6 +452,51 @@ describe("ProbeMap", () => {
     expect(nextPick).toHaveBeenCalledWith(expect.objectContaining({ magic: "Los Angeles+US+AS7922" }));
   });
 
+  it("follows a focused probe without changing the probe source set", () => {
+    const { rerender } = renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
+    const map = latestMap();
+    act(() => map.triggerLoad());
+    map.easeToCalls.length = 0;
+
+    rerender(
+      probeMapElement({
+        probes: [laProbe, deProbe, tokyoProbe],
+        focusProbe: laProbe,
+        focusToken: 1,
+      }),
+    );
+
+    expect(map.easeToCalls.at(-1)).toMatchObject({
+      center: [-118.24, 34.05],
+      zoom: 5.2,
+    });
+    const data = map.sources.get("probes")?.setDataCalls.at(-1) as {
+      features: Array<{ properties: { selected: boolean; city: string } }>;
+    };
+    expect(data.features.find((feature) => feature.properties.city === "Los Angeles")?.properties.selected).toBe(true);
+  });
+
+  it("refits the map overview when fitToken advances", () => {
+    const { rerender } = renderMap({ probes: [laProbe, deProbe, tokyoProbe] });
+    const map = latestMap();
+    act(() => map.triggerLoad());
+    map.easeToCalls.length = 0;
+    map.fitBoundsCalls.length = 0;
+
+    rerender(
+      probeMapElement({
+        probes: [laProbe, deProbe, tokyoProbe],
+        fitToken: 1,
+      }),
+    );
+
+    expect(map.easeToCalls.at(-1)).toMatchObject({
+      center: [90, 36],
+      zoom: 1.2,
+    });
+    expect(map.fitBoundsCalls).toHaveLength(0);
+  });
+
   it("clamps box selection coordinates when the pointer is released outside the map", async () => {
     const onBoxSelect = vi.fn();
     renderMap({ probes: [boxVisibleProbe, boxOutsideProbe, boxBeforeProbe], onBoxSelect });
@@ -398,7 +504,8 @@ describe("ProbeMap", () => {
     act(() => map.triggerLoad());
 
     fireEvent.click(screen.getByRole("button", { name: "框选" }));
-    await screen.findByRole("button", { name: "拖拽选择" });
+    expect(screen.getByRole("button", { name: "框选" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "拖拽" })).toHaveAttribute("aria-pressed", "false");
     act(() => {
       dispatchPointer(map.canvas, "pointerdown", { clientX: 100, clientY: 100, button: 0, pointerId: 1 });
       dispatchPointer(window, "pointermove", { clientX: 1500, clientY: 400, pointerId: 1 });
@@ -423,9 +530,12 @@ function probeMapElement(overrides: Partial<React.ComponentProps<typeof ProbeMap
       status={overrides.status ?? "ready"}
       selectionActive={overrides.selectionActive ?? false}
       mapStyleUrl={overrides.mapStyleUrl ?? "/mock-style.json"}
+      focusProbe={overrides.focusProbe}
+      focusToken={overrides.focusToken}
+      fitToken={overrides.fitToken}
       onPickAsn={overrides.onPickAsn ?? vi.fn()}
+      onRemoveAsn={overrides.onRemoveAsn ?? vi.fn()}
       onBoxSelect={overrides.onBoxSelect ?? vi.fn()}
-      onClearSelection={overrides.onClearSelection ?? vi.fn()}
     />
   );
 }
@@ -483,6 +593,22 @@ const deProbe: GlobalpingProbe = {
     latitude: 50.48,
     longitude: 12.37,
     network: "Hetzner Online",
+  },
+  tags: ["datacenter-network"],
+  resolvers: [],
+};
+
+const amsterdamProbe: GlobalpingProbe = {
+  location: {
+    continent: "EU",
+    region: "Western Europe",
+    country: "NL",
+    state: null,
+    city: "Amsterdam",
+    asn: 13335,
+    latitude: 52.37,
+    longitude: 4.9,
+    network: "Cloudflare",
   },
   tags: ["datacenter-network"],
   resolvers: [],

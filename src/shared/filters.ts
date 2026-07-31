@@ -62,6 +62,18 @@ export function appendMagicFilters(
   return { magic: selected.join(", ") || WORLD_MAGIC };
 }
 
+export function removeMagicFilters(
+  filters: TraceFilters | undefined,
+  removals: string | string[],
+): TraceFilters {
+  const removeSet = new Set(normalizeMagicAdditions(removals).map((magic) => magic.toLowerCase()));
+  const nextMagic = buildMagicFromFilters(filters).filter((magic) => {
+    const normalized = magic.toLowerCase();
+    return normalized !== WORLD_MAGIC && !removeSet.has(normalized);
+  });
+  return { magic: nextMagic.join(", ") || WORLD_MAGIC };
+}
+
 export function splitMagicList(value: string): string[] {
   const locations = value
     .split(",")
@@ -143,24 +155,53 @@ export interface ProbeFilterSuggestions {
   countries: string[];
   cities: string[];
   asns: string[];
+  /** Primary network/org name for each ASN, keyed by normalized `ASxxxx`. */
+  asnNetworks: Record<string, string>;
   networks: string[];
   tags: string[];
   magicStrings: string[];
 }
 
 export function probeFilterSuggestions(probes: GlobalpingProbe[], filters: TraceFilters = {}): ProbeFilterSuggestions {
+  // Countries stay full-list. Downstream fields cascade; magic still narrows by other filters.
   const magicCandidateProbes = filterProbes(probes, { ...filters, magic: undefined });
+  const citySourceProbes = compactText(filters.country)
+    ? probes.filter((probe) => includesText(probe.location.country, filters.country))
+    : probes;
+  const locationScopedProbes = citySourceProbes.filter((probe) =>
+    includesText(probe.location.city, filters.city),
+  );
+  const networkSourceProbes = locationScopedProbes.filter((probe) =>
+    matchesAsn(probe.location, filters.asn),
+  );
+  const tagSourceProbes = networkSourceProbes.filter(
+    (probe) =>
+      includesText(probe.location.network, filters.network) &&
+      (!filters.eyeball || hasNetworkKind(probe.tags, "eyeball")) &&
+      (!filters.datacenter || hasNetworkKind(probe.tags, "datacenter")),
+  );
   return {
-    countries: uniqueSorted(suggestionProbes(probes, filters, "country").map((probe) => probe.location.country)),
-    cities: uniqueSorted(suggestionProbes(probes, filters, "city").map((probe) => probe.location.city)),
+    countries: uniqueSorted(probes.map((probe) => probe.location.country)),
+    cities: uniqueSorted(citySourceProbes.map((probe) => probe.location.city)),
     asns: uniqueSorted(
-      suggestionProbes(probes, filters, "asn").map((probe) => normalizeAsn(probe.location.asn)),
+      locationScopedProbes.map((probe) => normalizeAsn(probe.location.asn)),
       compareAsn,
     ),
-    networks: uniqueSorted(suggestionProbes(probes, filters, "network").map((probe) => probe.location.network)),
-    tags: uniqueSorted(suggestionProbes(probes, filters, "tag").flatMap((probe) => probe.tags)),
+    asnNetworks: primaryAsnNetworks(probes),
+    networks: uniqueSorted(networkSourceProbes.map((probe) => probe.location.network)),
+    tags: uniqueSorted(tagSourceProbes.flatMap((probe) => probe.tags)),
     magicStrings: magicSuggestionsForProbes(magicCandidateProbes),
   };
+}
+
+export function asnSuggestionLabel(
+  asn: string,
+  asnNetworks: Record<string, string> = {},
+): string {
+  const normalized = normalizeAsn(asn);
+  if (!normalized) return compactText(asn);
+  const network = compactText(asnNetworks[normalized]);
+  return network ? `${normalized} · ${network}` : normalized;
 }
 
 export function probeMatchesFilters(probe: GlobalpingProbe, filters: TraceFilters): boolean {
@@ -368,6 +409,38 @@ function addMagicCandidate(out: Set<string>, parts: string[]): void {
   if (parts.every(Boolean)) out.add(parts.join("+"));
 }
 
+function primaryAsnNetworks(probes: GlobalpingProbe[]): Record<string, string> {
+  const countsByAsn = new Map<string, Map<string, number>>();
+  for (const probe of probes) {
+    const asn = normalizeAsn(probe.location.asn);
+    const network = compactText(probe.location.network);
+    if (!asn || !network) continue;
+    let counts = countsByAsn.get(asn);
+    if (!counts) {
+      counts = new Map();
+      countsByAsn.set(asn, counts);
+    }
+    counts.set(network, (counts.get(network) || 0) + 1);
+  }
+
+  const out: Record<string, string> = {};
+  for (const [asn, counts] of countsByAsn) {
+    let bestNetwork = "";
+    let bestCount = -1;
+    for (const [network, count] of counts) {
+      if (
+        count > bestCount ||
+        (count === bestCount && network.localeCompare(bestNetwork) < 0)
+      ) {
+        bestNetwork = network;
+        bestCount = count;
+      }
+    }
+    if (bestNetwork) out[asn] = bestNetwork;
+  }
+  return out;
+}
+
 function uniqueSorted(values: Iterable<unknown>, compareFn?: (left: string, right: string) => number): string[] {
   return Array.from(new Set(Array.from(values, compactText).filter(Boolean))).sort(compareFn);
 }
@@ -378,10 +451,3 @@ function compareAsn(left: string, right: string): number {
   return leftNumber - rightNumber || left.localeCompare(right);
 }
 
-function suggestionProbes(
-  probes: GlobalpingProbe[],
-  filters: TraceFilters,
-  excludedField: "country" | "city" | "asn" | "network" | "tag",
-): GlobalpingProbe[] {
-  return filterProbes(probes, { ...filters, magic: undefined, [excludedField]: undefined });
-}

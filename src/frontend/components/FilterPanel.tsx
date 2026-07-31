@@ -3,6 +3,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
 } from "react";
 import {
   Filter,
@@ -16,6 +17,7 @@ import {
   Sun,
 } from "lucide-react";
 import {
+  asnSuggestionLabel,
   type FilterChip,
   type ProbeFilterSuggestions,
 } from "../../shared/filters";
@@ -27,16 +29,16 @@ import {
 import type { ResultContentOrder } from "./mapProjection";
 import { themeModeLabel, type ThemeMode } from "../theme";
 import { useI18n, type Locale } from "../i18n";
-import { LiquidGlassSurface } from "./LiquidGlassSurface";
-import { GlassOverlay } from "./GlassOverlay";
+import { Overlay } from "./Overlay";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Surface } from "./ui/surface";
-import { Switch } from "./ui/switch";
 import { AdvancedParamsPanel } from "./filter-panel/AdvancedParamsPanel";
+import { ExactFiltersForm } from "./filter-panel/ExactFiltersForm";
+import { QuotaMeter, type QuotaState } from "./filter-panel/QuotaMeter";
 import { MagicSuggestionTextarea, SuggestionInput } from "./filter-panel/suggestions";
 import { handleSpaLinkClick } from "./spaNavigation";
+import { countrySuggestionLabel } from "../lib/countryNames";
 
 export type IpVersionSelection = 4 | 6;
 
@@ -53,7 +55,9 @@ export interface FilterPanelProps {
   visibleProbes: number;
   totalProbes: number;
   probesStatus: "loading" | "ready" | "error";
+  quota: QuotaState;
   selectionNotice: string;
+  mapSelectionActive?: boolean;
   loading: boolean;
   canSubmit: boolean;
   globalpingTokenDraft: string;
@@ -64,8 +68,6 @@ export interface FilterPanelProps {
   nexttraceTokenRemembered: boolean;
   themeMode: ThemeMode;
   locale?: Locale;
-  liquidGlassEnabled: boolean;
-  liquidGlassIntensity: number;
   resultContentOrder: ResultContentOrder;
   onTargetChange: (value: string) => void;
   onProtocolChange: (value: TraceProtocol) => void;
@@ -84,13 +86,12 @@ export interface FilterPanelProps {
   onNexttraceTokenRememberedChange: (remembered: boolean) => void;
   onCycleThemeMode: () => void;
   onLocaleChange?: (locale: Locale) => void;
-  onLiquidGlassEnabledChange: (enabled: boolean) => void;
-  onLiquidGlassIntensityChange: (intensity: number) => void;
   onResultContentOrderChange: (value: ResultContentOrder) => void;
   onOpenAdvancedParams?: () => void;
   onNavigateHome: () => void;
   onNavigateAbout: () => void;
   onReset: () => void;
+  onClearMapSelection?: () => void;
   onSubmit: () => void;
 }
 
@@ -98,6 +99,7 @@ const EMPTY_FILTER_SUGGESTIONS: ProbeFilterSuggestions = {
   countries: [],
   cities: [],
   asns: [],
+  asnNetworks: {},
   networks: [],
   tags: [],
   magicStrings: [],
@@ -179,250 +181,209 @@ export function FilterPanel(props: FilterPanelProps) {
               onClick={(event) => handleSpaLinkClick(event, props.onNavigateHome)}
               aria-label={messages.home}
             >
-              <h1>GlobalTrace</h1>
-              <p>{messages.brandSubtitle}</p>
+              <h1 className="brand-title" aria-label="GlobalTrace">
+                <span className="brand-title-lead">Global</span>
+                <span className="brand-title-mark">Trace</span>
+              </h1>
+              <p className="brand-subtitle">{messages.brandSubtitle}</p>
             </a>
             <div className="panel-title-actions">
-              <LiquidGlassSurface
-                variant="iconButton"
-                interactive
-                className="panel-action-surface"
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                className="panel-action-button"
                 onClick={switchLocale}
                 title={messages.switchLanguage}
-                ariaLabel={messages.switchLanguage}
+                aria-label={messages.switchLanguage}
               >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="panel-action-button"
-                  asChild
-                >
-                  <span>
-                    <Languages size={18} />
-                  </span>
-                </Button>
-              </LiquidGlassSurface>
-              <LiquidGlassSurface
-                variant="iconButton"
-                interactive
-                className="panel-action-surface"
+                <Languages size={18} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                className="panel-action-button"
                 onClick={props.onCycleThemeMode}
                 title={messages.theme(themeModeLabel(props.themeMode))}
-                ariaLabel={messages.theme(themeModeLabel(props.themeMode))}
+                aria-label={messages.theme(themeModeLabel(props.themeMode))}
               >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="panel-action-button"
-                  asChild
-                >
-                  <span>
-                    <ThemeIcon mode={props.themeMode} />
-                  </span>
-                </Button>
-              </LiquidGlassSurface>
-              <LiquidGlassSurface
-                variant="iconButton"
-                interactive
-                className="panel-action-surface"
+                <ThemeIcon mode={props.themeMode} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                className="panel-action-button"
                 onClick={openAdvancedParams}
                 title={messages.advancedParams}
-                ariaLabel={messages.openAdvancedParams}
+                aria-label={messages.openAdvancedParams}
               >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="panel-action-button"
-                  asChild
-                >
-                  <span>
-                    <Settings size={18} />
-                  </span>
-                </Button>
-              </LiquidGlassSurface>
-              <LiquidGlassSurface
-                variant="iconButton"
-                interactive
-                className="panel-action-surface"
-                onClick={props.onReset}
-                title={messages.resetFilters}
-                ariaLabel={messages.resetFilters}
-              >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="panel-action-button"
-                  asChild
-                >
-                  <span>
-                    <RotateCcw size={18} />
-                  </span>
-                </Button>
-              </LiquidGlassSurface>
+                <Settings size={18} />
+              </Button>
             </div>
           </div>
 
-          <Surface asChild variant="flat" className="primary-controls-surface">
-            <section
-              className="control-section primary-controls"
-              aria-label={messages.basicParams}
-            >
-              <div className="target-command-row">
+          <section
+            className="primary-controls"
+            aria-label={messages.basicParams}
+          >
+            <div className="target-command-row">
+              <input
+                className="target-command-input"
+                value={props.target}
+                onChange={(event) => props.onTargetChange(event.target.value)}
+                placeholder={messages.targetPlaceholder}
+                maxLength={253}
+                aria-label={messages.target}
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+              />
+              <button
+                type="button"
+                className="primary-action target-submit-button"
+                disabled={props.loading || !props.canSubmit}
+                onClick={props.onSubmit}
+                aria-label={messages.startTrace}
+              >
+                <Play size={16} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="parameter-pill-grid">
+              <div
+                className="target-ip-toggle"
+                role="group"
+                aria-label={messages.switchIpVersion}
+              >
+                <button
+                  type="button"
+                  className={
+                    props.ipVersion === 4
+                      ? "target-ip-button is-active"
+                      : "target-ip-button"
+                  }
+                  aria-pressed={props.ipVersion === 4}
+                  onClick={() => props.onIpVersionChange(4)}
+                >
+                  IPv4
+                </button>
+                <button
+                  type="button"
+                  className={
+                    props.ipVersion === 6
+                      ? "target-ip-button is-active"
+                      : "target-ip-button"
+                  }
+                  aria-pressed={props.ipVersion === 6}
+                  onClick={() => props.onIpVersionChange(6)}
+                >
+                  IPv6
+                </button>
+              </div>
+              <div className="parameter-pill protocol-pill" aria-label={messages.protocol}>
+                {(["ICMP", "TCP", "UDP"] as TraceProtocol[]).map(
+                  (protocol) => (
+                    <button
+                      key={protocol}
+                      type="button"
+                      className={
+                        props.protocol === protocol
+                          ? "protocol-pill-option is-active"
+                          : "protocol-pill-option"
+                      }
+                      onClick={() => props.onProtocolChange(protocol)}
+                      aria-pressed={props.protocol === protocol}
+                    >
+                      {protocol}
+                    </button>
+                  ),
+                )}
+              </div>
+              <label
+                className="parameter-pill port-pill"
+                onMouseDown={focusEditableDigitPill}
+              >
+                <span className="parameter-pill-label">{messages.port}</span>
+                <EditableDigitField
+                  className="parameter-pill-editable port-pill-value"
+                  value={props.port}
+                  placeholder={messages.auto}
+                  ariaLabel={messages.port}
+                  onChange={props.onPortChange}
+                />
+              </label>
+              <label
+                className="parameter-pill packets-pill"
+                onMouseDown={focusEditableDigitPill}
+              >
+                <span className="parameter-pill-label">Packets</span>
+                <EditableDigitField
+                  className="parameter-pill-editable numeric-pill-value"
+                  value={String(props.packets)}
+                  ariaLabel="Packets"
+                  min={1}
+                  max={16}
+                  onChange={(value) =>
+                    props.onPacketsChange(Number(value) || 1)
+                  }
+                />
+              </label>
+
+              <label
+                className="parameter-pill limit-pill"
+                onMouseDown={focusEditableDigitPill}
+              >
+                <span className="parameter-pill-label">Limit</span>
+                <EditableDigitField
+                  className="parameter-pill-editable numeric-pill-value"
+                  value={String(props.limit)}
+                  ariaLabel="Limit"
+                  min={1}
+                  max={10}
+                  onChange={(value) => props.onLimitChange(Number(value) || 1)}
+                />
+              </label>
+              <label className="parameter-pill magic-pill">
+                <MagicSuggestionTextarea
+                  value={visibleMagicValue(props.filters.magic)}
+                  options={filterSuggestions.magicStrings}
+                  onChange={(value) => setFilter("magic", value)}
+                />
+              </label>
+            </div>
+            {props.limit > DEFAULT_PROBE_LIMIT && (
+              <div className="limit-warning" role="status">
+                <span>{messages.probeLimitSlowNotice}</span>
                 <Button
-                  variant="glass"
+                  variant="ghost"
                   size="sm"
                   type="button"
-                  className="target-ip-button"
-                  onClick={() =>
-                    props.onIpVersionChange(props.ipVersion === 4 ? 6 : 4)
-                  }
-                  title={messages.switchIpVersion}
+                  className="limit-warning-action"
+                  onClick={() => props.onLimitChange(DEFAULT_PROBE_LIMIT)}
                 >
-                  {props.ipVersion === 4 ? "IPv4" : "IPv6"}
+                  {messages.reduceProbeLimit(DEFAULT_PROBE_LIMIT)}
                 </Button>
-                <Input
-                  className="target-command-input border-0 bg-transparent shadow-none backdrop-blur-none hover:bg-transparent focus-visible:ring-0"
-                  value={props.target}
-                  onChange={(event) => props.onTargetChange(event.target.value)}
-                  placeholder={messages.targetPlaceholder}
-                  maxLength={253}
-                  aria-label={messages.target}
-                />
-                <LiquidGlassSurface
-                  variant="button"
-                  interactive
-                  disabled={props.loading || !props.canSubmit}
-                  className="run-action-surface target-run-surface"
-                  onClick={props.onSubmit}
-                  ariaLabel={messages.startTrace}
-                >
-                  <Button
-                    variant="primary"
-                    size="icon"
-                    className="primary-action target-submit-button"
-                    asChild
-                  >
-                    <span>
-                      <Play size={18} />
-                    </span>
-                  </Button>
-                </LiquidGlassSurface>
               </div>
+            )}
+          </section>
 
-              <div className="parameter-pill-grid">
-                <div className="parameter-pill protocol-pill" aria-label={messages.protocol}>
-                  {(["ICMP", "TCP", "UDP"] as TraceProtocol[]).map(
-                    (protocol) => (
-                      <button
-                        key={protocol}
-                        type="button"
-                        className={
-                          props.protocol === protocol
-                            ? "protocol-pill-option is-active"
-                            : "protocol-pill-option"
-                        }
-                        onClick={() => props.onProtocolChange(protocol)}
-                        aria-pressed={props.protocol === protocol}
-                      >
-                        {protocol}
-                      </button>
-                    ),
-                  )}
-                </div>
-                <label className="parameter-pill port-pill">
-                  <span className="parameter-pill-label">{messages.port}</span>
-                  <span
-                    className="parameter-pill-editable port-pill-value"
-                    role="textbox"
-                    contentEditable
-                    suppressContentEditableWarning
-                    inputMode="numeric"
-                    data-placeholder={messages.auto}
-                    aria-label={messages.port}
-                    onInput={(event) =>
-                      props.onPortChange(
-                        sanitizeEditableDigits(event.currentTarget),
-                      )
-                    }
-                    onKeyDown={commitEditableOnEnter}
-                  >
-                    {props.port}
-                  </span>
-                </label>
-                <label className="parameter-pill packets-pill">
-                  <span className="parameter-pill-label">Packets</span>
-                  <span
-                    className="parameter-pill-editable numeric-pill-value"
-                    role="textbox"
-                    contentEditable
-                    suppressContentEditableWarning
-                    inputMode="numeric"
-                    aria-label="Packets"
-                    onInput={(event) =>
-                      props.onPacketsChange(
-                        clampEditableNumber(event.currentTarget, 1, 16),
-                      )
-                    }
-                    onKeyDown={commitEditableOnEnter}
-                  >
-                    {props.packets}
-                  </span>
-                </label>
-
-                <label className="parameter-pill limit-pill">
-                  <span className="parameter-pill-label">Limit</span>
-                  <span
-                    className="parameter-pill-editable numeric-pill-value"
-                    role="textbox"
-                    contentEditable
-                    suppressContentEditableWarning
-                    inputMode="numeric"
-                    aria-label="Limit"
-                    onInput={(event) =>
-                      props.onLimitChange(
-                        clampEditableNumber(event.currentTarget, 1, 10),
-                      )
-                    }
-                    onKeyDown={commitEditableOnEnter}
-                  >
-                    {props.limit}
-                  </span>
-                </label>
-                <label className="parameter-pill magic-pill">
-                  <MagicSuggestionTextarea
-                    value={visibleMagicValue(props.filters.magic)}
-                    options={filterSuggestions.magicStrings}
-                    onChange={(value) => setFilter("magic", value)}
-                  />
-                </label>
-              </div>
-              {props.limit > DEFAULT_PROBE_LIMIT && (
-                <div className="limit-warning" role="status">
-                  <span>{messages.probeLimitSlowNotice}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    type="button"
-                    className="limit-warning-action"
-                    onClick={() => props.onLimitChange(DEFAULT_PROBE_LIMIT)}
-                  >
-                    {messages.reduceProbeLimit(DEFAULT_PROBE_LIMIT)}
-                  </Button>
-                </div>
-              )}
-            </section>
-          </Surface>
-
-          <LiquidGlassSurface
-            variant="panel"
-            fullWidth
-            className="filter-summary-surface"
-          >
-            <section className="filter-summary" aria-label={messages.currentFilters}>
-              <div className="summary-title">
-                <Filter size={16} />
-                <span>{messages.currentFilters}</span>
-              </div>
+          <section className="filter-summary" aria-label={messages.currentFilters}>
+            <div className="summary-title">
+              <Filter size={14} />
+              <span>{messages.currentFilters}</span>
+              <button
+                type="button"
+                className="summary-reset-button"
+                onClick={props.onReset}
+                title={messages.resetFilters}
+                aria-label={messages.resetFilters}
+              >
+                <RotateCcw size={12} />
+              </button>
+            </div>
+            <div className="filter-summary-body">
               <div className="chip-row" data-testid="filter-chips">
                 {props.chips.map((chip) =>
                   chip.key === "magic" ? (
@@ -432,7 +393,16 @@ export function FilterPanel(props: FilterPanelProps) {
                   ) : (
                     <Badge className="filter-chip" key={chip.key}>
                       <strong>{chip.label}</strong>
-                      <span className="filter-chip-value">{chip.value}</span>
+                      <span className="filter-chip-value">
+                        {chip.key === "country"
+                          ? countrySuggestionLabel(chip.value, messages.locale)
+                          : chip.key === "asn"
+                            ? asnSuggestionLabel(
+                                chip.value,
+                                filterSuggestions.asnNetworks,
+                              )
+                            : chip.value}
+                      </span>
                     </Badge>
                   ),
                 )}
@@ -446,109 +416,52 @@ export function FilterPanel(props: FilterPanelProps) {
                     messages,
                   )}
                 </span>
-                {props.selectionNotice && (
-                  <span className="notice-text">{props.selectionNotice}</span>
-                )}
+                {props.mapSelectionActive && props.onClearMapSelection ? (
+                  <button
+                    type="button"
+                    className="clear-selection-button"
+                    title={messages.clearMapFilterHint}
+                    aria-label={messages.cancelMapFilter}
+                    onClick={props.onClearMapSelection}
+                  >
+                    {messages.cancelMapFilter}
+                  </button>
+                ) : null}
               </div>
-            </section>
-          </LiquidGlassSurface>
+              {props.selectionNotice ? (
+                <p className="notice-text selection-notice">{props.selectionNotice}</p>
+              ) : null}
+            </div>
+          </section>
 
-          <Surface asChild variant="flat">
-            <details
-              className="advanced-panel"
-              open={exactFiltersOpen}
-              onToggle={(event) =>
-                setExactFiltersOpen(event.currentTarget.open)
-              }
+          <details
+            className="advanced-panel"
+            open={exactFiltersOpen}
+            onToggle={(event) =>
+              setExactFiltersOpen(event.currentTarget.open)
+            }
+          >
+            <summary
+              onClick={markExactFiltersTouched}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ")
+                  markExactFiltersTouched();
+              }}
             >
-              <summary
-                onClick={markExactFiltersTouched}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ")
-                    markExactFiltersTouched();
-                }}
-              >
-                <Filter size={16} />
-                {messages.exactFilters}
-              </summary>
+              <Filter size={14} />
+              {messages.exactFilters}
+            </summary>
 
-              <div className="advanced-panel-body">
-                <div className="control-grid">
-                  <label className="field-label">
-                    <span>{messages.countryRegion}</span>
-                    <SuggestionInput
-                      label={messages.countryRegion}
-                      value={props.filters.country || ""}
-                      options={filterSuggestions.countries}
-                      onChange={(value) => setFilter("country", value)}
-                    />
-                  </label>
-                  <label className="field-label">
-                    <span>{messages.city}</span>
-                    <SuggestionInput
-                      label={messages.city}
-                      value={props.filters.city || ""}
-                      options={filterSuggestions.cities}
-                      onChange={(value) => setFilter("city", value)}
-                    />
-                  </label>
-                  <label className="field-label">
-                    <span>ASN</span>
-                    <SuggestionInput
-                      label="ASN"
-                      value={props.filters.asn || ""}
-                      options={filterSuggestions.asns}
-                      onChange={(value) => setFilter("asn", value)}
-                    />
-                  </label>
-                  <label className="field-label">
-                    <span>network</span>
-                    <SuggestionInput
-                      label="network"
-                      value={props.filters.network || ""}
-                      options={filterSuggestions.networks}
-                      onChange={(value) => setFilter("network", value)}
-                    />
-                  </label>
-                </div>
+            <div className="advanced-panel-body">
+              <ExactFiltersForm
+                filters={props.filters}
+                filterSuggestions={filterSuggestions}
+                onFiltersChange={props.onFiltersChange}
+              />
+            </div>
+          </details>
 
-                <label className="field-label">
-                  <span>tag</span>
-                  <SuggestionInput
-                    label="tag"
-                    value={props.filters.tag || ""}
-                    options={filterSuggestions.tags}
-                    onChange={(value) => setFilter("tag", value)}
-                  />
-                </label>
-
-                <div className="segmented" aria-label={messages.networkType}>
-                  <label className={props.filters.eyeball ? "selected" : ""}>
-                    <span>eyeball</span>
-                    <Switch
-                      checked={Boolean(props.filters.eyeball)}
-                      onCheckedChange={(checked) =>
-                        setFilter("eyeball", Boolean(checked))
-                      }
-                      aria-label="eyeball"
-                    />
-                  </label>
-                  <label className={props.filters.datacenter ? "selected" : ""}>
-                    <span>datacenter</span>
-                    <Switch
-                      checked={Boolean(props.filters.datacenter)}
-                      onCheckedChange={(checked) =>
-                        setFilter("datacenter", Boolean(checked))
-                      }
-                      aria-label="datacenter"
-                    />
-                  </label>
-                </div>
-              </div>
-            </details>
-          </Surface>
-
-          <GlassOverlay
+          <Overlay
             open={advancedParamsOpen}
             title={messages.advancedParams}
             size="compact"
@@ -557,84 +470,176 @@ export function FilterPanel(props: FilterPanelProps) {
             onClose={() => setAdvancedParamsOpen(false)}
           >
             <AdvancedParamsPanel {...props} />
-          </GlassOverlay>
+          </Overlay>
         </div>
 
         <div className="filter-panel-footer" data-testid="filter-panel-footer">
-          <LiquidGlassSurface
-            variant="panel"
-            fullWidth
-            className="attribution-glass-surface"
-          >
-            <div className="attribution-panel">
+          <QuotaMeter {...props.quota} />
+          <div className="attribution-panel">
+            <span>
               <span>
-                <span>
-                  Powered by{" "}
-                  <a
-                    href="https://globalping.io/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Globalping
-                  </a>{" "}
-                  <span className="attribution-separator">×</span>{" "}
-                  <a
-                    href="https://www.nxtrace.org/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    NextTrace
-                  </a>
-                </span>
-              </span>
-              <LiquidGlassSurface
-                variant="button"
-                interactive
-                actionRole="none"
-                className="liquid-glass-coverage attribution-action-surface"
-              >
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="sm"
-                  aria-label={messages.aboutGlobalTrace}
+                Powered by{" "}
+                <a
+                  href="https://globalping.io/"
+                  target="_blank"
+                  rel="noreferrer"
                 >
-                  <a href="/about" onClick={(event) => handleSpaLinkClick(event, props.onNavigateAbout)}>
-                    <Info size={15} />
-                    {messages.about}
-                  </a>
-                </Button>
-              </LiquidGlassSurface>
-            </div>
-          </LiquidGlassSurface>
+                  Globalping
+                </a>{" "}
+                <span className="attribution-separator">×</span>{" "}
+                <a
+                  href="https://www.nxtrace.org/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  NextTrace
+                </a>
+              </span>
+            </span>
+            <a
+              href="/about"
+              className="attribution-action-link"
+              aria-label={messages.aboutGlobalTrace}
+              onClick={(event) => handleSpaLinkClick(event, props.onNavigateAbout)}
+            >
+              <Info size={15} aria-hidden="true" />
+              {messages.about}
+            </a>
+          </div>
         </div>
       </aside>
     </Surface>
   );
 }
 
+function placeCaretAtEnd(element: HTMLElement): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function selectEditableContents(element: HTMLElement): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function focusEditableDigitPill(event: MouseEvent<HTMLLabelElement>): void {
+  const target = event.target as HTMLElement | null;
+  if (target?.isContentEditable || target?.closest("[contenteditable='true']")) {
+    return;
+  }
+  event.preventDefault();
+  const editable = event.currentTarget.querySelector<HTMLElement>(
+    "[contenteditable='true']",
+  );
+  editable?.focus();
+}
+
 function sanitizeEditableDigits(element: HTMLElement): string {
   const digits = (element.textContent || "").replace(/\D/g, "");
   if (element.textContent !== digits) {
     element.textContent = digits;
+    placeCaretAtEnd(element);
   }
   return digits;
 }
 
-function clampEditableNumber(
+function clampEditableDigits(
   element: HTMLElement,
   min: number,
   max: number,
-): number {
+): string {
   const digits = sanitizeEditableDigits(element);
-  if (!digits) return min;
-  return Math.min(max, Math.max(min, Number(digits)));
+  if (!digits) {
+    const fallback = String(min);
+    if (element.textContent !== fallback) {
+      element.textContent = fallback;
+      placeCaretAtEnd(element);
+    }
+    return fallback;
+  }
+  const next = String(Math.min(max, Math.max(min, Number(digits))));
+  if (element.textContent !== next) {
+    element.textContent = next;
+    placeCaretAtEnd(element);
+  }
+  return next;
 }
 
 function commitEditableOnEnter(event: KeyboardEvent<HTMLElement>): void {
   if (event.key !== "Enter") return;
   event.preventDefault();
   event.currentTarget.blur();
+}
+
+function EditableDigitField(props: {
+  value: string;
+  className: string;
+  ariaLabel: string;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  onChange: (value: string) => void;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const focusedRef = useRef(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || focusedRef.current) return;
+    if (element.textContent !== props.value) {
+      element.textContent = props.value;
+    }
+  }, [props.value]);
+
+  return (
+    <span
+      ref={ref}
+      className={props.className}
+      role="textbox"
+      contentEditable
+      suppressContentEditableWarning
+      tabIndex={0}
+      inputMode="numeric"
+      data-placeholder={props.placeholder}
+      aria-label={props.ariaLabel}
+      onFocus={() => {
+        focusedRef.current = true;
+        const element = ref.current;
+        if (!element) return;
+        requestAnimationFrame(() => {
+          if (document.activeElement === element) {
+            selectEditableContents(element);
+          }
+        });
+      }}
+      onBlur={() => {
+        focusedRef.current = false;
+        const element = ref.current;
+        if (!element) return;
+        if (element.textContent !== props.value) {
+          element.textContent = props.value;
+        }
+      }}
+      onInput={(event) => {
+        const element = event.currentTarget;
+        if (props.min != null && props.max != null) {
+          props.onChange(clampEditableDigits(element, props.min, props.max));
+          return;
+        }
+        props.onChange(sanitizeEditableDigits(element));
+      }}
+      onKeyDown={commitEditableOnEnter}
+    />
+  );
 }
 
 function ThemeIcon({ mode }: { mode: ThemeMode }) {

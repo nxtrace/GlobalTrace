@@ -111,15 +111,26 @@ export function useTraceLifecycle({
         return;
       }
 
-      const enriched =
-        enrichmentMode === "worker"
-          ? await enrichTraceAfterGlobalpingCooldown(measurementId, controller.signal)
-          : await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      setResult(enriched);
+      // Open as soon as Globalping finishes so enrich failures still leave a usable result panel.
+      setResult(current);
+      setWorkspaceMode("result");
       setMessage("");
-      if (enriched.status !== "in-progress") {
-        setWorkspaceMode("result");
+
+      try {
+        const enriched =
+          enrichmentMode === "worker"
+            ? await enrichTraceAfterGlobalpingCooldown(measurementId, controller.signal)
+            : await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, {
+                signal: controller.signal,
+              });
+        if (controller.signal.aborted) return;
+        setResult(enriched);
+        setMessage("");
+      } catch (enrichError) {
+        if (isAbortError(enrichError)) return;
+        setMessage(
+          userFacingErrorMessage(enrichError, messages.measurementLoadFailed, messages),
+        );
       }
     } catch (error) {
       if (isAbortError(error)) return;
@@ -200,6 +211,15 @@ export function useTraceLifecycle({
     setWorkspaceMode("select");
     setMessage("");
     sharedTraceStartedRef.current = "";
+    createdMeasurementIdRef.current = "";
+    // Drop the measurement query so a cancelled load does not leave a dead shared URL.
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("measurement")) {
+        url.searchParams.delete("measurement");
+        window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+    }
   }, [abortTraceLoading, setLoading, setMeasurementLoading, setMessage, setWorkspaceMode]);
 
   return {

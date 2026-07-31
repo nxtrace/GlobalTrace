@@ -73,34 +73,6 @@ describe("AdvancedParamsPanel", () => {
     expect(onNexttraceTokenRememberedChange).toHaveBeenCalledWith(true);
   });
 
-  it("updates liquid glass settings and disables intensity when off", () => {
-    const onLiquidGlassEnabledChange = vi.fn();
-    const onLiquidGlassIntensityChange = vi.fn();
-    const { rerender } = render(
-      <AdvancedParamsPanel
-        {...defaultProps({
-          liquidGlassEnabled: true,
-          liquidGlassIntensity: 72,
-          onLiquidGlassEnabledChange,
-          onLiquidGlassIntensityChange,
-        })}
-      />,
-    );
-
-    const intensity = screen.getByLabelText("液态玻璃强度");
-    expect(intensity).toHaveValue("72");
-    expect(intensity).not.toBeDisabled();
-
-    fireEvent.click(screen.getByRole("switch", { name: "液态玻璃效果" }));
-    fireEvent.change(intensity, { target: { value: "35" } });
-
-    expect(onLiquidGlassEnabledChange).toHaveBeenCalledWith(false);
-    expect(onLiquidGlassIntensityChange).toHaveBeenCalledWith(35);
-
-    rerender(<AdvancedParamsPanel {...defaultProps({ liquidGlassEnabled: false })} />);
-    expect(screen.getByLabelText("液态玻璃强度")).toBeDisabled();
-  });
-
   it("updates result content order from the radiogroup", () => {
     const onResultContentOrderChange = vi.fn();
 
@@ -113,7 +85,7 @@ describe("AdvancedParamsPanel", () => {
       />,
     );
 
-    const layoutGroup = screen.getByRole("radiogroup", { name: "结果页面显示顺序" });
+    const layoutGroup = screen.getByRole("radiogroup", { name: "显示模式 · 仅桌面端有效" });
     expect(within(layoutGroup).getByRole("radio", { name: "地图优先" })).toBeChecked();
     expect(within(layoutGroup).getByRole("radio", { name: "表格优先" })).not.toBeChecked();
 
@@ -136,6 +108,13 @@ function defaultProps(overrides: Partial<FilterPanelProps> = {}): FilterPanelPro
     visibleProbes: 0,
     totalProbes: 0,
     probesStatus: "ready",
+    quota: {
+      status: "ready",
+      remaining: 245,
+      limit: 250,
+      actor: "当前 IP",
+      modeLabel: "Globalping credits 控制诊断创建",
+    },
     selectionNotice: "",
     loading: false,
     canSubmit: true,
@@ -146,8 +125,6 @@ function defaultProps(overrides: Partial<FilterPanelProps> = {}): FilterPanelPro
     nexttraceTokenSaved: false,
     nexttraceTokenRemembered: false,
     themeMode: "system",
-    liquidGlassEnabled: true,
-    liquidGlassIntensity: 50,
     resultContentOrder: "map-first",
     onTargetChange: vi.fn(),
     onProtocolChange: vi.fn(),
@@ -165,8 +142,6 @@ function defaultProps(overrides: Partial<FilterPanelProps> = {}): FilterPanelPro
     onClearNexttraceToken: vi.fn(),
     onNexttraceTokenRememberedChange: vi.fn(),
     onCycleThemeMode: vi.fn(),
-    onLiquidGlassEnabledChange: vi.fn(),
-    onLiquidGlassIntensityChange: vi.fn(),
     onResultContentOrderChange: vi.fn(),
     onNavigateHome: vi.fn(),
     onNavigateAbout: vi.fn(),

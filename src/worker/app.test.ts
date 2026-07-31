@@ -179,6 +179,27 @@ describe("worker API", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("allows same-origin enrich requests proxied with a rewritten upstream origin", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(finishedMeasurement("m-proxy"))));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("http://127.0.0.1:8787/api/trace/enrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "http://127.0.0.1:5173",
+          "Sec-Fetch-Site": "same-origin",
+        },
+        body: JSON.stringify({ measurementId: "m-proxy" }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
   it("rejects missing measurement IDs before fetching Globalping", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

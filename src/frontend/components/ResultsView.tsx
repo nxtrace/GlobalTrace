@@ -15,17 +15,18 @@ import {
   type ResultRouteGroup,
   type ResultRouteNode,
 } from "../lib/resultMapData";
-import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import type { MapProjection, ResultContentOrder } from "./mapProjection";
+import { addMapAttribution } from "./mapAttribution";
+import { applyMapPalette, subscribeMapPaletteScheme } from "./mapPalette";
+import type { MapProjection } from "./mapProjection";
 import { useI18n, type Messages } from "../i18n";
 
 export { buildPacketFeatureCollection, buildResultMapData } from "../lib/resultMapData";
 
-const RESULT_MAP_DEFAULT_CENTER: [number, number] = [8, 25];
+const RESULT_MAP_DEFAULT_CENTER: [number, number] = [90, 36];
 const RESULT_MAP_DEFAULT_ZOOM = 1.4;
 const RESULT_MAP_SINGLE_POINT_ZOOM = 5;
 const RESULT_MAP_MAX_ZOOM = 5.8;
@@ -44,7 +45,6 @@ interface ResultsViewProps {
   mapStyleUrl: string;
   mapProjection?: MapProjection;
   onMapProjectionChange?: (value: MapProjection) => void;
-  resultContentOrder?: ResultContentOrder;
   renderMap?: boolean;
   onClose?: () => void;
 }
@@ -68,7 +68,6 @@ export function ResultsView({
   mapStyleUrl,
   mapProjection = "mercator",
   onMapProjectionChange,
-  resultContentOrder = "table-first",
   renderMap = true,
   onClose,
 }: ResultsViewProps) {
@@ -117,9 +116,8 @@ export function ResultsView({
 
   if (!result) {
     return (
-      <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage result-empty-surface">
-        <Surface asChild className="result-empty">
-          <section>
+      <Surface asChild className="result-empty">
+        <section>
           <div className="empty-hero">
             <Route size={20} />
             <div>
@@ -127,22 +125,24 @@ export function ResultsView({
               <p>{messages.waitingTraceDescription}</p>
             </div>
           </div>
-          </section>
-        </Surface>
-      </LiquidGlassSurface>
+        </section>
+      </Surface>
     );
   }
 
   const resultMap = renderMap ? (
-    <ResultMap
-      data={mapData}
-      mapStyleUrl={mapStyleUrl}
-      mapProjection={mapProjection}
-      selectedRouteNodeId={selectedRouteNodeId}
-      mapFocusRequest={mapFocusRequest}
-      messages={messages}
-      onSelectRoute={selectProbe}
-    />
+    <div className="result-map-shell">
+      <ResultMapToolbar mapProjection={mapProjection} onMapProjectionChange={onMapProjectionChange} />
+      <ResultMap
+        data={mapData}
+        mapStyleUrl={mapStyleUrl}
+        mapProjection={mapProjection}
+        selectedRouteNodeId={selectedRouteNodeId}
+        mapFocusRequest={mapFocusRequest}
+        messages={messages}
+        onSelectRoute={selectProbe}
+      />
+    </div>
   ) : null;
   const hopContent = active ? (
     <HopTable
@@ -157,111 +157,83 @@ export function ResultsView({
   );
 
   return (
-    <LiquidGlassSurface variant="floatingPanel" fullWidth className="results-section-surface">
-      <section className="results-section">
-        <div className="section-header">
-          <div>
-            <h2>{result.target}</h2>
-            <p>
-              {result.status} · {result.probesCount} probes · {result.measurementId}
-            </p>
-          </div>
-          <div className="result-header-actions">
-            {renderMap && <ResultMapToolbar mapProjection={mapProjection} onMapProjectionChange={onMapProjectionChange} />}
-            <ShareButton measurementId={result.measurementId} />
-            {onClose && (
-              <LiquidGlassSurface
-                variant="button"
-                interactive
-                className="result-command-surface"
-                onClick={onClose}
-                title={messages.closeResult}
-                ariaLabel={messages.closeResult}
-              >
-                <Button
-                  variant="glass"
-                  size="sm"
-                  className="result-command-button"
-                  asChild
-                >
-                  <span>
-                    <X size={16} />
-                    {messages.closeResult}
-                  </span>
-                </Button>
-              </LiquidGlassSurface>
-            )}
-          </div>
+    <section className="results-section">
+      <div className="section-header">
+        <div>
+          <h2>{result.target}</h2>
+          <p>
+            {result.status} · {result.probesCount} probes · {result.measurementId}
+          </p>
         </div>
+        <div className="result-header-actions">
+          <ShareButton measurementId={result.measurementId} />
+          {onClose && (
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              className="result-command-button result-close-button"
+              onClick={onClose}
+              title={messages.closeResult}
+              aria-label={messages.closeResult}
+            >
+              <X size={16} />
+              <span className="result-close-button-label">{messages.closeResult}</span>
+            </Button>
+          )}
+        </div>
+      </div>
 
-        <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
-          <LiquidGlassSurface variant="toolbar" fullWidth className="probe-tabs-frame-surface">
-            <div className="probe-tabs-frame">
-              <TabsList unstyled className="probe-tabs" aria-label="probe results">
-                {result.results.map((item, index) => {
-                  const targetMetrics = routeTargetMetrics(item, messages);
-                  return (
-                    <LiquidGlassSurface
-                      variant="tab"
-                      className={`probe-tab-surface${index === activeIndex ? " is-active" : ""}`}
-                      style={routeTabStyle(index)}
-                      interactive
-                      onClick={() => selectProbe(index)}
-                      actionRole="none"
-                      key={item.id}
+      <Tabs className="probe-tabs-root" value={String(activeIndex)} onValueChange={(value) => selectProbe(Number(value))}>
+        <div className="probe-tabs-frame">
+          <TabsList unstyled className="probe-tabs" aria-label="probe results">
+            {result.results.map((item, index) => {
+              const targetMetrics = routeTargetMetrics(item, messages);
+              return (
+                <TabsTrigger
+                  unstyled
+                  className={`probe-tab-button${index === activeIndex ? " is-active" : ""}`}
+                  style={routeTabStyle(index)}
+                  value={String(index)}
+                  key={item.id}
+                >
+                  <span className="probe-tab-route-dot" aria-hidden="true" />
+                  <span className="probe-tab-copy">
+                    <span className="probe-tab-heading">
+                      <strong>{item.probe.city || item.probe.country}</strong>
+                      <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
+                    </span>
+                    <span
+                      className="probe-tab-targets"
+                      aria-label={messages.targetLatencyLoss(targetMetrics.latency, targetMetrics.loss)}
                     >
-                      <TabsTrigger unstyled className="probe-tab-button" value={String(index)}>
-                        <span className="probe-tab-route-dot" aria-hidden="true" />
-                        <span className="probe-tab-copy">
-                          <span className="probe-tab-heading">
-                            <strong>{item.probe.city || item.probe.country}</strong>
-                            <span className="probe-tab-meta">AS{item.probe.asn} · {item.status}</span>
-                          </span>
-                          <span
-                            className="probe-tab-targets"
-                            aria-label={messages.targetLatencyLoss(targetMetrics.latency, targetMetrics.loss)}
-                          >
-                            <strong className="probe-tab-target-latency">{targetMetrics.latency}</strong>
-                            {renderPacketDots(targetMetrics.dots, {
-                              containerClassName: "probe-tab-packets",
-                              dotClassName: "probe-tab-packet-dot",
-                              label: targetMetrics.packetLabel,
-                            })}
-                          </span>
-                        </span>
-                      </TabsTrigger>
-                    </LiquidGlassSurface>
-                  );
-                })}
-              </TabsList>
-            </div>
-          </LiquidGlassSurface>
-          <TabsContent value={String(activeIndex)} className="probe-tab-content">
-            {result.status === "in-progress" && (
-              <LiquidGlassSurface variant="panel" fullWidth className="liquid-glass-coverage polling-state-surface">
-                <Surface variant="flat" className="polling-state">
-                  <Clock3 size={16} />
-                  {messages.pollingState}
-                </Surface>
-              </LiquidGlassSurface>
-            )}
+                      <strong className="probe-tab-target-latency">{targetMetrics.latency}</strong>
+                      {renderPacketDots(targetMetrics.dots, {
+                        containerClassName: "probe-tab-packets",
+                        dotClassName: "probe-tab-packet-dot",
+                        label: targetMetrics.packetLabel,
+                      })}
+                    </span>
+                  </span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
+        <TabsContent value={String(activeIndex)} className="probe-tab-content">
+          {result.status === "in-progress" && (
+            <Surface variant="flat" className="polling-state">
+              <Clock3 size={16} />
+              {messages.pollingState}
+            </Surface>
+          )}
 
-            {resultContentOrder === "map-first" ? (
-              <>
-                {resultMap}
-                {hopContent}
-              </>
-            ) : (
-              <>
-                {hopContent}
-                {resultMap}
-              </>
-            )}
-            {active && active.hops.length > 0 && <HopRawDetails active={active} />}
-          </TabsContent>
-        </Tabs>
-      </section>
-    </LiquidGlassSurface>
+          {hopContent}
+          {active && active.hops.length > 0 && <HopRawDetails active={active} />}
+          {resultMap}
+        </TabsContent>
+      </Tabs>
+    </section>
   );
 }
 
@@ -274,53 +246,35 @@ function ResultMapToolbar({
 }) {
   const messages = useI18n();
   return (
-    <div className="result-map-toolbar" role="group" aria-label={messages.resultMapView}>
-      <LiquidGlassSurface variant="toolbar" className="result-map-toolbar-surface">
-        <div className="result-map-view-switch">
-          <LiquidGlassSurface
-            variant="tab"
-            interactive
-            disabled={!onMapProjectionChange && mapProjection !== "mercator"}
-            className={`result-view-surface${mapProjection === "mercator" ? " is-active" : ""}`}
-            onClick={() => onMapProjectionChange?.("mercator")}
-            actionRole="none"
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="result-view-button"
-              type="button"
-              aria-pressed={mapProjection === "mercator"}
-              aria-label={messages.switchResultMap2d}
-              disabled={!onMapProjectionChange && mapProjection !== "mercator"}
-            >
-              <MapIcon size={16} />
-              2D
-            </Button>
-          </LiquidGlassSurface>
-          <LiquidGlassSurface
-            variant="tab"
-            interactive
-            disabled={!onMapProjectionChange && mapProjection !== "globe"}
-            className={`result-view-surface${mapProjection === "globe" ? " is-active" : ""}`}
-            onClick={() => onMapProjectionChange?.("globe")}
-            actionRole="none"
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="result-view-button"
-              type="button"
-              aria-pressed={mapProjection === "globe"}
-              aria-label={messages.switchResultMap3d}
-              disabled={!onMapProjectionChange && mapProjection !== "globe"}
-            >
-              <Globe2 size={16} />
-              3D
-            </Button>
-          </LiquidGlassSurface>
-        </div>
-      </LiquidGlassSurface>
+    <div className="result-map-toolbar">
+      <div className="map-mode-switch" role="group" aria-label={messages.resultMapView}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`map-mode-button${mapProjection === "mercator" ? " is-active" : ""}`}
+          type="button"
+          aria-pressed={mapProjection === "mercator"}
+          aria-label={messages.switchResultMap2d}
+          disabled={!onMapProjectionChange && mapProjection !== "mercator"}
+          onClick={() => onMapProjectionChange?.("mercator")}
+        >
+          <MapIcon size={16} />
+          2D
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`map-mode-button${mapProjection === "globe" ? " is-active" : ""}`}
+          type="button"
+          aria-pressed={mapProjection === "globe"}
+          aria-label={messages.switchResultMap3d}
+          disabled={!onMapProjectionChange && mapProjection !== "globe"}
+          onClick={() => onMapProjectionChange?.("globe")}
+        >
+          <Globe2 size={16} />
+          3D
+        </Button>
+      </div>
     </div>
   );
 }
@@ -341,27 +295,19 @@ function ShareButton({ measurementId }: { measurementId: string }) {
   };
 
   return (
-    <LiquidGlassSurface
-      variant="button"
-      interactive
-      className="result-command-surface"
+    <Button
+      variant="secondary"
+      size="sm"
+      type="button"
+      className="result-command-button"
+      title={messages.shareTraceLink}
       onClick={() => {
         void copy();
       }}
-      title={messages.shareTraceLink}
     >
-      <Button
-        variant="glass"
-        size="sm"
-        className="result-command-button"
-        asChild
-      >
-        <span>
-          <Share2 size={16} />
-          {copied ? messages.copied : messages.share}
-        </span>
-      </Button>
-    </LiquidGlassSurface>
+      <Share2 size={16} />
+      {copied ? messages.copied : messages.share}
+    </Button>
   );
 }
 
@@ -545,7 +491,7 @@ function handleHopTableWheel(event: WheelEvent, scrollArea: HTMLElement) {
 
   if (!shouldDelegate) return;
 
-  const resultPanel = scrollArea.closest(".glass-overlay-bare-surface, .glass-overlay-body") as HTMLElement | null;
+  const resultPanel = scrollArea.closest(".overlay-bare-panel, .overlay-body") as HTMLElement | null;
   if (!resultPanel) return;
 
   const panelMaxScrollTop = resultPanel.scrollHeight - resultPanel.clientHeight;
@@ -617,15 +563,20 @@ function ResultMap({
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+    const container = containerRef.current;
+    container.classList.remove("is-map-ready");
     const map = new maplibregl.Map({
-      container: containerRef.current,
+      container,
       style: mapStyleUrl,
       center: RESULT_MAP_DEFAULT_CENTER,
       zoom: RESULT_MAP_DEFAULT_ZOOM,
       aroundCenter: mapProjection === "globe",
+      attributionControl: false,
     });
+    addMapAttribution(map);
     let stopPackets: (() => void) | null = null;
     map.on("load", () => {
+      applyMapPalette(map);
       map.setProjection({ type: mapProjection });
       map.addSource("result", { type: "geojson", data: dataRef.current.featureCollection });
       const animatePackets = !prefersReducedMotion();
@@ -709,15 +660,19 @@ function ResultMap({
       });
       applyRouteNodePopup(map, selectedRouteNodeIdRef.current, previewRouteNodeIdRef.current, dataRef.current, popupRef);
       fitResultMap(map, dataRef.current, mapProjection);
+      requestAnimationFrame(() => {
+        container.classList.add("is-map-ready");
+      });
     });
     const resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => map.resize());
-    resizeObserver?.observe(containerRef.current);
+    resizeObserver?.observe(container);
     requestAnimationFrame(() => {
       map.resize();
       fitResultMap(map, dataRef.current, mapProjection);
     });
     mapRef.current = map;
+    const unsubscribePalette = subscribeMapPaletteScheme((scheme) => applyMapPalette(map, scheme));
     if (import.meta.env.DEV) {
       const element = containerRef.current as ResultMapDebugElement;
       element.__globalTraceResultMap = map;
@@ -726,6 +681,7 @@ function ResultMap({
       element.__globalTraceResultMapReady = false;
     }
     return () => {
+      unsubscribePalette();
       resizeObserver?.disconnect();
       stopPackets?.();
       clearResultRouteMarkers(routeMarkersRef);

@@ -64,6 +64,7 @@ describe("useTraceLifecycle", () => {
     expect(setters.setWorkspaceMode).toHaveBeenCalledWith("select");
     expect(capturedSignal?.aborted).toBe(false);
 
+    window.history.replaceState(null, "", "/?measurement=m123");
     act(() => result.current.cancelMeasurementLoading());
     await loadPromise!;
 
@@ -72,6 +73,7 @@ describe("useTraceLifecycle", () => {
     expect(setters.setMeasurementLoading).toHaveBeenLastCalledWith(null);
     expect(setters.setWorkspaceMode).toHaveBeenLastCalledWith("select");
     expect(setters.setMessage).toHaveBeenLastCalledWith("");
+    expect(window.location.search).not.toContain("measurement=");
   });
 
   it("stops polling after the maximum attempts when a measurement stays in progress", async () => {
@@ -94,6 +96,24 @@ describe("useTraceLifecycle", () => {
     expect(setters.setMessage).toHaveBeenCalledWith("measurement 仍在运行，请稍后通过分享 URL 重新打开。");
     expect(setters.setLoading).toHaveBeenLastCalledWith(false);
     expect(setters.setMeasurementLoading).toHaveBeenLastCalledWith(null);
+  });
+
+  it("opens the result workspace even when worker enrichment fails", async () => {
+    vi.mocked(fetchCachedTrace).mockResolvedValue(null);
+    vi.mocked(fetchGlobalpingMeasurement).mockResolvedValue(measurement("finished"));
+    vi.mocked(enrichTrace).mockRejectedValue(new Error("cross-site requests are not allowed"));
+
+    const setters = createSetters();
+    const { result } = renderHook(() => useTraceLifecycle(defaultArgs(setters)));
+
+    await act(async () => {
+      await result.current.loadTrace("m123", false, "", "", "created");
+    });
+
+    expect(setters.setWorkspaceMode).toHaveBeenCalledWith("result");
+    expect(setters.setResult).toHaveBeenCalled();
+    expect(setters.setMessage).toHaveBeenCalledWith("cross-site requests are not allowed");
+    expect(setters.setLoading).toHaveBeenLastCalledWith(false);
   });
 
   it("stores the created measurement id before loading the trace", async () => {

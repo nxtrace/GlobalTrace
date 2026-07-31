@@ -1,11 +1,10 @@
 import { useEffect, useId, useRef, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Button } from "./ui/button";
 import { useI18n } from "../i18n";
 
-interface GlassOverlayProps {
+interface OverlayProps {
   open: boolean;
   title: string;
   children: ReactNode;
@@ -15,11 +14,12 @@ interface GlassOverlayProps {
   chrome?: "default" | "bare";
   placement?: "center" | "sheet";
   dismissible?: boolean;
+  /** When false, clicking the dimmed backdrop does not close. Defaults to `dismissible`. */
+  closeOnBackdrop?: boolean;
   priority?: "default" | "blocking";
-  surfaceCornerRadius?: number;
 }
 
-export function GlassOverlay({
+export function Overlay({
   open,
   title,
   children,
@@ -29,9 +29,9 @@ export function GlassOverlay({
   chrome = "default",
   placement = "center",
   dismissible = true,
+  closeOnBackdrop = dismissible,
   priority = "default",
-  surfaceCornerRadius,
-}: GlassOverlayProps) {
+}: OverlayProps) {
   const messages = useI18n();
   const titleId = useId();
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -40,7 +40,7 @@ export function GlassOverlay({
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (priority !== "blocking" && document.querySelector(".glass-overlay-blocking")) return;
+      if (priority !== "blocking" && document.querySelector(".overlay-blocking")) return;
       if (event.key === "Tab") trapFocus(event, dialogRef.current);
       if (dismissible && event.key === "Escape") onClose();
     };
@@ -69,15 +69,15 @@ export function GlassOverlay({
   if (!open) return null;
 
   const closeFromBackdrop = (event: MouseEvent<HTMLDivElement>) => {
-    if (dismissible && event.target === event.currentTarget) onClose();
+    if (closeOnBackdrop && event.target === event.currentTarget) onClose();
   };
 
   const overlayClassName = [
-    "glass-overlay",
-    `glass-overlay-${size}`,
-    `glass-overlay-${placement}`,
-    `glass-overlay-chrome-${chrome}`,
-    priority === "blocking" ? "glass-overlay-blocking" : "",
+    "overlay",
+    `overlay-${size}`,
+    `overlay-${placement}`,
+    `overlay-chrome-${chrome}`,
+    priority === "blocking" ? "overlay-blocking" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -87,7 +87,7 @@ export function GlassOverlay({
       <div className={overlayClassName} onMouseDown={closeFromBackdrop}>
         <section
           ref={dialogRef}
-          className={`glass-overlay-bare-surface ${className}`.trim()}
+          className={`overlay-bare-panel ${className}`.trim()}
           role="dialog"
           aria-modal="true"
           aria-label={title}
@@ -102,39 +102,31 @@ export function GlassOverlay({
 
   return renderOverlay(
     <div className={overlayClassName} onMouseDown={closeFromBackdrop}>
-      <LiquidGlassSurface
-        variant="floatingPanel"
-        fullWidth
-        cornerRadius={surfaceCornerRadius}
-        className={`glass-overlay-surface ${className}`.trim()}
+      <section
+        ref={dialogRef}
+        className={`overlay-panel ${className}`.trim()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
       >
-        <section
-          ref={dialogRef}
-          className="glass-overlay-panel"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          tabIndex={-1}
-        >
-          <header className="glass-overlay-header">
-            <h2 id={titleId}>{title}</h2>
-            {dismissible ? (
-              <LiquidGlassSurface
-                variant="iconButton"
-                interactive
-                actionRole="none"
-                onClick={onClose}
-                className="liquid-glass-coverage overlay-close-surface"
-              >
-                <Button variant="ghost" size="icon" type="button" aria-label={messages.closeTitle(title)}>
-                  <X size={18} />
-                </Button>
-              </LiquidGlassSurface>
-            ) : null}
-          </header>
-          <div className="glass-overlay-body">{children}</div>
-        </section>
-      </LiquidGlassSurface>
+        <header className="overlay-header">
+          <h2 id={titleId}>{title}</h2>
+          {dismissible ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              className="overlay-close-button"
+              aria-label={messages.closeTitle(title)}
+              onClick={onClose}
+            >
+              <X size={18} />
+            </Button>
+          ) : null}
+        </header>
+        <div className="overlay-body">{children}</div>
+      </section>
     </div>,
   );
 }

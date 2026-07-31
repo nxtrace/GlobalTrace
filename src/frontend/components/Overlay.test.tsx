@@ -1,30 +1,44 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { GlassOverlay } from "./GlassOverlay";
-import { LiquidGlassPreferenceProvider } from "./LiquidGlassSurface";
+import { Overlay } from "./Overlay";
 
-describe("GlassOverlay", () => {
-  it("wraps the close button in a liquid surface and preserves close interactions", () => {
+describe("Overlay", () => {
+  it("renders the close button in the header and preserves close interactions", () => {
     const onClose = vi.fn();
 
     render(
-      <LiquidGlassPreferenceProvider enabled={false} intensity={70}>
-        <GlassOverlay open title="高级参数" onClose={onClose}>
-          <p>content</p>
-        </GlassOverlay>
-      </LiquidGlassPreferenceProvider>,
+      <Overlay open title="高级参数" onClose={onClose}>
+        <p>content</p>
+      </Overlay>,
     );
 
     const dialog = screen.getByRole("dialog", { name: "高级参数" });
     expect(dialog).toBeVisible();
     const closeButton = screen.getByRole("button", { name: "关闭高级参数" });
-    expect(closeButton.closest(".overlay-close-surface[data-liquid-glass]")).toHaveClass("liquid-glass-iconButton");
+    expect(closeButton.closest(".overlay-header")).not.toBeNull();
 
     fireEvent.click(closeButton);
     fireEvent.keyDown(window, { key: "Escape" });
-    fireEvent.mouseDown(document.querySelector(".glass-overlay") as HTMLElement);
+    fireEvent.mouseDown(document.querySelector(".overlay") as HTMLElement);
 
     expect(onClose).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps the close button while ignoring backdrop clicks when closeOnBackdrop is false", () => {
+    const onClose = vi.fn();
+
+    render(
+      <Overlay open title="读取诊断结果" closeOnBackdrop={false} onClose={onClose}>
+        <p>content</p>
+      </Overlay>,
+    );
+
+    fireEvent.mouseDown(document.querySelector(".overlay") as HTMLElement);
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "关闭读取诊断结果" }));
+    expect(onClose).toHaveBeenCalledTimes(2);
   });
 
   it("keeps keyboard focus inside the dialog and restores previous focus", () => {
@@ -35,11 +49,9 @@ describe("GlassOverlay", () => {
     opener.focus();
 
     const { rerender } = render(
-      <LiquidGlassPreferenceProvider enabled={false} intensity={70}>
-        <GlassOverlay open title="高级参数" onClose={onClose}>
-          <button type="button">确认</button>
-        </GlassOverlay>
-      </LiquidGlassPreferenceProvider>,
+      <Overlay open title="高级参数" onClose={onClose}>
+        <button type="button">确认</button>
+      </Overlay>,
     );
 
     const closeButton = screen.getByRole("button", { name: "关闭高级参数" });
@@ -53,11 +65,9 @@ describe("GlassOverlay", () => {
     expect(closeButton).toHaveFocus();
 
     rerender(
-      <LiquidGlassPreferenceProvider enabled={false} intensity={70}>
-        <GlassOverlay open={false} title="高级参数" onClose={onClose}>
-          <button type="button">确认</button>
-        </GlassOverlay>
-      </LiquidGlassPreferenceProvider>,
+      <Overlay open={false} title="高级参数" onClose={onClose}>
+        <button type="button">确认</button>
+      </Overlay>,
     );
     expect(opener).toHaveFocus();
 

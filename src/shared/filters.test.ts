@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   appendMagicFilters,
+  removeMagicFilters,
   buildMagicFromFilters,
   filterChips,
   filterProbes,
@@ -87,6 +88,15 @@ describe("shared filters", () => {
     });
     expect(appendMagicFilters({ magic: "world" }, "Los Angeles+US+AS7922", 10)).toEqual({
       magic: "Los Angeles+US+AS7922",
+    });
+  });
+
+  it("removes probe magic from current magic filters", () => {
+    expect(removeMagicFilters({ magic: "DE+AS24940, Los Angeles+US+AS7922" }, "DE+AS24940")).toEqual({
+      magic: "Los Angeles+US+AS7922",
+    });
+    expect(removeMagicFilters({ magic: "Los Angeles+US+AS7922" }, "Los Angeles+US+AS7922")).toEqual({
+      magic: "world",
     });
   });
 
@@ -197,6 +207,10 @@ describe("shared filters", () => {
       countries: ["DE", "US"],
       cities: ["Falkenstein", "Los Angeles"],
       asns: ["AS7922", "AS24940"],
+      asnNetworks: {
+        AS7922: "Comcast",
+        AS24940: "Hetzner Online",
+      },
       networks: ["Comcast", "Hetzner Online"],
       tags: ["datacenter-network", "eyeball-network"],
       magicStrings: [
@@ -240,7 +254,7 @@ describe("shared filters", () => {
     ]).magicStrings).not.toContain("CN+AS4134+eyeball-network");
   });
 
-  it("narrows input suggestions with other structured filters", () => {
+  it("cascades city/ASN/network/tag suggestions while countries stay full and magic narrows", () => {
     const suggestions = probeFilterSuggestions(probes, {
       country: "US",
       network: "Hetzner Online",
@@ -248,9 +262,36 @@ describe("shared filters", () => {
     });
 
     expect(suggestions.networks).toEqual(["Comcast"]);
-    expect(suggestions.countries).toEqual(["DE"]);
+    expect(suggestions.countries).toEqual(["DE", "US"]);
+    expect(suggestions.cities).toEqual(["Los Angeles"]);
+    expect(suggestions.asns).toEqual(["AS7922"]);
+    expect(suggestions.asnNetworks).toEqual({
+      AS7922: "Comcast",
+      AS24940: "Hetzner Online",
+    });
+    // US + Hetzner network has no matching probes, so tags collapse.
+    expect(suggestions.tags).toEqual([]);
+    expect(probeFilterSuggestions(probes, {}).cities).toEqual(["Falkenstein", "Los Angeles"]);
+    expect(probeFilterSuggestions(probes, {}).asns).toEqual(["AS7922", "AS24940"]);
+    expect(probeFilterSuggestions(probes, {}).networks).toEqual(["Comcast", "Hetzner Online"]);
+    expect(probeFilterSuggestions(probes, {}).tags).toEqual([
+      "datacenter-network",
+      "eyeball-network",
+    ]);
+    expect(probeFilterSuggestions(probes, { country: "DE" }).cities).toEqual(["Falkenstein"]);
+    expect(probeFilterSuggestions(probes, { country: "DE" }).asns).toEqual(["AS24940"]);
+    expect(probeFilterSuggestions(probes, { country: "DE" }).networks).toEqual(["Hetzner Online"]);
+    expect(probeFilterSuggestions(probes, { country: "DE" }).tags).toEqual(["datacenter-network"]);
     expect(probeFilterSuggestions(probes, { country: "US" }).tags).toEqual(["eyeball-network"]);
-    expect(probeFilterSuggestions(probes, { country: "US", eyeball: true }).asns).toEqual(["AS7922"]);
+    expect(
+      probeFilterSuggestions(probes, { country: "US", city: "Los Angeles" }).asns,
+    ).toEqual(["AS7922"]);
+    expect(
+      probeFilterSuggestions(probes, { country: "US", asn: "AS7922" }).networks,
+    ).toEqual(["Comcast"]);
+    expect(
+      probeFilterSuggestions(probes, { country: "US", network: "Comcast" }).tags,
+    ).toEqual(["eyeball-network"]);
     expect(probeFilterSuggestions(probes, { country: "US", magic: "DE+Hetzner" }).magicStrings).toEqual([
       "US+Los Angeles",
       "US+AS7922",

@@ -5,7 +5,8 @@
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "dev": "npm run build && HOME=$PWD/.wrangler-home wrangler dev --local --assets dist",
+    "dev": "node scripts/dev.mjs",
+    "dev:worker": "npm run build && HOME=$PWD/.wrangler-home wrangler dev --local --assets dist",
     "build": "vite build",
     "deploy:private": "npm run build && npx wrangler deploy --config wrangler.private.jsonc",
     "lint": "eslint src scripts tests *.config.ts eslint.config.js --max-warnings=0",
@@ -22,6 +23,7 @@
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.8",
+    "@radix-ui/react-popover": "^1.1.23",
     "@radix-ui/react-slot": "^1.3.0",
     "@radix-ui/react-switch": "^1.3.7",
     "@radix-ui/react-tabs": "^1.1.15",
@@ -29,7 +31,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "hono": "^4.12.31",
-    "liquid-glass-react": "^1.1.1",
     "lucide-react": "^1.27.0",
     "maplibre-gl": "^5.24.0",
     "react": "^19.2.7",

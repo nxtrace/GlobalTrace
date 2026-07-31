@@ -32,6 +32,7 @@ export interface Messages {
   auto: string;
   currentFilters: string;
   exactFilters: string;
+  filter: string;
   countryRegion: string;
   city: string;
   networkType: string;
@@ -42,9 +43,8 @@ export interface Messages {
   reduceProbeLimit: (limit: number) => string;
   filterChipLabels: FilterChipLabels;
   uiEffects: string;
-  liquidGlassEffect: string;
-  liquidGlassIntensity: string;
   resultOrder: string;
+  resultOrderDesktopOnly: string;
   mapFirst: string;
   tableFirst: string;
   rememberLocal: string;
@@ -60,9 +60,10 @@ export interface Messages {
   rememberNexttrace: string;
   suggestionList: string;
   closeTitle: (title: string) => string;
+  dragToClose: (title: string) => string;
+  quotaTitle: string;
   quotaLoading: string;
   quotaUnavailable: string;
-  quotaAvailable: (remaining: number, limit: number, actor: string) => string;
   currentIp: string;
   nexttraceDirectEnabled: string;
   globalpingCreditsControl: string;
@@ -75,6 +76,8 @@ export interface Messages {
   addedBoxCapped: (count: number) => string;
   workspaceTitle: string;
   viewResult: string;
+  resizeResultPanel: string;
+  resizeResultPanelHeight: string;
   aboutTitle: string;
   resultsTitle: string;
   loadingAbout: string;
@@ -90,9 +93,11 @@ export interface Messages {
   traceStillRunning: string;
   invalidGlobalpingParams: (message: string) => string;
   probeMap: string;
+  mapInteractionMode: string;
   boxSelectProbes: string;
   dragSelect: string;
   boxSelect: string;
+  mapPanHint: string;
   dragSelectHint: string;
   cancelMapFilter: string;
   cancel: string;
@@ -100,6 +105,10 @@ export interface Messages {
   noMatchingProbes: string;
   relaxProbeFilters: string;
   closeProbeCandidates: string;
+  alreadyAdded: string;
+  removeAddedProbe: (network: string, asn: string) => string;
+  showAllProbes: string;
+  showSelectedProbes: string;
   probeCandidates: (location: string) => string;
   probeAsnCandidates: string;
   onlineProbes: string;
@@ -107,6 +116,8 @@ export interface Messages {
   select: string;
   selectProbeTitle: (magic: string) => string;
   selectProbeLabel: (location: string, asn: string | number) => string;
+  locateProbeTitle: (magic: string) => string;
+  locateProbeLabel: (location: string, asn: string | number) => string;
   noTableProbes: string;
   tableLimitNote: (count: number) => string;
   tableSubtitle: (status: "loading" | "ready" | "error", visible: number, total: number) => string;
@@ -166,6 +177,7 @@ const zhCN: Messages = {
   auto: "自动",
   currentFilters: "当前筛选",
   exactFilters: "精确筛选",
+  filter: "筛选",
   countryRegion: "国家/地区",
   city: "城市",
   networkType: "网络类型",
@@ -180,9 +192,8 @@ const zhCN: Messages = {
   reduceProbeLimit: (limit) => `降到 ${limit}`,
   filterChipLabels: { country: "国家/地区", city: "城市", type: "类型", scope: "范围" },
   uiEffects: "界面效果",
-  liquidGlassEffect: "液态玻璃效果",
-  liquidGlassIntensity: "液态玻璃强度",
-  resultOrder: "结果页面显示顺序",
+  resultOrder: "显示模式",
+  resultOrderDesktopOnly: "仅桌面端有效",
   mapFirst: "地图优先",
   tableFirst: "表格优先",
   rememberLocal: "记住到本机",
@@ -198,9 +209,10 @@ const zhCN: Messages = {
   rememberNexttrace: "记住 NextTrace 到本机",
   suggestionList: "候选列表",
   closeTitle: (title) => `关闭${title}`,
-  quotaLoading: "诊断额度读取中",
-  quotaUnavailable: "诊断额度暂不可用",
-  quotaAvailable: (remaining, limit, actor) => `可创建诊断 ${remaining}/${limit}（${actor}）`,
+  dragToClose: (title) => `下拉关闭${title}`,
+  quotaTitle: "诊断额度",
+  quotaLoading: "读取中",
+  quotaUnavailable: "暂不可用",
   currentIp: "当前 IP",
   nexttraceDirectEnabled: "NextTrace API Token 直连已启用",
   globalpingCreditsControl: "Globalping credits 控制诊断创建",
@@ -213,6 +225,8 @@ const zhCN: Messages = {
   addedBoxCapped: (count) => `已添加框选 ${count} 个 probes，保留最近 10 个`,
   workspaceTitle: "网络路径诊断",
   viewResult: "查看结果",
+  resizeResultPanel: "拖拽调整结果面板宽度",
+  resizeResultPanelHeight: "拖拽调整结果面板高度",
   aboutTitle: "关于 GlobalTrace",
   resultsTitle: "诊断结果",
   loadingAbout: "正在加载关于页面",
@@ -223,30 +237,38 @@ const zhCN: Messages = {
   readingResults: "读取诊断结果",
   readingMeasurement: "正在读取 measurement",
   readingMeasurementDescription: "正在读取 Globalping measurement，完成后会自动展示结果。",
-  resultOrderPrompt: "结果页面显示顺序",
-  resultOrderHint: "后续如果还想改，可以在高级参数中修改。",
+  resultOrderPrompt: "显示模式",
+  resultOrderHint: "仅影响桌面端布局。后续如果还想改，可以在高级参数中修改。",
   traceStillRunning: "measurement 仍在运行，请稍后通过分享 URL 重新打开。",
   invalidGlobalpingParams: (message) => `Globalping 请求参数无效：${message} 请检查目标、筛选条件或高级参数。`,
   probeMap: "probe map",
+  mapInteractionMode: "地图操作",
   boxSelectProbes: "框选 probes",
-  dragSelect: "拖拽选择",
+  dragSelect: "拖拽",
   boxSelect: "框选",
-  dragSelectHint: "拖拽地图区域生成 magic probe 筛选",
-  cancelMapFilter: "取消地图筛选",
+  mapPanHint: "拖拽平移地图",
+  dragSelectHint: "拖拽框选地图区域，生成 magic probe 筛选",
+  cancelMapFilter: "清空已选",
   cancel: "取消",
   clearMapFilterHint: "清除地图点选或框选生成的 probe 筛选",
   noMatchingProbes: "没有匹配的在线 probe",
   relaxProbeFilters: "放宽国家/地区、城市、ASN、network 或 tag 条件。",
   closeProbeCandidates: "关闭 probe 候选列表",
+  alreadyAdded: "已添加",
+  removeAddedProbe: (network, asn) => `移除 ${network} ${asn}`,
+  showAllProbes: "回到所有",
+  showSelectedProbes: "查看当前点选",
   probeCandidates: (location) => `${location} probe candidates`,
   probeAsnCandidates: "probe ASN candidates",
-  onlineProbes: "在线 probes",
+  onlineProbes: "在线 Probes",
   location: "位置",
   select: "select",
-  selectProbeTitle: (magic) => `选择 ${magic}`,
-  selectProbeLabel: (location, asn) => `选择 ${location} AS${asn}`,
+  selectProbeTitle: (magic) => `添加 ${magic}`,
+  selectProbeLabel: (location, asn) => `添加 ${location} AS${asn}`,
+  locateProbeTitle: (magic) => `在地图上定位 ${magic}`,
+  locateProbeLabel: (location, asn) => `在地图上定位 ${location} AS${asn}`,
   noTableProbes: "当前筛选没有匹配在线 probe。",
-  tableLimitNote: (count) => `已显示前 ${count} 条；运行时按 probes 上限选择。`,
+  tableLimitNote: (count) => `仅显示前 ${count} 条，运行时按上限选取`,
   tableSubtitle: (status, visible, total) => {
     if (status === "loading") return "正在读取 Globalping probes";
     if (status === "error") return "读取失败，保留当前筛选";
@@ -309,6 +331,7 @@ const enUS: Messages = {
   auto: "Auto",
   currentFilters: "Current filters",
   exactFilters: "Exact filters",
+  filter: "Filter",
   countryRegion: "Country/Region",
   city: "City",
   networkType: "Network type",
@@ -323,9 +346,8 @@ const enUS: Messages = {
   reduceProbeLimit: (limit) => `Use ${limit}`,
   filterChipLabels: { country: "Country/Region", city: "City", type: "Type", scope: "Scope" },
   uiEffects: "Interface effects",
-  liquidGlassEffect: "Liquid glass effect",
-  liquidGlassIntensity: "Liquid glass intensity",
-  resultOrder: "Result page display order",
+  resultOrder: "Display mode",
+  resultOrderDesktopOnly: "Desktop only",
   mapFirst: "Map first",
   tableFirst: "Table first",
   rememberLocal: "Remember on this device",
@@ -341,9 +363,10 @@ const enUS: Messages = {
   rememberNexttrace: "Remember NextTrace locally",
   suggestionList: "Suggestions",
   closeTitle: (title) => `Close ${title}`,
-  quotaLoading: "Loading diagnosis quota",
-  quotaUnavailable: "Diagnosis quota unavailable",
-  quotaAvailable: (remaining, limit, actor) => `Diagnoses available ${remaining}/${limit} (${actor})`,
+  dragToClose: (title) => `Drag down to close ${title}`,
+  quotaTitle: "Diagnosis quota",
+  quotaLoading: "Loading",
+  quotaUnavailable: "Unavailable",
   currentIp: "current IP",
   nexttraceDirectEnabled: "NextTrace API Token direct mode enabled",
   globalpingCreditsControl: "Globalping credits control diagnosis creation",
@@ -356,6 +379,8 @@ const enUS: Messages = {
   addedBoxCapped: (count) => `Added ${count} selected probes, keeping the latest 10`,
   workspaceTitle: "Network path diagnosis",
   viewResult: "View result",
+  resizeResultPanel: "Drag to resize results panel",
+  resizeResultPanelHeight: "Drag to resize results panel height",
   aboutTitle: "About GlobalTrace",
   resultsTitle: "Diagnosis result",
   loadingAbout: "Loading about page",
@@ -366,30 +391,38 @@ const enUS: Messages = {
   readingResults: "Reading diagnosis result",
   readingMeasurement: "Reading measurement",
   readingMeasurementDescription: "Reading the Globalping measurement. Results will appear automatically when ready.",
-  resultOrderPrompt: "Result page display order",
-  resultOrderHint: "You can change this later in advanced settings.",
+  resultOrderPrompt: "Display mode",
+  resultOrderHint: "Applies to desktop layout only. You can change this later in advanced settings.",
   traceStillRunning: "The measurement is still running. Reopen it later with the share URL.",
   invalidGlobalpingParams: (message) => `Globalping request parameters are invalid: ${message} Check the target, filters, or advanced settings.`,
   probeMap: "probe map",
+  mapInteractionMode: "Map interaction",
   boxSelectProbes: "Box select probes",
-  dragSelect: "Drag select",
-  boxSelect: "Box select",
-  dragSelectHint: "Drag across the map to create a magic probe filter",
-  cancelMapFilter: "Cancel map filter",
+  dragSelect: "Pan",
+  boxSelect: "Box",
+  mapPanHint: "Drag to pan the map",
+  dragSelectHint: "Drag a box on the map to create a magic probe filter",
+  cancelMapFilter: "Clear selected",
   cancel: "Cancel",
   clearMapFilterHint: "Clear the probe filter created from map point or box selection",
   noMatchingProbes: "No matching online probes",
   relaxProbeFilters: "Relax country/region, city, ASN, network, or tag filters.",
   closeProbeCandidates: "Close probe candidate list",
+  alreadyAdded: "Added",
+  removeAddedProbe: (network, asn) => `Remove ${network} ${asn}`,
+  showAllProbes: "Back to all",
+  showSelectedProbes: "View current picks",
   probeCandidates: (location) => `${location} probe candidates`,
   probeAsnCandidates: "probe ASN candidates",
-  onlineProbes: "Online probes",
+  onlineProbes: "Online Probes",
   location: "Location",
   select: "select",
-  selectProbeTitle: (magic) => `Select ${magic}`,
-  selectProbeLabel: (location, asn) => `Select ${location} AS${asn}`,
+  selectProbeTitle: (magic) => `Add ${magic}`,
+  selectProbeLabel: (location, asn) => `Add ${location} AS${asn}`,
+  locateProbeTitle: (magic) => `Locate ${magic} on map`,
+  locateProbeLabel: (location, asn) => `Locate ${location} AS${asn} on map`,
   noTableProbes: "No online probes match the current filters.",
-  tableLimitNote: (count) => `Showing the first ${count}; runtime selection follows the probe limit.`,
+  tableLimitNote: (count) => `Showing first ${count}; runtime uses the probe limit`,
   tableSubtitle: (status, visible, total) => {
     if (status === "loading") return "Loading Globalping probes";
     if (status === "error") return "Failed to load; keeping current filters";

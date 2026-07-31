@@ -312,9 +312,14 @@ function parseContentLength(value: string | null): number | null {
 }
 
 function isCrossSiteRequest(request: Request): boolean {
+  // Prefer the browser-attested fetch site. Vite's API proxy rewrites the
+  // upstream URL/Host, so comparing Origin to request.url.origin false-positives
+  // same-origin page requests during local development.
+  const fetchSite = request.headers.get("Sec-Fetch-Site");
+  if (fetchSite) return fetchSite === "cross-site";
   const origin = request.headers.get("Origin");
-  if (origin && origin !== new URL(request.url).origin) return true;
-  return request.headers.get("Sec-Fetch-Site") === "cross-site";
+  if (!origin) return false;
+  return origin !== new URL(request.url).origin;
 }
 
 function queueCacheWrite(c: Context<HonoEnv>, write: Promise<unknown> | undefined): void {

@@ -5,7 +5,7 @@ GlobalTrace 是一个 Globalping x NextTrace 的开源项目，借助 Globalping
 ## 技术栈
 
 - Frontend：React + Vite + TypeScript + MapLibre。
-- UI：Radix UI、lucide-react、liquid-glass-react。
+- UI：Radix UI、lucide-react。
 - Worker：Hono on Cloudflare Workers Static Assets。
 - 测量来源：Globalping `type: "mtr"` measurement。
 - 增强数据：Worker 按 Globalping measurement ID 拉取可信结果后调用 nxtrace API v4 batch GeoIP/ASN/whois；用户提供个人 NextTrace API Token 后，新建诊断可由浏览器直连 batch API。
@@ -37,12 +37,18 @@ npm install
 npm run dev
 ```
 
-`npm run dev` 会先构建 Vite assets，再启动 `wrangler dev --local --assets dist`。同一个 Worker 处理 `/api/*` 并服务 SPA 静态资源。
+`npm run dev` 会同时启动 Vite dev server（`http://127.0.0.1:5173`，保留 HMR）和 `wrangler dev --local`（`http://127.0.0.1:8787`）。Vite 把 `/api/*` 代理到本地 Worker，页面代码改动即时热更新。Worker 端口可用 `GLOBALTRACE_WORKER_PORT` 覆盖。
 
 只调前端界面时可用：
 
 ```bash
 npm run dev:frontend
+```
+
+需要验证 Worker 直接服务构建产物（生产形态）时用：
+
+```bash
+npm run dev:worker
 ```
 
 ## 核心 API

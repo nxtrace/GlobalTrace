@@ -1,10 +1,23 @@
 @import "maplibre-gl/dist/maplibre-gl.css";
 
-.map-section .maplibregl-canvas {
+.map-section .maplibregl-canvas,
+.result-map .maplibregl-canvas {
   filter: var(--map-filter);
 }
 
-.map-section .maplibregl-ctrl-group {
+/* Keep canvas hidden until palette is applied so Liberty defaults never flash. */
+.map-container:not(.is-map-ready) .maplibregl-canvas,
+.result-map:not(.is-map-ready) .maplibregl-canvas {
+  opacity: 0;
+}
+
+.map-container.is-map-ready .maplibregl-canvas,
+.result-map.is-map-ready .maplibregl-canvas {
+  opacity: 1;
+}
+
+.map-section .maplibregl-ctrl-group,
+.result-map .maplibregl-ctrl-group {
   overflow: hidden;
   border: 1px solid var(--map-control-border);
   border-radius: 8px;
@@ -14,60 +27,144 @@
   -webkit-backdrop-filter: blur(18px) saturate(1.18);
 }
 
-.map-section .maplibregl-ctrl-group button {
+.map-section .maplibregl-ctrl-group button,
+.result-map .maplibregl-ctrl-group button {
   background-color: transparent;
   color: var(--map-control-fg);
 }
 
-.map-section .maplibregl-ctrl-group button + button {
+.map-section .maplibregl-ctrl-group button + button,
+.result-map .maplibregl-ctrl-group button + button {
   border-top: 1px solid var(--map-control-border);
 }
 
-.map-section .maplibregl-ctrl-group button:not(:disabled):hover {
+.map-section .maplibregl-ctrl-group button:not(:disabled):hover,
+.result-map .maplibregl-ctrl-group button:not(:disabled):hover {
   background-color: var(--map-control-bg-hover);
 }
 
-.map-section .maplibregl-ctrl-group button:disabled {
+.map-section .maplibregl-ctrl-group button:disabled,
+.result-map .maplibregl-ctrl-group button:disabled {
   opacity: 0.48;
 }
 
-.map-section .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+.map-section .maplibregl-ctrl-group button .maplibregl-ctrl-icon,
+.result-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
   filter: var(--map-control-icon-filter);
   opacity: 0.94;
 }
 
-.map-section .maplibregl-ctrl-attrib {
-  border: 1px solid var(--map-control-border);
-  border-radius: 999px 0 0 0;
-  background: var(--map-control-bg);
-  color: var(--map-control-muted);
-  box-shadow: var(--map-control-shadow);
-  backdrop-filter: blur(14px) saturate(1.08);
-  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+.map-section .maplibregl-ctrl-bottom-left,
+.result-map .maplibregl-ctrl-bottom-left {
+  left: 12px;
+  bottom: 12px;
 }
 
-.map-section .maplibregl-ctrl-attrib a {
+.map-section .maplibregl-ctrl-top-right .maplibregl-ctrl,
+.result-map .maplibregl-ctrl-top-right .maplibregl-ctrl,
+.map-section .maplibregl-ctrl-bottom-right .maplibregl-ctrl,
+.result-map .maplibregl-ctrl-bottom-right .maplibregl-ctrl,
+.map-section .maplibregl-ctrl-bottom-left .maplibregl-ctrl,
+.result-map .maplibregl-ctrl-bottom-left .maplibregl-ctrl,
+.map-section .maplibregl-ctrl-attrib.maplibregl-compact,
+.result-map .maplibregl-ctrl-attrib.maplibregl-compact {
+  margin: 0;
+}
+
+.map-section .maplibregl-ctrl-attrib,
+.result-map .maplibregl-ctrl-attrib {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--map-control-muted);
+  box-shadow: none;
+}
+
+/* Collapsed chip: info icon + OpenFreeMap, no chrome so it sits on the map. */
+.map-section .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show),
+.result-map .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) {
+  width: auto;
+  height: var(--control-h-sm);
+  min-height: var(--control-h-sm);
+  padding: 0 4px 0 24px;
+  overflow: hidden;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  color: var(--map-control-fg);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.2px;
+  text-shadow: 0 0 4px var(--map-bg), 0 1px 2px var(--map-bg);
+}
+
+.map-section .map-attrib-label,
+.result-map .map-attrib-label {
+  display: none;
+  pointer-events: none;
+}
+
+.map-section .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) .map-attrib-label,
+.result-map .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) .map-attrib-label {
+  display: inline;
+}
+
+.map-section .maplibregl-ctrl-attrib.maplibregl-compact-show,
+.result-map .maplibregl-ctrl-attrib.maplibregl-compact-show {
+  border-radius: 0;
+  min-height: var(--control-h-sm);
+  padding: 4px 4px 4px 26px;
+  box-sizing: border-box;
+  text-shadow: 0 0 4px var(--map-bg), 0 1px 2px var(--map-bg);
+}
+
+.map-section .maplibregl-ctrl-attrib a,
+.result-map .maplibregl-ctrl-attrib a {
   color: var(--map-control-fg);
 }
 
-.map-section .maplibregl-ctrl-attrib-button {
-  background-color: var(--map-control-bg);
+.map-section .maplibregl-ctrl-attrib-button,
+.result-map .maplibregl-ctrl-attrib-button {
+  inset: auto;
+  top: 50%;
+  left: 0;
+  right: auto;
+  width: 20px;
+  height: 20px;
+  transform: translateY(-50%);
+  border-radius: 4px;
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
 }
 
-.map-section .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button {
-  background-color: var(--map-control-bg);
+.map-section .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button,
+.result-map .maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-button {
+  width: 20px;
+  height: 20px;
+  inset: auto;
+  top: 50%;
+  left: 0;
+  right: auto;
+  transform: translateY(-50%);
+  background-color: transparent;
 }
 
-.map-section .maplibregl-ctrl-attrib-button:hover {
-  background-color: var(--map-control-bg-hover);
+.map-section .maplibregl-ctrl-attrib-button:hover,
+.result-map .maplibregl-ctrl-attrib-button:hover {
+  background-color: transparent;
 }
 
-:root[data-theme="dark"] .map-section .maplibregl-ctrl-attrib-button {
+:root[data-theme="dark"] .map-section .maplibregl-ctrl-attrib-button,
+:root[data-theme="dark"] .result-map .maplibregl-ctrl-attrib-button {
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='%23f3f7f5' fill-rule='evenodd' viewBox='0 0 20 20'%3E%3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
-  :root[data-theme="system"] .map-section .maplibregl-ctrl-attrib-button {
+  :root[data-theme="system"] .map-section .maplibregl-ctrl-attrib-button,
+  :root[data-theme="system"] .result-map .maplibregl-ctrl-attrib-button {
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='%23f3f7f5' fill-rule='evenodd' viewBox='0 0 20 20'%3E%3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E%3C/svg%3E");
   }
 }

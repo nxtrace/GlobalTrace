@@ -67,7 +67,7 @@ test("serves the built Vite app through Worker Static Assets", async ({
   ).toBeVisible();
   await expect(page.getByText("全球路由追踪")).toBeVisible();
   await expect(page.getByText("1 / 1 probes 匹配")).toBeVisible();
-  await expect(page.locator("[data-liquid-glass]").first()).toBeVisible();
+  await expect(page.locator(".filter-panel")).toBeVisible();
 
   await page.goto("/about");
   await expect(

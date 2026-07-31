@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { BackgroundImage } from "../api";
 import { AboutPage } from "./AboutPage";
-import { LiquidGlassPreferenceProvider } from "./LiquidGlassSurface";
 
 const backgroundImage: BackgroundImage = {
   imageUrl: "/api/background/image",
@@ -13,29 +12,29 @@ const backgroundImage: BackgroundImage = {
 };
 
 describe("AboutPage", () => {
-  it("adds liquid glass surfaces without changing link and back actions", () => {
+  it("renders sections, related links and background credit", () => {
     const onBack = vi.fn();
 
-    render(
-      <LiquidGlassPreferenceProvider enabled={false} intensity={70}>
-        <AboutPage backgroundImage={backgroundImage} onBack={onBack} />
-      </LiquidGlassPreferenceProvider>,
-    );
+    render(<AboutPage backgroundImage={backgroundImage} onBack={onBack} />);
 
     const sourceLink = screen.getByRole("link", { name: "源码" });
     expect(sourceLink).toHaveAttribute("href", "https://github.com/nxtrace/GlobalTrace");
-    expect(sourceLink.closest(".about-action-surface[data-liquid-glass]")).not.toBeNull();
 
     const backLink = screen.getByRole("link", { name: "返回诊断" });
     expect(backLink).toHaveAttribute("href", "/");
-    expect(backLink.closest(".about-action-surface[data-liquid-glass]")).not.toBeNull();
     fireEvent.click(backLink);
     expect(onBack).toHaveBeenCalledTimes(1);
 
-    expect(document.querySelectorAll(".about-card-surface[data-liquid-glass]")).toHaveLength(3);
-    expect(document.querySelector(".about-links-surface[data-liquid-glass]")).not.toBeNull();
-    expect(document.querySelectorAll(".about-link-surface[data-liquid-glass]")).toHaveLength(8);
-    expect(document.querySelector(".about-background-credit-surface[data-liquid-glass]")).not.toBeNull();
+    const brand = screen.getByRole("heading", { level: 1, name: "GlobalTrace" });
+    expect(brand).toBeInTheDocument();
+    expect(brand.querySelector(".brand-title-lead")).toHaveTextContent("Global");
+    expect(brand.querySelector(".brand-title-mark")).toHaveTextContent("Trace");
+    expect(document.querySelectorAll(".about-section")).toHaveLength(4);
+    const links = document.querySelector(".about-links");
+    expect(links).not.toBeNull();
+    expect(links?.querySelectorAll("a")).toHaveLength(8);
+    expect(document.querySelectorAll(".about-link-group")).toHaveLength(3);
+    expect(document.querySelector(".about-background-credit")).not.toBeNull();
     expect(screen.getByRole("link", { name: /背景：岁月的层峦/ })).toHaveAttribute(
       "href",
       "https://example.com/background",

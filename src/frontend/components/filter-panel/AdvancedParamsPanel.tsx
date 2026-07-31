@@ -1,7 +1,6 @@
 import { useId } from "react";
 import { KeyRound, Map as MapIcon, Monitor, Table2 } from "lucide-react";
 import type { FilterPanelProps } from "../FilterPanel";
-import { LiquidGlassSurface } from "../LiquidGlassSurface";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
@@ -13,231 +12,199 @@ export function AdvancedParamsPanel(props: FilterPanelProps) {
   const messages = useI18n();
   const globalpingTokenStatusId = useId();
   const nexttraceTokenStatusId = useId();
-  const liquidGlassIntensityId = useId();
   return (
     <div className="advanced-params-panel">
-      <div className="token-section">
-        <div className="summary-title">
-          <Monitor size={16} />
-          <span>{messages.uiEffects}</span>
+      <section className="advanced-params-section">
+        <div className="advanced-params-section-header">
+          <Monitor size={14} />
+          <span>{messages.resultOrder}</span>
+          <span className="advanced-params-section-meta">{messages.resultOrderDesktopOnly}</span>
         </div>
-        <label className="token-remember">
-          <span>{messages.liquidGlassEffect}</span>
-          <Switch
-            checked={props.liquidGlassEnabled}
-            onCheckedChange={(checked) =>
-              props.onLiquidGlassEnabledChange(Boolean(checked))
-            }
-            aria-label={messages.liquidGlassEffect}
-          />
-        </label>
-        <div className="liquid-intensity-control">
-          <span>
-            <label htmlFor={liquidGlassIntensityId}>{messages.liquidGlassIntensity}</label>
-            <output htmlFor={liquidGlassIntensityId} aria-hidden="true">
-              {props.liquidGlassIntensity}
-            </output>
-          </span>
-          <input
-            id={liquidGlassIntensityId}
-            className="liquid-intensity-slider"
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={props.liquidGlassIntensity}
-            disabled={!props.liquidGlassEnabled}
-            onChange={(event) =>
-              props.onLiquidGlassIntensityChange(Number(event.target.value))
-            }
-            aria-label={messages.liquidGlassIntensity}
-          />
-        </div>
-        <div className="result-layout-setting">
-          <span>{messages.resultOrder}：</span>
-          <div className="segmented result-layout-control" role="radiogroup" aria-label={messages.resultOrder}>
-            <label className={props.resultContentOrder === "map-first" ? "selected" : ""}>
-              <span className="result-layout-option-label">
-                <MapIcon size={16} aria-hidden="true" />
-                <span>{messages.mapFirst}</span>
-              </span>
-              <input
-                type="radio"
-                name="result-content-order"
-                checked={props.resultContentOrder === "map-first"}
-                onChange={() => props.onResultContentOrderChange("map-first")}
-              />
-            </label>
-            <label className={props.resultContentOrder === "table-first" ? "selected" : ""}>
-              <span className="result-layout-option-label">
-                <Table2 size={16} aria-hidden="true" />
-                <span>{messages.tableFirst}</span>
-              </span>
-              <input
-                type="radio"
-                name="result-content-order"
-                checked={props.resultContentOrder === "table-first"}
-                onChange={() => props.onResultContentOrderChange("table-first")}
-              />
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div className="token-section">
-        <div className="summary-title">
-          <KeyRound size={16} />
-          <span>Globalping Token</span>
-        </div>
-        <label className="field-label">
-          <span>Token</span>
-          <Input
-            type="password"
-            value={props.globalpingTokenDraft}
-            onChange={(event) =>
-              props.onGlobalpingTokenDraftChange(event.target.value)
-            }
-            placeholder={messages.globalpingTokenPlaceholder}
-            autoComplete="off"
-            aria-label="Globalping Token"
-            aria-describedby={globalpingTokenStatusId}
-          />
-        </label>
-        <label className="token-remember">
-          <span>{messages.rememberLocal}</span>
-          <Switch
-            checked={props.globalpingTokenRemembered}
-            onCheckedChange={(checked) =>
-              props.onGlobalpingTokenRememberedChange(Boolean(checked))
-            }
-            aria-label={messages.rememberGlobalping}
-          />
-        </label>
-        <div className="token-actions">
-          <span id={globalpingTokenStatusId} role="status" aria-live="polite">
-            {messages.tokenStatus("Globalping", props.globalpingTokenSaved, props.globalpingTokenRemembered)}
-          </span>
-          <div>
-            <LiquidGlassSurface
-              variant="button"
-              interactive
-              actionRole="none"
-              onClick={props.onSaveGlobalpingToken}
-              className="liquid-glass-coverage token-action-surface"
-            >
-              <Button
-                variant="glass"
-                size="sm"
-                type="button"
-                aria-label={messages.saveProvider("Globalping")}
-              >
-                {messages.save}
-              </Button>
-            </LiquidGlassSurface>
-            <LiquidGlassSurface
-              variant="button"
-              interactive
-              actionRole="none"
-              onClick={props.onClearGlobalpingToken}
-              className="liquid-glass-coverage token-action-surface"
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                aria-label={messages.clearProvider("Globalping")}
-              >
-                {messages.clear}
-              </Button>
-            </LiquidGlassSurface>
-          </div>
-        </div>
-      </div>
-
-      <div className="token-section">
-        <div className="summary-title">
-          <KeyRound size={16} />
-          <span>NextTrace API Token</span>
-          <LiquidGlassSurface
-            variant="button"
-            actionRole="none"
-            className="liquid-glass-coverage token-help-surface"
+        <div className="advanced-params-section-body">
+          <div
+            className="display-mode-control"
+            role="radiogroup"
+            aria-label={`${messages.resultOrder} · ${messages.resultOrderDesktopOnly}`}
           >
-            <a
-              className="token-help-link"
-              href={NEXTTRACE_API_TOKEN_URL}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={messages.getNexttraceToken}
+            <button
+              type="button"
+              role="radio"
+              className={
+                props.resultContentOrder === "map-first"
+                  ? "display-mode-option is-active"
+                  : "display-mode-option"
+              }
+              aria-checked={props.resultContentOrder === "map-first"}
+              onClick={() => props.onResultContentOrderChange("map-first")}
             >
-              {messages.getNexttraceToken.replace("NextTrace API ", "")}
-            </a>
-          </LiquidGlassSurface>
+              <MapIcon size={14} aria-hidden="true" />
+              <span>{messages.mapFirst}</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              className={
+                props.resultContentOrder === "table-first"
+                  ? "display-mode-option is-active"
+                  : "display-mode-option"
+              }
+              aria-checked={props.resultContentOrder === "table-first"}
+              onClick={() => props.onResultContentOrderChange("table-first")}
+            >
+              <Table2 size={14} aria-hidden="true" />
+              <span>{messages.tableFirst}</span>
+            </button>
+          </div>
         </div>
+      </section>
+
+      <TokenSection
+        title="Globalping Token"
+        tokenAriaLabel="Globalping Token"
+        statusId={globalpingTokenStatusId}
+        draft={props.globalpingTokenDraft}
+        remembered={props.globalpingTokenRemembered}
+        placeholder={messages.globalpingTokenPlaceholder}
+        rememberLabel={messages.rememberLocal}
+        rememberAriaLabel={messages.rememberGlobalping}
+        statusText={messages.tokenStatus(
+          "Globalping",
+          props.globalpingTokenSaved,
+          props.globalpingTokenRemembered,
+        )}
+        saveAriaLabel={messages.saveProvider("Globalping")}
+        clearAriaLabel={messages.clearProvider("Globalping")}
+        saveLabel={messages.save}
+        clearLabel={messages.clear}
+        onDraftChange={props.onGlobalpingTokenDraftChange}
+        onRememberedChange={props.onGlobalpingTokenRememberedChange}
+        onSave={props.onSaveGlobalpingToken}
+        onClear={props.onClearGlobalpingToken}
+      />
+
+      <TokenSection
+        title="NextTrace API Token"
+        tokenAriaLabel="NextTrace API Token"
+        statusId={nexttraceTokenStatusId}
+        draft={props.nexttraceTokenDraft}
+        remembered={props.nexttraceTokenRemembered}
+        placeholder={messages.nexttraceTokenPlaceholder}
+        rememberLabel={messages.rememberLocal}
+        rememberAriaLabel={messages.rememberNexttrace}
+        statusText={messages.tokenStatus(
+          "NextTrace",
+          props.nexttraceTokenSaved,
+          props.nexttraceTokenRemembered,
+        )}
+        saveAriaLabel={messages.saveProvider("NextTrace")}
+        clearAriaLabel={messages.clearProvider("NextTrace")}
+        saveLabel={messages.save}
+        clearLabel={messages.clear}
+        helpHref={NEXTTRACE_API_TOKEN_URL}
+        helpLabel={messages.getNexttraceToken}
+        helpText={messages.getNexttraceToken.replace("NextTrace API ", "")}
+        onDraftChange={props.onNexttraceTokenDraftChange}
+        onRememberedChange={props.onNexttraceTokenRememberedChange}
+        onSave={props.onSaveNexttraceToken}
+        onClear={props.onClearNexttraceToken}
+      />
+    </div>
+  );
+}
+
+interface TokenSectionProps {
+  title: string;
+  tokenAriaLabel: string;
+  statusId: string;
+  draft: string;
+  remembered: boolean;
+  placeholder: string;
+  rememberLabel: string;
+  rememberAriaLabel: string;
+  statusText: string;
+  saveAriaLabel: string;
+  clearAriaLabel: string;
+  saveLabel: string;
+  clearLabel: string;
+  helpHref?: string;
+  helpLabel?: string;
+  helpText?: string;
+  onDraftChange: (value: string) => void;
+  onRememberedChange: (value: boolean) => void;
+  onSave: () => void;
+  onClear: () => void;
+}
+
+function TokenSection(props: TokenSectionProps) {
+  return (
+    <section className="advanced-params-section">
+      <div className="advanced-params-section-header">
+        <KeyRound size={14} />
+        <span>{props.title}</span>
+        {props.helpHref && props.helpLabel && props.helpText ? (
+          <a
+            className="token-help-link"
+            href={props.helpHref}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={props.helpLabel}
+          >
+            {props.helpText}
+          </a>
+        ) : null}
+      </div>
+      <div className="advanced-params-section-body">
         <label className="field-label">
           <span>Token</span>
           <Input
             type="password"
-            value={props.nexttraceTokenDraft}
-            onChange={(event) =>
-              props.onNexttraceTokenDraftChange(event.target.value)
-            }
-            placeholder={messages.nexttraceTokenPlaceholder}
+            value={props.draft}
+            onChange={(event) => props.onDraftChange(event.target.value)}
+            placeholder={props.placeholder}
             autoComplete="off"
-            aria-label="NextTrace API Token"
-            aria-describedby={nexttraceTokenStatusId}
+            aria-label={props.tokenAriaLabel}
+            aria-describedby={props.statusId}
           />
         </label>
         <label className="token-remember">
-          <span>{messages.rememberLocal}</span>
+          <span>{props.rememberLabel}</span>
           <Switch
-            checked={props.nexttraceTokenRemembered}
+            size="sm"
+            checked={props.remembered}
             onCheckedChange={(checked) =>
-              props.onNexttraceTokenRememberedChange(Boolean(checked))
+              props.onRememberedChange(Boolean(checked))
             }
-            aria-label={messages.rememberNexttrace}
+            aria-label={props.rememberAriaLabel}
           />
         </label>
         <div className="token-actions">
-          <span id={nexttraceTokenStatusId} role="status" aria-live="polite">
-            {messages.tokenStatus("NextTrace", props.nexttraceTokenSaved, props.nexttraceTokenRemembered)}
+          <span id={props.statusId} role="status" aria-live="polite">
+            {props.statusText}
           </span>
           <div>
-            <LiquidGlassSurface
-              variant="button"
-              interactive
-              actionRole="none"
-              onClick={props.onSaveNexttraceToken}
-              className="liquid-glass-coverage token-action-surface"
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              className="token-action-button"
+              onClick={props.onSave}
+              aria-label={props.saveAriaLabel}
             >
-              <Button
-                variant="glass"
-                size="sm"
-                type="button"
-                aria-label={messages.saveProvider("NextTrace")}
-              >
-                {messages.save}
-              </Button>
-            </LiquidGlassSurface>
-            <LiquidGlassSurface
-              variant="button"
-              interactive
-              actionRole="none"
-              onClick={props.onClearNexttraceToken}
-              className="liquid-glass-coverage token-action-surface"
+              {props.saveLabel}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              className="token-action-button"
+              onClick={props.onClear}
+              aria-label={props.clearAriaLabel}
             >
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                aria-label={messages.clearProvider("NextTrace")}
-              >
-                {messages.clear}
-              </Button>
-            </LiquidGlassSurface>
+              {props.clearLabel}
+            </Button>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

@@ -1,4 +1,4 @@
-import { AlertCircle, Eye, Loader2, Map as MapIcon, Table2 } from "lucide-react";
+import { AlertCircle, List, Loader2, Map as MapIcon, Table2 } from "lucide-react";
 import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   fetchBackgroundImage,
@@ -9,17 +9,15 @@ import {
   type BackgroundImage,
 } from "./api";
 import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
-import { GlassOverlay } from "./components/GlassOverlay";
-import {
-  LiquidGlassPreferenceProvider,
-  LiquidGlassSurface,
-} from "./components/LiquidGlassSurface";
+import { Overlay } from "./components/Overlay";
+import { ProbeListDrawer } from "./components/ProbeListDrawer";
 import { ProbeTable } from "./components/ProbeTable";
-import { Badge } from "./components/ui/badge";
+import { ResultSlideover } from "./components/ResultSlideover";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
 import type { ResultContentOrder } from "./components/mapProjection";
 import type { ProbeMapAsnSelection } from "./components/ProbeMap";
+import type { QuotaState } from "./components/filter-panel/QuotaMeter";
 import { I18nProvider, messagesByLocale, useI18n } from "./i18n";
 import { deferUntilIdle } from "./lib/defer";
 import { usePersistentAppSettings } from "./hooks/usePersistentAppSettings";
@@ -32,11 +30,15 @@ import {
 import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
 import {
   appendMagicFilters,
+  removeMagicFilters,
   filterChips,
   filterProbes,
   magicFromSelectedProbes,
+  normalizeAsn,
   probeFilterSuggestions,
+  probeMatchesFilters,
   probeToMagic,
+  splitMagicList,
 } from "../shared/filters";
 import {
   DEFAULT_MAP_STYLE_URL,
@@ -59,6 +61,7 @@ const GLOBALPING_TOKEN_STORAGE_KEY = "globaltrace.globalpingToken";
 const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
 const TRACE_PORT_STORAGE_KEY = "globaltrace.tracePort";
 const TRACE_PACKETS_STORAGE_KEY = "globaltrace.tracePackets";
+const PROBE_DRAWER_ID = "probe-list-drawer";
 
 type AppRoute = "/" | "/about";
 
@@ -75,16 +78,12 @@ export function App() {
   const [route, setRoute] = useState<AppRoute>(currentRoute);
   const {
     themeMode,
-    liquidGlassEnabled,
-    liquidGlassIntensity,
     resultMapProjection,
     setResultMapProjection,
     resultContentOrder,
     resultContentOrderPromptOpen,
     locale,
     cycleThemeMode,
-    updateLiquidGlassEnabled,
-    updateLiquidGlassIntensity,
     updateResultContentOrder,
     updateLocale,
   } = usePersistentAppSettings();
@@ -121,6 +120,12 @@ export function App() {
   const [message, setMessage] = useState("");
   const [selectionNotice, setSelectionNotice] = useState("");
   const [mapSelectionActive, setMapSelectionActive] = useState(false);
+  const [browseAllProbes, setBrowseAllProbes] = useState(false);
+  const [listFilterActive, setListFilterActive] = useState(false);
+  const [mapFocusProbe, setMapFocusProbe] = useState<GlobalpingProbe | null>(null);
+  const [mapFocusToken, setMapFocusToken] = useState(0);
+  const [mapFitToken, setMapFitToken] = useState(0);
+  const [probeDrawerOpen, setProbeDrawerOpen] = useState(false);
   const bootstrappedRef = useRef(false);
   const mapSelectionLimitBeforeRef = useRef<number | null>(null);
   const mapSelectionLimitManuallyChangedRef = useRef(false);
@@ -151,9 +156,28 @@ export function App() {
 
   const finalResult = result?.status === "in-progress" ? null : result;
   const resultPriority = workspaceMode === "result" || Boolean(measurementLoading);
+  const immersiveMap = resultContentOrder === "map-first";
+  const resultSlideoverOpen = workspaceMode === "result" && Boolean(finalResult);
   const canSubmit = configReady;
   const deferredFilters = useDeferredValue(filters);
   const filteredProbes = useMemo(() => filterProbes(probes, deferredFilters), [deferredFilters, probes]);
+  const selectedProbeMagic = useMemo(() => {
+    if (!mapSelectionActive) return [] as string[];
+    const magic = (filters.magic || "").trim();
+    if (!magic || magic.toLowerCase() === "world") return [] as string[];
+    return splitMagicList(magic);
+  }, [filters.magic, mapSelectionActive]);
+  const addedProbes = useMemo(() => {
+    if (!selectedProbeMagic.length) return [] as GlobalpingProbe[];
+    return probes.filter((probe) =>
+      selectedProbeMagic.some((magic) => probeMatchesFilters(probe, { magic })),
+    );
+  }, [probes, selectedProbeMagic]);
+  const tableProbes = useMemo(() => {
+    if (mapSelectionActive && browseAllProbes) return probes;
+    if (mapSelectionActive) return addedProbes;
+    return filteredProbes;
+  }, [addedProbes, browseAllProbes, filteredProbes, mapSelectionActive, probes]);
   const filterSuggestionFilters = useMemo<TraceFilters>(() => ({
     country: filters.country,
     city: filters.city,
@@ -176,18 +200,15 @@ export function App() {
     [filterSuggestionFilters, probes],
   );
   const chips = useMemo(() => filterChips(filters, messages.filterChipLabels), [filters, messages]);
-  const quotaLabel = useMemo(() => {
-    if (limitsStatus === "loading") return messages.quotaLoading;
-    if (limitsStatus === "error" || !limits) return messages.quotaUnavailable;
-    return messages.quotaAvailable(
-      limits.measurements.create.remaining,
-      limits.measurements.create.limit,
-      globalpingToken ? "Globalping Token" : messages.currentIp,
-    );
-  }, [globalpingToken, limits, limitsStatus, messages]);
-  const diagnosisControlLabel = nexttraceToken
-    ? messages.nexttraceDirectEnabled
-    : messages.globalpingCreditsControl;
+  const quota = useMemo<QuotaState>(() => ({
+    status: limitsStatus === "ready" && limits ? "ready" : limitsStatus,
+    remaining: limits?.measurements.create.remaining ?? 0,
+    limit: limits?.measurements.create.limit ?? 0,
+    actor: globalpingToken ? "Globalping Token" : messages.currentIp,
+    modeLabel: nexttraceToken
+      ? messages.nexttraceDirectEnabled
+      : messages.globalpingCreditsControl,
+  }), [globalpingToken, limits, limitsStatus, messages, nexttraceToken]);
 
   useEffect(() => {
     const onPopState = () => setRoute(currentRoute());
@@ -293,26 +314,77 @@ export function App() {
     }
   }, [limit, probes]);
 
+  // List-row filters use country/city/asn for browsing only; do not promote them into magic selection.
+  const selectionFilterBase = useCallback((): TraceFilters => {
+    if (listFilterActive) {
+      return { magic: mapSelectionActive ? filters.magic || "world" : "world" };
+    }
+    return filters;
+  }, [filters, listFilterActive, mapSelectionActive]);
+
   const appendSelectionFilters = useCallback((additions: string | string[]) => {
-    const nextFilters = appendMagicFilters(filters, additions, MAX_TRACE_PROBES);
+    const nextFilters = appendMagicFilters(selectionFilterBase(), additions, MAX_TRACE_PROBES);
     setFilters(nextFilters);
     expandLimitForExplicitFilters(nextFilters);
+    setListFilterActive(false);
     return nextFilters;
-  }, [expandLimitForExplicitFilters, filters]);
+  }, [expandLimitForExplicitFilters, selectionFilterBase]);
 
   const pickProbe = useCallback((probe: GlobalpingProbe) => {
     if (!mapSelectionActive) resetMapSelectionLimitTracking();
     appendSelectionFilters(probeToMagic(probe));
+    setBrowseAllProbes(false);
     setMapSelectionActive(true);
     setSelectionNotice(messages.addedProbe(probe.location.city || probe.location.country, probe.location.asn));
   }, [appendSelectionFilters, mapSelectionActive, messages, resetMapSelectionLimitTracking]);
 
+  const focusProbeOnMap = useCallback((probe: GlobalpingProbe) => {
+    setMapFocusProbe(probe);
+    setMapFocusToken((token) => token + 1);
+  }, []);
+
   const pickMapAsn = useCallback((selection: ProbeMapAsnSelection) => {
     if (!mapSelectionActive) resetMapSelectionLimitTracking();
     appendSelectionFilters(selection.magic);
+    setBrowseAllProbes(false);
     setMapSelectionActive(true);
     setSelectionNotice(messages.addedProbe(selection.city || selection.country, selection.asn.replace(/^AS/i, "")));
   }, [appendSelectionFilters, mapSelectionActive, messages, resetMapSelectionLimitTracking]);
+
+  const applyRemovedMagicFilters = useCallback((removals: string | string[]) => {
+    const nextFilters = removeMagicFilters(filters, removals);
+    setFilters(nextFilters);
+    const magic = (nextFilters.magic || "").trim().toLowerCase();
+    if (!magic || magic === "world") {
+      setSelectionNotice("");
+      setBrowseAllProbes(false);
+      setListFilterActive(false);
+      if (!mapSelectionLimitManuallyChangedRef.current && mapSelectionLimitBeforeRef.current !== null) {
+        setLimit(mapSelectionLimitBeforeRef.current);
+      }
+      setMapSelectionActive(false);
+      resetMapSelectionLimitTracking();
+      return;
+    }
+    setSelectionNotice("");
+  }, [filters, resetMapSelectionLimitTracking]);
+
+  const removeMapAsn = useCallback((selection: ProbeMapAsnSelection) => {
+    applyRemovedMagicFilters(selection.magic);
+  }, [applyRemovedMagicFilters]);
+
+  const removeProbe = useCallback((probe: GlobalpingProbe) => {
+    const magic = (filters.magic || "").trim();
+    const selected = !magic || magic.toLowerCase() === "world" ? [] : splitMagicList(magic);
+    const matching = selected.filter((item) => probeMatchesFilters(probe, { magic: item }));
+    applyRemovedMagicFilters(matching.length ? matching : probeToMagic(probe));
+  }, [applyRemovedMagicFilters, filters.magic]);
+
+  const isProbeSelected = useCallback(
+    (probe: GlobalpingProbe) =>
+      selectedProbeMagic.some((magic) => probeMatchesFilters(probe, { magic })),
+    [selectedProbeMagic],
+  );
 
   const boxSelect = useCallback((selected: GlobalpingProbe[]) => {
     if (!selected.length) {
@@ -326,6 +398,7 @@ export function App() {
     mapSelectionLimitManuallyChangedRef.current = false;
     appendSelectionFilters(selection.magic);
     setLimit(Math.max(1, selection.selectedCount));
+    setBrowseAllProbes(false);
     setMapSelectionActive(true);
     setSelectionNotice(
       selection.capped
@@ -337,6 +410,8 @@ export function App() {
   const clearMapSelection = useCallback(() => {
     setFilters({ magic: "world" });
     setSelectionNotice("");
+    setBrowseAllProbes(false);
+    setListFilterActive(false);
     if (!mapSelectionLimitManuallyChangedRef.current && mapSelectionLimitBeforeRef.current !== null) {
       setLimit(mapSelectionLimitBeforeRef.current);
     }
@@ -356,17 +431,51 @@ export function App() {
     setProtocol("ICMP");
     setIpVersion(4);
     setSelectionNotice("");
+    setBrowseAllProbes(false);
+    setListFilterActive(false);
     setMapSelectionActive(false);
     resetMapSelectionLimitTracking();
+    setMapFocusProbe(null);
+    setMapFitToken((token) => token + 1);
   };
 
   const handleFiltersChange = useCallback((nextFilters: TraceFilters) => {
     setFilters(nextFilters);
     expandLimitForExplicitFilters(nextFilters);
     setSelectionNotice("");
+    setBrowseAllProbes(false);
+    setListFilterActive(false);
     setMapSelectionActive(false);
     resetMapSelectionLimitTracking();
   }, [expandLimitForExplicitFilters, resetMapSelectionLimitTracking]);
+
+  const filterToProbe = useCallback((probe: GlobalpingProbe) => {
+    const nextFilters: TraceFilters = {
+      country: probe.location.country || undefined,
+      city: probe.location.city || undefined,
+      asn: normalizeAsn(probe.location.asn) || undefined,
+      magic: "world",
+    };
+    setFilters(nextFilters);
+    expandLimitForExplicitFilters(nextFilters);
+    setSelectionNotice("");
+    setBrowseAllProbes(false);
+    setMapSelectionActive(false);
+    resetMapSelectionLimitTracking();
+    setListFilterActive(true);
+    focusProbeOnMap(probe);
+  }, [expandLimitForExplicitFilters, focusProbeOnMap, resetMapSelectionLimitTracking]);
+
+  const clearListFilter = useCallback(() => {
+    setFilters({ magic: "world" });
+    setSelectionNotice("");
+    setBrowseAllProbes(false);
+    setListFilterActive(false);
+    setMapSelectionActive(false);
+    resetMapSelectionLimitTracking();
+    setMapFocusProbe(null);
+    setMapFitToken((token) => token + 1);
+  }, [resetMapSelectionLimitTracking]);
 
   const handleLimitChange = useCallback((nextLimit: number) => {
     if (mapSelectionActive) {
@@ -458,11 +567,34 @@ export function App() {
     setRoute("/");
   }, [abortTraceLoading, sharedTraceStartedRef]);
 
+  const probeTable = (
+    <ProbeTable
+      probes={tableProbes}
+      matchedCount={tableProbes.length}
+      totalProbes={probes.length}
+      status={probesStatus}
+      filters={filters}
+      filterSuggestions={filterSuggestions}
+      selectionActive={mapSelectionActive}
+      browseAll={browseAllProbes}
+      listFilterActive={listFilterActive}
+      isProbeSelected={isProbeSelected}
+      onBrowseAllChange={setBrowseAllProbes}
+      onClearListFilter={clearListFilter}
+      onFiltersChange={handleFiltersChange}
+      onPick={pickProbe}
+      onFocus={focusProbeOnMap}
+      onFilter={filterToProbe}
+      onRemove={removeProbe}
+    />
+  );
+
   return (
     <I18nProvider locale={locale}>
-    <LiquidGlassPreferenceProvider enabled={liquidGlassEnabled} intensity={liquidGlassIntensity}>
       <BackgroundLayer backgroundImage={backgroundImage} />
-      <main className={`app-shell${backgroundImage ? " ambient-photo-ready" : ""}${resultPriority ? " result-priority" : ""}`}>
+      <main
+        className={`app-shell${backgroundImage ? " ambient-photo-ready" : ""}${resultPriority ? " result-priority" : ""}${immersiveMap ? " map-immersive" : ""}${immersiveMap && probeDrawerOpen ? " probe-drawer-open" : ""}${resultSlideoverOpen ? " result-slideover-open" : ""}${finalResult ? " result-slideover-ready" : ""}`}
+      >
         <FilterPanel
           target={target}
           protocol={protocol}
@@ -473,10 +605,12 @@ export function App() {
           filters={filters}
           filterSuggestions={filterSuggestions}
           chips={chips}
-          visibleProbes={filteredProbes.length}
+          visibleProbes={mapSelectionActive ? addedProbes.length : filteredProbes.length}
           totalProbes={probes.length}
           probesStatus={probesStatus}
+          quota={quota}
           selectionNotice={selectionNotice}
+          mapSelectionActive={mapSelectionActive}
           loading={loading}
           canSubmit={canSubmit}
           globalpingTokenDraft={globalpingTokenDraft}
@@ -487,8 +621,6 @@ export function App() {
           nexttraceTokenRemembered={nexttraceTokenRemembered}
           themeMode={themeMode}
           locale={locale}
-          liquidGlassEnabled={liquidGlassEnabled}
-          liquidGlassIntensity={liquidGlassIntensity}
           resultContentOrder={resultContentOrder}
           onTargetChange={setTarget}
           onProtocolChange={setProtocol}
@@ -507,50 +639,19 @@ export function App() {
           onNexttraceTokenRememberedChange={updateNexttraceTokenRemembered}
           onCycleThemeMode={cycleThemeMode}
           onLocaleChange={updateLocale}
-          onLiquidGlassEnabledChange={updateLiquidGlassEnabled}
-          onLiquidGlassIntensityChange={updateLiquidGlassIntensity}
           onResultContentOrderChange={updateResultContentOrder}
           onNavigateHome={navigateHome}
           onNavigateAbout={navigateAbout}
           onReset={reset}
+          onClearMapSelection={clearMapSelection}
           onSubmit={submit}
         />
 
         <div className="workspace">
-          <LiquidGlassSurface variant="toolbar" fullWidth className="status-surface">
-            <header className="status-bar">
-              <div>
-                <strong>{messages.workspaceTitle}</strong>
-              </div>
-              <div className="status-actions">
-                <Badge variant="accent" className="quota-chip">
-                  <span className="quota-chip-title">{diagnosisControlLabel}</span>
-                  <span className="quota-chip-detail">{quotaLabel}</span>
-                </Badge>
-                {finalResult && workspaceMode === "select" && (
-                  <LiquidGlassSurface
-                    variant="button"
-                    interactive
-                    className="result-command-surface status-action-surface"
-                    onClick={showResult}
-                    ariaLabel={messages.viewResult}
-                  >
-                    <Button variant="glass" size="sm" className="result-command-button status-action-button" asChild>
-                      <span>
-                        <Eye size={16} />
-                        {messages.viewResult}
-                      </span>
-                    </Button>
-                  </LiquidGlassSurface>
-                )}
-              </div>
-            </header>
-          </LiquidGlassSurface>
-
           {message && (
-            <Surface variant="flat" className="error-banner" role="alert">
+            <Surface variant="flat" className="error-banner error-toast" role="alert">
               <AlertCircle size={18} />
-              {message}
+              <span>{message}</span>
             </Surface>
           )}
 
@@ -563,21 +664,52 @@ export function App() {
                     status={probesStatus}
                     selectionActive={mapSelectionActive}
                     mapStyleUrl={config.mapStyleUrl}
+                    focusProbe={mapFocusProbe}
+                    focusToken={mapFocusToken}
+                    fitToken={mapFitToken}
                     onPickAsn={pickMapAsn}
+                    onRemoveAsn={removeMapAsn}
                     onBoxSelect={boxSelect}
-                    onClearSelection={clearMapSelection}
                   />
                 </Suspense>
               ) : (
                 <ProbeMapFallback />
               )}
-              <ProbeTable probes={filteredProbes} totalProbes={probes.length} status={probesStatus} onPick={pickProbe} />
+              {immersiveMap ? null : probeTable}
             </div>
           </div>
+
+          {immersiveMap && (
+            <>
+              {!probeDrawerOpen && (
+                <button
+                  type="button"
+                  className="probe-drawer-toggle"
+                  aria-expanded={false}
+                  aria-controls={PROBE_DRAWER_ID}
+                  onClick={() => setProbeDrawerOpen(true)}
+                >
+                  <List size={13} aria-hidden="true" />
+                  <span className="probe-drawer-toggle-label">{messages.onlineProbes}</span>
+                  <span className="probe-drawer-toggle-count" aria-hidden="true">
+                    {mapSelectionActive ? addedProbes.length : filteredProbes.length}
+                  </span>
+                </button>
+              )}
+              <ProbeListDrawer
+                id={PROBE_DRAWER_ID}
+                open={probeDrawerOpen}
+                title={messages.onlineProbes}
+                onClose={() => setProbeDrawerOpen(false)}
+              >
+                {probeTable}
+              </ProbeListDrawer>
+            </>
+          )}
         </div>
       </main>
 
-      <GlassOverlay
+      <Overlay
         open={route === "/about"}
         title={messages.aboutTitle}
         size="about"
@@ -588,7 +720,7 @@ export function App() {
         <Suspense fallback={<AboutPageFallback />}>
           <AboutPage onBack={navigateHome} backgroundImage={backgroundImage} />
         </Suspense>
-      </GlassOverlay>
+      </Overlay>
 
       <MeasurementLoadingDialog
         open={Boolean(measurementLoading)}
@@ -596,35 +728,29 @@ export function App() {
         onCancel={cancelMeasurementLoading}
       />
 
-      <GlassOverlay
-        open={workspaceMode === "result" && Boolean(finalResult)}
-        title={messages.resultsTitle}
-        size="result"
-        chrome="bare"
-        placement="center"
-        onClose={closeResult}
-      >
-        {finalResult ? (
+      {finalResult ? (
+        <ResultSlideover
+          open={resultSlideoverOpen}
+          title={messages.resultsTitle}
+          onOpen={showResult}
+          onClose={closeResult}
+        >
           <Suspense fallback={<ResultsViewFallback />}>
             <ResultsView
               result={finalResult}
               mapStyleUrl={config.mapStyleUrl}
               mapProjection={resultMapProjection}
               onMapProjectionChange={setResultMapProjection}
-              resultContentOrder={resultContentOrder}
               onClose={closeResult}
             />
           </Suspense>
-        ) : (
-          <ResultsViewFallback />
-        )}
-      </GlassOverlay>
+        </ResultSlideover>
+      ) : null}
 
       <ResultContentOrderDialog
         open={resultContentOrderPromptOpen}
         onSelect={updateResultContentOrder}
       />
-    </LiquidGlassPreferenceProvider>
     </I18nProvider>
   );
 }
@@ -695,13 +821,20 @@ function MeasurementLoadingDialog({
 }) {
   const messages = useI18n();
   return (
-    <GlassOverlay open={open} title={messages.readingResults} size="compact" placement="center" onClose={onCancel}>
+    <Overlay
+      open={open}
+      title={messages.readingResults}
+      size="compact"
+      placement="center"
+      closeOnBackdrop={false}
+      onClose={onCancel}
+    >
       <section className="measurement-loading" role="status" aria-live="polite" aria-label={messages.readingMeasurement}>
         <Loader2 size={24} className="spin" />
         <p>{messages.readingMeasurementDescription}</p>
         {measurementId && <span>{measurementId}</span>}
       </section>
-    </GlassOverlay>
+    </Overlay>
   );
 }
 
@@ -714,7 +847,7 @@ function ResultContentOrderDialog({
 }) {
   const messages = useI18n();
   return (
-    <GlassOverlay
+    <Overlay
       open={open}
       title={messages.resultOrderPrompt}
       size="compact"
@@ -722,27 +855,22 @@ function ResultContentOrderDialog({
       dismissible={false}
       priority="blocking"
       className="result-layout-choice-panel"
-      surfaceCornerRadius={18}
       onClose={() => undefined}
     >
       <section className="result-layout-choice" aria-label={messages.resultOrderPrompt}>
         <p>{messages.resultOrderHint}</p>
         <div className="result-layout-choice-actions" aria-label={messages.resultOrderPrompt}>
-          <LiquidGlassSurface variant="button" interactive actionRole="none" cornerRadius={14} className="result-layout-choice-surface">
-            <Button variant="glass" type="button" className="result-layout-choice-button" onClick={() => onSelect("map-first")}>
-              <MapIcon size={16} aria-hidden="true" />
-              {messages.mapFirst}
-            </Button>
-          </LiquidGlassSurface>
-          <LiquidGlassSurface variant="button" interactive actionRole="none" cornerRadius={14} className="result-layout-choice-surface">
-            <Button variant="glass" type="button" className="result-layout-choice-button" onClick={() => onSelect("table-first")}>
-              <Table2 size={16} aria-hidden="true" />
-              {messages.tableFirst}
-            </Button>
-          </LiquidGlassSurface>
+          <Button variant="secondary" type="button" className="result-layout-choice-button" onClick={() => onSelect("map-first")}>
+            <MapIcon size={16} aria-hidden="true" />
+            {messages.mapFirst}
+          </Button>
+          <Button variant="secondary" type="button" className="result-layout-choice-button" onClick={() => onSelect("table-first")}>
+            <Table2 size={16} aria-hidden="true" />
+            {messages.tableFirst}
+          </Button>
         </div>
       </section>
-    </GlassOverlay>
+    </Overlay>
   );
 }
 

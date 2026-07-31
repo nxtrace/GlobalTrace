@@ -1,9 +1,18 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import type { ComponentProps } from "react";
+import { useState, type ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { filterChips } from "../../shared/filters";
 import { FilterPanel } from "./FilterPanel";
+import type { QuotaState } from "./filter-panel/QuotaMeter";
 import type { TraceFilters } from "../../shared/types";
+
+const readyQuota: QuotaState = {
+  status: "ready",
+  remaining: 245,
+  limit: 250,
+  actor: "当前 IP",
+  modeLabel: "Globalping credits 控制诊断创建",
+};
 
 const MAGIC_SUGGESTIONS = [
   "Los Angeles+US+AS7922+eyeball-network",
@@ -71,6 +80,7 @@ describe("FilterPanel", () => {
         visibleProbes={12}
         totalProbes={120}
         probesStatus="ready"
+        quota={readyQuota}
         selectionNotice="已从地图选择 US+Los Angeles+AS7922"
         loading={false}
         canSubmit={true}
@@ -81,8 +91,6 @@ describe("FilterPanel", () => {
         nexttraceTokenSaved={false}
         nexttraceTokenRemembered={false}
         themeMode="system"
-        liquidGlassEnabled={true}
-        liquidGlassIntensity={70}
         resultContentOrder="table-first"
         onTargetChange={vi.fn()}
         onProtocolChange={vi.fn()}
@@ -100,8 +108,6 @@ describe("FilterPanel", () => {
         onClearNexttraceToken={vi.fn()}
         onNexttraceTokenRememberedChange={vi.fn()}
         onCycleThemeMode={vi.fn()}
-        onLiquidGlassEnabledChange={vi.fn()}
-        onLiquidGlassIntensityChange={vi.fn()}
         onResultContentOrderChange={vi.fn()}
         onNavigateHome={vi.fn()}
         onNavigateAbout={vi.fn()}
@@ -114,17 +120,14 @@ describe("FilterPanel", () => {
     expect(screen.getByText("当前筛选")).toBeInTheDocument();
     const chips = within(screen.getByTestId("filter-chips"));
     expect(chips.getByText("国家/地区")).toBeInTheDocument();
-    expect(chips.getByText("US")).toBeInTheDocument();
+    expect(chips.getByText("美国 (US)")).toBeInTheDocument();
     expect(screen.getByText("12 / 120 probes 匹配")).toBeInTheDocument();
     expect(
       screen.getByText("已从地图选择 US+Los Angeles+AS7922"),
     ).toBeInTheDocument();
     const baseControls = screen.getByRole("region", { name: "基础参数" });
-    expect(baseControls).toHaveClass(
-      "primary-controls-surface",
-      "primary-controls",
-    );
-    expect(baseControls.closest("[data-liquid-glass]")).toBeNull();
+    expect(baseControls).toHaveClass("primary-controls");
+    expect(baseControls).not.toHaveClass("primary-controls-surface");
     expect(screen.getByLabelText("目标")).toHaveAttribute(
       "placeholder",
       "目标 IP 或域名，如 1.1.1.1、github.com",
@@ -142,10 +145,8 @@ describe("FilterPanel", () => {
     expect(within(baseControls).getByLabelText("Packets")).toHaveTextContent("5");
     expect(screen.queryByLabelText("probes")).not.toBeInTheDocument();
     expect(
-      screen
-        .getByRole("button", { name: "开始网络路径诊断" })
-        .closest("[data-liquid-glass]"),
-    ).toHaveAttribute("data-liquid-glass-interactive", "true");
+      screen.getByRole("button", { name: "开始网络路径诊断" }),
+    ).toHaveClass("target-submit-button");
     expect(
       screen.getByRole("button", { name: "主题：System" }),
     ).toBeInTheDocument();
@@ -156,9 +157,8 @@ describe("FilterPanel", () => {
       screen.queryByRole("button", { name: "切换到 3D 视图" }),
     ).not.toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toBeVisible();
-    expect(screen.getByLabelText("eyeball")).toBeVisible();
-    expect(screen.getByLabelText("datacenter")).toBeVisible();
-    expect(screen.queryByLabelText("液态玻璃效果")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Eyeball")).toBeVisible();
+    expect(screen.getByLabelText("Datacenter")).toBeVisible();
     expect(screen.queryByLabelText("Globalping Token")).not.toBeInTheDocument();
     expect(screen.getByText(/Powered by/)).toBeInTheDocument();
     expect(screen.getByText("×")).toBeInTheDocument();
@@ -174,22 +174,26 @@ describe("FilterPanel", () => {
       screen.queryByRole("link", { name: "GlobalTrace GitHub" }),
     ).not.toBeInTheDocument();
     expect(
-      screen
-        .getByRole("link", { name: "关于 GlobalTrace" })
-        .closest(".attribution-action-surface[data-liquid-glass]"),
-    ).not.toBeNull();
+      screen.getByRole("link", { name: "关于 GlobalTrace" }),
+    ).toHaveClass("attribution-action-link");
     const advancedParamsButton = screen.getByRole("button", {
       name: "打开高级参数",
     });
     expect(advancedParamsButton.closest(".panel-title-actions")).not.toBeNull();
-    expect(advancedParamsButton.closest("[data-liquid-glass]")).toHaveClass(
-      "liquid-glass-iconButton",
-    );
+    expect(advancedParamsButton).toHaveClass("panel-action-button");
     expect(
       document.querySelector(".advanced-params-trigger-surface"),
     ).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "重置筛选" })
+        .closest(".panel-title-actions"),
+    ).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
+    const resetButton = screen.getByRole("button", { name: "重置筛选" });
+    expect(resetButton.closest(".filter-summary")).not.toBeNull();
+    expect(resetButton.closest(".summary-title")).not.toBeNull();
+    fireEvent.click(resetButton);
     expect(onReset).toHaveBeenCalledTimes(1);
 
     openExactFilters();
@@ -197,8 +201,8 @@ describe("FilterPanel", () => {
     expect(screen.getByLabelText("ASN")).toBeVisible();
     expect(screen.getByLabelText("network")).toBeVisible();
     expect(screen.getByLabelText("tag")).toBeVisible();
-    expect(screen.getByLabelText("eyeball")).toBeVisible();
-    expect(screen.getByLabelText("datacenter")).toBeVisible();
+    expect(screen.getByLabelText("Eyeball")).toBeVisible();
+    expect(screen.getByLabelText("Datacenter")).toBeVisible();
     const advancedPanel = screen
       .getByText("精确筛选")
       .closest("details") as HTMLElement;
@@ -209,23 +213,24 @@ describe("FilterPanel", () => {
 
     openAdvancedParams();
     const advancedDialog = screen.getByRole("dialog", { name: "高级参数" });
-    expect(advancedDialog.closest(".glass-overlay-center")).not.toBeNull();
-    expect(advancedDialog.closest(".glass-overlay-sheet")).toBeNull();
+    expect(advancedDialog.closest(".overlay-center")).not.toBeNull();
+    expect(advancedDialog.closest(".overlay-sheet")).toBeNull();
     expect(
-      within(advancedDialog).getByRole("switch", { name: "液态玻璃效果" }),
-    ).toBeChecked();
-    expect(within(advancedDialog).getByText("结果页面显示顺序：")).toBeVisible();
+      within(advancedDialog).queryByRole("switch", { name: "液态玻璃效果" }),
+    ).not.toBeInTheDocument();
+    expect(within(advancedDialog).getByText("显示模式")).toBeVisible();
+    expect(within(advancedDialog).getByText("仅桌面端有效")).toBeVisible();
     const layoutGroup = within(advancedDialog).getByRole("radiogroup", {
-      name: "结果页面显示顺序",
+      name: "显示模式 · 仅桌面端有效",
     });
     const layoutOptions = within(layoutGroup).getAllByRole("radio");
     expect(layoutOptions[0]).toHaveAccessibleName("地图优先");
     expect(layoutOptions[1]).toHaveAccessibleName("表格优先");
     expect(
-      within(layoutGroup).getByText("地图优先").closest("label")?.querySelector("svg"),
+      within(layoutGroup).getByText("地图优先").closest("button")?.querySelector("svg"),
     ).not.toBeNull();
     expect(
-      within(layoutGroup).getByText("表格优先").closest("label")?.querySelector("svg"),
+      within(layoutGroup).getByText("表格优先").closest("button")?.querySelector("svg"),
     ).not.toBeNull();
     expect(
       within(layoutGroup).getByRole("radio", { name: "表格优先" }),
@@ -248,36 +253,17 @@ describe("FilterPanel", () => {
     expect(
       within(advancedDialog).getByText("未使用 Globalping Token"),
     ).toBeVisible();
-    expect(
-      within(advancedDialog)
-        .getByRole("button", { name: "保存 Globalping" })
-        .closest(".token-action-surface[data-liquid-glass]"),
-    ).not.toBeNull();
-    expect(
-      within(advancedDialog)
-        .getByRole("button", { name: "清除 Globalping" })
-        .closest(".token-action-surface[data-liquid-glass]"),
-    ).not.toBeNull();
-    expect(
-      within(advancedDialog)
-        .getByRole("button", { name: "保存 NextTrace" })
-        .closest(".token-action-surface[data-liquid-glass]"),
-    ).not.toBeNull();
-    expect(
-      within(advancedDialog)
-        .getByRole("button", { name: "清除 NextTrace" })
-        .closest(".token-action-surface[data-liquid-glass]"),
-    ).not.toBeNull();
+    for (const name of ["保存 Globalping", "清除 Globalping", "保存 NextTrace", "清除 NextTrace"]) {
+      expect(within(advancedDialog).getByRole("button", { name })).toHaveClass("token-action-button");
+    }
     expect(
       within(advancedDialog).getByRole("link", {
         name: "获取 NextTrace API Token",
       }),
     ).toHaveAttribute("href", "https://api.nxtrace.org/v4/api-tokens");
     expect(
-      within(advancedDialog)
-        .getByRole("link", { name: "获取 NextTrace API Token" })
-        .closest(".token-help-surface[data-liquid-glass]"),
-    ).not.toBeNull();
+      within(advancedDialog).getByRole("link", { name: "获取 NextTrace API Token" }),
+    ).toHaveClass("token-help-link");
     expect(
       within(advancedDialog).getByLabelText("NextTrace API Token"),
     ).toBeVisible();
@@ -293,35 +279,6 @@ describe("FilterPanel", () => {
       target: { value: "DE+Hetzner" },
     });
     expect(onFiltersChange).toHaveBeenCalledWith({ magic: "DE+Hetzner" });
-  });
-
-  it("controls liquid glass intensity from the advanced dialog", () => {
-    const onLiquidGlassIntensityChange = vi.fn();
-    const { unmount } = renderPanel({
-      liquidGlassEnabled: true,
-      liquidGlassIntensity: 82,
-      onLiquidGlassIntensityChange,
-    });
-
-    openAdvancedParams();
-    const slider = screen.getByLabelText("液态玻璃强度") as HTMLInputElement;
-    expect(slider).toHaveValue("82");
-    expect(slider).not.toBeDisabled();
-    fireEvent.change(slider, { target: { value: "91" } });
-    expect(onLiquidGlassIntensityChange).toHaveBeenCalledWith(91);
-
-    unmount();
-    renderPanel({
-      liquidGlassEnabled: false,
-      liquidGlassIntensity: 42,
-      onLiquidGlassIntensityChange,
-    });
-    openAdvancedParams();
-    const disabledSlider = screen.getByLabelText(
-      "液态玻璃强度",
-    ) as HTMLInputElement;
-    expect(disabledSlider).toHaveValue("42");
-    expect(disabledSlider).toBeDisabled();
   });
 
   it("updates result layout from the advanced dialog", () => {
@@ -344,7 +301,7 @@ describe("FilterPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "TCP" }));
     openExactFilters();
-    fireEvent.click(screen.getByLabelText("eyeball"));
+    fireEvent.click(screen.getByLabelText("Eyeball"));
 
     expect(onProtocolChange).toHaveBeenCalledWith("TCP");
     expect(onFiltersChange).toHaveBeenCalledWith({
@@ -415,16 +372,103 @@ describe("FilterPanel", () => {
     const first = renderPanel({ ipVersion: 4, onIpVersionChange });
 
     expect(screen.queryByLabelText("IP 版本")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "切换 IPv4 / IPv6" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "IPv4" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "IPv6" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "IPv4" }));
+    fireEvent.click(screen.getByRole("button", { name: "IPv6" }));
     first.unmount();
     renderPanel({ ipVersion: 6, onIpVersionChange });
-    expect(screen.getByRole("button", { name: "IPv6" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "IPv6" }));
+    expect(screen.getByRole("button", { name: "IPv6" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "IPv4" }));
 
     expect(onIpVersionChange).toHaveBeenNthCalledWith(1, 6);
     expect(onIpVersionChange).toHaveBeenNthCalledWith(2, 4);
+  });
+
+  it("focuses and selects digit fields when the pill is clicked", () => {
+    renderPanel();
+
+    const port = screen.getByLabelText("端口");
+    const packets = screen.getByLabelText("Packets");
+    fireEvent.mouseDown(port.closest("label")!);
+    expect(port).toHaveFocus();
+
+    fireEvent.mouseDown(packets.closest("label")!);
+    expect(packets).toHaveFocus();
+  });
+
+  it("keeps port digit order while typing through controlled updates", () => {
+    function PortHarness() {
+      const [port, setPort] = useState("");
+      return (
+        <FilterPanel
+          target="globalping.io"
+          protocol="ICMP"
+          ipVersion={4}
+          port={port}
+          packets={5}
+          limit={3}
+          filters={{ magic: "world" }}
+          chips={filterChips({ magic: "world" })}
+          visibleProbes={12}
+          totalProbes={120}
+          probesStatus="ready"
+          quota={readyQuota}
+          selectionNotice=""
+          loading={false}
+          canSubmit
+          globalpingTokenDraft=""
+          globalpingTokenSaved={false}
+          globalpingTokenRemembered={false}
+          nexttraceTokenDraft=""
+          nexttraceTokenSaved={false}
+          nexttraceTokenRemembered={false}
+          themeMode="system"
+          resultContentOrder="table-first"
+          onTargetChange={vi.fn()}
+          onProtocolChange={vi.fn()}
+          onIpVersionChange={vi.fn()}
+          onPortChange={setPort}
+          onPacketsChange={vi.fn()}
+          onLimitChange={vi.fn()}
+          onFiltersChange={vi.fn()}
+          onGlobalpingTokenDraftChange={vi.fn()}
+          onSaveGlobalpingToken={vi.fn()}
+          onClearGlobalpingToken={vi.fn()}
+          onGlobalpingTokenRememberedChange={vi.fn()}
+          onNexttraceTokenDraftChange={vi.fn()}
+          onSaveNexttraceToken={vi.fn()}
+          onClearNexttraceToken={vi.fn()}
+          onNexttraceTokenRememberedChange={vi.fn()}
+          onCycleThemeMode={vi.fn()}
+          onResultContentOrderChange={vi.fn()}
+          onNavigateHome={vi.fn()}
+          onNavigateAbout={vi.fn()}
+          onSubmit={vi.fn()}
+          onReset={vi.fn()}
+        />
+      );
+    }
+
+    render(<PortHarness />);
+    const control = screen.getByLabelText("端口");
+    fireEvent.focus(control);
+    for (const digit of "443") {
+      control.textContent = `${control.textContent || ""}${digit}`;
+      fireEvent.input(control);
+    }
+
+    expect(control).toHaveTextContent("443");
   });
 
   it("shows the example placeholder instead of default world magic", () => {
@@ -452,6 +496,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: [],
         tags: [],
         magicStrings: MAGIC_SUGGESTIONS,
@@ -479,6 +524,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: [],
         tags: [],
         magicStrings: MAGIC_SUGGESTIONS,
@@ -508,6 +554,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: [],
         tags: [],
         magicStrings: MAGIC_SUGGESTIONS,
@@ -545,6 +592,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: [],
         tags: ["eyeball-network"],
         magicStrings: CHINA_MAGIC_SUGGESTIONS,
@@ -574,6 +622,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: [],
         tags: ["eyeball-network"],
         magicStrings: CHINA_MAGIC_SUGGESTIONS,
@@ -603,6 +652,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: ["Comcast"],
         tags: ["eyeball-network"],
         magicStrings: NETWORK_MAGIC_SUGGESTIONS,
@@ -633,6 +683,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: ["Comcast"],
         tags: ["eyeball-network"],
         magicStrings: NETWORK_MAGIC_SUGGESTIONS,
@@ -661,6 +712,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: ["China Telecom"],
         tags: ["eyeball-network"],
         magicStrings: CHINA_NETWORK_MAGIC_SUGGESTIONS,
@@ -689,6 +741,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: ["China Telecom"],
         tags: ["eyeball-network"],
         magicStrings: CHINA_NETWORK_MAGIC_SUGGESTIONS,
@@ -751,6 +804,10 @@ describe("FilterPanel", () => {
         countries: ["DE", "US"],
         cities: ["Falkenstein", "Los Angeles"],
         asns: ["AS7922", "AS24940"],
+        asnNetworks: {
+          AS7922: "Comcast",
+          AS24940: "Hetzner Online",
+        },
         networks: ["Comcast", "Hetzner Online"],
         tags: ["datacenter-network", "eyeball-network"],
         magicStrings: MAGIC_SUGGESTIONS,
@@ -764,7 +821,12 @@ describe("FilterPanel", () => {
 
     const countryInput = screen.getByLabelText("国家/地区");
     fireEvent.focus(countryInput);
-    expectSuggestionOptions(["DE", "US"]);
+    expectSuggestionOptions(["德国 (DE)", "美国 (US)"]);
+    fireEvent.mouseDown(screen.getByRole("option", { name: "德国 (DE)" }));
+    expect(onFiltersChange).toHaveBeenCalledWith({
+      magic: undefined,
+      country: "DE",
+    });
     fireEvent.blur(countryInput);
 
     const networkInput = screen.getByLabelText("network");
@@ -794,6 +856,10 @@ describe("FilterPanel", () => {
         countries: ["DE", "US"],
         cities: ["Falkenstein", "Los Angeles"],
         asns: ["AS7922", "AS24940"],
+        asnNetworks: {
+          AS7922: "Comcast",
+          AS24940: "Hetzner Online",
+        },
         networks: ["Comcast", "Hetzner Online"],
         tags: ["datacenter-network", "eyeball-network"],
         magicStrings: MAGIC_SUGGESTIONS,
@@ -823,6 +889,7 @@ describe("FilterPanel", () => {
         countries: [],
         cities: [],
         asns: [],
+        asnNetworks: {},
         networks: [],
         tags: ["datacenter-network", "eyeball-network"],
         magicStrings: MAGIC_SUGGESTIONS,
@@ -879,14 +946,7 @@ describe("FilterPanel", () => {
       probesStatus: "error",
     });
 
-    expect(
-      screen.getByRole("button", { name: "开始网络路径诊断" }),
-    ).toHaveAttribute("aria-disabled", "true");
-    expect(
-      screen
-        .getByRole("button", { name: "开始网络路径诊断" })
-        .closest("[data-liquid-glass]"),
-    ).not.toHaveAttribute("data-liquid-glass-interactive");
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeDisabled();
     expect(screen.getByText("probes 读取失败")).toBeInTheDocument();
   });
 
@@ -895,14 +955,12 @@ describe("FilterPanel", () => {
 
     expect(
       screen.getByRole("button", { name: "开始网络路径诊断" }),
-    ).not.toHaveAttribute("aria-disabled");
+    ).not.toBeDisabled();
 
     first.unmount();
     renderPanel({ canSubmit: false });
 
-    expect(
-      screen.getByRole("button", { name: "开始网络路径诊断" }),
-    ).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "开始网络路径诊断" })).toBeDisabled();
   });
 
   it("warns when the probe limit is above the default and can reduce it", () => {
@@ -936,8 +994,6 @@ describe("FilterPanel", () => {
     const onClearNexttraceToken = vi.fn();
     const onNexttraceTokenRememberedChange = vi.fn();
     const onCycleThemeMode = vi.fn();
-    const onLiquidGlassEnabledChange = vi.fn();
-    const onLiquidGlassIntensityChange = vi.fn();
     const onNavigateAbout = vi.fn();
     renderPanel({
       globalpingTokenDraft: "gp-token",
@@ -947,8 +1003,6 @@ describe("FilterPanel", () => {
       nexttraceTokenSaved: true,
       nexttraceTokenRemembered: true,
       themeMode: "dark",
-      liquidGlassEnabled: false,
-      liquidGlassIntensity: 70,
       onGlobalpingTokenDraftChange,
       onSaveGlobalpingToken,
       onClearGlobalpingToken,
@@ -958,8 +1012,6 @@ describe("FilterPanel", () => {
       onClearNexttraceToken,
       onNexttraceTokenRememberedChange,
       onCycleThemeMode,
-      onLiquidGlassEnabledChange,
-      onLiquidGlassIntensityChange,
       onNavigateAbout,
     });
 
@@ -976,7 +1028,6 @@ describe("FilterPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "保存 NextTrace" }));
     fireEvent.click(screen.getByRole("button", { name: "清除 NextTrace" }));
     fireEvent.click(screen.getByLabelText("记住 NextTrace 到本机"));
-    fireEvent.click(screen.getByLabelText("液态玻璃效果"));
     fireEvent.click(screen.getByRole("button", { name: "主题：Dark" }));
     fireEvent.click(screen.getByRole("link", { name: "关于 GlobalTrace" }));
 
@@ -994,7 +1045,6 @@ describe("FilterPanel", () => {
     expect(onSaveNexttraceToken).toHaveBeenCalledTimes(1);
     expect(onClearNexttraceToken).toHaveBeenCalledTimes(1);
     expect(onNexttraceTokenRememberedChange).toHaveBeenCalledWith(false);
-    expect(onLiquidGlassEnabledChange).toHaveBeenCalledWith(true);
     expect(onCycleThemeMode).toHaveBeenCalledTimes(1);
     expect(onNavigateAbout).toHaveBeenCalledTimes(1);
   });
@@ -1008,6 +1058,40 @@ describe("FilterPanel", () => {
     fireEvent.click(homeLink);
 
     expect(onNavigateHome).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the diagnosis quota meter in the panel footer", () => {
+    renderPanel();
+
+    const footer = screen.getByTestId("filter-panel-footer");
+    const meter = within(footer).getByLabelText("诊断额度");
+    expect(within(meter).getByText("245 / 250")).toBeInTheDocument();
+    expect(
+      within(meter).getByText("Globalping credits 控制诊断创建"),
+    ).toBeInTheDocument();
+    expect(within(meter).getByText("当前 IP")).toBeInTheDocument();
+    expect(
+      meter.querySelector(".quota-meter-fill")?.getAttribute("style"),
+    ).toContain("width: 98%");
+  });
+
+  it("marks a low quota and reports unavailable quota", () => {
+    const { unmount } = renderPanel({
+      quota: { ...readyQuota, remaining: 12 },
+    });
+
+    expect(
+      document.querySelector(".quota-meter-fill")?.getAttribute("data-level"),
+    ).toBe("low");
+    unmount();
+
+    renderPanel({
+      quota: { ...readyQuota, status: "error", remaining: 0, limit: 0 },
+    });
+
+    const meter = screen.getByLabelText("诊断额度");
+    expect(within(meter).getByText("暂不可用")).toBeInTheDocument();
+    expect(within(meter).queryByText("当前 IP")).toBeNull();
   });
 
   it("uses a semantic about link", () => {
@@ -1039,6 +1123,7 @@ function renderPanel(
       visibleProbes={12}
       totalProbes={120}
       probesStatus="ready"
+      quota={readyQuota}
       selectionNotice=""
       loading={false}
       canSubmit={true}
@@ -1049,8 +1134,6 @@ function renderPanel(
       nexttraceTokenSaved={false}
       nexttraceTokenRemembered={false}
       themeMode="system"
-      liquidGlassEnabled={true}
-      liquidGlassIntensity={70}
       resultContentOrder="table-first"
       onTargetChange={vi.fn()}
       onProtocolChange={vi.fn()}
@@ -1068,8 +1151,6 @@ function renderPanel(
       onClearNexttraceToken={vi.fn()}
       onNexttraceTokenRememberedChange={vi.fn()}
       onCycleThemeMode={vi.fn()}
-      onLiquidGlassEnabledChange={vi.fn()}
-      onLiquidGlassIntensityChange={vi.fn()}
       onResultContentOrderChange={vi.fn()}
       onNavigateHome={vi.fn()}
       onNavigateAbout={vi.fn()}

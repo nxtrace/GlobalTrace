@@ -2,26 +2,26 @@ import { Slot } from "@radix-ui/react-slot";
 import * as React from "react";
 import { cn } from "@/frontend/lib/utils";
 
-type SurfaceVariant = "glass" | "solid" | "flat";
+type SurfaceVariant = "panel" | "solid" | "flat";
 
 interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: SurfaceVariant;
   asChild?: boolean;
 }
 
-function Surface({ className, variant = "glass", asChild = false, ...props }: SurfaceProps) {
+function Surface({ className, variant = "panel", asChild = false, ...props }: SurfaceProps) {
   const Comp = asChild ? Slot : "div";
   return <Comp className={cn(surfaceClassName(variant), className)} {...props} />;
 }
 
 function surfaceClassName(variant: SurfaceVariant) {
   if (variant === "solid") {
-    return "rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--panel-solid)] shadow-[var(--shadow-panel)] backdrop-blur-2xl";
+    return "rounded-[var(--radius-panel)] border border-[color:var(--panel-border)] bg-[color:var(--panel-solid)] shadow-[var(--shadow-hover)]";
   }
   if (variant === "flat") {
-    return "rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--panel-flat)] shadow-[var(--shadow-inset)] backdrop-blur-xl";
+    return "rounded-[var(--radius-panel)] border border-[color:var(--line)] bg-[color:var(--panel-flat)] shadow-[var(--shadow-inset)]";
   }
-  return "rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] shadow-[var(--shadow-panel)] backdrop-blur-2xl supports-[backdrop-filter]:bg-[color:var(--glass-bg)]";
+  return "rounded-[var(--radius-panel)] border border-[color:var(--line)] bg-[color:var(--canvas)] shadow-[var(--shadow-soft)]";
 }
 
 export { Surface };

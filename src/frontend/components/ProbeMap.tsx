@@ -1,20 +1,31 @@
 import "./maplibre.css";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
-import { BoxSelect, MousePointer2, X } from "lucide-react";
+import { BoxSelect, Hand } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FeatureCollection, Point } from "geojson";
 import { compactText, normalizeAsn } from "../../shared/filters";
+import { addMapAttribution } from "./mapAttribution";
+import {
+  applyMapPalette,
+  applyProbeMarkerPalette,
+  probeMarkerPaint,
+  subscribeMapPaletteScheme,
+} from "./mapPalette";
 import type { GlobalpingProbe } from "../../shared/types";
 import { ProbePicker } from "./probe-map/ProbePicker";
 import { useProbeBoxSelection } from "./probe-map/useProbeBoxSelection";
 import type { ProbeMapAsnSelection, ProbePickerGroup, ProbePickerState } from "./probe-map/types";
-import { LiquidGlassSurface } from "./LiquidGlassSurface";
 import { Button } from "./ui/button";
 import { Surface } from "./ui/surface";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { useI18n } from "../i18n";
 
+const PROBE_MAP_DEFAULT_CENTER: [number, number] = [90, 36];
+const PROBE_MAP_DEFAULT_ZOOM = 1.2;
+const PROBE_MAP_INTRO_ZOOM = 0.95;
 const PROBE_MAP_MAX_ZOOM = 5.2;
+const PROBE_MAP_WORLD_SPAN_LON = 100;
+const PROBE_MAP_WORLD_SPAN_LAT = 70;
 const PROBE_MAP_FIT_PADDING = { top: 68, right: 42, bottom: 42, left: 42 };
 const PROBE_MAP_DESKTOP_FIT_PADDING = { top: 48, right: 24, bottom: 28, left: 24 };
 const PROBE_MAP_DESKTOP_MIN_ZOOM = 1.15;
@@ -24,6 +35,7 @@ const PROBE_MAP_DESKTOP_MAX_HEIGHT = 1080;
 const PROBE_MAP_DESKTOP_MIN_CANVAS_HEIGHT = 300;
 const PROBE_MAP_DESKTOP_MAX_CANVAS_HEIGHT = 380;
 const PROBE_MAP_FIT_DURATION_MS = 420;
+const PROBE_MAP_INTRO_DURATION_MS = 1100;
 const PROBE_PICKER_WIDTH = 286;
 const PROBE_PICKER_MAX_HEIGHT = 360;
 
@@ -34,9 +46,12 @@ interface ProbeMapProps {
   status: "loading" | "ready" | "error";
   selectionActive: boolean;
   mapStyleUrl: string;
+  focusProbe?: GlobalpingProbe | null;
+  focusToken?: number;
+  fitToken?: number;
   onPickAsn: (selection: ProbeMapAsnSelection) => void;
+  onRemoveAsn: (selection: ProbeMapAsnSelection) => void;
   onBoxSelect: (probes: GlobalpingProbe[]) => void;
-  onClearSelection: () => void;
 }
 
 export function ProbeMap({
@@ -44,53 +59,66 @@ export function ProbeMap({
   status,
   selectionActive,
   mapStyleUrl,
+  focusProbe = null,
+  focusToken = 0,
+  fitToken = 0,
   onPickAsn,
+  onRemoveAsn,
   onBoxSelect,
-  onClearSelection,
 }: ProbeMapProps) {
   const messages = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const probesRef = useRef(probes);
+  const mapIntroPlayedRef = useRef(false);
   const [boxMode, setBoxMode] = useState(false);
   const [selectedProbeGroupKey, setSelectedProbeGroupKey] = useState<string | null>(null);
+  const [addedProbeGroupKeys, setAddedProbeGroupKeys] = useState<ReadonlySet<string>>(() => new Set());
   const [picker, setPicker] = useState<ProbePickerState | null>(null);
   const pickerRef = useRef<ProbePickerState | null>(null);
   const onPickAsnRef = useRef(onPickAsn);
+  const onRemoveAsnRef = useRef(onRemoveAsn);
   const onBoxSelectRef = useRef(onBoxSelect);
   const selectedProbeGroupKeyRef = useRef<string | null>(null);
 
   probesRef.current = probes;
   pickerRef.current = picker;
   onPickAsnRef.current = onPickAsn;
+  onRemoveAsnRef.current = onRemoveAsn;
   onBoxSelectRef.current = onBoxSelect;
   selectedProbeGroupKeyRef.current = selectedProbeGroupKey;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+    const container = containerRef.current;
+    container.classList.remove("is-map-ready");
     const map = new maplibregl.Map({
-      container: containerRef.current,
+      container,
       style: mapStyleUrl,
-      center: [8, 25],
-      zoom: 1.2,
+      center: PROBE_MAP_DEFAULT_CENTER,
+      zoom: PROBE_MAP_INTRO_ZOOM,
+      attributionControl: false,
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    addMapAttribution(map);
+    mapIntroPlayedRef.current = false;
     map.on("load", () => {
+      applyMapPalette(map);
       map.setProjection({ type: "mercator" });
       map.addSource("probes", {
         type: "geojson",
         data: probeFeatureCollection(probesRef.current, selectedProbeGroupKeyRef.current),
       });
+      const markerPaint = probeMarkerPaint();
       map.addLayer({
         id: "probe-point-glow",
         type: "circle",
         source: "probes",
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 10, 6, 17],
-          "circle-color": ["case", ["==", ["get", "selected"], true], "#2dd4bf", "#93c5fd"],
           "circle-blur": 0.72,
-          "circle-opacity": ["case", ["==", ["get", "selected"], true], 0.56, 0.32],
+          ...markerPaint.glow,
         },
       });
       map.addLayer({
@@ -99,10 +127,9 @@ export function ProbeMap({
         source: "probes",
         filter: ["==", ["get", "selected"], true],
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 11, 6, 19],
-          "circle-color": "rgba(45, 212, 191, 0.16)",
-          "circle-stroke-color": "rgba(45, 212, 191, 0.72)",
-          "circle-stroke-width": 2,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 8, 6, 14],
+          "circle-stroke-width": 1.25,
+          ...markerPaint.halo,
         },
       });
       map.addLayer({
@@ -115,17 +142,22 @@ export function ProbeMap({
             ["linear"],
             ["zoom"],
             1,
-            ["case", ["==", ["get", "selected"], true], 5.4, 3.2],
+            ["case", ["==", ["get", "selected"], true], 4.4, 3.2],
             6,
-            ["case", ["==", ["get", "selected"], true], 8.5, 5.5],
+            ["case", ["==", ["get", "selected"], true], 7, 5.5],
           ],
-          "circle-color": ["case", ["==", ["get", "selected"], true], "#5eead4", "#bfdbfe"],
-          "circle-stroke-color": ["case", ["==", ["get", "selected"], true], "#2dd4bf", "rgba(255, 255, 255, 0.86)"],
-          "circle-stroke-width": ["case", ["==", ["get", "selected"], true], 1.8, 1],
+          "circle-stroke-width": ["case", ["==", ["get", "selected"], true], 1.4, 1],
           "circle-opacity": 0.92,
+          ...markerPaint.point,
         },
       });
-      fitVisibleProbes(map, probesRef.current);
+      map.resize();
+      fitVisibleProbes(map, probesRef.current, { playIntro: true });
+      mapIntroPlayedRef.current = true;
+      // Reveal after palette + first camera settle to avoid Liberty default-color flash.
+      requestAnimationFrame(() => {
+        container.classList.add("is-map-ready");
+      });
     });
     const openProbePicker = (event: maplibregl.MapMouseEvent, pinned: boolean) => {
       if (!pinned && pickerRef.current?.pinned) return;
@@ -153,13 +185,17 @@ export function ProbeMap({
     resizeObserver?.observe(containerRef.current);
     requestAnimationFrame(() => {
       map.resize();
-      fitVisibleProbes(map, probesRef.current);
     });
     mapRef.current = map;
+    const unsubscribePalette = subscribeMapPaletteScheme((scheme) => {
+      applyMapPalette(map, scheme);
+      applyProbeMarkerPalette(map, scheme);
+    });
     if (import.meta.env.DEV) {
       (containerRef.current as HTMLElement & { __globalTraceMap?: maplibregl.Map }).__globalTraceMap = map;
     }
     return () => {
+      unsubscribePalette();
       resizeObserver?.disconnect();
       map.off("click", "probe-points", pinProbePicker);
       map.off("mouseenter", "probe-points", previewProbePicker);
@@ -181,21 +217,70 @@ export function ProbeMap({
   useEffect(() => {
     if (!selectionActive) {
       setSelectedProbeGroupKey(null);
+      setAddedProbeGroupKeys(new Set());
       setPicker(null);
     }
   }, [selectionActive]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map?.getSource("probes")) return;
+    if (!map?.getSource("probes") || !mapIntroPlayedRef.current) return;
     fitVisibleProbes(map, probes);
     setPicker(null);
   }, [probes]);
 
+  useEffect(() => {
+    if (!focusProbe || focusToken < 1) return;
+    const map = mapRef.current;
+    if (!map?.getSource("probes")) return;
+    const { longitude, latitude } = focusProbe.location;
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
+    setSelectedProbeGroupKey(probeSelectionKey(focusProbe));
+    setPicker(null);
+    map.easeTo({
+      center: [longitude, latitude],
+      zoom: PROBE_MAP_MAX_ZOOM,
+      duration: PROBE_MAP_FIT_DURATION_MS,
+      essential: true,
+    });
+  }, [focusProbe, focusToken]);
+
+  useEffect(() => {
+    if (fitToken < 1) return;
+    const map = mapRef.current;
+    if (!map?.getSource("probes") || !mapIntroPlayedRef.current) return;
+    setSelectedProbeGroupKey(null);
+    setPicker(null);
+    fitVisibleProbes(map, probesRef.current);
+  }, [fitToken]);
+
   const pickAsnGroup = (group: ProbePickerGroup) => {
     setSelectedProbeGroupKey(group.key);
-    setPicker(null);
+    setAddedProbeGroupKeys((prev) => {
+      if (prev.has(group.key)) return prev;
+      const next = new Set(prev);
+      next.add(group.key);
+      return next;
+    });
     onPickAsnRef.current({
+      magic: group.magic,
+      city: group.city,
+      country: group.country,
+      asn: group.asn,
+      network: group.network,
+      count: group.count,
+    });
+  };
+
+  const removeAsnGroup = (group: ProbePickerGroup) => {
+    setAddedProbeGroupKeys((prev) => {
+      if (!prev.has(group.key)) return prev;
+      const next = new Set(prev);
+      next.delete(group.key);
+      return next;
+    });
+    setSelectedProbeGroupKey((current) => (current === group.key ? null : current));
+    onRemoveAsnRef.current({
       magic: group.magic,
       city: group.city,
       country: group.country,
@@ -218,75 +303,61 @@ export function ProbeMap({
     <Surface asChild className="map-section" aria-label={messages.probeMap}>
       <section>
         <div className="map-toolbar">
-          <LiquidGlassSurface variant="toolbar" className="map-toolbar-surface">
-            <LiquidGlassSurface
-              variant="button"
-              interactive
-              className="map-tool-surface"
-              onClick={() => setBoxMode((value) => !value)}
-              actionRole="none"
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={boxMode ? "primary" : "ghost"}
-                    size="sm"
-                    className={boxMode ? "tool-button active" : "tool-button"}
-                    type="button"
-                    title={messages.boxSelectProbes}
-                    aria-pressed={boxMode}
-                  >
-                    {boxMode ? <MousePointer2 size={17} /> : <BoxSelect size={17} />}
-                    {boxMode ? messages.dragSelect : messages.boxSelect}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{messages.dragSelectHint}</TooltipContent>
-              </Tooltip>
-            </LiquidGlassSurface>
-            {selectionActive && (
-              <LiquidGlassSurface
-                variant="button"
-                interactive
-                className="map-tool-surface"
-                onClick={onClearSelection}
-                actionRole="none"
-              >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="tool-button"
-                      type="button"
-                      title={messages.cancelMapFilter}
-                      aria-label={messages.cancelMapFilter}
-                    >
-                      <X size={17} />
-                      {messages.cancel}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{messages.clearMapFilterHint}</TooltipContent>
-                </Tooltip>
-              </LiquidGlassSurface>
-            )}
-          </LiquidGlassSurface>
+          <div className="map-mode-switch" role="group" aria-label={messages.mapInteractionMode}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`map-mode-button${!boxMode ? " is-active" : ""}`}
+                  type="button"
+                  title={messages.mapPanHint}
+                  aria-pressed={!boxMode}
+                  aria-label={messages.dragSelect}
+                  onClick={() => setBoxMode(false)}
+                >
+                  <Hand size={16} />
+                  {messages.dragSelect}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{messages.mapPanHint}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`map-mode-button${boxMode ? " is-active" : ""}`}
+                  type="button"
+                  title={messages.boxSelectProbes}
+                  aria-pressed={boxMode}
+                  aria-label={messages.boxSelect}
+                  onClick={() => setBoxMode(true)}
+                >
+                  <BoxSelect size={16} />
+                  {messages.boxSelect}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{messages.dragSelectHint}</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
         <div className="map-container" ref={containerRef} />
         {picker && (
           <ProbePicker
             picker={picker}
             selectedProbeGroupKey={selectedProbeGroupKey}
+            addedProbeGroupKeys={addedProbeGroupKeys}
             onClose={() => setPicker(null)}
             onPickGroup={pickAsnGroup}
+            onRemoveGroup={removeAsnGroup}
           />
         )}
         {status === "ready" && probes.length === 0 && (
-          <LiquidGlassSurface variant="panel" className="liquid-glass-coverage map-empty-surface">
-            <div className="map-empty">
-              <strong>{messages.noMatchingProbes}</strong>
-              <span>{messages.relaxProbeFilters}</span>
-            </div>
-          </LiquidGlassSurface>
+          <div className="map-empty">
+            <strong>{messages.noMatchingProbes}</strong>
+            <span>{messages.relaxProbeFilters}</span>
+          </div>
         )}
         <div className="selection-box" ref={boxRef} />
       </section>
@@ -336,9 +407,16 @@ function validProbes(probes: GlobalpingProbe[]): GlobalpingProbe[] {
   return probes.filter((probe) => Number.isFinite(probe.location.longitude) && Number.isFinite(probe.location.latitude));
 }
 
-function fitVisibleProbes(map: maplibregl.Map, probes: GlobalpingProbe[]): void {
+function fitVisibleProbes(
+  map: maplibregl.Map,
+  probes: GlobalpingProbe[],
+  options: { playIntro?: boolean } = {},
+): void {
   const valid = validProbes(probes);
-  if (valid.length === 0) return;
+  if (valid.length === 0) {
+    easeToDefaultProbeView(map, options.playIntro);
+    return;
+  }
   if (valid.length === 1) {
     const probe = valid[0];
     map.easeTo({
@@ -351,6 +429,11 @@ function fitVisibleProbes(map: maplibregl.Map, probes: GlobalpingProbe[]): void 
   }
   const bounds = probeBounds(valid);
   if (!bounds) return;
+  // Worldwide probe sets would recenter away from the curated default view.
+  if (isWorldwideProbeBounds(bounds)) {
+    easeToDefaultProbeView(map, options.playIntro);
+    return;
+  }
   if (shouldUseDesktopOverviewZoom(map)) {
     const camera = map.cameraForBounds(bounds, {
       padding: PROBE_MAP_DESKTOP_FIT_PADDING,
@@ -370,6 +453,20 @@ function fitVisibleProbes(map: maplibregl.Map, probes: GlobalpingProbe[]): void 
     padding: PROBE_MAP_FIT_PADDING,
     maxZoom: PROBE_MAP_MAX_ZOOM,
     duration: PROBE_MAP_FIT_DURATION_MS,
+    essential: true,
+  });
+}
+
+function isWorldwideProbeBounds(bounds: [[number, number], [number, number]]): boolean {
+  const [[west, south], [east, north]] = bounds;
+  return east - west >= PROBE_MAP_WORLD_SPAN_LON || north - south >= PROBE_MAP_WORLD_SPAN_LAT;
+}
+
+function easeToDefaultProbeView(map: maplibregl.Map, playIntro = false): void {
+  map.easeTo({
+    center: PROBE_MAP_DEFAULT_CENTER,
+    zoom: PROBE_MAP_DEFAULT_ZOOM,
+    duration: playIntro ? PROBE_MAP_INTRO_DURATION_MS : PROBE_MAP_FIT_DURATION_MS,
     essential: true,
   });
 }

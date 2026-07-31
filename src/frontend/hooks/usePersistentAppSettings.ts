@@ -1,10 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  readStoredLiquidGlassEnabled,
-  readStoredLiquidGlassIntensity,
-  writeStoredLiquidGlassEnabled,
-  writeStoredLiquidGlassIntensity,
-} from "../components/LiquidGlassSurface";
 import type { MapProjection, ResultContentOrder } from "../components/mapProjection";
 import { nextThemeMode, type ThemeMode } from "../theme";
 import {
@@ -19,8 +13,6 @@ const RESULT_CONTENT_ORDER_STORAGE_KEY = "globaltrace.resultLayout";
 
 export function usePersistentAppSettings() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(readStoredThemeMode);
-  const [liquidGlassEnabled, setLiquidGlassEnabled] = useState(readStoredLiquidGlassEnabled);
-  const [liquidGlassIntensity, setLiquidGlassIntensity] = useState(readStoredLiquidGlassIntensity);
   const [resultMapProjection, setResultMapProjection] = useState<MapProjection>(readStoredResultMapProjection);
   const [storedResultContentOrder] = useState<ResultContentOrder | null>(() => readStoredResultContentOrder());
   const [resultContentOrder, setResultContentOrder] = useState<ResultContentOrder>(storedResultContentOrder ?? "map-first");
@@ -40,16 +32,6 @@ export function usePersistentAppSettings() {
     setThemeMode((current) => nextThemeMode(current));
   }, []);
 
-  const updateLiquidGlassEnabled = useCallback((enabled: boolean) => {
-    setLiquidGlassEnabled(enabled);
-    writeStoredLiquidGlassEnabled(enabled);
-  }, []);
-
-  const updateLiquidGlassIntensity = useCallback((intensity: number) => {
-    setLiquidGlassIntensity(intensity);
-    writeStoredLiquidGlassIntensity(intensity);
-  }, []);
-
   const updateResultContentOrder = useCallback((order: ResultContentOrder) => {
     setResultContentOrder(order);
     writeStoredResultContentOrder(order);
@@ -63,16 +45,12 @@ export function usePersistentAppSettings() {
 
   return {
     themeMode,
-    liquidGlassEnabled,
-    liquidGlassIntensity,
     resultMapProjection,
     setResultMapProjection,
     resultContentOrder,
     resultContentOrderPromptOpen,
     locale,
     cycleThemeMode,
-    updateLiquidGlassEnabled,
-    updateLiquidGlassIntensity,
     updateResultContentOrder,
     updateLocale,
   };

@@ -20,6 +20,7 @@ import type { GlobalpingMeasurement } from "../shared/globalping";
 vi.mock("./components/ProbeMap", () => ({
   ProbeMap: (props: {
     probes: GlobalpingProbe[];
+    fitToken?: number;
     onPickAsn: (selection: {
       magic: string;
       city: string;
@@ -45,6 +46,7 @@ vi.mock("./components/ProbeMap", () => ({
     return (
       <section aria-label="mock probe map">
         <span>map-probe-count:{props.probes.length}</span>
+        <span>map-fit-token:{props.fitToken ?? 0}</span>
         <span>probe-projection:mercator</span>
         <span>box:on</span>
         <button type="button" onClick={() => pickProbeAt(0)}>
@@ -69,19 +71,16 @@ vi.mock("./components/ResultsView", () => ({
     result,
     mapProjection,
     onMapProjectionChange,
-    resultContentOrder,
     onClose,
   }: {
     result: TraceResultResponse | null;
     mapProjection?: "mercator" | "globe";
     onMapProjectionChange?: (value: "mercator" | "globe") => void;
-    resultContentOrder?: "table-first" | "map-first";
     onClose?: () => void;
   }) => (
     <section aria-label="mock results">
       {result ? `result:${result.status}:${result.measurementId}` : "no result"}
       <span>{`projection:${mapProjection || "mercator"}`}</span>
-      <span>{`layout:${resultContentOrder || "table-first"}`}</span>
       <button
         type="button"
         aria-pressed={mapProjection === "mercator"}
@@ -129,7 +128,6 @@ afterEach(() => {
   window.localStorage?.clear();
   window.sessionStorage?.clear();
   document.documentElement.removeAttribute("data-theme");
-  document.documentElement.classList.remove("liquid-glass-force-fallback");
   window.history.replaceState(null, "", "/");
 });
 
@@ -142,6 +140,25 @@ const openExactFilters = () => {
 
 const openAdvancedParams = () => {
   fireEvent.click(screen.getByRole("button", { name: "打开高级参数" }));
+};
+
+const waitForSubmitReady = async () => {
+  await waitFor(() => {
+    expect(
+      screen.getByRole("button", { name: "开始网络路径诊断" }),
+    ).not.toBeDisabled();
+  });
+};
+
+const waitForWorkerEnrich = async (
+  fetchMock: ReturnType<typeof mockApi>,
+  measurementId = "m123",
+) => {
+  await waitFor(
+    () =>
+      expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId }]),
+    { timeout: ENRICH_AFTER_FINISHED_DELAY_MS + 1000 },
+  );
 };
 
 const editTextControl = (label: string, value: string) => {
@@ -164,12 +181,12 @@ describe("App", () => {
       screen.queryByRole("button", { name: "切换到 3D 视图" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
+    const quotaMeter = screen.getByLabelText("诊断额度");
     expect(
-      screen.getByText("Globalping credits 控制诊断创建"),
+      within(quotaMeter).getByText("Globalping credits 控制诊断创建"),
     ).toBeInTheDocument();
-    expect(
-      await screen.findByText("可创建诊断 249/250（当前 IP）"),
-    ).toBeInTheDocument();
+    expect(await within(quotaMeter).findByText("249 / 250")).toBeInTheDocument();
+    expect(within(quotaMeter).getByText("当前 IP")).toBeInTheDocument();
     expect(screen.getByLabelText("magic string")).toHaveValue("");
     expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
     expect(document.documentElement.dataset.theme).toBe("system");
@@ -227,19 +244,14 @@ describe("App", () => {
       await screen.findByText("result:finished:m123", {}, { timeout: 3_000 }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
-    const resultDialog = screen.getByRole("dialog", { name: "诊断结果" });
-    expect(resultDialog).toHaveClass("glass-overlay-bare-surface");
-    expect(
-      document.querySelector(".glass-overlay-result .glass-overlay-header"),
-    ).toBeNull();
-    expect(
-      document.querySelector(".glass-overlay-result .glass-overlay-body"),
-    ).toBeNull();
-    expect(
-      document.querySelector(".glass-overlay-result .glass-overlay-panel"),
-    ).toBeNull();
+    const resultDialog = await screen.findByRole("dialog", { name: "诊断结果" });
+    expect(resultDialog).toHaveClass("result-slideover-panel");
+    expect(document.querySelector(".result-slideover")).toHaveAttribute(
+      "data-open",
+      "true",
+    );
     expect(screen.getByText("projection:mercator")).toBeInTheDocument();
-    expect(screen.getByText("layout:table-first")).toBeInTheDocument();
+    expect(document.querySelector(".app-shell")).not.toHaveClass("map-immersive");
 
     fireEvent.click(screen.getByRole("button", { name: "切换结果地图到 3D" }));
     expect(screen.getByText("projection:globe")).toBeInTheDocument();
@@ -247,6 +259,11 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "关闭结果" }));
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
+    expect(document.querySelector(".result-slideover")).toHaveAttribute(
+      "data-open",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "查看结果" })).toBeInTheDocument();
     expect(screen.getByText("probe-projection:mercator")).toBeInTheDocument();
     expect(screen.getByText("box:on")).toBeInTheDocument();
   });
@@ -277,7 +294,60 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(screen.getByText("layout:map-first")).toBeInTheDocument();
+    expect(document.querySelector(".app-shell")).toHaveClass("map-immersive");
+  });
+
+  it("moves the probe list into a bottom drawer in map-first mode", async () => {
+    window.localStorage.setItem("globaltrace.resultLayout", "map-first");
+    mockApi();
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    expect(document.querySelector(".app-shell")).toHaveClass("map-immersive");
+    expect(
+      document.querySelector(".map-and-table .probe-table-section"),
+    ).toBeNull();
+
+    const drawer = document.querySelector(".probe-drawer") as HTMLElement;
+    expect(drawer).not.toBeNull();
+    expect(drawer.dataset.open).toBe("false");
+    expect(
+      drawer.contains(screen.getByRole("heading", { name: "在线 Probes" })),
+    ).toBe(true);
+
+    const toggle = screen.getByRole("button", { name: "在线 Probes" });
+    fireEvent.click(toggle);
+    expect(drawer.dataset.open).toBe("true");
+    expect(document.querySelector(".app-shell")).toHaveClass("probe-drawer-open");
+    expect(screen.queryByRole("button", { name: "在线 Probes" })).toBeNull();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(drawer.dataset.open).toBe("false");
+    expect(document.querySelector(".app-shell")).not.toHaveClass("probe-drawer-open");
+    expect(screen.getByRole("button", { name: "在线 Probes" })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "在线 Probes" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "关闭在线 Probes" }),
+    );
+    expect(drawer.dataset.open).toBe("false");
+    expect(screen.getByRole("button", { name: "在线 Probes" })).toBeVisible();
+  });
+
+  it("keeps the probe list inline in table-first mode", async () => {
+    mockApi();
+
+    render(<App />);
+
+    await screen.findByText("2 / 2 probes 匹配");
+    expect(document.querySelector(".app-shell")).not.toHaveClass(
+      "map-immersive",
+    );
+    expect(document.querySelector(".probe-drawer")).toBeNull();
+    expect(
+      document.querySelector(".map-and-table .probe-table-section"),
+    ).not.toBeNull();
   });
 
   it("asks first-time users to choose the result content order", async () => {
@@ -286,18 +356,18 @@ describe("App", () => {
 
     render(<App />);
 
-    const dialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
+    const dialog = screen.getByRole("dialog", { name: "显示模式" });
     expect(
-      within(dialog).getByText("后续如果还想改，可以在高级参数中修改。"),
+      within(dialog).getByText(/仅影响桌面端布局。后续如果还想改，可以在高级参数中修改。/),
     ).toBeInTheDocument();
-    expect(dialog.closest(".glass-overlay-blocking")).not.toBeNull();
+    expect(dialog.closest(".overlay-blocking")).not.toBeNull();
     expect(
-      screen.queryByRole("button", { name: "关闭结果页面显示顺序" }),
+      screen.queryByRole("button", { name: "关闭显示模式" }),
     ).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(
-      screen.getByRole("dialog", { name: "结果页面显示顺序" }),
+      screen.getByRole("dialog", { name: "显示模式" }),
     ).toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "表格优先" }));
@@ -307,7 +377,7 @@ describe("App", () => {
       );
     });
     expect(
-      screen.queryByRole("dialog", { name: "结果页面显示顺序" }),
+      screen.queryByRole("dialog", { name: "显示模式" }),
     ).not.toBeInTheDocument();
   });
 
@@ -319,7 +389,7 @@ describe("App", () => {
     render(<App />);
 
     const initialChoiceDialog = screen.getByRole("dialog", {
-      name: "结果页面显示顺序",
+      name: "显示模式",
     });
     fireEvent.keyDown(window, { key: "Escape" });
     expect(initialChoiceDialog).toBeInTheDocument();
@@ -327,11 +397,12 @@ describe("App", () => {
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     const resultDialog = screen.getByRole("dialog", { name: "诊断结果" });
     const choiceDialog = screen.getByRole("dialog", {
-      name: "结果页面显示顺序",
+      name: "显示模式",
     });
-    expect(resultDialog.closest(".glass-overlay-result")).not.toBeNull();
-    expect(choiceDialog.closest(".glass-overlay-blocking")).not.toBeNull();
-    expect(screen.getByText("layout:map-first")).toBeInTheDocument();
+    expect(resultDialog.closest(".result-slideover")).not.toBeNull();
+    expect(choiceDialog.closest(".overlay-blocking")).not.toBeNull();
+    // Default workspace before choice is map-first immersive.
+    expect(document.querySelector(".app-shell")).toHaveClass("map-immersive");
 
     fireEvent.click(
       within(choiceDialog).getByRole("button", { name: "地图优先" }),
@@ -343,17 +414,17 @@ describe("App", () => {
     });
     expect(screen.getByText("result:finished:m123")).toBeInTheDocument();
     expect(
-      screen.queryByRole("dialog", { name: "结果页面显示顺序" }),
+      screen.queryByRole("dialog", { name: "显示模式" }),
     ).not.toBeInTheDocument();
   });
 
-  it("uses first-time map-first selection for the result page", async () => {
+  it("uses first-time map-first selection for the workspace page", async () => {
     window.localStorage.removeItem("globaltrace.resultLayout");
     mockApi();
 
     render(<App />);
 
-    const dialog = screen.getByRole("dialog", { name: "结果页面显示顺序" });
+    const dialog = screen.getByRole("dialog", { name: "显示模式" });
     fireEvent.click(within(dialog).getByRole("button", { name: "地图优先" }));
     await waitFor(() => {
       expect(window.localStorage.getItem("globaltrace.resultLayout")).toBe(
@@ -362,9 +433,10 @@ describe("App", () => {
     });
 
     await screen.findByText("2 / 2 probes 匹配");
+    expect(document.querySelector(".app-shell")).toHaveClass("map-immersive");
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(screen.getByText("layout:map-first")).toBeInTheDocument();
+    expect(document.querySelector(".app-shell")).toHaveClass("map-immersive");
   });
 
   it.each(["table-first", "map-first"] as const)(
@@ -377,7 +449,7 @@ describe("App", () => {
 
       await screen.findByText("2 / 2 probes 匹配");
       expect(
-        screen.queryByRole("dialog", { name: "结果页面显示顺序" }),
+        screen.queryByRole("dialog", { name: "显示模式" }),
       ).not.toBeInTheDocument();
     },
   );
@@ -456,9 +528,11 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
+    await screen.findByLabelText("mock probe map");
     openAdvancedParams();
     expect(screen.getByLabelText("端口")).toHaveTextContent("443");
     expect(screen.getByLabelText("Packets")).toHaveTextContent("5");
+    expect(screen.getByText("map-fit-token:0")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
 
@@ -466,6 +540,7 @@ describe("App", () => {
     expect(screen.getByLabelText("Packets")).toHaveTextContent("5");
     expect(window.localStorage.getItem("globaltrace.tracePort")).toBeNull();
     expect(window.localStorage.getItem("globaltrace.tracePackets")).toBeNull();
+    expect(screen.getByText("map-fit-token:1")).toBeInTheDocument();
   });
 
   it("warns and can reduce a manually raised probe limit", async () => {
@@ -494,85 +569,6 @@ describe("App", () => {
         screen.queryByText("Probe 越多，结果获取通常越慢。"),
       ).not.toBeInTheDocument();
     });
-  });
-
-  it("persists liquid glass preference locally", async () => {
-    mockApi();
-    setNavigatorDevice({
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-      platform: "MacIntel",
-    });
-
-    render(<App />);
-
-    await screen.findByText("2 / 2 probes 匹配");
-    openAdvancedParams();
-
-    const liquidGlassSwitch = screen.getByRole("switch", {
-      name: "液态玻璃效果",
-    });
-    const liquidGlassIntensity = screen.getByLabelText(
-      "液态玻璃强度",
-    ) as HTMLInputElement;
-    expect(liquidGlassSwitch).not.toBeChecked();
-    expect(liquidGlassIntensity).toHaveValue("70");
-    expect(liquidGlassIntensity).toBeDisabled();
-    expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
-
-    fireEvent.click(liquidGlassSwitch);
-    await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe(
-        "enabled",
-      );
-    });
-    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
-    expect(screen.getByLabelText("液态玻璃强度")).not.toBeDisabled();
-
-    fireEvent.change(liquidGlassIntensity, { target: { value: "85" } });
-    await waitFor(() => {
-      expect(
-        window.localStorage.getItem("globaltrace.liquidGlassIntensity"),
-      ).toBe("85");
-    });
-
-    fireEvent.click(liquidGlassSwitch);
-    await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe(
-        "disabled",
-      );
-    });
-    expect(
-      screen.getByRole("switch", { name: "液态玻璃效果" }),
-    ).not.toBeChecked();
-    expect(screen.getByLabelText("液态玻璃强度")).toBeDisabled();
-    expect(screen.getByLabelText("液态玻璃强度")).toHaveValue("85");
-    expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
-
-    fireEvent.click(screen.getByRole("switch", { name: "液态玻璃效果" }));
-    await waitFor(() => {
-      expect(window.localStorage.getItem("globaltrace.liquidGlass")).toBe(
-        "enabled",
-      );
-    });
-    expect(screen.getByRole("switch", { name: "液态玻璃效果" })).toBeChecked();
-  });
-
-  it("defaults liquid glass off on non-Apple devices", async () => {
-    mockApi();
-    setNavigatorDevice({
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      platform: "Win32",
-    });
-
-    render(<App />);
-
-    await screen.findByText("2 / 2 probes 匹配");
-    openAdvancedParams();
-
-    expect(
-      screen.getByRole("switch", { name: "液态玻璃效果" }),
-    ).not.toBeChecked();
-    expect(document.documentElement).toHaveClass("liquid-glass-force-fallback");
   });
 
   it("saves a Globalping token for the current session and sends it only to Globalping", async () => {
@@ -721,9 +717,7 @@ describe("App", () => {
     expect(
       await screen.findByText("NextTrace API Token 直连已启用"),
     ).toBeInTheDocument();
-    expect(
-      await screen.findByText("可创建诊断 249/250（当前 IP）"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("249 / 250")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
@@ -756,7 +750,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(traceEnrichBodies(fetchMock)).toHaveLength(1);
+    await waitForWorkerEnrich(fetchMock);
     expect(nexttraceBatchBodies(fetchMock)).toHaveLength(0);
 
     openAdvancedParams();
@@ -790,7 +784,7 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]);
+    await waitForWorkerEnrich(fetchMock);
     expect(nexttraceBatchBodies(fetchMock)).toHaveLength(0);
     expect(
       fetchMock.mock.calls.find(
@@ -841,22 +835,13 @@ describe("App", () => {
     const aboutDialog = await screen.findByRole("dialog", {
       name: "关于 GlobalTrace",
     });
-    expect(aboutDialog).toHaveClass("glass-overlay-bare-surface");
-    expect(
-      document.querySelector(".glass-overlay-about .glass-overlay-header"),
-    ).toBeNull();
-    expect(
-      document.querySelector(".glass-overlay-about .glass-overlay-body"),
-    ).toBeNull();
-    expect(
-      document.querySelector(".glass-overlay-about .glass-overlay-panel"),
-    ).toBeNull();
+    expect(aboutDialog).toHaveClass("overlay-bare-panel");
+    expect(document.querySelector(".overlay-about .overlay-header")).toBeNull();
+    expect(document.querySelector(".overlay-about .overlay-body")).toBeNull();
+    expect(document.querySelector(".overlay-about .overlay-panel")).toBeNull();
     expect(
       await within(aboutDialog).findByRole("heading", { name: "GlobalTrace" }),
     ).toBeInTheDocument();
-    expect(
-      aboutDialog.querySelector(".about-panel-surface[data-liquid-glass]"),
-    ).not.toBeNull();
     expect(aboutDialog.querySelector(".about-panel")).not.toBeNull();
     expect(
       within(aboutDialog).getByText(
@@ -1229,10 +1214,11 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
-    expect(screen.getByLabelText("mock probe map")).toBeInTheDocument();
+    expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
     expect(
       screen.getByRole("dialog", { name: "诊断结果" }),
     ).toBeInTheDocument();
@@ -1267,6 +1253,7 @@ describe("App", () => {
       traceCreateBodies(fetchMock)[0].measurementOptions.ipVersion,
     ).toBeUndefined();
 
+    await waitForSubmitReady();
     fireEvent.click(screen.getByRole("button", { name: "关闭结果" }));
     fireEvent.click(screen.getByRole("button", { name: "IPv4" }));
     fireEvent.change(screen.getByLabelText("目标"), {
@@ -1372,7 +1359,7 @@ describe("App", () => {
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(screen.queryByText(/Turnstile/)).not.toBeInTheDocument();
-    expect(traceEnrichBodies(fetchMock)).toEqual([{ measurementId: "m123" }]);
+    await waitForWorkerEnrich(fetchMock);
   });
 
   it("rejects shared non-MTR measurements without rendering a temporary result", async () => {
@@ -1407,7 +1394,14 @@ describe("App", () => {
     expect(window.location.pathname).toBe("/");
     expect(window.location.search).toBe("");
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
-    expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
+    expect(document.querySelector(".result-slideover")).toHaveAttribute(
+      "data-open",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "查看结果" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "诊断结果" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows a result loading state immediately when opening a shared measurement", async () => {
@@ -1453,7 +1447,7 @@ describe("App", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("m123")).toBeInTheDocument();
-    expect(screen.getByText("网络路径诊断")).toBeInTheDocument();
+    expect(screen.queryByText("网络路径诊断")).not.toBeInTheDocument();
     expect(document.querySelector(".shared-result-loading")).toBeNull();
 
     measurementResponse.resolve(json(globalpingMeasurement("finished")));
@@ -1524,10 +1518,16 @@ describe("App", () => {
       await screen.findByRole("dialog", { name: "读取诊断结果" }),
     ).toBeInTheDocument();
 
+    fireEvent.mouseDown(document.querySelector(".overlay") as HTMLElement);
+    expect(
+      screen.getByRole("dialog", { name: "读取诊断结果" }),
+    ).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "关闭读取诊断结果" }));
     expect(
       screen.queryByRole("dialog", { name: "读取诊断结果" }),
     ).not.toBeInTheDocument();
+    expect(window.location.search).not.toContain("measurement=");
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
 
     measurementResponse.resolve(json(globalpingMeasurement("finished")));
@@ -1576,10 +1576,17 @@ describe("App", () => {
     expect(
       await screen.findByRole("dialog", { name: "读取诊断结果" }),
     ).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.querySelector(".overlay") as HTMLElement);
+    expect(
+      screen.getByRole("dialog", { name: "读取诊断结果" }),
+    ).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "关闭读取诊断结果" }));
     expect(
       screen.queryByRole("dialog", { name: "读取诊断结果" }),
     ).not.toBeInTheDocument();
+    expect(window.location.search).not.toContain("measurement=");
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
 
     measurementResponse.resolve(json(globalpingMeasurement("finished")));
@@ -1597,9 +1604,15 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("2 / 2 probes 匹配");
-    expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "IPv4" }));
-    expect(screen.getByRole("button", { name: "IPv6" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "IPv4" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "IPv6" }));
+    expect(screen.getByRole("button", { name: "IPv6" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "开始网络路径诊断" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
@@ -1607,6 +1620,7 @@ describe("App", () => {
       6,
     );
 
+    await waitForSubmitReady();
     fireEvent.click(screen.getByRole("button", { name: "重置筛选" }));
     expect(screen.getByRole("button", { name: "IPv4" })).toBeInTheDocument();
     expect(screen.getByLabelText("Limit")).toHaveTextContent("3");
@@ -1651,13 +1665,24 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "关闭结果" }));
     expect(await screen.findByLabelText("mock probe map")).toBeInTheDocument();
-    expect(screen.queryByLabelText("mock results")).not.toBeInTheDocument();
+    expect(document.querySelector(".result-slideover")).toHaveAttribute(
+      "data-open",
+      "false",
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "诊断结果" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "查看结果" }),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "查看结果" }));
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
+    expect(document.querySelector(".result-slideover")).toHaveAttribute(
+      "data-open",
+      "true",
+    );
+    expect(screen.getByRole("dialog", { name: "诊断结果" })).toBeInTheDocument();
   });
 
   it("stops polling stuck measurements and keeps the share URL usable", async () => {
@@ -1703,11 +1728,13 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("probes down")).toBeInTheDocument();
+    const errorToast = await screen.findByRole("alert");
+    expect(errorToast).toHaveTextContent("probes down");
+    expect(errorToast).toHaveClass("error-toast");
     expect(
       await screen.findByText("Globalping credits 控制诊断创建"),
     ).toBeInTheDocument();
-    expect(await screen.findByText("诊断额度暂不可用")).toBeInTheDocument();
+    expect(await screen.findByText("暂不可用")).toBeInTheDocument();
   });
 
   it("turns upstream parameter validation failures into actionable copy", async () => {

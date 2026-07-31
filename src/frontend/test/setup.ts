@@ -12,4 +12,21 @@ if (typeof window !== "undefined") {
       value: () => undefined,
     });
   }
+
+  if (typeof window.matchMedia !== "function") {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: (query: string) => ({
+        // Prefer desktop layout defaults in jsdom; color-scheme stays light.
+        matches: /min-width:\s*\d+px/.test(query),
+        media: query,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false,
+      }),
+    });
+  }
 }

@@ -3,7 +3,7 @@ import { compactText, normalizeAsn } from "../../../shared/filters";
 import { Input, Textarea } from "../ui/input";
 import { useI18n } from "../../i18n";
 
-const MAX_VISIBLE_SUGGESTIONS = 8;
+const MAX_VISIBLE_MAGIC_SUGGESTIONS = 8;
 const MAGIC_PLACEHOLDER =
   "Shanghai+China Telecom, US+AS7922, Yokohama+JP+AS17676+SoftBank";
 
@@ -45,7 +45,7 @@ export function MagicSuggestionTextarea({
     for (const option of indexedOptions) {
       if (magicIndexedOptionMatchesQuery(option, queryTokens)) {
         matches.push(option.value);
-        if (matches.length >= MAX_VISIBLE_SUGGESTIONS) break;
+        if (matches.length >= MAX_VISIBLE_MAGIC_SUGGESTIONS) break;
       }
     }
     return matches;
@@ -137,7 +137,7 @@ export function MagicSuggestionTextarea({
         onKeyUp={(event) => updateCursorPosition(event.currentTarget)}
         onSelect={(event) => updateCursorPosition(event.currentTarget)}
         onKeyDown={handleKeyDown}
-        className="border-0 bg-transparent shadow-none backdrop-blur-none hover:bg-transparent focus-visible:ring-0"
+        className="min-h-[60px] max-h-[240px] resize-y border-0 bg-transparent shadow-none backdrop-blur-none hover:bg-transparent focus-visible:border-0 focus-visible:ring-0"
         rows={3}
         placeholder={MAGIC_PLACEHOLDER}
         role="combobox"
@@ -172,6 +172,12 @@ export function MagicSuggestionTextarea({
   );
 }
 
+export type SuggestionOption = {
+  value: string;
+  label: string;
+  searchText?: string;
+};
+
 export function SuggestionInput({
   label,
   value,
@@ -180,20 +186,24 @@ export function SuggestionInput({
 }: {
   label: string;
   value: string;
-  options: string[];
+  options: Array<string | SuggestionOption>;
   onChange: (value: string) => void;
 }) {
   const messages = useI18n();
   const listboxId = useId();
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const normalizedOptions = useMemo(
+    () => normalizeSuggestionOptions(options),
+    [options],
+  );
   const visibleOptions = useMemo(() => {
     const query = value.trim().toLowerCase();
-    const matches = query
-      ? options.filter((option) => option.toLowerCase().includes(query))
-      : options;
-    return matches.slice(0, MAX_VISIBLE_SUGGESTIONS);
-  }, [options, value]);
+    if (!query) return normalizedOptions;
+    return normalizedOptions.filter((option) =>
+      option.searchText.toLowerCase().includes(query),
+    );
+  }, [normalizedOptions, value]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -204,8 +214,8 @@ export function SuggestionInput({
     ? `${listboxId}-${activeIndex}`
     : undefined;
 
-  const selectOption = (option: string) => {
-    onChange(option);
+  const selectOption = (option: SuggestionOption) => {
+    onChange(option.value);
     setOpen(false);
   };
 
@@ -241,7 +251,7 @@ export function SuggestionInput({
 
   const handleOptionMouseDown = (
     event: MouseEvent<HTMLDivElement>,
-    option: string,
+    option: SuggestionOption,
   ) => {
     event.preventDefault();
     selectOption(option);
@@ -276,18 +286,33 @@ export function SuggestionInput({
             <div
               id={`${listboxId}-${index}`}
               className="suggestion-option"
-              key={option}
+              key={option.value}
               role="option"
               aria-selected={index === activeIndex}
               onMouseDown={(event) => handleOptionMouseDown(event, option)}
             >
-              {option}
+              {option.label}
             </div>
           ))}
         </div>
       )}
     </div>
   );
+}
+
+function normalizeSuggestionOptions(
+  options: Array<string | SuggestionOption>,
+): Array<SuggestionOption & { searchText: string }> {
+  return options.map((option) => {
+    if (typeof option === "string") {
+      return { value: option, label: option, searchText: option };
+    }
+    return {
+      value: option.value,
+      label: option.label,
+      searchText: option.searchText ?? `${option.label} ${option.value}`,
+    };
+  });
 }
 
 function indexMagicOptions(options: string[]): IndexedMagicOption[] {

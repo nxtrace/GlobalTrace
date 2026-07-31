@@ -18,7 +18,7 @@ const TabsList = React.forwardRef<
       unstyled
         ? className
         : cn(
-            "flex w-full gap-2 overflow-x-auto rounded-2xl border border-[color:var(--glass-border)] bg-[color:var(--glass-bg)] p-2 shadow-[var(--shadow-inset)] backdrop-blur-2xl",
+            "flex w-full gap-1 overflow-x-auto rounded-[var(--radius-card)] border border-[color:var(--line)] bg-[color:var(--canvas-soft-2)] p-1 shadow-[var(--shadow-inset)]",
             className,
           )
     }
@@ -32,7 +32,7 @@ type TabsTriggerProps = React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trig
 };
 
 const triggerClassName =
-  "min-w-40 flex-1 rounded-xl border border-transparent px-3 py-2 text-left text-sm text-[color:var(--muted-foreground)] transition-[background,border-color,box-shadow,color,transform] hover:-translate-y-px hover:bg-[color:var(--control-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] data-[state=active]:border-[color:var(--accent-border)] data-[state=active]:bg-[color:var(--panel-solid)] data-[state=active]:text-[color:var(--foreground)] data-[state=active]:shadow-[var(--shadow-control)]";
+  "min-w-40 flex-1 rounded-[var(--radius-control)] border border-transparent px-3 py-2 text-left text-sm leading-5 text-[color:var(--muted-foreground)] transition-[background,border-color,box-shadow,color] hover:bg-[color:var(--canvas)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] data-[state=active]:border-[color:var(--line)] data-[state=active]:bg-[color:var(--canvas)] data-[state=active]:text-[color:var(--foreground)] data-[state=active]:shadow-[var(--shadow-soft)]";
 
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
