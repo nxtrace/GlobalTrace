@@ -241,6 +241,28 @@ describe("worker API", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("allows user-initiated requests without an Origin header", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(finishedMeasurement("m-user-initiated"))));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Sec-Fetch-Site": "none",
+        },
+        body: JSON.stringify({ measurementId: "m-user-initiated" }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
   it("allows enrich requests from the exact request origin", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(finishedMeasurement("m-exact"))));
     vi.stubGlobal("fetch", fetchMock);
