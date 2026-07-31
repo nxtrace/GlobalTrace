@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "../i18n";
 import { ResultSlideover } from "./ResultSlideover";
@@ -21,6 +21,7 @@ function mockMatchMedia(matchesMobile: boolean) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   mockMatchMedia(false);
   Object.defineProperty(window, "innerWidth", {
     configurable: true,
@@ -145,6 +146,90 @@ describe("ResultSlideover", () => {
 
     expect(readWidth()).toBe(shrunkWidth + 80);
     expect(root.dataset.resizing).toBe("false");
+  });
+
+  it("exposes separator values and supports keyboard resizing", () => {
+    mockMatchMedia(false);
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1600,
+    });
+    render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open title="诊断结果" onOpen={vi.fn()} onClose={vi.fn()}>
+          <button type="button">关闭结果</button>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const handle = screen.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+    const initial = Number(handle.getAttribute("aria-valuenow"));
+    expect(handle).toHaveAttribute("aria-valuemin", "360");
+    expect(Number(handle.getAttribute("aria-valuemax"))).toBeGreaterThanOrEqual(initial);
+
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe(`${initial - 24}px`);
+    expect(handle).toHaveAttribute("aria-valuenow", String(initial - 24));
+
+    fireEvent.keyDown(handle, { key: "Home" });
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe("360px");
+  });
+
+  it("ends resizing when pointer capture is lost outside the handle", () => {
+    mockMatchMedia(false);
+    render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open title="诊断结果" onOpen={vi.fn()} onClose={vi.fn()}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const handle = screen.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+    fireEvent.pointerDown(handle, { button: 0, clientX: 400, pointerId: 9 });
+    expect(root.dataset.resizing).toBe("true");
+
+    fireEvent.pointerUp(window, { pointerId: 9 });
+    expect(root.dataset.resizing).toBe("false");
+  });
+
+  it("traps focus, inerts the app shell, and restores focus when closed", () => {
+    vi.useFakeTimers();
+    mockMatchMedia(false);
+    const shell = document.createElement("main");
+    shell.className = "app-shell";
+    const trigger = document.createElement("button");
+    trigger.textContent = "运行诊断";
+    shell.append(trigger);
+    document.body.append(shell);
+    trigger.focus();
+
+    const renderSlideover = (open: boolean) => (
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open={open} title="诊断结果" onOpen={vi.fn()} onClose={vi.fn()}>
+          <button type="button">关闭结果</button>
+          <a href="/details">详情</a>
+        </ResultSlideover>
+      </I18nProvider>
+    );
+    const { rerender } = render(renderSlideover(true));
+    expect(shell.inert).toBe(true);
+
+    act(() => vi.advanceTimersByTime(240));
+    expect(screen.getByRole("button", { name: "关闭结果" })).toHaveFocus();
+
+    const separator = screen.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+    separator.focus();
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(screen.getByRole("button", { name: "关闭结果" })).toHaveFocus();
+
+    rerender(renderSlideover(false));
+    act(() => vi.advanceTimersByTime(16));
+    expect(shell.inert).toBe(false);
+    expect(trigger).toHaveFocus();
+    shell.remove();
   });
 
   it("uses a bottom sheet height under 820px and resizes vertically", () => {

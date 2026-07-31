@@ -71,8 +71,12 @@ export function ProbeMap({
   const boxRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const probesRef = useRef(probes);
+  const focusProbeRef = useRef(focusProbe);
+  const focusTokenRef = useRef(focusToken);
+  const fitTokenRef = useRef(fitToken);
   const mapIntroPlayedRef = useRef(false);
   const [boxMode, setBoxMode] = useState(false);
+  const [mapLoadError, setMapLoadError] = useState(false);
   const [selectedProbeGroupKey, setSelectedProbeGroupKey] = useState<string | null>(null);
   const [addedProbeGroupKeys, setAddedProbeGroupKeys] = useState<ReadonlySet<string>>(() => new Set());
   const [picker, setPicker] = useState<ProbePickerState | null>(null);
@@ -83,6 +87,9 @@ export function ProbeMap({
   const selectedProbeGroupKeyRef = useRef<string | null>(null);
 
   probesRef.current = probes;
+  focusProbeRef.current = focusProbe;
+  focusTokenRef.current = focusToken;
+  fitTokenRef.current = fitToken;
   pickerRef.current = picker;
   onPickAsnRef.current = onPickAsn;
   onRemoveAsnRef.current = onRemoveAsn;
@@ -93,6 +100,8 @@ export function ProbeMap({
     if (!containerRef.current || mapRef.current) return;
     const container = containerRef.current;
     container.classList.remove("is-map-ready");
+    let revealFrameId: number | null = null;
+    let resizeFrameId: number | null = null;
     const map = new maplibregl.Map({
       container,
       style: mapStyleUrl,
@@ -103,7 +112,14 @@ export function ProbeMap({
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     addMapAttribution(map);
     mapIntroPlayedRef.current = false;
-    map.on("load", () => {
+    const handleMapError = () => {
+      if (mapIntroPlayedRef.current) return;
+      container.classList.add("is-map-ready");
+      setMapLoadError(true);
+    };
+    const handleMapLoad = () => {
+      container.classList.remove("is-map-ready");
+      setMapLoadError(false);
       applyMapPalette(map);
       map.setProjection({ type: "mercator" });
       map.addSource("probes", {
@@ -152,13 +168,40 @@ export function ProbeMap({
         },
       });
       map.resize();
-      fitVisibleProbes(map, probesRef.current, { playIntro: true });
+      const pendingFocus = focusProbeRef.current;
+      const focusCoordinates = pendingFocus
+        ? [pendingFocus.location.longitude, pendingFocus.location.latitude] as [number, number]
+        : null;
+      if (
+        pendingFocus &&
+        focusTokenRef.current > 0 &&
+        focusCoordinates &&
+        focusCoordinates.every(Number.isFinite)
+      ) {
+        setSelectedProbeGroupKey(probeSelectionKey(pendingFocus));
+        setPicker(null);
+        map.easeTo({
+          center: focusCoordinates,
+          zoom: PROBE_MAP_MAX_ZOOM,
+          duration: PROBE_MAP_FIT_DURATION_MS,
+          essential: true,
+        });
+      } else if (fitTokenRef.current > 0) {
+        setSelectedProbeGroupKey(null);
+        setPicker(null);
+        fitVisibleProbes(map, probesRef.current);
+      } else {
+        fitVisibleProbes(map, probesRef.current, { playIntro: true });
+      }
       mapIntroPlayedRef.current = true;
       // Reveal after palette + first camera settle to avoid Liberty default-color flash.
-      requestAnimationFrame(() => {
+      revealFrameId = window.requestAnimationFrame(() => {
+        revealFrameId = null;
         container.classList.add("is-map-ready");
       });
-    });
+    };
+    map.on("error", handleMapError);
+    map.on("load", handleMapLoad);
     const openProbePicker = (event: maplibregl.MapMouseEvent, pinned: boolean) => {
       if (!pinned && pickerRef.current?.pinned) return;
       const nextPicker = pickerForEvent(map, event, probesRef.current, pinned);
@@ -183,7 +226,8 @@ export function ProbeMap({
     const resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => map.resize());
     resizeObserver?.observe(containerRef.current);
-    requestAnimationFrame(() => {
+    resizeFrameId = window.requestAnimationFrame(() => {
+      resizeFrameId = null;
       map.resize();
     });
     mapRef.current = map;
@@ -197,6 +241,10 @@ export function ProbeMap({
     return () => {
       unsubscribePalette();
       resizeObserver?.disconnect();
+      if (revealFrameId !== null) window.cancelAnimationFrame(revealFrameId);
+      if (resizeFrameId !== null) window.cancelAnimationFrame(resizeFrameId);
+      map.off("error", handleMapError);
+      map.off("load", handleMapLoad);
       map.off("click", "probe-points", pinProbePicker);
       map.off("mouseenter", "probe-points", previewProbePicker);
       map.off("mousemove", "probe-points", previewProbePicker);
@@ -343,6 +391,11 @@ export function ProbeMap({
           </div>
         </div>
         <div className="map-container" ref={containerRef} />
+        {mapLoadError && (
+          <div className="map-load-error" role="alert">
+            {messages.mapLoadError}
+          </div>
+        )}
         {picker && (
           <ProbePicker
             picker={picker}

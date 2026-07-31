@@ -1,7 +1,7 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GlobalpingMeasurement } from "../../shared/globalping";
-import type { GlobalpingProbe } from "../../shared/types";
+import type { GlobalpingProbe, TraceResultResponse } from "../../shared/types";
 import {
   createTrace,
   enrichTrace,
@@ -116,6 +116,45 @@ describe("useTraceLifecycle", () => {
     expect(setters.setLoading).toHaveBeenLastCalledWith(false);
   });
 
+  it("reveals the raw result while enrichment runs and ignores a late rejection after abort", async () => {
+    const pendingEnrichment = deferred<TraceResultResponse>();
+    vi.mocked(fetchCachedTrace).mockResolvedValueOnce(null);
+    vi.mocked(fetchGlobalpingMeasurement).mockResolvedValue(measurement("finished"));
+    vi.mocked(enrichTrace).mockReturnValueOnce(pendingEnrichment.promise);
+
+    const setters = createSetters();
+    const { result } = renderHook(() => useTraceLifecycle(defaultArgs(setters)));
+
+    let firstLoad: Promise<void>;
+    act(() => {
+      firstLoad = result.current.loadTrace("m123", false, "", "", "created");
+    });
+
+    await waitFor(() => {
+      expect(setters.setWorkspaceMode).toHaveBeenCalledWith("result");
+      expect(setters.setLoading).toHaveBeenLastCalledWith(false);
+      expect(setters.setMeasurementLoading).toHaveBeenLastCalledWith(null);
+    });
+    expect(setters.setResult).toHaveBeenLastCalledWith(
+      expect.objectContaining({ measurementId: "m123", status: "finished" }),
+    );
+    await waitFor(() => expect(enrichTrace).toHaveBeenCalledTimes(1));
+
+    vi.mocked(fetchCachedTrace).mockResolvedValueOnce(finishedTrace("m456"));
+    await act(async () => {
+      await result.current.loadTrace("m456", false, "", "", "created");
+    });
+
+    const firstEnrichmentSignal = vi.mocked(enrichTrace).mock.calls[0]?.[1];
+    expect(firstEnrichmentSignal?.aborted).toBe(true);
+
+    await act(async () => {
+      pendingEnrichment.reject(new Error("late enrichment failure"));
+      await firstLoad!;
+    });
+    expect(setters.setMessage).not.toHaveBeenCalledWith("late enrichment failure");
+  });
+
   it("stores the created measurement id before loading the trace", async () => {
     vi.mocked(createTrace).mockResolvedValue({ measurementId: "created-1", probesCount: 1, location: null });
     vi.mocked(fetchCachedTrace).mockResolvedValue({
@@ -176,4 +215,26 @@ function measurement(status: GlobalpingMeasurement["status"]): GlobalpingMeasure
     probesCount: 0,
     results: [],
   };
+}
+
+function finishedTrace(measurementId: string): TraceResultResponse {
+  return {
+    measurementId,
+    type: "mtr",
+    target: "example.com",
+    status: "finished",
+    probesCount: 0,
+    results: [],
+    enrichment: { status: "skipped", cached: 0, fetched: 0, errors: [] },
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
 }

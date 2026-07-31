@@ -56,6 +56,7 @@ export interface Messages {
   save: string;
   clear: string;
   getNexttraceToken: string;
+  getNexttraceTokenShort: string;
   nexttraceTokenPlaceholder: string;
   rememberNexttrace: string;
   suggestionList: string;
@@ -83,6 +84,7 @@ export interface Messages {
   loadingAbout: string;
   loadingProbeMap: string;
   loadingMap: string;
+  mapLoadError: string;
   loadingResults: string;
   loadingResultsDescription: string;
   readingResults: string;
@@ -205,6 +207,7 @@ const zhCN: Messages = {
   save: "保存",
   clear: "清除",
   getNexttraceToken: "获取 NextTrace API Token",
+  getNexttraceTokenShort: "获取 Token",
   nexttraceTokenPlaceholder: "可选：直连 NextTrace enrichment",
   rememberNexttrace: "记住 NextTrace 到本机",
   suggestionList: "候选列表",
@@ -232,6 +235,7 @@ const zhCN: Messages = {
   loadingAbout: "正在加载关于页面",
   loadingProbeMap: "正在加载 probe map",
   loadingMap: "正在加载地图",
+  mapLoadError: "地图加载失败，请稍后重试。",
   loadingResults: "正在加载结果视图",
   loadingResultsDescription: "地图与 hop 明细加载完成后会自动显示。",
   readingResults: "读取诊断结果",
@@ -258,11 +262,11 @@ const zhCN: Messages = {
   removeAddedProbe: (network, asn) => `移除 ${network} ${asn}`,
   showAllProbes: "回到所有",
   showSelectedProbes: "查看当前点选",
-  probeCandidates: (location) => `${location} probe candidates`,
-  probeAsnCandidates: "probe ASN candidates",
+  probeCandidates: (location) => `${location} 探针候选`,
+  probeAsnCandidates: "探针 ASN 候选",
   onlineProbes: "在线 Probes",
   location: "位置",
-  select: "select",
+  select: "选择",
   selectProbeTitle: (magic) => `添加 ${magic}`,
   selectProbeLabel: (location, asn) => `添加 ${location} AS${asn}`,
   locateProbeTitle: (magic) => `在地图上定位 ${magic}`,
@@ -359,6 +363,7 @@ const enUS: Messages = {
   save: "Save",
   clear: "Clear",
   getNexttraceToken: "Get NextTrace API Token",
+  getNexttraceTokenShort: "Get Token",
   nexttraceTokenPlaceholder: "Optional: direct NextTrace enrichment",
   rememberNexttrace: "Remember NextTrace locally",
   suggestionList: "Suggestions",
@@ -386,6 +391,7 @@ const enUS: Messages = {
   loadingAbout: "Loading about page",
   loadingProbeMap: "Loading probe map",
   loadingMap: "Loading map",
+  mapLoadError: "Map failed to load. Please try again later.",
   loadingResults: "Loading result view",
   loadingResultsDescription: "The map and hop details will appear after they finish loading.",
   readingResults: "Reading diagnosis result",

@@ -57,12 +57,12 @@ describe("filter panel suggestions", () => {
     expect(onChange).toHaveBeenCalledWith("US");
   });
 
-  it("shows all matching structured suggestions without a hard cap", () => {
+  it("caps empty and filtered regular suggestions at eight options", () => {
     const options = Array.from({ length: 20 }, (_, index) =>
-      String.fromCharCode(65 + index).repeat(2),
+      `match-${String.fromCharCode(65 + index)}`,
     );
 
-    render(
+    const { rerender } = render(
       <SuggestionInput
         label="国家/地区"
         value=""
@@ -72,7 +72,17 @@ describe("filter panel suggestions", () => {
     );
 
     fireEvent.focus(screen.getByRole("combobox", { name: "国家/地区" }));
-    expect(screen.getAllByRole("option")).toHaveLength(20);
+    expect(screen.getAllByRole("option")).toHaveLength(8);
+
+    rerender(
+      <SuggestionInput
+        label="国家/地区"
+        value="match"
+        options={options}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByRole("option")).toHaveLength(8);
   });
 
   it("closes regular suggestions on Escape and blur", () => {

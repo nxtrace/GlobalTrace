@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Button } from "./ui/button";
 import { useI18n } from "../i18n";
 
@@ -18,6 +18,9 @@ export function ProbeListDrawer({ id, open, title, children, onClose }: ProbeLis
   const messages = useI18n();
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const ignoreNextClickRef = useRef(false);
   const dragRef = useRef<{
     pointerId: number;
     startY: number;
@@ -37,6 +40,25 @@ export function ProbeListDrawer({ id, open, title, children, onClose }: ProbeLis
 
   useEffect(() => {
     if (!open) return;
+    const activeElement = document.activeElement;
+    previousFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+    const frame = window.requestAnimationFrame(() => closeRef.current?.focus({ preventScroll: true }));
+    return () => {
+      window.cancelAnimationFrame(frame);
+      const previousFocus = previousFocusRef.current;
+      previousFocusRef.current = null;
+      window.requestAnimationFrame(() => {
+        const controller = Array.from(
+          document.querySelectorAll<HTMLElement>("[aria-controls]"),
+        ).find((element) => element.getAttribute("aria-controls") === id);
+        const target = controller?.isConnected ? controller : previousFocus;
+        if (target?.isConnected) target.focus({ preventScroll: true });
+      });
+    };
+  }, [id, open]);
+
+  useEffect(() => {
+    if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (document.querySelector(".overlay")) return;
@@ -46,16 +68,20 @@ export function ProbeListDrawer({ id, open, title, children, onClose }: ProbeLis
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose, open]);
 
-  const endDrag = (clientY: number) => {
-    const drag = dragRef.current;
+  const resetDrag = useCallback(() => {
     dragRef.current = null;
     setDragging(false);
+    setDragY(0);
+  }, []);
+
+  const endDrag = useCallback((clientY: number) => {
+    const drag = dragRef.current;
+    resetDrag();
     if (!drag) return;
 
     const distance = Math.max(0, clientY - drag.startY);
     if (!drag.moved) {
       onClose();
-      setDragY(0);
       return;
     }
 
@@ -65,12 +91,27 @@ export function ProbeListDrawer({ id, open, title, children, onClose }: ProbeLis
 
     if (shouldDismiss) {
       onClose();
-      setDragY(0);
       return;
     }
+  }, [onClose, resetDrag]);
 
-    setDragY(0);
-  };
+  useEffect(() => {
+    if (!dragging) return;
+    const finish = (event: PointerEvent) => {
+      if (dragRef.current?.pointerId !== event.pointerId) return;
+      endDrag(event.clientY);
+    };
+    const cancel = (event: PointerEvent) => {
+      if (dragRef.current?.pointerId !== event.pointerId) return;
+      resetDrag();
+    };
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+    return () => {
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+    };
+  }, [dragging, endDrag, resetDrag]);
 
   return (
     <aside
@@ -86,16 +127,17 @@ export function ProbeListDrawer({ id, open, title, children, onClose }: ProbeLis
           : undefined
       }
     >
-      <div
+      <button
+        type="button"
         className="probe-drawer-grab"
-        role="button"
         tabIndex={open ? 0 : -1}
         aria-label={messages.dragToClose(title)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onClose();
+        onClick={() => {
+          if (ignoreNextClickRef.current) {
+            ignoreNextClickRef.current = false;
+            return;
           }
+          onClose();
         }}
         onPointerDown={(event) => {
           if (!open || event.button !== 0) return;
@@ -124,19 +166,26 @@ export function ProbeListDrawer({ id, open, title, children, onClose }: ProbeLis
         }}
         onPointerUp={(event) => {
           if (dragRef.current?.pointerId !== event.pointerId) return;
+          ignoreNextClickRef.current = true;
+          window.setTimeout(() => {
+            ignoreNextClickRef.current = false;
+          }, 0);
           endDrag(event.clientY);
         }}
         onPointerCancel={(event) => {
           if (dragRef.current?.pointerId !== event.pointerId) return;
-          dragRef.current = null;
-          setDragging(false);
-          setDragY(0);
+          resetDrag();
+        }}
+        onLostPointerCapture={(event) => {
+          if (dragRef.current?.pointerId !== event.pointerId) return;
+          resetDrag();
         }}
       >
         <div className="probe-drawer-handle" aria-hidden="true" />
-      </div>
+      </button>
       <div className="probe-drawer-body">
         <Button
+          ref={closeRef}
           variant="ghost"
           size="icon"
           type="button"

@@ -1,10 +1,11 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProbeListDrawer } from "./ProbeListDrawer";
 import { I18nProvider } from "../i18n";
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 function renderDrawer(open = true, onClose = vi.fn()) {
@@ -54,5 +55,49 @@ describe("ProbeListDrawer", () => {
     fireEvent.pointerUp(grab, { clientY: 50, pointerId: 1 });
 
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("uses native button activation for the grab handle", () => {
+    const onClose = renderDrawer(true);
+    fireEvent.click(screen.getByRole("button", { name: "下拉关闭在线 Probes" }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("resets dragging when pointerup occurs outside the handle", () => {
+    const onClose = renderDrawer(true);
+    const drawer = document.querySelector(".probe-drawer") as HTMLElement;
+    const grab = screen.getByRole("button", { name: "下拉关闭在线 Probes" });
+    fireEvent.pointerDown(grab, { button: 0, clientY: 40, pointerId: 7 });
+    fireEvent.pointerMove(grab, { clientY: 50, pointerId: 7 });
+    expect(drawer.dataset.dragging).toBe("true");
+
+    fireEvent.pointerUp(window, { clientY: 50, pointerId: 7 });
+    expect(drawer.dataset.dragging).toBe("false");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("focuses the close button on open and restores the trigger on close", () => {
+    vi.useFakeTimers();
+    const trigger = document.createElement("button");
+    trigger.textContent = "打开列表";
+    document.body.append(trigger);
+    trigger.focus();
+    const onClose = vi.fn();
+    const renderState = (open: boolean) => (
+      <I18nProvider locale="zh-CN">
+        <ProbeListDrawer id="probe-list-drawer" open={open} title="在线 Probes" onClose={onClose}>
+          <div>drawer body</div>
+        </ProbeListDrawer>
+      </I18nProvider>
+    );
+    const { rerender } = render(renderState(true));
+
+    act(() => vi.advanceTimersByTime(16));
+    expect(screen.getByRole("button", { name: "关闭在线 Probes" })).toHaveFocus();
+
+    rerender(renderState(false));
+    act(() => vi.advanceTimersByTime(16));
+    expect(trigger).toHaveFocus();
+    trigger.remove();
   });
 });

@@ -24,6 +24,7 @@ const maplibreMock = vi.hoisted(() => {
     ];
 
     readonly sources = new Map<string, FakeSource>();
+    readonly styleLayers = FakeMap.styleLayers.map((layer) => ({ ...layer }));
     readonly layers: Record<string, unknown>[] = [];
     readonly eventHandlers = new Map<string, () => void>();
     readonly layerEventHandlers = new Map<string, (event: { features?: Array<{ properties?: Record<string, unknown> }> }) => void>();
@@ -110,7 +111,7 @@ const maplibreMock = vi.hoisted(() => {
     }
 
     getStyle() {
-      return { layers: FakeMap.styleLayers };
+      return { layers: this.styleLayers };
     }
 
     setStyle(_style: unknown, _options?: unknown) {
@@ -143,6 +144,10 @@ const maplibreMock = vi.hoisted(() => {
 
     triggerLoad() {
       this.eventHandlers.get("load")?.();
+    }
+
+    triggerError() {
+      this.eventHandlers.get("error")?.();
     }
 
     triggerLayerClick(layer: string, properties: Record<string, unknown>) {
@@ -243,6 +248,7 @@ afterEach(() => {
   maplibreMock.FakeMap.instances = [];
   maplibreMock.FakeMarker.instances = [];
   maplibreMock.FakePopup.instances = [];
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -441,6 +447,22 @@ describe("ResultsView", () => {
     expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
   });
 
+  it("does not report a copied URL when clipboard access is missing or rejected", async () => {
+    Object.defineProperty(window.navigator, "clipboard", { configurable: true, value: undefined });
+    const { rerender } = render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "分享" }));
+    expect(screen.queryByRole("button", { name: "已复制" })).not.toBeInTheDocument();
+
+    const clipboard = { writeText: vi.fn().mockRejectedValue(new Error("denied")) };
+    Object.defineProperty(window.navigator, "clipboard", { configurable: true, value: clipboard });
+    rerender(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "分享" }));
+
+    await waitFor(() => expect(clipboard.writeText).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("button", { name: "已复制" })).not.toBeInTheDocument();
+  });
+
   it("switches between probe result tabs", () => {
     render(<ResultsView result={multiProbeResult} mapStyleUrl="about:blank" renderMap={false} />);
 
@@ -621,7 +643,9 @@ describe("ResultsView", () => {
     act(() => map.triggerLoad());
 
     expect(map.layers.map((layer) => layer.id)).toEqual(expect.arrayContaining(["result-line", "result-packets", "result-probe-points"]));
-    expect(screen.getByRole("button", { name: "选择 TTL 1" })).toBeInTheDocument();
+    const firstMarkerButton = screen.getByRole("button", { name: "选择 TTL 1" });
+    expect(firstMarkerButton).toBeInTheDocument();
+    expect(firstMarkerButton.closest('[role="group"]')).toHaveAttribute("aria-label", "选择 TTL 1");
     expect(map.sources.get("result-packets")?.data).toMatchObject({ type: "FeatureCollection" });
     expect(map.layers.find((layer) => layer.id === "result-line")?.layout).toMatchObject({
       "line-sort-key": ["case", ["boolean", ["get", "active"], false], 1, 0],
@@ -649,6 +673,47 @@ describe("ResultsView", () => {
       }),
     ]);
     expect(map.setProjectionCalls).toEqual([{ type: "mercator" }]);
+  });
+
+  it("reveals an accessible error when result map startup fails and clears it after load", async () => {
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" />);
+    const map = await latestMap();
+    const container = screen.getByLabelText("trace result map");
+
+    act(() => map.triggerError());
+
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(container).toHaveClass("is-map-ready");
+
+    act(() => map.triggerLoad());
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    act(() => map.triggerError());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("cancels pending result map animation frames on unmount", async () => {
+    let nextFrameId = 0;
+    const frames = new Map<number, FrameRequestCallback>();
+    const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      nextFrameId += 1;
+      frames.set(nextFrameId, callback);
+      return nextFrameId;
+    });
+    const cancelAnimationFrame = vi.fn((id: number) => {
+      frames.delete(id);
+    });
+    vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
+    vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+    const { unmount } = render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" />);
+    const map = await latestMap();
+    act(() => map.triggerLoad());
+
+    unmount();
+
+    expect(cancelAnimationFrame.mock.calls.map(([id]) => id)).toEqual(expect.arrayContaining([1, 3]));
+    for (const callback of frames.values()) callback(0);
+    expect(frames.size).toBe(0);
   });
 
   it("uses globe projection and fluorescent result overlay styles", async () => {
@@ -718,7 +783,9 @@ describe("ResultsView", () => {
     const map = await latestMap();
     act(() => map.triggerLoad());
 
-    fireEvent.click(screen.getByRole("button", { name: "展开 TTL 1-2" }));
+    const groupedMarkerButton = screen.getByRole("button", { name: "展开 TTL 1-2" });
+    expect(groupedMarkerButton.closest('[role="group"]')).toHaveAttribute("aria-label", "展开 TTL 1-2");
+    fireEvent.click(groupedMarkerButton);
     fireEvent.click(screen.getByRole("button", { name: "选择 TTL 2" }));
 
     const row1 = rowForText("203.0.113.1");
@@ -765,6 +832,22 @@ describe("ResultsView", () => {
     await waitFor(() => expect(row2).toHaveClass("selected"));
     expect(row1).not.toHaveClass("selected");
     expect(screen.getByRole("button", { name: "选择 TTL 2" })).toBeInTheDocument();
+    expect(map.easeToCalls.at(-1)).toMatchObject({
+      center: [-122.08, 37.39],
+      duration: 420,
+    });
+    expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 2");
+  });
+
+  it("replays a pending table focus after the result map loads", async () => {
+    mockScrollIntoView();
+    render(<ResultsView result={routeQualityResult} mapStyleUrl="about:blank" mapProjection="globe" />);
+    const map = await latestMap();
+
+    fireEvent.click(rowForText("203.0.113.2"));
+    await waitFor(() => expect(rowForText("203.0.113.2")).toHaveClass("selected"));
+    act(() => map.triggerLoad());
+
     expect(map.easeToCalls.at(-1)).toMatchObject({
       center: [-122.08, 37.39],
       duration: 420,

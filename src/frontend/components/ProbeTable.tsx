@@ -97,10 +97,10 @@ export function ProbeTable({
               </PopoverTrigger>
               <PopoverContent
                 className="probe-table-filter-popover"
+                aria-label={messages.exactFilters}
                 align="end"
                 side="bottom"
                 collisionPadding={12}
-                onOpenAutoFocus={(event) => event.preventDefault()}
               >
                 <div className="probe-table-filter-popover-header">
                   <Filter size={14} aria-hidden="true" />
@@ -140,7 +140,21 @@ export function ProbeTable({
                       onClick={() => onFilter?.(probe)}
                     >
                       <TableCell title={summarizeProbeLocation(probe)}>
-                        {probe.location.city || "-"}, {probe.location.country}
+                        {onFilter ? (
+                          <button
+                            type="button"
+                            className="probe-table-location-button"
+                            aria-label={`${messages.filter} ${locationLabel} AS${probe.location.asn}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onFilter(probe);
+                            }}
+                          >
+                            {probe.location.city || "-"}, {probe.location.country}
+                          </button>
+                        ) : (
+                          <>{probe.location.city || "-"}, {probe.location.country}</>
+                        )}
                       </TableCell>
                       <TableCell>AS{probe.location.asn}</TableCell>
                       <TableCell>{probe.location.network}</TableCell>

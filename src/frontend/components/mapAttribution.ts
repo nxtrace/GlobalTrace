@@ -18,8 +18,7 @@ export function collapseMapAttribution(map: MapLibreMap): void {
   ensureCollapsedLabel(element);
   element.classList.add("maplibregl-compact");
   element.classList.remove("maplibregl-compact-show");
-  // MapLibre uses the open attribute to mark the collapsed compact state.
-  element.setAttribute("open", "");
+  element.removeAttribute("open");
 }
 
 /**

@@ -1,5 +1,4 @@
 import { X } from "lucide-react";
-import type { KeyboardEvent } from "react";
 import type { ProbePickerGroup, ProbePickerState } from "./types";
 import { useI18n } from "../../i18n";
 
@@ -52,56 +51,47 @@ export function ProbePicker({
           <X size={14} />
         </button>
       </header>
-      <div className="probe-picker-list" role="listbox" aria-label={messages.probeAsnCandidates}>
+      <ul className="probe-picker-list" aria-label={messages.probeAsnCandidates}>
         {picker.groups.map((group) => {
           const added = addedProbeGroupKeys.has(group.key);
           const selected = selectedProbeGroupKey === group.key || added;
           return (
-            <div
-              className={`probe-picker-row${added ? " is-added" : ""}`}
-              role="option"
-              tabIndex={added ? -1 : 0}
-              aria-selected={selected}
-              aria-label={`${group.network} ${group.asn} ×${group.count}${added ? ` ${messages.alreadyAdded}` : ""}`}
+            <li
+              className={`probe-picker-row${added ? " is-added" : ""}${selected ? " is-selected" : ""}`}
               key={group.key}
-              onClick={() => {
-                if (!added) onPickGroup(group);
-              }}
-              onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
-                if (added) return;
-                if (event.key !== "Enter" && event.key !== " ") return;
-                event.preventDefault();
-                onPickGroup(group);
-              }}
             >
-              <span className="probe-picker-row-pick">
+              <button
+                type="button"
+                className="probe-picker-row-pick"
+                disabled={added}
+                aria-pressed={selected}
+                aria-label={`${group.network} ${group.asn} ×${group.count}${added ? ` ${messages.alreadyAdded}` : ""}`}
+                onClick={() => onPickGroup(group)}
+              >
                 <span className="probe-picker-row-name" title={group.network}>
                   {group.network}
                 </span>
                 <span className="probe-picker-row-meta">
                   {group.asn} ×{group.count}
                 </span>
-              </span>
-              <span className="probe-picker-added-actions" aria-hidden={added ? undefined : true}>
-                <span className="probe-picker-added">{messages.alreadyAdded}</span>
-                <button
-                  type="button"
-                  className="probe-picker-remove"
-                  tabIndex={added ? 0 : -1}
-                  aria-label={messages.removeAddedProbe(group.network, group.asn)}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onRemoveGroup(group);
-                  }}
-                >
-                  <X size={12} aria-hidden="true" />
-                </button>
-              </span>
-            </div>
+              </button>
+              {added ? (
+                <span className="probe-picker-added-actions">
+                  <span className="probe-picker-added">{messages.alreadyAdded}</span>
+                  <button
+                    type="button"
+                    className="probe-picker-remove"
+                    aria-label={messages.removeAddedProbe(group.network, group.asn)}
+                    onClick={() => onRemoveGroup(group)}
+                  >
+                    <X size={12} aria-hidden="true" />
+                  </button>
+                </span>
+              ) : null}
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }

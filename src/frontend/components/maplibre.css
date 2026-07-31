@@ -16,6 +16,22 @@
   opacity: 1;
 }
 
+.map-load-error {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 50%;
+  width: min(320px, calc(100% - 32px));
+  transform: translate(-50%, -50%);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--map-control-bg);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: var(--shadow-popover);
+}
+
 .map-section .maplibregl-ctrl-group,
 .result-map .maplibregl-ctrl-group {
   overflow: hidden;

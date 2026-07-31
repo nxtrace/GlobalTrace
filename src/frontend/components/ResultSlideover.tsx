@@ -3,6 +3,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -27,6 +28,7 @@ const MIN_HEIGHT_VH = 0.4;
 const DEFAULT_HEIGHT_VH = 0.7;
 const MAX_HEIGHT_VH = 0.92;
 const MIN_HEIGHT_PX = 280;
+const KEYBOARD_RESIZE_STEP_PX = 24;
 
 type ResizeSession = {
   pointerId: number;
@@ -50,6 +52,8 @@ export function ResultSlideover({
   const [resizing, setResizing] = useState(false);
   const resizeRef = useRef<ResizeSession | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
+  const peekRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
@@ -63,9 +67,9 @@ export function ResultSlideover({
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
       if (document.querySelector(".overlay")) return;
-      onClose();
+      if (event.key === "Tab") trapFocus(event, panelRef.current);
+      if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -73,18 +77,56 @@ export function ResultSlideover({
 
   useEffect(() => {
     if (!open) return;
+    const appShell = document.querySelector<HTMLElement>(".app-shell");
+    const wasInert = appShell?.inert ?? false;
+    if (appShell) appShell.inert = true;
+    return () => {
+      if (appShell?.isConnected) appShell.inert = wasInert;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const panel = panelRef.current;
     if (!panel) return;
+    const activeElement = document.activeElement;
+    previousFocusRef.current =
+      activeElement instanceof HTMLElement && activeElement !== document.body
+        ? activeElement
+        : null;
     const timer = window.setTimeout(() => {
       if (!panel.contains(document.activeElement)) {
-        const focusable = panel.querySelector<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        (focusable ?? panel).focus({ preventScroll: true });
+        (getFocusableElements(panel)[0] ?? panel).focus({ preventScroll: true });
       }
     }, SLIDE_MS);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      const previousFocus = previousFocusRef.current;
+      previousFocusRef.current = null;
+      window.requestAnimationFrame(() => {
+        const target =
+          previousFocus?.isConnected && !previousFocus.closest("[inert]")
+            ? previousFocus
+            : peekRef.current;
+        if (target?.isConnected) target.focus({ preventScroll: true });
+      });
+    };
   }, [open]);
+
+  useEffect(() => {
+    if (!resizing) return;
+    const resetFromWindow = (event: PointerEvent) => {
+      if (resizeRef.current?.pointerId !== event.pointerId) return;
+      resizeRef.current = null;
+      setResizing(false);
+    };
+    window.addEventListener("pointerup", resetFromWindow);
+    window.addEventListener("pointercancel", resetFromWindow);
+    return () => {
+      window.removeEventListener("pointerup", resetFromWindow);
+      window.removeEventListener("pointercancel", resetFromWindow);
+    };
+  }, [resizing]);
 
   useEffect(() => {
     const syncSize = () => {
@@ -131,6 +173,26 @@ export function ResultSlideover({
     setResizing(false);
   };
 
+  const cancelResize = (pointerId: number) => {
+    if (resizeRef.current?.pointerId !== pointerId) return;
+    resizeRef.current = null;
+    setResizing(false);
+  };
+
+  const resizeFromKeyboard = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    let next: number | null = null;
+    if (event.key === "Home") next = isMobile ? minPanelHeight() : Math.min(MIN_WIDTH_PX, maxPanelWidth());
+    if (event.key === "End") next = isMobile ? maxPanelHeight() : maxPanelWidth();
+    if (isMobile && event.key === "ArrowUp") next = height + KEYBOARD_RESIZE_STEP_PX;
+    if (isMobile && event.key === "ArrowDown") next = height - KEYBOARD_RESIZE_STEP_PX;
+    if (!isMobile && event.key === "ArrowLeft") next = width + KEYBOARD_RESIZE_STEP_PX;
+    if (!isMobile && event.key === "ArrowRight") next = width - KEYBOARD_RESIZE_STEP_PX;
+    if (next === null) return;
+    event.preventDefault();
+    if (isMobile) setHeight(clampPanelHeight(next));
+    else setWidth(clampPanelWidth(next));
+  };
+
   const closeFromBackdrop = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) onClose();
   };
@@ -159,6 +221,7 @@ export function ResultSlideover({
         }
       >
         <button
+          ref={peekRef}
           type="button"
           className="result-slideover-peek"
           hidden={open}
@@ -169,18 +232,6 @@ export function ResultSlideover({
           <span className="result-slideover-peek-grip" aria-hidden="true" />
           <span className="result-slideover-peek-label">{title}</span>
         </button>
-
-        <div
-          className="result-slideover-resize"
-          hidden={!open}
-          role="separator"
-          aria-orientation={isMobile ? "horizontal" : "vertical"}
-          aria-label={isMobile ? messages.resizeResultPanelHeight : messages.resizeResultPanel}
-          onPointerDown={startResize}
-          onPointerMove={moveResize}
-          onPointerUp={endResize}
-          onPointerCancel={endResize}
-        />
 
         <section
           ref={panelRef}
@@ -193,9 +244,67 @@ export function ResultSlideover({
           inert={!open ? true : undefined}
         >
           <div className="result-slideover-body">{children}</div>
+          <div
+            className="result-slideover-resize"
+            hidden={!open}
+            role="separator"
+            tabIndex={open ? 0 : -1}
+            aria-orientation={isMobile ? "horizontal" : "vertical"}
+            aria-label={isMobile ? messages.resizeResultPanelHeight : messages.resizeResultPanel}
+            aria-valuemin={isMobile ? minPanelHeight() : Math.min(MIN_WIDTH_PX, maxPanelWidth())}
+            aria-valuemax={isMobile ? maxPanelHeight() : maxPanelWidth()}
+            aria-valuenow={isMobile ? height : width}
+            onKeyDown={resizeFromKeyboard}
+            onPointerDown={startResize}
+            onPointerMove={moveResize}
+            onPointerUp={endResize}
+            onPointerCancel={(event) => cancelResize(event.pointerId)}
+            onLostPointerCapture={(event) => cancelResize(event.pointerId)}
+          />
         </section>
       </aside>
     </>
+  );
+}
+
+function trapFocus(event: KeyboardEvent, dialog: HTMLElement | null): void {
+  if (!dialog) return;
+  const focusableElements = getFocusableElements(dialog);
+  if (!focusableElements.length) {
+    event.preventDefault();
+    dialog.focus({ preventScroll: true });
+    return;
+  }
+
+  const first = focusableElements[0];
+  const last = focusableElements[focusableElements.length - 1];
+  const activeElement = document.activeElement;
+  if (!dialog.contains(activeElement)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus({ preventScroll: true });
+    return;
+  }
+  if (event.shiftKey && activeElement === first) {
+    event.preventDefault();
+    last.focus({ preventScroll: true });
+    return;
+  }
+  if (!event.shiftKey && activeElement === last) {
+    event.preventDefault();
+    first.focus({ preventScroll: true });
+  }
+}
+
+function getFocusableElements(root: HTMLElement): HTMLElement[] {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      "a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])",
+    ),
+  ).filter(
+    (element) =>
+      !element.hasAttribute("disabled") &&
+      element.getAttribute("aria-hidden") !== "true" &&
+      !element.closest("[inert]"),
   );
 }
 

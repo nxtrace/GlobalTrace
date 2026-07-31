@@ -2,6 +2,7 @@ import {
   asnSuggestionLabel,
   type ProbeFilterSuggestions,
 } from "../../../shared/filters";
+import { useMemo } from "react";
 import type { TraceFilters } from "../../../shared/types";
 import { countrySuggestionLabel } from "../../lib/countryNames";
 import { useI18n } from "../../i18n";
@@ -22,26 +23,34 @@ export function ExactFiltersForm({
   className = "exact-filters-form",
 }: ExactFiltersFormProps) {
   const messages = useI18n();
-  const countryOptions = filterSuggestions.countries
-    .map((code) => {
-      const label = countrySuggestionLabel(code, messages.locale);
-      return {
-        value: code,
-        label,
-        searchText: `${label} ${code}`,
-      };
-    })
-    .sort((left, right) =>
-      left.label.localeCompare(right.label, messages.locale),
-    );
-  const asnOptions = filterSuggestions.asns.map((asn) => {
-    const label = asnSuggestionLabel(asn, filterSuggestions.asnNetworks);
-    return {
-      value: asn,
-      label,
-      searchText: `${label} ${asn}`,
-    };
-  });
+  const countryOptions = useMemo(
+    () =>
+      filterSuggestions.countries
+        .map((code) => {
+          const label = countrySuggestionLabel(code, messages.locale);
+          return {
+            value: code,
+            label,
+            searchText: `${label} ${code}`,
+          };
+        })
+        .sort((left, right) =>
+          left.label.localeCompare(right.label, messages.locale),
+        ),
+    [filterSuggestions.countries, messages.locale],
+  );
+  const asnOptions = useMemo(
+    () =>
+      filterSuggestions.asns.map((asn) => {
+        const label = asnSuggestionLabel(asn, filterSuggestions.asnNetworks);
+        return {
+          value: asn,
+          label,
+          searchText: `${label} ${asn}`,
+        };
+      }),
+    [filterSuggestions.asnNetworks, filterSuggestions.asns],
+  );
 
   const setFilter = (key: keyof TraceFilters, value: string | boolean) => {
     const nextValue = cleanFilterValue(value);

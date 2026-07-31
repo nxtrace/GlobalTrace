@@ -289,7 +289,12 @@ function ShareButton({ measurementId }: { measurementId: string }) {
   }, [measurementId]);
 
   const copy = async () => {
-    await navigator.clipboard?.writeText(shareUrl);
+    if (!navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      return;
+    }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1200);
   };
@@ -532,16 +537,19 @@ function ResultMap({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const dataRef = useRef(data);
   const selectedRouteNodeIdRef = useRef(selectedRouteNodeId);
+  const mapFocusRequestRef = useRef(mapFocusRequest);
   const previewRouteNodeIdRef = useRef<string | null>(null);
   const onSelectRouteRef = useRef(onSelectRoute);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const routeMarkersRef = useRef<maplibregl.Marker[]>([]);
   const loadedRef = useRef(false);
+  const [mapLoadError, setMapLoadError] = useState(false);
   const [pinnedGroupId, setPinnedGroupId] = useState<string | null>(null);
   const [previewRouteNodeId, setPreviewRouteNodeId] = useState<string | null>(null);
   const expandedGroupId = pinnedGroupId;
   dataRef.current = data;
   selectedRouteNodeIdRef.current = selectedRouteNodeId;
+  mapFocusRequestRef.current = mapFocusRequest;
   previewRouteNodeIdRef.current = previewRouteNodeId;
   onSelectRouteRef.current = onSelectRoute;
 
@@ -565,6 +573,8 @@ function ResultMap({
     if (!containerRef.current || mapRef.current) return;
     const container = containerRef.current;
     container.classList.remove("is-map-ready");
+    let revealFrameId: number | null = null;
+    let resizeFrameId: number | null = null;
     const map = new maplibregl.Map({
       container,
       style: mapStyleUrl,
@@ -575,7 +585,14 @@ function ResultMap({
     });
     addMapAttribution(map);
     let stopPackets: (() => void) | null = null;
-    map.on("load", () => {
+    const handleMapError = () => {
+      if (loadedRef.current) return;
+      container.classList.add("is-map-ready");
+      setMapLoadError(true);
+    };
+    const handleMapLoad = () => {
+      container.classList.remove("is-map-ready");
+      setMapLoadError(false);
       applyMapPalette(map);
       map.setProjection({ type: mapProjection });
       map.addSource("result", { type: "geojson", data: dataRef.current.featureCollection });
@@ -659,17 +676,27 @@ function ResultMap({
         setPinnedGroupId,
       });
       applyRouteNodePopup(map, selectedRouteNodeIdRef.current, previewRouteNodeIdRef.current, dataRef.current, popupRef);
-      fitResultMap(map, dataRef.current, mapProjection);
-      requestAnimationFrame(() => {
+      const pendingNodeId = selectedRouteNodeIdRef.current;
+      const pendingNode = pendingNodeId ? dataRef.current.routeNodeById.get(pendingNodeId) : undefined;
+      if (mapFocusRequestRef.current > 0 && pendingNode) {
+        focusResultRouteNode(map, pendingNode, popupRef);
+      } else {
+        fitResultMap(map, dataRef.current, mapProjection);
+      }
+      revealFrameId = window.requestAnimationFrame(() => {
+        revealFrameId = null;
         container.classList.add("is-map-ready");
       });
-    });
+    };
+    map.on("error", handleMapError);
+    map.on("load", handleMapLoad);
     const resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => map.resize());
     resizeObserver?.observe(container);
-    requestAnimationFrame(() => {
+    resizeFrameId = window.requestAnimationFrame(() => {
+      resizeFrameId = null;
       map.resize();
-      fitResultMap(map, dataRef.current, mapProjection);
+      if (!loadedRef.current) fitResultMap(map, dataRef.current, mapProjection);
     });
     mapRef.current = map;
     const unsubscribePalette = subscribeMapPaletteScheme((scheme) => applyMapPalette(map, scheme));
@@ -683,6 +710,10 @@ function ResultMap({
     return () => {
       unsubscribePalette();
       resizeObserver?.disconnect();
+      if (revealFrameId !== null) window.cancelAnimationFrame(revealFrameId);
+      if (resizeFrameId !== null) window.cancelAnimationFrame(resizeFrameId);
+      map.off("error", handleMapError);
+      map.off("load", handleMapLoad);
       stopPackets?.();
       clearResultRouteMarkers(routeMarkersRef);
       popupRef.current?.remove();
@@ -744,11 +775,32 @@ function ResultMap({
     const map = mapRef.current;
     const node = selectedRouteNodeId ? data.routeNodeById.get(selectedRouteNodeId) : undefined;
     if (!map || !loadedRef.current || !node || mapFocusRequest === 0) return;
-    showRouteNodePopup(map, node, popupRef);
-    map.easeTo({ center: node.coordinate, duration: 420, essential: true });
+    focusResultRouteNode(map, node, popupRef);
   }, [data, mapFocusRequest, selectedRouteNodeId]);
 
-  return <div className={`result-map${mapProjection === "globe" ? " result-map-globe" : ""}`} data-map-projection={mapProjection} ref={containerRef} aria-label="trace result map" />;
+  return (
+    <div
+      className={`result-map${mapProjection === "globe" ? " result-map-globe" : ""}`}
+      data-map-projection={mapProjection}
+      ref={containerRef}
+      aria-label="trace result map"
+    >
+      {mapLoadError && (
+        <div className="map-load-error" role="alert">
+          {messages.mapLoadError}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function focusResultRouteNode(
+  map: maplibregl.Map,
+  node: ResultRouteNode,
+  popupRef: MutableRefObject<maplibregl.Popup | null>,
+): void {
+  showRouteNodePopup(map, node, popupRef);
+  map.easeTo({ center: node.coordinate, duration: 420, essential: true });
 }
 
 function routeTabStyle(index: number): CSSProperties {
@@ -867,6 +919,11 @@ function renderResultRouteMarkers({
       onPreviewRouteNode,
       setPinnedGroupId,
     });
+    element.setAttribute("role", "group");
+    element.setAttribute(
+      "aria-label",
+      group.nodes.length === 1 ? messages.selectTtl(group.label) : messages.expandTtl(group.label),
+    );
     const marker = new maplibregl.Marker({
       element,
       offset: group.routeOffset,

@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, type KeyboardEvent } from "react";
 import { KeyRound, Map as MapIcon, Monitor, Table2 } from "lucide-react";
 import type { FilterPanelProps } from "../FilterPanel";
 import { Input } from "../ui/input";
@@ -7,11 +7,35 @@ import { Switch } from "../ui/switch";
 import { useI18n } from "../../i18n";
 
 const NEXTTRACE_API_TOKEN_URL = "https://api.nxtrace.org/v4/api-tokens";
+const RESULT_CONTENT_ORDERS = ["map-first", "table-first"] as const;
 
 export function AdvancedParamsPanel(props: FilterPanelProps) {
   const messages = useI18n();
   const globalpingTokenStatusId = useId();
   const nexttraceTokenStatusId = useId();
+  const handleResultOrderKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentOrder: FilterPanelProps["resultContentOrder"],
+  ) => {
+    const currentIndex = RESULT_CONTENT_ORDERS.indexOf(currentOrder);
+    let nextIndex: number | undefined;
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      nextIndex = (currentIndex - 1 + RESULT_CONTENT_ORDERS.length) % RESULT_CONTENT_ORDERS.length;
+    } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      nextIndex = (currentIndex + 1) % RESULT_CONTENT_ORDERS.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = RESULT_CONTENT_ORDERS.length - 1;
+    }
+    if (nextIndex == null) return;
+    event.preventDefault();
+    const nextOrder = RESULT_CONTENT_ORDERS[nextIndex];
+    props.onResultContentOrderChange(nextOrder);
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLElement>(`[data-result-order="${nextOrder}"]`)
+      ?.focus();
+  };
   return (
     <div className="advanced-params-panel">
       <section className="advanced-params-section">
@@ -35,7 +59,10 @@ export function AdvancedParamsPanel(props: FilterPanelProps) {
                   : "display-mode-option"
               }
               aria-checked={props.resultContentOrder === "map-first"}
+              tabIndex={props.resultContentOrder === "map-first" ? 0 : -1}
+              data-result-order="map-first"
               onClick={() => props.onResultContentOrderChange("map-first")}
+              onKeyDown={(event) => handleResultOrderKeyDown(event, "map-first")}
             >
               <MapIcon size={14} aria-hidden="true" />
               <span>{messages.mapFirst}</span>
@@ -49,7 +76,10 @@ export function AdvancedParamsPanel(props: FilterPanelProps) {
                   : "display-mode-option"
               }
               aria-checked={props.resultContentOrder === "table-first"}
+              tabIndex={props.resultContentOrder === "table-first" ? 0 : -1}
+              data-result-order="table-first"
               onClick={() => props.onResultContentOrderChange("table-first")}
+              onKeyDown={(event) => handleResultOrderKeyDown(event, "table-first")}
             >
               <Table2 size={14} aria-hidden="true" />
               <span>{messages.tableFirst}</span>
@@ -102,7 +132,7 @@ export function AdvancedParamsPanel(props: FilterPanelProps) {
         clearLabel={messages.clear}
         helpHref={NEXTTRACE_API_TOKEN_URL}
         helpLabel={messages.getNexttraceToken}
-        helpText={messages.getNexttraceToken.replace("NextTrace API ", "")}
+        helpText={messages.getNexttraceTokenShort}
         onDraftChange={props.onNexttraceTokenDraftChange}
         onRememberedChange={props.onNexttraceTokenRememberedChange}
         onSave={props.onSaveNexttraceToken}

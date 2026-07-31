@@ -536,16 +536,21 @@ td,
   cursor: pointer;
 }
 
-.panel-title-row .brand-home-link:focus,
-.panel-title-row .brand-home-link:focus-visible,
-.panel-title-row .panel-action-button:focus,
-.panel-title-row .panel-action-button:focus-visible,
-.panel-title-actions button:focus,
-.panel-title-actions button:focus-visible {
+.panel-title-row .brand-home-link:focus:not(:focus-visible),
+.panel-title-row .panel-action-button:focus:not(:focus-visible),
+.panel-title-actions button:focus:not(:focus-visible) {
   outline: none;
   box-shadow: none;
   --tw-ring-shadow: 0 0 #0000;
   --tw-ring-offset-shadow: 0 0 #0000;
+}
+
+.panel-title-row .brand-home-link:focus-visible,
+.panel-title-row .panel-action-button:focus-visible,
+.panel-title-actions button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--focus-ring-soft);
 }
 
 h1,
@@ -2432,7 +2437,9 @@ summary:focus-visible {
   overflow-x: hidden;
   overflow-y: auto;
   padding: 4px;
+  margin: 0;
   box-sizing: border-box;
+  list-style: none;
   scrollbar-color: var(--control-border) transparent;
 }
 
@@ -2460,19 +2467,42 @@ summary:focus-visible {
 }
 
 .probe-picker-row.is-added,
-.probe-picker-row[aria-selected="true"] {
+.probe-picker-row.is-selected {
   background: transparent;
+}
+
+.probe-picker-row.is-added {
   cursor: default;
 }
 
 .probe-picker-row-pick {
+  width: 100%;
+  height: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
   gap: 1px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
   overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+}
+
+.probe-picker-row-pick:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.probe-picker-row-pick:focus-visible,
+.probe-picker-remove:focus-visible,
+.probe-picker-close:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 .probe-picker-row-name {
@@ -2602,7 +2632,7 @@ summary:focus-visible {
   z-index: 3;
   border: 1px solid var(--focus-ring);
   border-radius: 4px;
-  background: rgba(0, 112, 243, 0.1);
+  background: color-mix(in srgb, var(--focus-ring) 10%, transparent);
   box-shadow: none;
   pointer-events: none;
 }
@@ -2658,12 +2688,17 @@ summary:focus-visible {
   color: var(--ink);
 }
 
-.probe-table-filter-button:focus,
-.probe-table-filter-button:focus-visible {
+.probe-table-filter-button:focus:not(:focus-visible) {
   outline: none;
   box-shadow: none;
   --tw-ring-shadow: 0 0 #0000;
   --tw-ring-offset-shadow: 0 0 #0000;
+}
+
+.probe-table-filter-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--focus-ring-soft);
 }
 
 .probe-table-filter-popover {
@@ -3046,6 +3081,27 @@ tbody tr:hover {
   cursor: pointer;
 }
 
+.probe-table-location-button {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.probe-table-location-button:hover {
+  color: var(--link);
+}
+
+.probe-table-location-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .probe-table-row-actions {
   display: inline-flex;
   align-items: center;
@@ -3055,7 +3111,7 @@ tbody tr:hover {
 }
 
 .probe-table tr.is-selected {
-  background: rgba(0, 112, 243, 0.04);
+  background: color-mix(in srgb, var(--focus-ring) 4%, transparent);
 }
 
 .tag-stack {
@@ -3072,7 +3128,7 @@ tbody tr:hover {
 }
 
 .kind-badge.eyeball {
-  background: rgba(0, 112, 243, 0.1);
+  background: color-mix(in srgb, var(--link) 10%, transparent);
   color: var(--link);
 }
 
@@ -3677,6 +3733,11 @@ tbody tr:hover {
   box-shadow:
     0 2px 4px color-mix(in srgb, var(--ink) 12%, transparent),
     0 10px 22px color-mix(in srgb, var(--ink) 20%, transparent);
+}
+
+.result-slideover-resize:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
 @media (min-width: 821px) {
@@ -4757,6 +4818,10 @@ tbody tr:hover {
 .probe-drawer-close,
 .probe-drawer-toggle {
   display: none;
+}
+
+.probe-drawer-toggle[hidden] {
+  display: none !important;
 }
 
 /* Table-first: pin the shell to the viewport and stretch the probe list. */

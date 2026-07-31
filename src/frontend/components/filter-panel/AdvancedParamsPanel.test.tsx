@@ -33,6 +33,7 @@ describe("AdvancedParamsPanel", () => {
       "href",
       "https://api.nxtrace.org/v4/api-tokens",
     );
+    expect(screen.getByRole("link", { name: "获取 NextTrace API Token" })).toHaveTextContent("获取 Token");
 
     fireEvent.click(screen.getByRole("button", { name: "保存 Globalping" }));
     fireEvent.click(screen.getByRole("button", { name: "清除 Globalping" }));
@@ -92,6 +93,38 @@ describe("AdvancedParamsPanel", () => {
     fireEvent.click(within(layoutGroup).getByRole("radio", { name: "表格优先" }));
 
     expect(onResultContentOrderChange).toHaveBeenCalledWith("table-first");
+  });
+
+  it.each([
+    ["map-first", "ArrowLeft", "table-first"],
+    ["map-first", "ArrowUp", "table-first"],
+    ["table-first", "ArrowRight", "map-first"],
+    ["table-first", "ArrowDown", "map-first"],
+  ] as const)("moves and selects from %s with %s", (current, key, expected) => {
+    const onResultContentOrderChange = vi.fn();
+    render(
+      <AdvancedParamsPanel
+        {...defaultProps({
+          resultContentOrder: current,
+          onResultContentOrderChange,
+        })}
+      />,
+    );
+
+    const currentOption = screen.getByRole("radio", {
+      name: current === "map-first" ? "地图优先" : "表格优先",
+    });
+    const expectedOption = screen.getByRole("radio", {
+      name: expected === "map-first" ? "地图优先" : "表格优先",
+    });
+    expect(currentOption).toHaveAttribute("tabindex", "0");
+    expect(expectedOption).toHaveAttribute("tabindex", "-1");
+
+    currentOption.focus();
+    fireEvent.keyDown(currentOption, { key });
+
+    expect(onResultContentOrderChange).toHaveBeenCalledWith(expected);
+    expect(expectedOption).toHaveFocus();
   });
 });
 

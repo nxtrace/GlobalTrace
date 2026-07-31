@@ -44,6 +44,7 @@ const maplibreMock = vi.hoisted(() => {
     };
 
     readonly canvas = document.createElement("div");
+    readonly styleLayers = FakeMap.styleLayers.map((layer) => ({ ...layer }));
     readonly sources = new Map<string, FakeSource>();
     readonly layers: Record<string, unknown>[] = [];
     readonly layerHandlers = new Map<string, FakeLayerHandler>();
@@ -106,8 +107,12 @@ const maplibreMock = vi.hoisted(() => {
       return this;
     }
 
-    off(event: string, layer: string) {
-      this.layerHandlers.delete(`${event}:${layer}`);
+    off(event: string, layerOrHandler: string | (() => void)) {
+      if (typeof layerOrHandler === "string") {
+        this.layerHandlers.delete(`${event}:${layerOrHandler}`);
+      } else {
+        this.eventHandlers.delete(event);
+      }
       return this;
     }
 
@@ -134,7 +139,7 @@ const maplibreMock = vi.hoisted(() => {
     }
 
     getStyle() {
-      return { layers: FakeMap.styleLayers };
+      return { layers: this.styleLayers };
     }
 
     setStyle(_style: unknown, _options?: unknown) {
@@ -194,6 +199,10 @@ const maplibreMock = vi.hoisted(() => {
       this.eventHandlers.get("load")?.();
     }
 
+    triggerError() {
+      this.eventHandlers.get("error")?.();
+    }
+
     triggerLayer(event: string, layer: string, point = { x: 10, y: 10 }) {
       return this.layerHandlers.get(`${event}:${layer}`)?.({ point });
     }
@@ -222,6 +231,7 @@ afterEach(() => {
   maplibreMock.FakeMap.instances = [];
   maplibreMock.FakeMap.canvasRect = { width: 1000, height: 500 };
   maplibreMock.FakeMap.cameraForBoundsResult = { center: [12, 30], zoom: 0.92, bearing: 0 };
+  vi.unstubAllGlobals();
   setWindowSize(1024, 768);
 });
 
@@ -232,6 +242,47 @@ describe("ProbeMap", () => {
     expect(screen.getByText("没有匹配的在线 probe").closest(".map-empty")).not.toBeNull();
     expect(document.querySelector(".map-container .map-empty")).toBeNull();
     expect(document.querySelector(".maplibregl-canvas")).not.toBeNull();
+  });
+
+  it("reveals an accessible error when startup fails and clears it if load later succeeds", () => {
+    renderMap();
+    const map = latestMap();
+    const container = screen.getByLabelText("probe map").querySelector(".map-container");
+
+    act(() => map.triggerError());
+
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(container).toHaveClass("is-map-ready");
+
+    act(() => map.triggerLoad());
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    act(() => map.triggerError());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("cancels pending map animation frames on unmount", () => {
+    let nextFrameId = 0;
+    const frames = new Map<number, FrameRequestCallback>();
+    const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+      nextFrameId += 1;
+      frames.set(nextFrameId, callback);
+      return nextFrameId;
+    });
+    const cancelAnimationFrame = vi.fn((id: number) => {
+      frames.delete(id);
+    });
+    vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
+    vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+    const { unmount } = renderMap();
+    const map = latestMap();
+    act(() => map.triggerLoad());
+
+    unmount();
+
+    expect(cancelAnimationFrame.mock.calls.map(([id]) => id)).toEqual(expect.arrayContaining([1, 2]));
+    for (const callback of frames.values()) callback(0);
+    expect(frames.size).toBe(0);
   });
 
   it("keeps the curated default center for worldwide probes and renders unclustered glow points", () => {
@@ -352,12 +403,12 @@ describe("ProbeMap", () => {
       void map.triggerLayer("click", "probe-points");
     });
 
-    expect(screen.getByRole("dialog", { name: "San Jose probe candidates" })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "San Jose 探针候选" })).toBeVisible();
     expect(screen.getByText("+ 4")).toBeVisible();
-    expect(screen.getByRole("option", { name: "Oracle AS31898 ×2" })).toBeVisible();
-    expect(screen.getByRole("option", { name: "LeaseWeb AS7203 ×1" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Oracle AS31898 ×2" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "LeaseWeb AS7203 ×1" })).toBeVisible();
 
-    fireEvent.click(screen.getByRole("option", { name: "Oracle AS31898 ×2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Oracle AS31898 ×2" }));
 
     expect(onPickAsn).toHaveBeenCalledWith({
       magic: "San Jose+US+AS31898",
@@ -367,10 +418,11 @@ describe("ProbeMap", () => {
       network: "Oracle",
       count: 2,
     });
-    expect(screen.getByRole("dialog", { name: "San Jose probe candidates" })).toBeVisible();
-    const addedOption = screen.getByRole("option", { name: "Oracle AS31898 ×2 已添加" });
-    expect(addedOption).toHaveAttribute("aria-selected", "true");
-    expect(addedOption.querySelector(".probe-picker-added")).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "San Jose 探针候选" })).toBeVisible();
+    const addedOption = screen.getByRole("button", { name: "Oracle AS31898 ×2 已添加" });
+    expect(addedOption).toHaveAttribute("aria-pressed", "true");
+    expect(addedOption).toBeDisabled();
+    expect(addedOption.closest("li")?.querySelector(".probe-picker-added")).toBeVisible();
     expect(screen.getByRole("button", { name: "移除 Oracle AS31898" })).toBeVisible();
   });
 
@@ -385,7 +437,7 @@ describe("ProbeMap", () => {
     act(() => {
       void map.triggerLayer("click", "probe-points");
     });
-    fireEvent.click(screen.getByRole("option", { name: "Oracle AS31898 ×2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Oracle AS31898 ×2" }));
     fireEvent.click(screen.getByRole("button", { name: "移除 Oracle AS31898" }));
 
     expect(onRemoveAsn).toHaveBeenCalledWith({
@@ -410,9 +462,9 @@ describe("ProbeMap", () => {
     });
 
     expect(screen.getByText("+ 4")).toBeVisible();
-    expect(screen.getByRole("option", { name: "Oracle AS31898 ×2" })).toBeVisible();
-    expect(screen.getByRole("option", { name: "LeaseWeb AS7203 ×1" })).toBeVisible();
-    expect(screen.getByRole("option", { name: "xTom AS6233 ×1" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Oracle AS31898 ×2" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "LeaseWeb AS7203 ×1" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "xTom AS6233 ×1" })).toBeVisible();
   });
 
   it("shows a hover preview picker and hides it after leaving a point", async () => {
@@ -424,13 +476,13 @@ describe("ProbeMap", () => {
     act(() => {
       void map.triggerLayer("mouseenter", "probe-points");
     });
-    expect(screen.getByRole("dialog", { name: "San Jose probe candidates" })).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "San Jose 探针候选" })).toBeVisible();
 
     act(() => {
       void map.triggerLayer("mouseleave", "probe-points");
     });
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "San Jose probe candidates" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "San Jose 探针候选" })).toBeNull();
     });
   });
 
@@ -445,7 +497,7 @@ describe("ProbeMap", () => {
     act(() => {
       void map.triggerLayer("click", "probe-points");
     });
-    fireEvent.click(screen.getByRole("option", { name: "Comcast AS7922 ×1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Comcast AS7922 ×1" }));
 
     expect(maplibreMock.FakeMap.instances).toHaveLength(1);
     expect(map.removeCalls).toHaveLength(0);
@@ -474,6 +526,37 @@ describe("ProbeMap", () => {
       features: Array<{ properties: { selected: boolean; city: string } }>;
     };
     expect(data.features.find((feature) => feature.properties.city === "Los Angeles")?.properties.selected).toBe(true);
+  });
+
+  it("replays a pending focus request after the probe source loads", () => {
+    renderMap({
+      probes: [laProbe, deProbe, tokyoProbe],
+      focusProbe: laProbe,
+      focusToken: 1,
+      fitToken: 1,
+    });
+    const map = latestMap();
+
+    act(() => map.triggerLoad());
+
+    expect(map.easeToCalls.at(-1)).toMatchObject({
+      center: [-118.24, 34.05],
+      zoom: 5.2,
+      duration: 420,
+    });
+  });
+
+  it("replays a pending overview request after the probe source loads", () => {
+    renderMap({ probes: [laProbe, deProbe, tokyoProbe], fitToken: 1 });
+    const map = latestMap();
+
+    act(() => map.triggerLoad());
+
+    expect(map.easeToCalls.at(-1)).toMatchObject({
+      center: [90, 36],
+      zoom: 1.2,
+      duration: 420,
+    });
   });
 
   it("refits the map overview when fitToken advances", () => {

@@ -407,6 +407,35 @@ describe("FilterPanel", () => {
     expect(packets).toHaveFocus();
   });
 
+  it("keeps a cleared bounded digit field editable and restores its controlled minimum on blur", () => {
+    function PacketsHarness() {
+      const [packets, setPackets] = useState(10);
+      return (
+        <DefaultFilterPanel
+          overrides={{ packets, onPacketsChange: setPackets }}
+        />
+      );
+    }
+
+    render(<PacketsHarness />);
+    const packets = screen.getByLabelText("Packets");
+    fireEvent.focus(packets);
+
+    packets.textContent = "";
+    fireEvent.input(packets);
+    expect(packets.textContent).toBe("");
+
+    packets.textContent = "2";
+    fireEvent.input(packets);
+    expect(packets).toHaveTextContent("2");
+
+    packets.textContent = "";
+    fireEvent.input(packets);
+    expect(packets.textContent).toBe("");
+    fireEvent.blur(packets);
+    expect(packets).toHaveTextContent("1");
+  });
+
   it("keeps port digit order while typing through controlled updates", () => {
     function PortHarness() {
       const [port, setPort] = useState("");
@@ -1109,8 +1138,16 @@ describe("FilterPanel", () => {
 function renderPanel(
   overrides: Partial<ComponentProps<typeof FilterPanel>> = {},
 ) {
+  return render(<DefaultFilterPanel overrides={overrides} />);
+}
+
+function DefaultFilterPanel({
+  overrides = {},
+}: {
+  overrides?: Partial<ComponentProps<typeof FilterPanel>>;
+}) {
   const filters: TraceFilters = { magic: "world" };
-  return render(
+  return (
     <FilterPanel
       target="globalping.io"
       protocol="ICMP"
@@ -1157,7 +1194,7 @@ function renderPanel(
       onReset={vi.fn()}
       onSubmit={vi.fn()}
       {...overrides}
-    />,
+    />
   );
 }
 

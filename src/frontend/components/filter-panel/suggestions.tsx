@@ -178,6 +178,8 @@ export type SuggestionOption = {
   searchText?: string;
 };
 
+const MAX_VISIBLE_SUGGESTIONS = 8;
+
 export function SuggestionInput({
   label,
   value,
@@ -199,10 +201,10 @@ export function SuggestionInput({
   );
   const visibleOptions = useMemo(() => {
     const query = value.trim().toLowerCase();
-    if (!query) return normalizedOptions;
-    return normalizedOptions.filter((option) =>
-      option.searchText.toLowerCase().includes(query),
-    );
+    if (!query) return normalizedOptions.slice(0, MAX_VISIBLE_SUGGESTIONS);
+    return normalizedOptions
+      .filter((option) => option.searchText.toLowerCase().includes(query))
+      .slice(0, MAX_VISIBLE_SUGGESTIONS);
   }, [normalizedOptions, value]);
 
   useEffect(() => {

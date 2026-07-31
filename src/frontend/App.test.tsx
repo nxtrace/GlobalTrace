@@ -312,20 +312,24 @@ describe("App", () => {
     const drawer = document.querySelector(".probe-drawer") as HTMLElement;
     expect(drawer).not.toBeNull();
     expect(drawer.dataset.open).toBe("false");
-    expect(
-      drawer.contains(screen.getByRole("heading", { name: "在线 Probes" })),
-    ).toBe(true);
+    expect(drawer.querySelector(".probe-table-section")).toBeNull();
 
     const toggle = screen.getByRole("button", { name: "在线 Probes" });
     fireEvent.click(toggle);
     expect(drawer.dataset.open).toBe("true");
     expect(document.querySelector(".app-shell")).toHaveClass("probe-drawer-open");
     expect(screen.queryByRole("button", { name: "在线 Probes" })).toBeNull();
+    expect(await within(drawer).findByRole("heading", { name: "在线 Probes" })).toBeVisible();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "关闭在线 Probes" })).toHaveFocus();
+    });
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(drawer.dataset.open).toBe("false");
     expect(document.querySelector(".app-shell")).not.toHaveClass("probe-drawer-open");
-    expect(screen.getByRole("button", { name: "在线 Probes" })).toBeVisible();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "在线 Probes" })).toHaveFocus();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "在线 Probes" }));
     fireEvent.click(

@@ -115,6 +115,8 @@ export function useTraceLifecycle({
       setResult(current);
       setWorkspaceMode("result");
       setMessage("");
+      setMeasurementLoading(null);
+      setLoading(false);
 
       try {
         const enriched =
@@ -127,7 +129,7 @@ export function useTraceLifecycle({
         setResult(enriched);
         setMessage("");
       } catch (enrichError) {
-        if (isAbortError(enrichError)) return;
+        if (controller.signal.aborted || isAbortError(enrichError)) return;
         setMessage(
           userFacingErrorMessage(enrichError, messages.measurementLoadFailed, messages),
         );

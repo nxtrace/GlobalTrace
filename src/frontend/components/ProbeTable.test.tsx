@@ -59,8 +59,11 @@ describe("ProbeTable", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Los Angeles, US"));
+    const filterButton = screen.getByRole("button", { name: "筛选 Los Angeles AS7922" });
+    expect(filterButton).toHaveTextContent("Los Angeles, US");
+    fireEvent.click(filterButton);
     expect(onFilter).toHaveBeenCalledWith(probe);
+    expect(onFilter).toHaveBeenCalledOnce();
     expect(onPick).not.toHaveBeenCalled();
     expect(onFocus).not.toHaveBeenCalled();
   });
@@ -178,6 +181,7 @@ describe("ProbeTable", () => {
     expect(filterButton).toHaveClass("is-active");
     fireEvent.click(filterButton);
 
+    expect(screen.getByRole("dialog", { name: "精确筛选" })).toBeInTheDocument();
     expect(screen.getByText("精确筛选")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("城市"), { target: { value: "Los Angeles" } });
     expect(onFiltersChange).toHaveBeenCalledWith({

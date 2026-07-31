@@ -1819,8 +1819,14 @@ async function expectLightModePanelBoundaries(page: Page): Promise<void> {
   const state = await page.locator(".filter-panel").evaluate((node) => {
     const rootStyles = window.getComputedStyle(document.documentElement);
     const panelStyles = window.getComputedStyle(node);
+    const lineColorProbe = document.createElement("span");
+    lineColorProbe.style.color = rootStyles.getPropertyValue("--line");
+    document.body.append(lineColorProbe);
+    const lineColor = window.getComputedStyle(lineColorProbe).color;
+    lineColorProbe.remove();
     return {
       line: rootStyles.getPropertyValue("--line").trim(),
+      lineColor,
       mutedBorder: rootStyles.getPropertyValue("--muted-border").trim(),
       tableBorder: rootStyles.getPropertyValue("--table-border").trim(),
       panelBorderColor: panelStyles.borderColor,
@@ -1831,27 +1837,24 @@ async function expectLightModePanelBoundaries(page: Page): Promise<void> {
   expect(state.mutedBorder).toBe("#ebebeb");
   expect(state.tableBorder).toBe("#ebebeb");
   expect(state.panelBorderWidth).toBe("1px");
+  expect(state.panelBorderColor).toBe(state.lineColor);
 }
 
 async function expectOverlayStructure(
   page: Page,
   name: string,
 ): Promise<void> {
-  await expect(page.getByRole("dialog", { name })).toBeVisible();
-  const state = await page.evaluate(() => {
-    const overlay = document.querySelector(
-      ".overlay",
-    ) as HTMLElement | null;
-    const panel = overlay?.querySelector(
-      '[role="dialog"]',
-    ) as HTMLElement | null;
+  const dialog = page.getByRole("dialog", { name });
+  await expect(dialog).toBeVisible();
+  const state = await dialog.evaluate((panel) => {
+    const overlay = panel.closest(".overlay") as HTMLElement | null;
     const body = overlay?.querySelector(
       ".overlay-body",
     ) as HTMLElement | null;
     const overlayStyle = overlay ? window.getComputedStyle(overlay) : null;
-    const panelStyle = panel ? window.getComputedStyle(panel) : null;
+    const panelStyle = window.getComputedStyle(panel);
     const bodyStyle = body ? window.getComputedStyle(body) : null;
-    const rect = panel?.getBoundingClientRect();
+    const rect = panel.getBoundingClientRect();
     const alphaOf = (value: string) => {
       const match = value.match(/rgba?\(([^)]+)\)/);
       if (!match) return 1;
@@ -3344,7 +3347,7 @@ async function selectMapAsnAtCoordinate(
     await expectMapProjectsCoordinateInsideCanvas(page, coordinate);
     const point = await mapScreenPoint(page, coordinate);
     await page.mouse.click(point.x, point.y);
-    const option = page.getByRole("option", { name: optionName });
+    const option = page.getByRole("button", { name: optionName });
     if ((await option.count()) > 0) {
       await expect(option).toBeVisible();
       await option.click();

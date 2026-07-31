@@ -559,12 +559,7 @@ function clampEditableDigits(
 ): string {
   const digits = sanitizeEditableDigits(element);
   if (!digits) {
-    const fallback = String(min);
-    if (element.textContent !== fallback) {
-      element.textContent = fallback;
-      placeCaretAtEnd(element);
-    }
-    return fallback;
+    return "";
   }
   const next = String(Math.min(max, Math.max(min, Number(digits))));
   if (element.textContent !== next) {

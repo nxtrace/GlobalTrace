@@ -21,7 +21,7 @@ describe("collapseMapAttribution", () => {
 
     expect(element.classList.contains("maplibregl-compact")).toBe(true);
     expect(element.classList.contains("maplibregl-compact-show")).toBe(false);
-    expect(element.getAttribute("open")).toBe("");
+    expect(element).not.toHaveAttribute("open");
     expect(element.querySelector(".map-attrib-label")?.textContent).toBe("OpenFreeMap");
   });
 });
@@ -48,12 +48,15 @@ describe("addMapAttribution", () => {
     expect(element.classList.contains("maplibregl-compact-show")).toBe(false);
 
     element.classList.add("maplibregl-compact-show");
-    element.removeAttribute("open");
+    element.setAttribute("open", "");
     handlers.get("load")?.();
     expect(element.classList.contains("maplibregl-compact-show")).toBe(false);
+    expect(element).not.toHaveAttribute("open");
 
     element.classList.add("maplibregl-compact-show");
+    element.setAttribute("open", "");
     handlers.get("resize")?.();
     expect(element.classList.contains("maplibregl-compact-show")).toBe(false);
+    expect(element).not.toHaveAttribute("open");
   });
 });

@@ -179,6 +179,89 @@ describe("worker API", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a hostile Origin even when Sec-Fetch-Site claims same-origin", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://evil.test",
+          "Sec-Fetch-Site": "same-origin",
+        },
+        body: JSON.stringify({ measurementId: "m-hostile" }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects same-site requests from a sibling origin", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://sibling.globaltrace.test",
+          "Sec-Fetch-Site": "same-site",
+        },
+        body: JSON.stringify({ measurementId: "m-sibling" }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects same-site requests without an Origin header", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Sec-Fetch-Site": "same-site",
+        },
+        body: JSON.stringify({ measurementId: "m-no-origin" }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows enrich requests from the exact request origin", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(finishedMeasurement("m-exact"))));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://globaltrace.test",
+          "Sec-Fetch-Site": "same-origin",
+        },
+        body: JSON.stringify({ measurementId: "m-exact" }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
   it("allows same-origin enrich requests proxied with a rewritten upstream origin", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(finishedMeasurement("m-proxy"))));
     vi.stubGlobal("fetch", fetchMock);
@@ -198,6 +281,27 @@ describe("worker API", () => {
 
     expect(response.status).toBe(200);
     expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it("rejects enrich requests with a malformed Origin header", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await createApp().fetch(
+      new Request("https://globaltrace.test/api/trace/enrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "not a valid origin",
+          "Sec-Fetch-Site": "same-origin",
+        },
+        body: JSON.stringify({ measurementId: "m-malformed" }),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects missing measurement IDs before fetching Globalping", async () => {

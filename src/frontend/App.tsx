@@ -11,7 +11,6 @@ import {
 import { FilterPanel, type IpVersionSelection } from "./components/FilterPanel";
 import { Overlay } from "./components/Overlay";
 import { ProbeListDrawer } from "./components/ProbeListDrawer";
-import { ProbeTable } from "./components/ProbeTable";
 import { ResultSlideover } from "./components/ResultSlideover";
 import { Button } from "./components/ui/button";
 import { Surface } from "./components/ui/surface";
@@ -62,6 +61,7 @@ const NEXTTRACE_TOKEN_STORAGE_KEY = "globaltrace.nexttraceApiToken";
 const TRACE_PORT_STORAGE_KEY = "globaltrace.tracePort";
 const TRACE_PACKETS_STORAGE_KEY = "globaltrace.tracePackets";
 const PROBE_DRAWER_ID = "probe-list-drawer";
+const PROBE_DRAWER_QUERY = "(min-width: 901px)";
 
 type AppRoute = "/" | "/about";
 
@@ -72,6 +72,7 @@ interface StoredTokenState {
 
 const AboutPage = lazy(() => import("./components/AboutPage").then((module) => ({ default: module.AboutPage })));
 const ProbeMap = lazy(() => import("./components/ProbeMap").then((module) => ({ default: module.ProbeMap })));
+const ProbeTable = lazy(() => import("./components/ProbeTable").then((module) => ({ default: module.ProbeTable })));
 const ResultsView = lazy(() => import("./components/ResultsView").then((module) => ({ default: module.ResultsView })));
 
 export function App() {
@@ -126,6 +127,7 @@ export function App() {
   const [mapFocusToken, setMapFocusToken] = useState(0);
   const [mapFitToken, setMapFitToken] = useState(0);
   const [probeDrawerOpen, setProbeDrawerOpen] = useState(false);
+  const [probeDrawerEnabled, setProbeDrawerEnabled] = useState(readProbeDrawerEnabled);
   const bootstrappedRef = useRef(false);
   const mapSelectionLimitBeforeRef = useRef<number | null>(null);
   const mapSelectionLimitManuallyChangedRef = useRef(false);
@@ -195,6 +197,18 @@ export function App() {
     filters.network,
     filters.tag,
   ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(PROBE_DRAWER_QUERY);
+    const sync = () => {
+      setProbeDrawerEnabled(media.matches);
+      if (!media.matches) setProbeDrawerOpen(false);
+    };
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
   const filterSuggestions = useMemo(
     () => probeFilterSuggestions(probes, filterSuggestionFilters),
     [filterSuggestionFilters, probes],
@@ -568,32 +582,34 @@ export function App() {
   }, [abortTraceLoading, sharedTraceStartedRef]);
 
   const probeTable = (
-    <ProbeTable
-      probes={tableProbes}
-      matchedCount={tableProbes.length}
-      totalProbes={probes.length}
-      status={probesStatus}
-      filters={filters}
-      filterSuggestions={filterSuggestions}
-      selectionActive={mapSelectionActive}
-      browseAll={browseAllProbes}
-      listFilterActive={listFilterActive}
-      isProbeSelected={isProbeSelected}
-      onBrowseAllChange={setBrowseAllProbes}
-      onClearListFilter={clearListFilter}
-      onFiltersChange={handleFiltersChange}
-      onPick={pickProbe}
-      onFocus={focusProbeOnMap}
-      onFilter={filterToProbe}
-      onRemove={removeProbe}
-    />
+    <Suspense fallback={<ProbeTableFallback />}>
+      <ProbeTable
+        probes={tableProbes}
+        matchedCount={tableProbes.length}
+        totalProbes={probes.length}
+        status={probesStatus}
+        filters={filters}
+        filterSuggestions={filterSuggestions}
+        selectionActive={mapSelectionActive}
+        browseAll={browseAllProbes}
+        listFilterActive={listFilterActive}
+        isProbeSelected={isProbeSelected}
+        onBrowseAllChange={setBrowseAllProbes}
+        onClearListFilter={clearListFilter}
+        onFiltersChange={handleFiltersChange}
+        onPick={pickProbe}
+        onFocus={focusProbeOnMap}
+        onFilter={filterToProbe}
+        onRemove={removeProbe}
+      />
+    </Suspense>
   );
 
   return (
     <I18nProvider locale={locale}>
       <BackgroundLayer backgroundImage={backgroundImage} />
       <main
-        className={`app-shell${backgroundImage ? " ambient-photo-ready" : ""}${resultPriority ? " result-priority" : ""}${immersiveMap ? " map-immersive" : ""}${immersiveMap && probeDrawerOpen ? " probe-drawer-open" : ""}${resultSlideoverOpen ? " result-slideover-open" : ""}${finalResult ? " result-slideover-ready" : ""}`}
+        className={`app-shell${backgroundImage ? " ambient-photo-ready" : ""}${resultPriority ? " result-priority" : ""}${immersiveMap ? " map-immersive" : ""}${immersiveMap && probeDrawerEnabled && probeDrawerOpen ? " probe-drawer-open" : ""}${resultSlideoverOpen ? " result-slideover-open" : ""}${finalResult ? " result-slideover-ready" : ""}`}
       >
         <FilterPanel
           target={target}
@@ -679,13 +695,14 @@ export function App() {
             </div>
           </div>
 
-          {immersiveMap && (
-            <>
-              {!probeDrawerOpen && (
+          {immersiveMap &&
+            (probeDrawerEnabled ? (
+              <>
                 <button
                   type="button"
                   className="probe-drawer-toggle"
-                  aria-expanded={false}
+                  hidden={probeDrawerOpen}
+                  aria-expanded={probeDrawerOpen}
                   aria-controls={PROBE_DRAWER_ID}
                   onClick={() => setProbeDrawerOpen(true)}
                 >
@@ -695,17 +712,18 @@ export function App() {
                     {mapSelectionActive ? addedProbes.length : filteredProbes.length}
                   </span>
                 </button>
-              )}
-              <ProbeListDrawer
-                id={PROBE_DRAWER_ID}
-                open={probeDrawerOpen}
-                title={messages.onlineProbes}
-                onClose={() => setProbeDrawerOpen(false)}
-              >
-                {probeTable}
-              </ProbeListDrawer>
-            </>
-          )}
+                <ProbeListDrawer
+                  id={PROBE_DRAWER_ID}
+                  open={probeDrawerOpen}
+                  title={messages.onlineProbes}
+                  onClose={() => setProbeDrawerOpen(false)}
+                >
+                  {probeDrawerOpen ? probeTable : null}
+                </ProbeListDrawer>
+              </>
+            ) : (
+              probeTable
+            ))}
         </div>
       </main>
 
@@ -763,6 +781,11 @@ function BackgroundLayer({ backgroundImage }: { backgroundImage: BackgroundImage
   return <div className="ambient-background" style={style} aria-hidden="true" />;
 }
 
+function readProbeDrawerEnabled(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return true;
+  return window.matchMedia(PROBE_DRAWER_QUERY).matches;
+}
+
 function AboutPageFallback() {
   const messages = useI18n();
   return (
@@ -787,6 +810,20 @@ function ProbeMapFallback() {
         <div className="map-container map-loading-placeholder">
           <Loader2 size={22} className="spin" />
           <span>{messages.loadingMap}</span>
+        </div>
+      </section>
+    </Surface>
+  );
+}
+
+function ProbeTableFallback() {
+  const messages = useI18n();
+  return (
+    <Surface asChild className="probe-table-section">
+      <section role="status" aria-live="polite" aria-label={messages.onlineProbes}>
+        <div className="empty-hero">
+          <Loader2 size={20} className="spin" />
+          <span>{messages.tableSubtitle("loading", 0, 0)}</span>
         </div>
       </section>
     </Surface>

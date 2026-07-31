@@ -450,4 +450,3 @@ function compareAsn(left: string, right: string): number {
   const rightNumber = Number(right.replace(/^AS/i, ""));
   return leftNumber - rightNumber || left.localeCompare(right);
 }
-
