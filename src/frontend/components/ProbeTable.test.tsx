@@ -103,7 +103,7 @@ describe("ProbeTable", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "回到所有" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "回到所有" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByRole("button", { name: "查看当前点选" })).not.toBeInTheDocument();
   });
 

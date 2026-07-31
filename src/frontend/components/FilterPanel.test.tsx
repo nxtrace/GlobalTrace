@@ -299,7 +299,8 @@ describe("FilterPanel", () => {
     const onProtocolChange = vi.fn();
     renderPanel({ onFiltersChange, onProtocolChange });
 
-    fireEvent.click(screen.getByRole("button", { name: "TCP" }));
+    const protocolGroup = screen.getByRole("group", { name: "协议" });
+    fireEvent.click(within(protocolGroup).getByRole("button", { name: "TCP" }));
     openExactFilters();
     fireEvent.click(screen.getByLabelText("Eyeball"));
 

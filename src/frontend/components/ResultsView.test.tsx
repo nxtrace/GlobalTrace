@@ -26,7 +26,7 @@ const maplibreMock = vi.hoisted(() => {
     readonly sources = new Map<string, FakeSource>();
     readonly styleLayers = FakeMap.styleLayers.map((layer) => ({ ...layer }));
     readonly layers: Record<string, unknown>[] = [];
-    readonly eventHandlers = new Map<string, (event?: unknown) => void>();
+    readonly eventHandlers = new Map<string, Set<(event?: unknown) => void>>();
     readonly layerEventHandlers = new Map<string, (event: { features?: Array<{ properties?: Record<string, unknown> }> }) => void>();
     readonly fitBoundsCalls: unknown[] = [];
     readonly easeToCalls: unknown[] = [];
@@ -35,6 +35,7 @@ const maplibreMock = vi.hoisted(() => {
     readonly setPaintPropertyCalls: unknown[] = [];
     readonly setLayoutPropertyCalls: unknown[] = [];
     readonly setProjectionCalls: unknown[] = [];
+    readonly resizeCalls: boolean[] = [];
     readonly options: Record<string, unknown>;
     readonly canvas: HTMLElement;
     readonly canvasContainer: HTMLElement;
@@ -61,7 +62,9 @@ const maplibreMock = vi.hoisted(() => {
         if (handler) this.layerEventHandlers.set(`${event}:${layerOrHandler}`, handler);
         return this;
       }
-      this.eventHandlers.set(event, layerOrHandler as (event?: unknown) => void);
+      const handlers = this.eventHandlers.get(event) ?? new Set<(event?: unknown) => void>();
+      handlers.add(layerOrHandler as (event?: unknown) => void);
+      this.eventHandlers.set(event, handlers);
       return this;
     }
 
@@ -70,7 +73,9 @@ const maplibreMock = vi.hoisted(() => {
         this.layerEventHandlers.delete(`${event}:${layerOrHandler}`);
         return this;
       }
-      this.eventHandlers.delete(event);
+      const handlers = this.eventHandlers.get(event);
+      handlers?.delete(layerOrHandler as (event?: unknown) => void);
+      if (handlers?.size === 0) this.eventHandlers.delete(event);
       return this;
     }
 
@@ -128,7 +133,9 @@ const maplibreMock = vi.hoisted(() => {
       return this;
     }
 
-    resize() {}
+    resize() {
+      this.resizeCalls.push(true);
+    }
 
     getCanvas() {
       return this.canvas;
@@ -143,11 +150,13 @@ const maplibreMock = vi.hoisted(() => {
     }
 
     triggerLoad() {
-      this.eventHandlers.get("load")?.();
+      for (const handler of this.eventHandlers.get("load") ?? []) handler();
     }
 
     triggerError(url = "about:blank") {
-      this.eventHandlers.get("error")?.({ error: { message: "map resource failed", url } });
+      for (const handler of this.eventHandlers.get("error") ?? []) {
+        handler({ error: { message: "map resource failed", url } });
+      }
     }
 
     triggerLayerClick(layer: string, properties: Record<string, unknown>) {
@@ -256,6 +265,7 @@ afterEach(() => {
     delete (window.navigator as unknown as { clipboard?: Clipboard }).clipboard;
   }
   vi.unstubAllGlobals();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -300,6 +310,7 @@ describe("ResultsView", () => {
     expect(tabsFrame).not.toBeNull();
     expect(tabs?.closest(".probe-tabs-frame")).toBe(tabsFrame);
     expect(tabsFrame?.parentElement).toHaveClass("probe-tabs-root");
+    expect(screen.getByRole("tablist", { name: "Probe 结果" })).toBe(tabs);
     for (const tab of routeTabs) {
       expect(tab).toHaveClass("probe-tab-button");
       expect(tab.className).not.toContain("data-[state=active]");
@@ -313,7 +324,7 @@ describe("ResultsView", () => {
 
     const tabs = document.querySelector(".probe-tabs-frame") as HTMLElement;
     const table = screen.getByRole("table");
-    const map = screen.getByLabelText("trace result map");
+    const map = screen.getByLabelText("诊断结果地图");
     const rawOutput = screen.getByText("raw output");
 
     expectBefore(tabs, table);
@@ -454,20 +465,39 @@ describe("ResultsView", () => {
     expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
   });
 
-  it("does not report a copied URL when clipboard access is missing or rejected", async () => {
+  it("reports a localized copy failure when clipboard access is missing", () => {
     Object.defineProperty(window.navigator, "clipboard", { configurable: true, value: undefined });
-    const { rerender } = render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
 
     fireEvent.click(screen.getByRole("button", { name: "分享" }));
-    expect(screen.queryByRole("button", { name: "已复制" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "复制失败" })).toBeInTheDocument();
+  });
 
+  it("reports a localized copy failure when clipboard access is rejected", async () => {
     const clipboard = { writeText: vi.fn().mockRejectedValue(new Error("denied")) };
     Object.defineProperty(window.navigator, "clipboard", { configurable: true, value: clipboard });
-    rerender(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
     fireEvent.click(screen.getByRole("button", { name: "分享" }));
 
     await waitFor(() => expect(clipboard.writeText).toHaveBeenCalledOnce());
-    expect(screen.queryByRole("button", { name: "已复制" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "复制失败" })).toBeInTheDocument();
+  });
+
+  it("clears the pending copy status timer on unmount", async () => {
+    vi.useFakeTimers();
+    const clearTimeout = vi.spyOn(window, "clearTimeout");
+    const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
+    Object.defineProperty(window.navigator, "clipboard", { configurable: true, value: clipboard });
+    const { unmount } = render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "分享" }));
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
+
+    unmount();
+    expect(clearTimeout).toHaveBeenCalled();
   });
 
   it("switches between probe result tabs", () => {
@@ -643,6 +673,13 @@ describe("ResultsView", () => {
     expect(onMapProjectionChange).toHaveBeenCalledWith("mercator");
   });
 
+  it("disables both result map projection buttons without a change callback", () => {
+    render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" mapProjection="globe" />);
+
+    expect(screen.getByRole("button", { name: "切换结果地图到 2D" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "切换结果地图到 3D" })).toBeDisabled();
+  });
+
   it("fits the result map to the active probe and hop GeoIP points", async () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" />);
     const map = await latestMap();
@@ -667,8 +704,8 @@ describe("ResultsView", () => {
       "circle-radius": ["case", ["boolean", ["get", "active"], false], 3, 2],
       "circle-stroke-width": ["case", ["boolean", ["get", "active"], false], 0.8, 0.4],
     });
-    expect(screen.getByLabelText("trace result map")).toHaveAttribute("data-map-projection", "mercator");
-    expect(screen.getByLabelText("trace result map")).not.toHaveClass("result-map-globe");
+    expect(screen.getByLabelText("诊断结果地图")).toHaveAttribute("data-map-projection", "mercator");
+    expect(screen.getByLabelText("诊断结果地图")).not.toHaveClass("result-map-globe");
     expect(map.fitBoundsCalls.at(-1)).toEqual([
       [
         [-122.08, 34.05],
@@ -685,7 +722,7 @@ describe("ResultsView", () => {
   it("ignores resource errors but reveals a result style failure until load", async () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" />);
     const map = await latestMap();
-    const container = screen.getByLabelText("trace result map");
+    const container = screen.getByLabelText("诊断结果地图");
 
     act(() => map.triggerError("https://tiles.example.test/0/0/0.png"));
 
@@ -693,14 +730,52 @@ describe("ResultsView", () => {
 
     act(() => map.triggerError());
 
-    expect(screen.getByRole("alert")).toBeVisible();
+    const alert = screen.getByRole("alert");
+    expect(alert).toBeVisible();
     expect(container).toHaveClass("is-map-ready");
+    expect(container).not.toContainElement(alert);
+    expect(container.parentElement).toContainElement(alert);
 
     act(() => map.triggerLoad());
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     act(() => map.triggerError());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("checks only its own slideover before skipping a resize", async () => {
+    let resizeCallback: ResizeObserverCallback | null = null;
+    class FakeResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+    const { container } = render(
+      <>
+        <div className="result-slideover" data-resizing="true" />
+        <div className="result-slideover" data-resizing="false">
+          <ResultsView result={sampleResult} mapStyleUrl="about:blank" />
+        </div>
+      </>,
+    );
+    const map = await latestMap();
+    const ownSlideover = container.querySelectorAll(".result-slideover")[1] as HTMLElement;
+    const baseline = map.resizeCalls.length;
+
+    act(() => {
+      resizeCallback?.([], {} as ResizeObserver);
+    });
+    expect(map.resizeCalls).toHaveLength(baseline + 1);
+
+    ownSlideover.dataset.resizing = "true";
+    act(() => {
+      resizeCallback?.([], {} as ResizeObserver);
+    });
+    expect(map.resizeCalls).toHaveLength(baseline + 1);
   });
 
   it("cancels pending result map animation frames on unmount", async () => {
@@ -720,9 +795,12 @@ describe("ResultsView", () => {
     const map = await latestMap();
     act(() => map.triggerLoad());
 
+    const pendingFrameIds = [...frames.keys()];
     unmount();
 
-    expect(cancelAnimationFrame.mock.calls.map(([id]) => id)).toEqual(expect.arrayContaining([1, 3]));
+    expect(cancelAnimationFrame.mock.calls.map(([id]) => id)).toEqual(
+      expect.arrayContaining(pendingFrameIds),
+    );
     for (const callback of frames.values()) callback(0);
     expect(frames.size).toBe(0);
   });
@@ -735,8 +813,8 @@ describe("ResultsView", () => {
 
     expect(map.options).toMatchObject({ aroundCenter: true });
     expect(map.setProjectionCalls).toEqual([{ type: "globe" }]);
-    expect(screen.getByLabelText("trace result map")).toHaveClass("result-map-globe");
-    expect(screen.getByLabelText("trace result map")).toHaveAttribute("data-map-projection", "globe");
+    expect(screen.getByLabelText("诊断结果地图")).toHaveClass("result-map-globe");
+    expect(screen.getByLabelText("诊断结果地图")).toHaveAttribute("data-map-projection", "globe");
     expect(map.fitBoundsCalls.at(-1)).toEqual([
       [
         [-122.08, 34.05],
@@ -805,7 +883,7 @@ describe("ResultsView", () => {
     expect(row1).not.toHaveClass("selected");
     expect(row2).not.toHaveClass("selected");
     expect(row5).not.toHaveClass("selected");
-    expect(screen.getByLabelText("trace result map")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
+    expect(screen.getByLabelText("诊断结果地图")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 2");
 
@@ -894,7 +972,7 @@ describe("ResultsView", () => {
     selectTab(screen.getByRole("tab", { name: /Tokyo/ }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText("trace result map")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
+      expect(screen.getByLabelText("诊断结果地图")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
     });
   });
 
@@ -975,7 +1053,7 @@ describe("ResultsView", () => {
       expect(screen.getByRole("tab", { name: /Tokyo/ })).toHaveAttribute("aria-selected", "true");
     });
     expect(document.querySelector(".hop-table tr.selected")).toBeNull();
-    expect(screen.getByLabelText("trace result map")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
+    expect(screen.getByLabelText("诊断结果地图")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1");
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("198.51.100.10");
@@ -1005,7 +1083,7 @@ describe("ResultsView", () => {
       expect(screen.getByRole("tab", { name: /Grouped LA/ })).toHaveAttribute("aria-selected", "true");
     });
     expect(document.querySelector(".hop-table tr.selected")).toBeNull();
-    expect(screen.getByLabelText("trace result map")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
+    expect(screen.getByLabelText("诊断结果地图")).toHaveProperty("__globalTraceSelectedRouteNodeId", null);
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("TTL 1");
     expect(maplibreMock.FakePopup.instances.at(-1)?.setHTMLCalls.at(-1)).toContain("203.0.113.1");

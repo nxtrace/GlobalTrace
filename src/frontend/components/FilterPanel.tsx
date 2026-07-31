@@ -289,7 +289,11 @@ export function FilterPanel(props: FilterPanelProps) {
                   IPv6
                 </button>
               </div>
-              <div className="parameter-pill protocol-pill" aria-label={messages.protocol}>
+              <div
+                className="parameter-pill protocol-pill"
+                role="group"
+                aria-label={messages.protocol}
+              >
                 {(["ICMP", "TCP", "UDP"] as TraceProtocol[]).map(
                   (protocol) => (
                     <button

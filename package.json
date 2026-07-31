@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "dev:worker": "npm run build && HOME=$PWD/.wrangler-home wrangler dev --local --assets dist",
+    "dev:worker": "npm run build && node scripts/dev.mjs --worker-only",
     "build": "vite build",
     "deploy:private": "npm run build && npx wrangler deploy --config wrangler.private.jsonc",
     "lint": "eslint src scripts tests *.config.ts eslint.config.js --max-warnings=0",

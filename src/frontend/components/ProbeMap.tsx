@@ -1,7 +1,7 @@
 import "./maplibre.css";
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { BoxSelect, Hand } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { FeatureCollection, Point } from "geojson";
 import { compactText, normalizeAsn } from "../../shared/filters";
 import { addMapAttribution } from "./mapAttribution";
@@ -87,15 +87,27 @@ export function ProbeMap({
   const onBoxSelectRef = useRef(onBoxSelect);
   const selectedProbeGroupKeyRef = useRef<string | null>(null);
 
-  probesRef.current = probes;
-  focusProbeRef.current = focusProbe;
-  focusTokenRef.current = focusToken;
-  fitTokenRef.current = fitToken;
-  pickerRef.current = picker;
-  onPickAsnRef.current = onPickAsn;
-  onRemoveAsnRef.current = onRemoveAsn;
-  onBoxSelectRef.current = onBoxSelect;
-  selectedProbeGroupKeyRef.current = selectedProbeGroupKey;
+  useLayoutEffect(() => {
+    probesRef.current = probes;
+    focusProbeRef.current = focusProbe;
+    focusTokenRef.current = focusToken;
+    fitTokenRef.current = fitToken;
+    pickerRef.current = picker;
+    onPickAsnRef.current = onPickAsn;
+    onRemoveAsnRef.current = onRemoveAsn;
+    onBoxSelectRef.current = onBoxSelect;
+    selectedProbeGroupKeyRef.current = selectedProbeGroupKey;
+  }, [
+    fitToken,
+    focusProbe,
+    focusToken,
+    onBoxSelect,
+    onPickAsn,
+    onRemoveAsn,
+    picker,
+    probes,
+    selectedProbeGroupKey,
+  ]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;

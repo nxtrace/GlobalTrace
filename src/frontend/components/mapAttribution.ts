@@ -28,8 +28,19 @@ export function collapseMapAttribution(map: MapLibreMap): void {
  */
 export function addMapAttribution(map: MapLibreMap, position: ControlPosition = "bottom-left"): void {
   map.addControl(new maplibregl.AttributionControl({ compact: true }), position);
-  const collapse = () => collapseMapAttribution(map);
+  const element = map.getContainer().querySelector(".maplibregl-ctrl-attrib");
+  let manuallyExpanded = false;
+  const compactButton = element?.querySelector(".maplibregl-ctrl-attrib-button");
+  compactButton?.addEventListener("click", () => {
+    manuallyExpanded = element?.classList.contains("maplibregl-compact-show") ?? false;
+  });
+  const collapse = () => {
+    manuallyExpanded = false;
+    collapseMapAttribution(map);
+  };
   collapse();
   map.on("load", collapse);
-  map.on("resize", collapse);
+  map.on("resize", () => {
+    if (!manuallyExpanded) collapseMapAttribution(map);
+  });
 }

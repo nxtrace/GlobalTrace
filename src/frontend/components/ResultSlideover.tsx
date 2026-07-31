@@ -1,5 +1,7 @@
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -107,10 +109,13 @@ export function ResultSlideover({
   const panelRef = useRef<HTMLElement | null>(null);
   const peekRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const focusWasOpenRef = useRef(open);
   const focusRestoreTimerRef = useRef<number | null>(null);
   const backdropOpenRef = useRef(open);
-  const suppressPeekClickRef = useRef(false);
-  sizeRef.current = { width, height };
+
+  useLayoutEffect(() => {
+    sizeRef.current = { width, height };
+  }, [height, width]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
@@ -143,40 +148,60 @@ export function ResultSlideover({
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
-    const panel = panelRef.current;
-    if (!panel) return;
-    const activeElement = document.activeElement;
-    previousFocusRef.current =
-      activeElement instanceof HTMLElement && activeElement !== document.body
-        ? activeElement
-        : null;
-    const timer = window.setTimeout(() => {
-      if (!panel.contains(document.activeElement)) {
-        (getFocusableElements(panel)[0] ?? panel).focus({ preventScroll: true });
-      }
-    }, SLIDE_MS);
-    return () => {
-      window.clearTimeout(timer);
-      if (focusRestoreTimerRef.current !== null) {
-        window.clearTimeout(focusRestoreTimerRef.current);
-        focusRestoreTimerRef.current = null;
-      }
+    const wasOpen = focusWasOpenRef.current;
+    focusWasOpenRef.current = open;
+    if (focusRestoreTimerRef.current !== null) {
+      window.clearTimeout(focusRestoreTimerRef.current);
+      focusRestoreTimerRef.current = null;
+    }
+    if (!open) {
+      if (!wasOpen) return;
       const previousFocus = previousFocusRef.current;
-      previousFocusRef.current = null;
       // Wait for the slide-out so focus restore does not hitch the animation.
       focusRestoreTimerRef.current = window.setTimeout(() => {
         focusRestoreTimerRef.current = null;
+        previousFocusRef.current = null;
         const target =
           previousFocus?.isConnected && !previousFocus.closest("[inert]")
             ? previousFocus
             : peekRef.current;
         if (target?.isConnected) target.focus({ preventScroll: true });
       }, SLIDE_MS);
-    };
+      return () => {
+        if (focusRestoreTimerRef.current !== null) {
+          window.clearTimeout(focusRestoreTimerRef.current);
+          focusRestoreTimerRef.current = null;
+        }
+      };
+    }
+    const panel = panelRef.current;
+    if (!panel) return;
+    const activeElement = document.activeElement;
+    if (!panel.contains(activeElement)) {
+      previousFocusRef.current =
+        activeElement instanceof HTMLElement && activeElement !== document.body
+          ? activeElement
+          : null;
+    }
+    const timer = window.setTimeout(() => {
+      if (!panel.contains(document.activeElement)) {
+        (getFocusableElements(panel)[0] ?? panel).focus({ preventScroll: true });
+      }
+    }, SLIDE_MS);
+    return () => window.clearTimeout(timer);
   }, [open]);
 
-  const finishResize = (pointerId: number) => {
+  useEffect(
+    () => () => {
+      if (focusRestoreTimerRef.current !== null) {
+        window.clearTimeout(focusRestoreTimerRef.current);
+        focusRestoreTimerRef.current = null;
+      }
+    },
+    [],
+  );
+
+  const finishResize = useCallback((pointerId: number) => {
     if (resizeRef.current?.pointerId !== pointerId) return;
     resizeRef.current = null;
     setResizing(false);
@@ -200,22 +225,32 @@ export function ResultSlideover({
     const clampedWidth = clampPanelWidth(nextWidth);
     rememberedWidthRef.current = clampedWidth;
     setWidth(clampedWidth);
-  };
-  const finishResizeRef = useRef(finishResize);
-  finishResizeRef.current = finishResize;
+  }, [isMobile, onClose]);
+
+  const abortResize = useCallback((pointerId: number) => {
+    const session = resizeRef.current;
+    if (!session || session.pointerId !== pointerId) return;
+    resizeRef.current = null;
+    sizeRef.current = {
+      width: session.startWidth,
+      height: session.startHeight,
+    };
+    setWidth(session.startWidth);
+    setHeight(session.startHeight);
+    setResizing(false);
+  }, []);
 
   useEffect(() => {
-    if (!resizing) return;
-    const resetFromWindow = (event: PointerEvent) => {
-      finishResizeRef.current(event.pointerId);
-    };
-    window.addEventListener("pointerup", resetFromWindow);
-    window.addEventListener("pointercancel", resetFromWindow);
+    if (!resizing || !open) return;
+    const finishFromWindow = (event: PointerEvent) => finishResize(event.pointerId);
+    const abortFromWindow = (event: PointerEvent) => abortResize(event.pointerId);
+    window.addEventListener("pointerup", finishFromWindow);
+    window.addEventListener("pointercancel", abortFromWindow);
     return () => {
-      window.removeEventListener("pointerup", resetFromWindow);
-      window.removeEventListener("pointercancel", resetFromWindow);
+      window.removeEventListener("pointerup", finishFromWindow);
+      window.removeEventListener("pointercancel", abortFromWindow);
     };
-  }, [resizing]);
+  }, [abortResize, finishResize, open, resizing]);
 
   useEffect(() => {
     const wasOpen = wasOpenRef.current;
@@ -263,28 +298,30 @@ export function ResultSlideover({
       setPeekRevealed(false);
     }, PEEK_UNMOUNT_DELAY_MS);
     if (isMobile) {
-      setHeight(
-        clampPanelHeight(rememberedHeightRef.current ?? defaultPanelHeight()),
+      const next = clampPanelHeight(
+        rememberedHeightRef.current ?? defaultPanelHeight(),
       );
+      sizeRef.current = { ...sizeRef.current, height: next };
+      setHeight(next);
     } else {
-      setWidth(
-        clampPanelWidth(rememberedWidthRef.current ?? defaultPanelWidth()),
+      const next = clampPanelWidth(
+        rememberedWidthRef.current ?? defaultPanelWidth(),
       );
+      sizeRef.current = { ...sizeRef.current, width: next };
+      setWidth(next);
     }
     const syncSize = () => {
       if (isMobile) {
-        setHeight((current) => {
-          const next = clampPanelHeight(current);
-          if (next >= minPanelHeight()) rememberedHeightRef.current = next;
-          return next;
-        });
+        const next = clampPanelHeight(sizeRef.current.height);
+        if (next >= minPanelHeight()) rememberedHeightRef.current = next;
+        sizeRef.current = { ...sizeRef.current, height: next };
+        setHeight(next);
         return;
       }
-      setWidth((current) => {
-        const next = clampPanelWidth(current);
-        if (next >= MIN_WIDTH_PX) rememberedWidthRef.current = next;
-        return next;
-      });
+      const next = clampPanelWidth(sizeRef.current.width);
+      if (next >= MIN_WIDTH_PX) rememberedWidthRef.current = next;
+      sizeRef.current = { ...sizeRef.current, width: next };
+      setWidth(next);
     };
     window.addEventListener("resize", syncSize);
     return () => {
@@ -346,10 +383,6 @@ export function ResultSlideover({
     finishResize(event.pointerId);
   };
 
-  const cancelResize = (pointerId: number) => {
-    finishResize(pointerId);
-  };
-
   const resizeFromKeyboard = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     let next: number | null = null;
     if (event.key === "Home") next = isMobile ? minPanelHeight() : Math.min(MIN_WIDTH_PX, maxPanelWidth());
@@ -382,15 +415,13 @@ export function ResultSlideover({
         (isMobile ? MOBILE_PEEK_HEIGHT_PX : PEEK_SIZE_PX),
     );
 
-  const finishExpand = (pointerId: number) => {
+  const finishExpand = useCallback((pointerId: number) => {
     const session = expandRef.current;
     if (!session || session.pointerId !== pointerId) return;
     expandRef.current = null;
     setResizing(false);
     const committed = session.maxDelta >= OPEN_DRAG_THRESHOLD_PX;
     const isTap = session.maxDelta < OPEN_TAP_SLOP_PX;
-    // Always consume the synthetic click; open on tap or a committed drag.
-    suppressPeekClickRef.current = true;
     if (committed) {
       const peek = isMobile ? MOBILE_PEEK_HEIGHT_PX : PEEK_SIZE_PX;
       const revealed = peek + session.delta;
@@ -415,22 +446,27 @@ export function ResultSlideover({
       return;
     }
     setPeekChromeOpacity(1);
-  };
-  const finishExpandRef = useRef(finishExpand);
-  finishExpandRef.current = finishExpand;
+  }, [isMobile, onOpen]);
+
+  const abortExpand = useCallback((pointerId: number) => {
+    if (expandRef.current?.pointerId !== pointerId) return;
+    expandRef.current = null;
+    setResizing(false);
+    setExpandDrag(0);
+    setPeekChromeOpacity(1);
+  }, []);
 
   useEffect(() => {
     if (!resizing || open) return;
-    const resetFromWindow = (event: PointerEvent) => {
-      finishExpandRef.current(event.pointerId);
-    };
-    window.addEventListener("pointerup", resetFromWindow);
-    window.addEventListener("pointercancel", resetFromWindow);
+    const finishFromWindow = (event: PointerEvent) => finishExpand(event.pointerId);
+    const abortFromWindow = (event: PointerEvent) => abortExpand(event.pointerId);
+    window.addEventListener("pointerup", finishFromWindow);
+    window.addEventListener("pointercancel", abortFromWindow);
     return () => {
-      window.removeEventListener("pointerup", resetFromWindow);
-      window.removeEventListener("pointercancel", resetFromWindow);
+      window.removeEventListener("pointerup", finishFromWindow);
+      window.removeEventListener("pointercancel", abortFromWindow);
     };
-  }, [open, resizing]);
+  }, [abortExpand, finishExpand, open, resizing]);
 
   const startExpand = (event: ReactPointerEvent<HTMLElement>) => {
     if (open || event.button !== 0) return;
@@ -498,11 +534,9 @@ export function ResultSlideover({
     finishExpand(event.pointerId);
   };
 
-  const openFromPeekClick = () => {
-    if (suppressPeekClickRef.current) {
-      suppressPeekClickRef.current = false;
-      return;
-    }
+  const openFromPeekClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    // Pointer taps complete in pointerup; detail=0 identifies keyboard/AT clicks.
+    if (event.detail !== 0) return;
     setPeekChromeOpacity(0);
     onOpen();
   };
@@ -548,8 +582,8 @@ export function ResultSlideover({
           onPointerDown={startExpand}
           onPointerMove={moveExpand}
           onPointerUp={endExpand}
-          onPointerCancel={endExpand}
-          onLostPointerCapture={endExpand}
+          onPointerCancel={(event) => abortExpand(event.pointerId)}
+          onLostPointerCapture={(event) => abortExpand(event.pointerId)}
         >
           <span className="result-slideover-peek-grip" aria-hidden="true" />
           <span className="result-slideover-peek-label">{title}</span>
@@ -580,8 +614,8 @@ export function ResultSlideover({
             onPointerDown={startResize}
             onPointerMove={moveResize}
             onPointerUp={endResize}
-            onPointerCancel={(event) => cancelResize(event.pointerId)}
-            onLostPointerCapture={(event) => cancelResize(event.pointerId)}
+            onPointerCancel={(event) => abortResize(event.pointerId)}
+            onLostPointerCapture={(event) => abortResize(event.pointerId)}
           />
         </section>
       </aside>

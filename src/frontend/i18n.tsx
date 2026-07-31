@@ -127,6 +127,7 @@ export interface Messages {
   waitingTraceDescription: string;
   noProbeResult: string;
   closeResult: string;
+  probeResults: string;
   targetLatencyLoss: (latency: string, loss: string) => string;
   pollingState: string;
   resultMapView: string;
@@ -134,7 +135,9 @@ export interface Messages {
   switchResultMap3d: string;
   shareTraceLink: string;
   copied: string;
+  copyFailed: string;
   share: string;
+  resultMap: string;
   failedProbe: (rawOutput: string) => string;
   noHopData: string;
   focusTtl: (ttl: number) => string;
@@ -282,6 +285,7 @@ const zhCN: Messages = {
   waitingTraceDescription: "创建 measurement 后，这里显示 probe、route summary、hop 明细和原始输出。",
   noProbeResult: "暂无 probe result。",
   closeResult: "关闭结果",
+  probeResults: "Probe 结果",
   targetLatencyLoss: (latency, loss) => `目标延迟 ${latency}，目标丢包 ${loss}`,
   pollingState: "measurement 正在运行，轮询完成后会补齐 hop 和 GeoIP。",
   resultMapView: "结果地图视图",
@@ -289,7 +293,9 @@ const zhCN: Messages = {
   switchResultMap3d: "切换结果地图到 3D",
   shareTraceLink: "分享诊断链接",
   copied: "已复制",
+  copyFailed: "复制失败",
   share: "分享",
+  resultMap: "诊断结果地图",
   failedProbe: (rawOutput) => `该 probe 失败：${rawOutput}`,
   noHopData: "该 probe 还没有 hop 数据。",
   focusTtl: (ttl) => `定位 TTL ${ttl}`,
@@ -438,6 +444,7 @@ const enUS: Messages = {
   waitingTraceDescription: "After a measurement is created, probe, route summary, hop details, and raw output appear here.",
   noProbeResult: "No probe result yet.",
   closeResult: "Close result",
+  probeResults: "Probe results",
   targetLatencyLoss: (latency, loss) => `Target latency ${latency}, target loss ${loss}`,
   pollingState: "The measurement is running. Hop and GeoIP data will be filled in after polling completes.",
   resultMapView: "Result map view",
@@ -445,7 +452,9 @@ const enUS: Messages = {
   switchResultMap3d: "Switch result map to 3D",
   shareTraceLink: "Share diagnosis link",
   copied: "Copied",
+  copyFailed: "Copy failed",
   share: "Share",
+  resultMap: "Diagnosis result map",
   failedProbe: (rawOutput) => `This probe failed: ${rawOutput}`,
   noHopData: "This probe does not have hop data yet.",
   focusTtl: (ttl) => `Focus TTL ${ttl}`,

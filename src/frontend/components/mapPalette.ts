@@ -150,7 +150,10 @@ function rulesFor(colors: PaletteColors): PaletteRule[] {
   ];
 }
 
-function colorSchemeMedia(): { matches: boolean; addEventListener?: MediaQueryList["addEventListener"]; removeEventListener?: MediaQueryList["removeEventListener"] } | null {
+type ColorSchemeMedia = Pick<MediaQueryList, "matches"> &
+  Partial<Pick<MediaQueryList, "addEventListener" | "removeEventListener" | "addListener" | "removeListener">>;
+
+function colorSchemeMedia(): ColorSchemeMedia | null {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
   return window.matchMedia("(prefers-color-scheme: dark)");
 }
@@ -166,19 +169,26 @@ export function resolveMapPaletteScheme(
 }
 
 export function subscribeMapPaletteScheme(onChange: (scheme: MapPaletteScheme) => void): () => void {
-  let current = resolveMapPaletteScheme();
+  const media = colorSchemeMedia();
+  let current = resolveMapPaletteScheme(document.documentElement, media);
   const emit = () => {
-    const next = resolveMapPaletteScheme();
+    const next = resolveMapPaletteScheme(document.documentElement, media);
     if (next === current) return;
     current = next;
     onChange(next);
   };
-  const media = colorSchemeMedia();
-  media?.addEventListener?.("change", emit);
+  let unsubscribeMedia: (() => void) | undefined;
+  if (typeof media?.addEventListener === "function") {
+    media.addEventListener("change", emit);
+    unsubscribeMedia = () => media.removeEventListener?.("change", emit);
+  } else if (typeof media?.addListener === "function") {
+    media.addListener(emit);
+    unsubscribeMedia = () => media.removeListener?.(emit);
+  }
   const observer = new MutationObserver(emit);
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   return () => {
-    media?.removeEventListener?.("change", emit);
+    unsubscribeMedia?.();
     observer.disconnect();
   };
 }

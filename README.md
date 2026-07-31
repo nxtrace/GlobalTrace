@@ -136,6 +136,7 @@ npm run deploy:private
 npm run typecheck
 npm test
 npm run build
+npm run perf:budget
 npm run smoke
 ```
 

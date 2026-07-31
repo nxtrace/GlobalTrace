@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "../i18n";
 import { ResultSlideover } from "./ResultSlideover";
@@ -21,8 +21,12 @@ function mockMatchMedia(matchesMobile: boolean) {
 }
 
 afterEach(() => {
+  cleanup();
   vi.useRealTimers();
   mockMatchMedia(false);
+  document
+    .querySelectorAll(".filter-panel, .app-shell")
+    .forEach((element) => element.remove());
   Object.defineProperty(window, "innerWidth", {
     configurable: true,
     value: 1024,
@@ -34,7 +38,7 @@ afterEach(() => {
 });
 
 describe("ResultSlideover", () => {
-  it("shows a peek control when closed and opens on click", () => {
+  it("shows a peek control when closed and opens once from a pointer tap", () => {
     mockMatchMedia(false);
     const onOpen = vi.fn();
     render(
@@ -56,6 +60,24 @@ describe("ResultSlideover", () => {
     const peek = screen.getByRole("button", { name: "查看结果" });
     fireEvent.pointerDown(peek, { button: 0, clientX: 900, pointerId: 11 });
     fireEvent.pointerUp(peek, { clientX: 900, pointerId: 11 });
+    fireEvent.click(peek, { detail: 1 });
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it("opens from a keyboard or assistive-technology click", () => {
+    const onOpen = vi.fn();
+    render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open={false} title="诊断结果" onOpen={onOpen} onClose={vi.fn()}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "查看结果" }), {
+      detail: 0,
+    });
+
     expect(onOpen).toHaveBeenCalledOnce();
   });
 
@@ -93,7 +115,7 @@ describe("ResultSlideover", () => {
     expect(root.style.getPropertyValue("--result-panel-width")).toBe("600px");
   });
 
-  it("fades peek chrome with drag distance and restores it on abort", () => {
+  it("fades peek chrome with drag distance and restores it on pointer cancel", () => {
     mockMatchMedia(false);
     const onOpen = vi.fn();
     render(
@@ -115,11 +137,35 @@ describe("ResultSlideover", () => {
     expect(midOpacity).toBeGreaterThan(0);
     expect(midOpacity).toBeLessThan(1);
 
-    fireEvent.pointerUp(peek, { clientX: 860, pointerId: 13 });
-    fireEvent.click(peek);
+    fireEvent.pointerCancel(window, { clientX: 860, pointerId: 13 });
 
     expect(onOpen).not.toHaveBeenCalled();
+    expect(root.dataset.resizing).toBe("false");
+    expect(root.style.getPropertyValue("--result-expand-drag")).toBe("0px");
     expect(root.style.getPropertyValue("--result-peek-chrome-opacity")).toBe("1");
+  });
+
+  it("aborts a committed peek drag when pointer capture is lost", () => {
+    const onOpen = vi.fn();
+    render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open={false} title="诊断结果" onOpen={onOpen} onClose={vi.fn()}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const peek = screen.getByRole("button", { name: "查看结果" });
+    fireEvent.pointerDown(peek, { button: 0, clientX: 900, pointerId: 14 });
+    fireEvent.pointerMove(peek, { clientX: 700, pointerId: 14 });
+    expect(root.dataset.resizing).toBe("true");
+
+    fireEvent.lostPointerCapture(peek, { pointerId: 14 });
+
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(root.dataset.resizing).toBe("false");
+    expect(root.style.getPropertyValue("--result-expand-drag")).toBe("0px");
   });
 
   it("exposes a dialog when open and closes on Escape or backdrop click", () => {
@@ -416,6 +462,30 @@ describe("ResultSlideover", () => {
     expect(root.dataset.resizing).toBe("false");
   });
 
+  it("restores the starting size when an active resize is canceled", () => {
+    const onClose = vi.fn();
+    render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open title="诊断结果" onOpen={vi.fn()} onClose={onClose}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const handle = screen.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+    const startingWidth = root.style.getPropertyValue("--result-panel-width");
+    fireEvent.pointerDown(handle, { button: 0, clientX: 400, pointerId: 15 });
+    fireEvent.pointerMove(handle, { clientX: 600, pointerId: 15 });
+    expect(root.style.getPropertyValue("--result-panel-width")).not.toBe(startingWidth);
+
+    fireEvent.pointerCancel(handle, { pointerId: 15 });
+
+    expect(root.dataset.resizing).toBe("false");
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe(startingWidth);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("traps focus, inerts the app shell, and restores focus when closed", () => {
     vi.useFakeTimers();
     mockMatchMedia(false);
@@ -451,6 +521,91 @@ describe("ResultSlideover", () => {
     expect(shell.inert).toBe(false);
     expect(trigger).toHaveFocus();
     shell.remove();
+  });
+
+  it("cancels stale focus restoration when the sheet is reopened quickly", () => {
+    vi.useFakeTimers();
+    const shell = document.createElement("main");
+    shell.className = "app-shell";
+    const trigger = document.createElement("button");
+    trigger.textContent = "运行诊断";
+    shell.append(trigger);
+    document.body.append(shell);
+    trigger.focus();
+
+    const view = (open: boolean) => (
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open={open} title="诊断结果" onOpen={vi.fn()} onClose={vi.fn()}>
+          <button type="button">关闭结果</button>
+        </ResultSlideover>
+      </I18nProvider>
+    );
+    const { rerender } = render(view(true));
+    act(() => {
+      vi.advanceTimersByTime(240);
+    });
+    const closeButton = screen.getByRole("button", { name: "关闭结果" });
+    expect(closeButton).toHaveFocus();
+
+    rerender(view(false));
+    rerender(view(true));
+    act(() => {
+      vi.advanceTimersByTime(240);
+    });
+    expect(trigger).not.toHaveFocus();
+    expect(closeButton).toHaveFocus();
+
+    rerender(view(false));
+    act(() => {
+      vi.advanceTimersByTime(240);
+    });
+    expect(trigger).toHaveFocus();
+  });
+
+  it("clears focus timers when unmounted", () => {
+    vi.useFakeTimers();
+    const { unmount } = render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open title="诊断结果" onOpen={vi.fn()} onClose={vi.fn()}>
+          <button type="button">关闭结果</button>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("opens the mobile peek to the dragged height", () => {
+    mockMatchMedia(true);
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 390,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 844,
+    });
+    const onOpen = vi.fn();
+    const view = (open: boolean) => (
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open={open} title="诊断结果" onOpen={onOpen} onClose={vi.fn()}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>
+    );
+    const { rerender } = render(view(false));
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const peek = screen.getByRole("button", { name: "查看结果" });
+    fireEvent.pointerDown(peek, { button: 0, clientY: 800, pointerId: 16 });
+    fireEvent.pointerMove(peek, { clientY: 300, pointerId: 16 });
+    fireEvent.pointerUp(peek, { clientY: 300, pointerId: 16 });
+
+    expect(onOpen).toHaveBeenCalledOnce();
+    rerender(view(true));
+    expect(root.style.getPropertyValue("--result-panel-height")).toBe("556px");
   });
 
   it("uses a bottom sheet height under 820px and resizes vertically", () => {

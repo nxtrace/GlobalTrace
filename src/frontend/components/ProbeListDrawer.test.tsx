@@ -6,6 +6,7 @@ import { I18nProvider } from "../i18n";
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 function renderDrawer(open = true, onClose = vi.fn()) {
@@ -20,7 +21,7 @@ function renderDrawer(open = true, onClose = vi.fn()) {
 }
 
 describe("ProbeListDrawer", () => {
-  it("closes when the grab handle is clicked", () => {
+  it("closes when the grab handle is tapped without movement", () => {
     const onClose = renderDrawer(true);
     const grab = screen.getByRole("button", { name: "下拉关闭在线 Probes" });
     fireEvent.pointerDown(grab, {
@@ -46,15 +47,32 @@ describe("ProbeListDrawer", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("does not close when a short drag is released", () => {
+  it("does not close a sub-threshold drag released below the velocity threshold", () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
     const onClose = renderDrawer(true);
     const grab = screen.getByRole("button", { name: "下拉关闭在线 Probes" });
 
     fireEvent.pointerDown(grab, { button: 0, clientY: 40, pointerId: 1 });
-    fireEvent.pointerMove(grab, { clientY: 50, pointerId: 1 });
-    fireEvent.pointerUp(grab, { clientY: 50, pointerId: 1 });
+    now = 200;
+    fireEvent.pointerMove(grab, { clientY: 90, pointerId: 1 });
+    fireEvent.pointerUp(grab, { clientY: 90, pointerId: 1 });
 
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("closes a sub-distance drag released above the velocity threshold", () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const onClose = renderDrawer(true);
+    const grab = screen.getByRole("button", { name: "下拉关闭在线 Probes" });
+
+    fireEvent.pointerDown(grab, { button: 0, clientY: 40, pointerId: 1 });
+    now = 50;
+    fireEvent.pointerMove(grab, { clientY: 90, pointerId: 1 });
+    fireEvent.pointerUp(grab, { clientY: 90, pointerId: 1 });
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("uses native button activation for the grab handle", () => {
@@ -92,11 +110,15 @@ describe("ProbeListDrawer", () => {
     );
     const { rerender } = render(renderState(true));
 
-    act(() => vi.advanceTimersByTime(16));
+    act(() => {
+      vi.advanceTimersByTime(16);
+    });
     expect(screen.getByRole("button", { name: "关闭在线 Probes" })).toHaveFocus();
 
     rerender(renderState(false));
-    act(() => vi.advanceTimersByTime(16));
+    act(() => {
+      vi.advanceTimersByTime(16);
+    });
     expect(trigger).toHaveFocus();
     trigger.remove();
   });

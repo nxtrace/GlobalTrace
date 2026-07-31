@@ -48,7 +48,7 @@ const maplibreMock = vi.hoisted(() => {
     readonly sources = new Map<string, FakeSource>();
     readonly layers: Record<string, unknown>[] = [];
     readonly layerHandlers = new Map<string, FakeLayerHandler>();
-    readonly eventHandlers = new Map<string, (event?: unknown) => void>();
+    readonly eventHandlers = new Map<string, Set<(event?: unknown) => void>>();
     readonly options: Record<string, unknown>;
     readonly fitBoundsCalls: unknown[] = [];
     readonly cameraForBoundsCalls: unknown[] = [];
@@ -102,7 +102,9 @@ const maplibreMock = vi.hoisted(() => {
       if (typeof layerOrHandler === "string" && handler) {
         this.layerHandlers.set(`${event}:${layerOrHandler}`, handler);
       } else if (typeof layerOrHandler === "function") {
-        this.eventHandlers.set(event, layerOrHandler as (event?: unknown) => void);
+        const handlers = this.eventHandlers.get(event) ?? new Set<(event?: unknown) => void>();
+        handlers.add(layerOrHandler as (event?: unknown) => void);
+        this.eventHandlers.set(event, handlers);
       }
       return this;
     }
@@ -111,7 +113,9 @@ const maplibreMock = vi.hoisted(() => {
       if (typeof layerOrHandler === "string") {
         this.layerHandlers.delete(`${event}:${layerOrHandler}`);
       } else {
-        this.eventHandlers.delete(event);
+        const handlers = this.eventHandlers.get(event);
+        handlers?.delete(layerOrHandler as (event?: unknown) => void);
+        if (handlers?.size === 0) this.eventHandlers.delete(event);
       }
       return this;
     }
@@ -196,11 +200,13 @@ const maplibreMock = vi.hoisted(() => {
     }
 
     triggerLoad() {
-      this.eventHandlers.get("load")?.();
+      for (const handler of this.eventHandlers.get("load") ?? []) handler();
     }
 
     triggerError(url = "/mock-style.json") {
-      this.eventHandlers.get("error")?.({ error: { message: "map resource failed", url } });
+      for (const handler of this.eventHandlers.get("error") ?? []) {
+        handler({ error: { message: "map resource failed", url } });
+      }
     }
 
     triggerLayer(event: string, layer: string, point = { x: 10, y: 10 }) {

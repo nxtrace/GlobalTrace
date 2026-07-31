@@ -323,7 +323,7 @@ for (const viewport of viewports) {
     if (viewport.name === "1440x1000") {
       await expectPeerAsHopLink(page);
     }
-    await expect(page.getByLabel("trace result map")).toBeVisible();
+    await expect(page.getByLabel("诊断结果地图")).toBeVisible();
     await expectResultMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
     await expectResultMapContainsCoordinate(page, [-118.24, 34.05]);
@@ -459,7 +459,7 @@ for (const viewport of [
     ).toHaveAttribute("aria-selected", "true");
     await expectHopTableColumns(page);
     await expectVisibleHopText(page, "8.8.8.8");
-    await expect(resultPanel.getByLabel("trace result map")).toBeVisible();
+    await expect(resultPanel.getByLabel("诊断结果地图")).toBeVisible();
     await expectResultMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
     await expectResultMapHeight(page);
@@ -509,6 +509,189 @@ for (const viewport of [
   });
 }
 
+for (const width of [820, 850, 901]) {
+  test(`result sheet keeps the workspace order stable at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await installMocks(page);
+    await page.goto("/");
+
+    const workspace = page.locator(".workspace");
+    const readOrder = () =>
+      workspace.evaluate((node) => window.getComputedStyle(node).order);
+    expect(await readOrder()).toBe("0");
+
+    await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+    await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+    await expect(page.locator(".result-slideover")).toHaveAttribute(
+      "data-open",
+      "true",
+    );
+    expect(await readOrder()).toBe("0");
+
+    await page.getByRole("button", { name: "关闭结果" }).click();
+    await expect(page.locator(".result-slideover")).toHaveAttribute(
+      "data-open",
+      "false",
+    );
+    expect(await readOrder()).toBe("0");
+  });
+}
+
+for (const viewport of [
+  { name: "desktop", width: 1280, height: 800 },
+  { name: "mobile", width: 390, height: 844 },
+]) {
+  test(`result peek cancels pointer gestures and opens by drag on ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    const consoleErrors = collectConsoleErrors(page);
+    await installMocks(page);
+    await page.goto("/");
+    await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+    await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+    await page.getByRole("button", { name: "关闭结果" }).click();
+
+    const slideover = page.locator(".result-slideover");
+    const peek = page.getByRole("button", { name: "查看结果" });
+    await expect(peek).toBeVisible();
+    await slideover.evaluate(async (node) => {
+      await Promise.all(
+        node.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
+    const peekBox = await peek.boundingBox();
+    if (!peekBox) throw new Error("result peek is not visible");
+    const startX = peekBox.x + peekBox.width / 2;
+    const startY = peekBox.y + peekBox.height / 2;
+    const endX = viewport.name === "desktop" ? startX - 90 : startX;
+    const endY = viewport.name === "mobile" ? startY - 90 : startY;
+
+    await peek.evaluate((node) => {
+      node.addEventListener(
+        "pointerdown",
+        (event) => {
+          (node as HTMLElement).dataset.testPointerId = String(event.pointerId);
+        },
+        { once: true },
+      );
+    });
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(endX, endY, { steps: 4 });
+    await expect(slideover).toHaveAttribute("data-resizing", "true");
+    const pointerIdValue = await peek.getAttribute("data-test-pointer-id");
+    expect(pointerIdValue).not.toBeNull();
+    const pointerId = Number(pointerIdValue);
+    expect(Number.isFinite(pointerId)).toBe(true);
+    await peek.dispatchEvent("pointercancel", {
+      bubbles: true,
+      clientX: endX,
+      clientY: endY,
+      pointerId,
+      pointerType: "mouse",
+    });
+    await page.mouse.up();
+    await expect(slideover).toHaveAttribute("data-open", "false");
+    await expect(slideover).toHaveAttribute("data-resizing", "false");
+    await slideover.evaluate(async (node) => {
+      await Promise.all(
+        node.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
+
+    const dragBox = await peek.boundingBox();
+    if (!dragBox) throw new Error("result peek is not visible after cancellation");
+    const dragStartX = dragBox.x + dragBox.width / 2;
+    const dragStartY = dragBox.y + dragBox.height / 2;
+    const dragEndX = viewport.name === "desktop" ? dragStartX - 90 : dragStartX;
+    const dragEndY = viewport.name === "mobile" ? dragStartY - 90 : dragStartY;
+    await page.mouse.move(dragStartX, dragStartY);
+    await page.mouse.down();
+    await page.mouse.move(dragEndX, dragEndY, { steps: 4 });
+    await page.mouse.up();
+    await expect(slideover).toHaveAttribute("data-open", "true");
+    expect(consoleErrors).toEqual([]);
+  });
+}
+
+test("result sheet exposes keyboard focus and resizes its live map after dragging", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const consoleErrors = collectConsoleErrors(page);
+  await installMocks(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "开始网络路径诊断" }).click();
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await page.getByRole("button", { name: "关闭结果" }).click();
+
+  const slideover = page.locator(".result-slideover");
+  const peek = page.getByRole("button", { name: "查看结果" });
+  await page.keyboard.press("Tab");
+  await peek.focus();
+  await expect(peek).toBeFocused();
+  expect(await peek.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
+  expect(await peek.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe("none");
+  await peek.press("Enter");
+  await expect(slideover).toHaveAttribute("data-open", "true");
+
+  const handle = slideover.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+  await handle.focus();
+  await expect(handle).toBeFocused();
+  expect(await handle.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
+  expect(await handle.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe("none");
+
+  const panel = page.locator(".result-slideover-panel");
+  const mapCanvas = page.locator(".result-map canvas.maplibregl-canvas");
+  await expectResultMapCanvasPainted(page);
+  const initialPanelWidth = await panel.evaluate((node) => node.getBoundingClientRect().width);
+  const initialCanvasWidth = await mapCanvas.evaluate((node) => (node as HTMLCanvasElement).width);
+  const handleBox = await handle.boundingBox();
+  if (!handleBox) throw new Error("result resize handle is not visible");
+  const startX = handleBox.x + handleBox.width - 2;
+  const startY = handleBox.y + handleBox.height / 2;
+
+  await handle.evaluate((node) => {
+    node.addEventListener(
+      "pointerdown",
+      (event) => {
+        (node as HTMLElement).dataset.testPointerId = String(event.pointerId);
+      },
+      { once: true },
+    );
+  });
+  await handle.hover({ position: { x: handleBox.width - 2, y: handleBox.height / 2 } });
+  await page.mouse.down();
+  await page.mouse.move(startX - 80, startY, { steps: 4 });
+  await expect(slideover).toHaveAttribute("data-resizing", "true");
+  await expect.poll(() => panel.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(initialPanelWidth);
+  const pointerIdValue = await handle.getAttribute("data-test-pointer-id");
+  expect(pointerIdValue).not.toBeNull();
+  const pointerId = Number(pointerIdValue);
+  expect(Number.isFinite(pointerId)).toBe(true);
+  await handle.dispatchEvent("pointercancel", {
+    bubbles: true,
+    clientX: startX - 80,
+    clientY: startY,
+    pointerId,
+    pointerType: "mouse",
+  });
+  await page.mouse.up();
+  await expect.poll(() => panel.evaluate((node) => node.getBoundingClientRect().width)).toBe(initialPanelWidth);
+  await expect(slideover).toHaveAttribute("data-open", "true");
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX - 80, startY, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(() => panel.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(initialPanelWidth);
+  await expect.poll(() => mapCanvas.evaluate((node) => (node as HTMLCanvasElement).width)).toBeGreaterThan(initialCanvasWidth);
+  expect(consoleErrors).toEqual([]);
+});
+
 for (const viewport of mobileResultViewports) {
   test(`mobile result page controls stay inside layout at ${viewport.name}`, async ({
     page,
@@ -537,7 +720,7 @@ for (const viewport of mobileResultViewports) {
     await expect(
       page.getByRole("tab", { name: /Los Angeles/ }),
     ).toHaveAttribute("aria-selected", "true");
-    await expect(resultPanel.getByLabel("trace result map")).toBeVisible();
+    await expect(resultPanel.getByLabel("诊断结果地图")).toBeVisible();
     await expectResultMapCanvasPainted(page);
     await expectResultMapProjection(page, "mercator");
 
@@ -553,7 +736,7 @@ for (const viewport of mobileResultViewports) {
     await resultPanel.getByText("whois / source details").click();
     await expect(page.getByText("Host Loss% Avg")).toBeVisible();
     await expect(page.getByText(/google-whois/)).toBeVisible();
-    await resultPanel.getByLabel("trace result map").scrollIntoViewIfNeeded();
+    await resultPanel.getByLabel("诊断结果地图").scrollIntoViewIfNeeded();
     await expectMobileResultLayout(page);
     await expectNoPageOverflow(page);
     expect(consoleErrors).toEqual([]);
@@ -1137,7 +1320,7 @@ test("result route map filters invalid hops and shows numbered hop markers", asy
   await page.goto("/?measurement=m-smoke");
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
-  await expect(page.getByLabel("trace result map")).toBeVisible();
+  await expect(page.getByLabel("诊断结果地图")).toBeVisible();
   await expectResultMapCanvasPainted(page);
   await expectResultRouteData(page, {
     labels: ["1-2", "5"],
@@ -1202,7 +1385,7 @@ test("result route map switches route when an inactive route marker is clicked",
   await page.goto("/?measurement=m-smoke");
 
   await expect(page.getByText("finished · 2 probes · m-smoke")).toBeVisible();
-  await expect(page.getByLabel("trace result map")).toBeVisible();
+  await expect(page.getByLabel("诊断结果地图")).toBeVisible();
   await expectResultMapCanvasPainted(page);
   await expectResultRouteData(page, {
     labels: ["1-2", "5"],
@@ -1253,7 +1436,7 @@ test("result panel scrolls as a whole when the hop table has no nested vertical 
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await expect(page.getByRole("dialog", { name: "诊断结果", exact: true })).toBeVisible();
-  await expect(page.getByLabel("trace result map")).toBeVisible();
+  await expect(page.getByLabel("诊断结果地图")).toBeVisible();
   await expectBareResultOverlay(page);
   await expectResultHopTableWheelChaining(page);
   await expectNoPageOverflow(page);
@@ -1268,7 +1451,7 @@ test("result route map normalizes antimeridian paths", async ({ page }) => {
   await page.goto("/?measurement=m-smoke");
 
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
-  await expect(page.getByLabel("trace result map")).toBeVisible();
+  await expect(page.getByLabel("诊断结果地图")).toBeVisible();
   await expectResultMapCanvasPainted(page);
   await expectResultRouteData(page, {
     labels: ["1", "2", "4-5"],

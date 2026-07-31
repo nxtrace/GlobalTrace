@@ -152,6 +152,55 @@ describe("subscribeMapPaletteScheme", () => {
     await waitFor(() => expect(onChange).toHaveBeenCalledWith("dark"));
     unsubscribe();
   });
+
+  it("prefers modern media query listeners, deduplicates values, and unsubscribes", () => {
+    let listener: (() => void) | undefined;
+    const media = {
+      matches: false,
+      addEventListener: vi.fn((_event: string, next: () => void) => {
+        listener = next;
+      }),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    };
+    vi.spyOn(window, "matchMedia").mockReturnValue(media as unknown as MediaQueryList);
+    const onChange = vi.fn();
+
+    const unsubscribe = subscribeMapPaletteScheme(onChange);
+    media.matches = true;
+    listener?.();
+    listener?.();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith("dark");
+    expect(window.matchMedia).toHaveBeenCalledTimes(1);
+    expect(media.addListener).not.toHaveBeenCalled();
+    unsubscribe();
+    expect(media.removeEventListener).toHaveBeenCalledWith("change", listener);
+    expect(media.removeListener).not.toHaveBeenCalled();
+  });
+
+  it("falls back to legacy media query listeners and removes the same listener", () => {
+    let listener: (() => void) | undefined;
+    const media = {
+      matches: false,
+      addListener: vi.fn((next: () => void) => {
+        listener = next;
+      }),
+      removeListener: vi.fn(),
+    };
+    vi.spyOn(window, "matchMedia").mockReturnValue(media as unknown as MediaQueryList);
+    const onChange = vi.fn();
+
+    const unsubscribe = subscribeMapPaletteScheme(onChange);
+    media.matches = true;
+    listener?.();
+
+    expect(onChange).toHaveBeenCalledWith("dark");
+    unsubscribe();
+    expect(media.removeListener).toHaveBeenCalledWith(listener);
+  });
 });
 
 describe("applyProbeMarkerPalette", () => {

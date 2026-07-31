@@ -13,7 +13,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "npm run build && HOME=$PWD/.wrangler-home wrangler dev --local --assets dist --port 4188",
+    command: "npm run dev:worker",
+    env: { GLOBALTRACE_WORKER_PORT: "4188" },
     url: "http://127.0.0.1:4188",
     reuseExistingServer: false,
     timeout: 60_000,

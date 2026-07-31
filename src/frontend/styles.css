@@ -3741,9 +3741,13 @@ tbody tr:hover {
   background: var(--canvas-soft);
 }
 
-.result-slideover-peek:focus,
-.result-slideover-peek:focus-visible {
+.result-slideover-peek:focus {
   outline: none;
+}
+
+.result-slideover-peek:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -4px;
 }
 
 .result-slideover-peek-grip {
@@ -3861,9 +3865,13 @@ tbody tr:hover {
     0 10px 22px color-mix(in srgb, var(--ink) 20%, transparent);
 }
 
-.result-slideover-resize:focus,
-.result-slideover-resize:focus-visible {
+.result-slideover-resize:focus {
   outline: none;
+}
+
+.result-slideover-resize:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -4px;
 }
 
 @media (min-width: 821px) {
@@ -5452,6 +5460,11 @@ tbody tr:hover {
 
   .app-shell.result-priority .workspace {
     order: -1;
+  }
+
+  .app-shell.result-slideover-ready.result-priority .workspace {
+    /* Keep background DOM order stable before, during, and after sheet motion. */
+    order: 0;
   }
 
   .result-map-globe {
