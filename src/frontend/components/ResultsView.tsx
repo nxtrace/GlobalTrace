@@ -230,8 +230,8 @@ export function ResultsView({
           )}
 
           {hopContent}
-          {active && active.hops.length > 0 && <HopRawDetails active={active} />}
           {resultMap}
+          {active && active.hops.length > 0 && <HopRawDetails active={active} />}
         </TabsContent>
       </Tabs>
     </section>
@@ -691,9 +691,35 @@ function ResultMap({
     };
     map.on("error", handleMapError);
     map.on("load", handleMapLoad);
+    const isSlideoverResizing = () =>
+      Boolean(document.querySelector(".result-slideover[data-resizing='true']"));
     const resizeObserver =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => map.resize());
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            // Skip while the sheet is being dragged; resize once on release.
+            if (isSlideoverResizing()) return;
+            map.resize();
+          });
     resizeObserver?.observe(container);
+    const slideoverRoot = container.closest(".result-slideover");
+    // When data-resizing flips true → false, sync map once.
+    const resizingObserver =
+      slideoverRoot && typeof MutationObserver !== "undefined"
+        ? new MutationObserver((records) => {
+            for (const record of records) {
+              if (record.type !== "attributes" || record.attributeName !== "data-resizing") continue;
+              if (slideoverRoot.getAttribute("data-resizing") !== "false") continue;
+              map.resize();
+            }
+          })
+        : null;
+    if (slideoverRoot && resizingObserver) {
+      resizingObserver.observe(slideoverRoot, {
+        attributes: true,
+        attributeFilter: ["data-resizing"],
+      });
+    }
     resizeFrameId = window.requestAnimationFrame(() => {
       resizeFrameId = null;
       map.resize();
@@ -710,6 +736,7 @@ function ResultMap({
     }
     return () => {
       unsubscribePalette();
+      resizingObserver?.disconnect();
       resizeObserver?.disconnect();
       if (revealFrameId !== null) window.cancelAnimationFrame(revealFrameId);
       if (resizeFrameId !== null) window.cancelAnimationFrame(resizeFrameId);

@@ -49,11 +49,77 @@ describe("ResultSlideover", () => {
     expect(root.dataset.open).toBe("false");
     expect(screen.queryByRole("dialog", { name: "诊断结果" })).not.toBeInTheDocument();
     expect(document.querySelector(".result-slideover-peek")).not.toBeNull();
+    expect(document.querySelector(".result-slideover-peek-grip")).not.toBeNull();
     expect(document.querySelector(".result-slideover-peek-label")).toHaveTextContent("诊断结果");
     expect(document.querySelector(".result-slideover-panel")).toHaveAttribute("aria-hidden", "true");
 
-    fireEvent.click(screen.getByRole("button", { name: "查看结果" }));
+    const peek = screen.getByRole("button", { name: "查看结果" });
+    fireEvent.pointerDown(peek, { button: 0, clientX: 900, pointerId: 11 });
+    fireEvent.pointerUp(peek, { clientX: 900, pointerId: 11 });
     expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it("opens by dragging the collapsed peek handle to the dragged width", () => {
+    mockMatchMedia(false);
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1600,
+    });
+    const onOpen = vi.fn();
+    const view = (open: boolean) => (
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open={open} title="诊断结果" onOpen={onOpen} onClose={vi.fn()}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>
+    );
+    const { rerender } = render(view(false));
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const peek = screen.getByRole("button", { name: "查看结果" });
+
+    fireEvent.pointerDown(peek, { button: 0, clientX: 900, pointerId: 12 });
+    expect(root.style.getPropertyValue("--result-peek-chrome-opacity")).toBe("1");
+    // Reveal 40 + 560 = 600px, then open at that dragged width.
+    fireEvent.pointerMove(peek, { clientX: 340, pointerId: 12 });
+    expect(root.style.getPropertyValue("--result-expand-drag")).toBe("560px");
+    expect(
+      Number(root.style.getPropertyValue("--result-peek-chrome-opacity")),
+    ).toBe(0);
+    fireEvent.pointerUp(peek, { clientX: 340, pointerId: 12 });
+
+    expect(onOpen).toHaveBeenCalledOnce();
+    rerender(view(true));
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe("600px");
+  });
+
+  it("fades peek chrome with drag distance and restores it on abort", () => {
+    mockMatchMedia(false);
+    const onOpen = vi.fn();
+    render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open={false} title="诊断结果" onOpen={onOpen} onClose={vi.fn()}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const peek = screen.getByRole("button", { name: "查看结果" });
+    fireEvent.pointerDown(peek, { button: 0, clientX: 900, pointerId: 13 });
+    expect(root.style.getPropertyValue("--result-peek-chrome-opacity")).toBe("1");
+
+    // 40px is below the open commit threshold but enough to fade the chrome.
+    fireEvent.pointerMove(peek, { clientX: 860, pointerId: 13 });
+    const midOpacity = Number(root.style.getPropertyValue("--result-peek-chrome-opacity"));
+    expect(midOpacity).toBeGreaterThan(0);
+    expect(midOpacity).toBeLessThan(1);
+
+    fireEvent.pointerUp(peek, { clientX: 860, pointerId: 13 });
+    fireEvent.click(peek);
+
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(root.style.getPropertyValue("--result-peek-chrome-opacity")).toBe("1");
   });
 
   it("exposes a dialog when open and closes on Escape or backdrop click", () => {
@@ -111,8 +177,85 @@ describe("ResultSlideover", () => {
     );
 
     const root = document.querySelector(".result-slideover") as HTMLElement;
-    expect(root.style.getPropertyValue("--result-panel-width")).toBe("1012px");
+    // Preferred open: 1440 - filter.right(412) - FILTER_GAP(4)
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe("1024px");
     filter.remove();
+  });
+
+  it("allows dragging the panel wider than the filter column", () => {
+    mockMatchMedia(false);
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1440,
+    });
+    const filter = document.createElement("aside");
+    filter.className = "filter-panel";
+    Object.defineProperty(filter, "getBoundingClientRect", {
+      value: () => ({
+        right: 412,
+        left: 16,
+        top: 16,
+        bottom: 800,
+        width: 396,
+        height: 784,
+        x: 16,
+        y: 16,
+        toJSON: () => ({}),
+      }),
+    });
+    document.body.append(filter);
+
+    render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open title="诊断结果" onOpen={vi.fn()} onClose={vi.fn()}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const handle = screen.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+    expect(handle).toHaveAttribute("aria-valuemax", "1392");
+
+    fireEvent.keyDown(handle, { key: "End" });
+    // 1440 - VIEWPORT_EDGE_GAP(48); covers filter but leaves a close strip.
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe("1392px");
+    filter.remove();
+  });
+
+  it("remembers the dragged width when reopened", () => {
+    mockMatchMedia(false);
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1600,
+    });
+    const view = (open: boolean) => (
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open={open} title="诊断结果" onOpen={vi.fn()} onClose={vi.fn()}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>
+    );
+    const { rerender } = render(view(true));
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const handle = screen.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+    const startWidth = Number.parseInt(
+      root.style.getPropertyValue("--result-panel-width"),
+      10,
+    );
+
+    fireEvent.pointerDown(handle, { button: 0, clientX: 400, pointerId: 7 });
+    fireEvent.pointerMove(handle, {
+      clientX: 400 + (startWidth - 640),
+      pointerId: 7,
+    });
+    fireEvent.pointerUp(handle, { clientX: 400 + (startWidth - 640), pointerId: 7 });
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe("640px");
+
+    rerender(view(false));
+    rerender(view(true));
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe("640px");
   });
 
   it("resizes from the left edge handle", () => {
@@ -148,6 +291,84 @@ describe("ResultSlideover", () => {
     expect(root.dataset.resizing).toBe("false");
   });
 
+  it("applies damping below 420px and snaps back unless pulled to the commit width", () => {
+    mockMatchMedia(false);
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1600,
+    });
+    const onClose = vi.fn();
+    render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open title="诊断结果" onOpen={vi.fn()} onClose={onClose}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const handle = screen.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+    const startWidth = Number.parseInt(
+      root.style.getPropertyValue("--result-panel-width"),
+      10,
+    );
+    const readWidth = () =>
+      Number.parseInt(root.style.getPropertyValue("--result-panel-width"), 10);
+
+    // Mild overshoot past 420: lightly damped, then snaps back.
+    fireEvent.pointerDown(handle, { button: 0, clientX: 400, pointerId: 4 });
+    fireEvent.pointerMove(handle, {
+      clientX: 400 + (startWidth - 400),
+      pointerId: 4,
+    });
+    expect(readWidth()).toBe(408);
+    fireEvent.pointerUp(handle, { clientX: 400 + (startWidth - 400), pointerId: 4 });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe("420px");
+  });
+
+  it("collapses only after dragging through the damped zone to the commit width", () => {
+    mockMatchMedia(false);
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1600,
+    });
+    const onClose = vi.fn();
+    const view = (open: boolean) => (
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open={open} title="诊断结果" onOpen={vi.fn()} onClose={onClose}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>
+    );
+    const { rerender } = render(view(true));
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const handle = screen.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+    const startWidth = Number.parseInt(
+      root.style.getPropertyValue("--result-panel-width"),
+      10,
+    );
+
+    // Need ~313px mouse overshoot past 420 for damped width < 320.
+    fireEvent.pointerDown(handle, { button: 0, clientX: 400, pointerId: 3 });
+    fireEvent.pointerMove(handle, {
+      clientX: 400 + (startWidth - 100),
+      pointerId: 3,
+    });
+    const dampedWidth = Number.parseInt(
+      root.style.getPropertyValue("--result-panel-width"),
+      10,
+    );
+    expect(dampedWidth).toBeLessThan(320);
+    fireEvent.pointerUp(handle, { clientX: 400 + (startWidth - 100), pointerId: 3 });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    rerender(view(false));
+    // Keep the dragged width through the slide-out (restores after the animation).
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe(`${dampedWidth}px`);
+  });
+
   it("exposes separator values and supports keyboard resizing", () => {
     mockMatchMedia(false);
     Object.defineProperty(window, "innerWidth", {
@@ -165,7 +386,7 @@ describe("ResultSlideover", () => {
     const root = document.querySelector(".result-slideover") as HTMLElement;
     const handle = screen.getByRole("separator", { name: "拖拽调整结果面板宽度" });
     const initial = Number(handle.getAttribute("aria-valuenow"));
-    expect(handle).toHaveAttribute("aria-valuemin", "360");
+    expect(handle).toHaveAttribute("aria-valuemin", "420");
     expect(Number(handle.getAttribute("aria-valuemax"))).toBeGreaterThanOrEqual(initial);
 
     fireEvent.keyDown(handle, { key: "ArrowRight" });
@@ -173,7 +394,7 @@ describe("ResultSlideover", () => {
     expect(handle).toHaveAttribute("aria-valuenow", String(initial - 24));
 
     fireEvent.keyDown(handle, { key: "Home" });
-    expect(root.style.getPropertyValue("--result-panel-width")).toBe("360px");
+    expect(root.style.getPropertyValue("--result-panel-width")).toBe("420px");
   });
 
   it("ends resizing when pointer capture is lost outside the handle", () => {
@@ -226,7 +447,7 @@ describe("ResultSlideover", () => {
     expect(screen.getByRole("button", { name: "关闭结果" })).toHaveFocus();
 
     rerender(renderSlideover(false));
-    act(() => vi.advanceTimersByTime(16));
+    act(() => vi.advanceTimersByTime(240));
     expect(shell.inert).toBe(false);
     expect(trigger).toHaveFocus();
     shell.remove();
@@ -268,5 +489,45 @@ describe("ResultSlideover", () => {
     const grown = Number.parseInt(root.style.getPropertyValue("--result-panel-height"), 10);
     expect(grown).toBe(height + 80);
     expect(root.dataset.resizing).toBe("false");
+  });
+
+  it("collapses the bottom sheet when drag ends below the height threshold", () => {
+    mockMatchMedia(true);
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 390,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 844,
+    });
+    const onClose = vi.fn();
+
+    render(
+      <I18nProvider locale="zh-CN">
+        <ResultSlideover open title="诊断结果" onOpen={vi.fn()} onClose={onClose}>
+          <div>result body</div>
+        </ResultSlideover>
+      </I18nProvider>,
+    );
+
+    const root = document.querySelector(".result-slideover") as HTMLElement;
+    const handle = screen.getByRole("separator", { name: "拖拽调整结果面板高度" });
+    const startHeight = Number.parseInt(
+      root.style.getPropertyValue("--result-panel-height"),
+      10,
+    );
+
+    fireEvent.pointerDown(handle, { button: 0, clientY: 200, pointerId: 5 });
+    fireEvent.pointerMove(handle, {
+      clientY: 200 + (startHeight - 180),
+      pointerId: 5,
+    });
+    fireEvent.pointerUp(handle, {
+      clientY: 200 + (startHeight - 180),
+      pointerId: 5,
+    });
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

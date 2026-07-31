@@ -2314,8 +2314,8 @@ async function expectResultMapHeight(page: Page): Promise<void> {
       viewportWidth: window.innerWidth,
     };
   });
-  // Result slideover keeps a compact map; standalone layouts can be taller.
-  const minHeight = state.viewportWidth <= 820 ? 180 : 220;
+  // Result slideover map; standalone layouts can be taller still.
+  const minHeight = state.viewportWidth <= 820 ? 240 : 280;
   expect(state.height).toBeGreaterThanOrEqual(minHeight);
   expect(
     Math.abs(Number.parseFloat(state.computedHeight) - state.height),
@@ -2477,9 +2477,9 @@ async function expectResultMapGlobeDesktopSize(page: Page): Promise<void> {
       projection: element.dataset.mapProjection,
     };
   });
-  // Compact height inside the result slideover (not the old full-page globe).
-  expect(state.height).toBeGreaterThanOrEqual(220);
-  expect(state.height).toBeLessThanOrEqual(360);
+  // Taller slideover map; still capped below the old full-page globe.
+  expect(state.height).toBeGreaterThanOrEqual(280);
+  expect(state.height).toBeLessThanOrEqual(480);
   expect(state.className).toContain("result-map-globe");
   expect(state.projection).toBe("globe");
 }
@@ -2900,7 +2900,7 @@ async function expectMobileResultLayout(page: Page): Promise<void> {
   expect(state.tabsFlexWrap).toBe("nowrap");
   expect(["auto", "scroll", "hidden"]).toContain(state.tabsOverflowX);
   expect(state.mapHeight).toBeGreaterThanOrEqual(180);
-  expect(state.mapHeight).toBeLessThanOrEqual(320);
+  expect(state.mapHeight).toBeLessThanOrEqual(420);
   expect(["block", "flex"]).toContain(state.tableDisplay);
   expect(["auto", "scroll"]).toContain(state.tableOverflowX);
   expect(state.tableScrollWidth).toBeGreaterThan(state.tableClientWidth);

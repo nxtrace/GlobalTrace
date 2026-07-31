@@ -308,7 +308,7 @@ describe("ResultsView", () => {
     expect(routeTabs[0]).toHaveClass("is-active");
   });
 
-  it("keeps hop table and raw details above the result map", () => {
+  it("keeps hop table above the map, with raw details after", () => {
     render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" />);
 
     const tabs = document.querySelector(".probe-tabs-frame") as HTMLElement;
@@ -317,8 +317,8 @@ describe("ResultsView", () => {
     const rawOutput = screen.getByText("raw output");
 
     expectBefore(tabs, table);
-    expectBefore(table, rawOutput);
-    expectBefore(rawOutput, map);
+    expectBefore(table, map);
+    expectBefore(map, rawOutput);
   });
 
   it("renders target metrics inside route tabs instead of the summary cards", () => {

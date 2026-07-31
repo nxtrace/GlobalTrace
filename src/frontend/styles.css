@@ -3575,6 +3575,36 @@ tbody tr:hover {
   }
 }
 
+@keyframes result-slideover-backdrop-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.result-slideover-backdrop[data-leaving="true"] {
+  pointer-events: none;
+  animation: result-slideover-backdrop-out 180ms ease-in both;
+}
+
+@keyframes result-peek-chrome-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.result-slideover[data-peek-entering="true"] .result-slideover-peek::before,
+.result-slideover[data-peek-entering="true"] .result-slideover-peek-label {
+  animation: result-peek-chrome-in var(--result-slide-duration) var(--result-slide-ease) both;
+}
+
 .result-slideover {
   --result-panel-width: 560px;
   --result-panel-height: 70svh;
@@ -3597,7 +3627,12 @@ tbody tr:hover {
   border-radius: var(--radius-panel) 0 0 var(--radius-panel);
   background: var(--filter-panel-bg);
   box-shadow: var(--shadow-popover);
-  transform: translate3d(calc(100% - var(--result-peek-width)), 0, 0);
+  --result-expand-drag: 0px;
+  transform: translate3d(
+    calc(100% - var(--result-peek-width) - var(--result-expand-drag)),
+    0,
+    0
+  );
   transition: transform var(--result-slide-duration) var(--result-slide-ease);
   contain: layout style;
 }
@@ -3607,17 +3642,23 @@ tbody tr:hover {
   will-change: transform;
 }
 
-/* Peek strip reserves space so underlying controls stay clear of the tab. */
-.app-shell.result-slideover-ready:not(.result-slideover-open) {
-  --result-peek-inset: calc(var(--result-peek-width, 40px) + 12px);
-}
+/*
+ * Desktop: keep peek clearance while results exist (open or closed) so the
+ * probe drawer / map chrome do not jump when the result sheet toggles.
+ */
+@media (min-width: 821px) {
+  .app-shell.result-slideover-ready {
+    /* Strip width only; handle floats outside and needs a small clearance. */
+    --result-peek-inset: calc(var(--result-peek-width, 40px) + 16px);
+  }
 
-.app-shell.result-slideover-ready:not(.result-slideover-open) .workspace {
-  padding-right: var(--result-peek-inset);
-}
+  .app-shell.result-slideover-ready .workspace {
+    padding-right: var(--result-peek-inset);
+  }
 
-.app-shell.result-slideover-ready:not(.result-slideover-open) .error-banner.error-toast {
-  right: calc(8px + var(--result-peek-inset));
+  .app-shell.result-slideover-ready .error-banner.error-toast {
+    right: calc(8px + var(--result-peek-inset));
+  }
 }
 
 .result-slideover[data-open="true"] {
@@ -3625,7 +3666,8 @@ tbody tr:hover {
 }
 
 .result-slideover[data-open="false"] {
-  overflow: hidden;
+  /* Keep visible so the floating peek handle can hang outside the strip. */
+  overflow: visible;
 }
 
 .result-slideover[data-resizing="true"] {
@@ -3653,26 +3695,101 @@ tbody tr:hover {
   padding: 12px 0;
   border: 0;
   border-radius: calc(var(--radius-panel) - 1px) 0 0 calc(var(--radius-panel) - 1px);
-  background: var(--canvas);
+  background: transparent;
   color: var(--ink-soft);
-  cursor: pointer;
+  cursor: ew-resize;
+  touch-action: none;
   appearance: none;
-  overflow: hidden;
+  overflow: visible;
+  transition: color 150ms ease;
+}
+
+.result-slideover-peek::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: calc(var(--radius-panel) - 1px) 0 0 calc(var(--radius-panel) - 1px);
+  background: var(--canvas);
+  opacity: var(--result-peek-chrome-opacity, 1);
+  box-shadow:
+    -1px 0 4px color-mix(in srgb, var(--ink) 8%, transparent),
+    -6px 0 16px color-mix(in srgb, var(--ink) 11%, transparent),
+    -12px 0 28px color-mix(in srgb, var(--ink) 12%, transparent);
   transition:
     background 150ms ease,
-    color 150ms ease;
+    opacity var(--result-slide-duration, 240ms) var(--result-slide-ease, ease),
+    box-shadow 150ms ease;
+}
+
+/* Invisible drag hit-area to the left of the strip (absolute, no layout cost). */
+.result-slideover-peek::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: -22px;
+  width: 22px;
 }
 
 .result-slideover-peek:hover {
-  background: var(--canvas-soft);
   color: var(--ink);
 }
 
+.result-slideover-peek:hover::before {
+  background: var(--canvas-soft);
+}
+
+.result-slideover-peek:focus,
+.result-slideover-peek:focus-visible {
+  outline: none;
+}
+
 .result-slideover-peek-grip {
-  display: none;
+  /* Float outside the strip; do not widen the peek layout. */
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: -14px;
+  width: 5px;
+  height: 64px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 55%, transparent);
+  background: color-mix(in srgb, var(--canvas) 88%, var(--ink-muted));
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--ink) 10%, transparent),
+    0 5px 12px color-mix(in srgb, var(--ink) 14%, transparent),
+    0 10px 20px color-mix(in srgb, var(--ink) 12%, transparent);
+  transform: translateY(-50%);
+  opacity: 0.8;
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    height 140ms ease;
+}
+
+.result-slideover-peek:hover .result-slideover-peek-grip,
+.result-slideover-peek:focus-visible .result-slideover-peek-grip,
+.result-slideover[data-resizing="true"][data-open="false"] .result-slideover-peek-grip {
+  opacity: 1;
+  background: var(--canvas);
+  box-shadow:
+    0 2px 4px color-mix(in srgb, var(--ink) 12%, transparent),
+    0 8px 18px color-mix(in srgb, var(--ink) 16%, transparent),
+    0 14px 28px color-mix(in srgb, var(--ink) 14%, transparent);
+  height: 72px;
 }
 
 .result-slideover-peek-label {
+  position: relative;
+  z-index: 1;
+  width: var(--result-peek-width);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   writing-mode: vertical-rl;
   text-orientation: mixed;
   font-size: 12px;
@@ -3680,6 +3797,14 @@ tbody tr:hover {
   letter-spacing: 0.08em;
   line-height: 1;
   white-space: nowrap;
+  opacity: var(--result-peek-chrome-opacity, 1);
+  transition: opacity var(--result-slide-duration, 240ms) var(--result-slide-ease, ease);
+}
+
+/* Track the finger while expanding; other states keep the eased opacity transition. */
+.result-slideover[data-resizing="true"][data-open="false"] .result-slideover-peek::before,
+.result-slideover[data-resizing="true"][data-open="false"] .result-slideover-peek-label {
+  transition: none;
 }
 
 /*
@@ -3727,6 +3852,7 @@ tbody tr:hover {
 }
 
 .result-slideover-resize:hover::after,
+.result-slideover-resize:focus-visible::after,
 .result-slideover[data-resizing="true"] .result-slideover-resize::after {
   opacity: 1;
   background: var(--canvas);
@@ -3735,13 +3861,14 @@ tbody tr:hover {
     0 10px 22px color-mix(in srgb, var(--ink) 20%, transparent);
 }
 
+.result-slideover-resize:focus,
 .result-slideover-resize:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline: none;
 }
 
 @media (min-width: 821px) {
   .result-slideover-resize:hover::after,
+  .result-slideover-resize:focus-visible::after,
   .result-slideover[data-resizing="true"] .result-slideover-resize::after {
     height: 72px;
   }
@@ -3959,7 +4086,7 @@ tbody tr:hover {
 }
 
 .result-slideover .result-map {
-  height: clamp(220px, 28svh, 360px);
+  height: clamp(300px, 40svh, 480px);
 }
 
 @media (max-width: 820px) {
@@ -3973,7 +4100,11 @@ tbody tr:hover {
     height: var(--result-panel-height);
     border-right: 1px solid var(--panel-border);
     border-radius: var(--radius-panel) var(--radius-panel) 0 0;
-    transform: translate3d(0, calc(100% - var(--result-peek-height)), 0);
+    transform: translate3d(
+      0,
+      calc(100% - var(--result-peek-height) - var(--result-expand-drag)),
+      0
+    );
   }
 
   .result-slideover[data-open="true"] {
@@ -3981,33 +4112,58 @@ tbody tr:hover {
     transform: translate3d(0, 0, 0);
   }
 
+  /*
+   * Keep bottom peek inset while results exist (open or closed) so the map
+   * and chrome do not resize when the sheet opens or closes.
+   */
+  .app-shell.result-slideover-ready,
+  .app-shell.result-slideover-ready.result-slideover-open,
   .app-shell.result-slideover-ready:not(.result-slideover-open) {
-    --result-peek-inset: calc(var(--result-peek-height, 56px) + 8px);
+    /* Peek strip only; floating handle sits outside and needs a small clearance. */
+    --result-peek-inset: calc(var(--result-peek-height, 56px) + 14px);
   }
 
+  .app-shell.result-slideover-ready .workspace,
+  .app-shell.result-slideover-ready.result-slideover-open .workspace,
   .app-shell.result-slideover-ready:not(.result-slideover-open) .workspace {
     padding-right: 0;
     padding-bottom: var(--result-peek-inset);
   }
 
+  /*
+   * Opening the sheet toggles result-priority (map order: -1). Keep DOM order
+   * stable once results exist so the page behind the sheet does not jump.
+   */
+  .app-shell.result-slideover-ready.result-priority .workspace {
+    order: 0;
+  }
+
+  .app-shell.result-slideover-ready .error-banner.error-toast,
+  .app-shell.result-slideover-ready.result-slideover-open .error-banner.error-toast,
   .app-shell.result-slideover-ready:not(.result-slideover-open) .error-banner.error-toast {
     right: 8px;
     bottom: calc(8px + var(--result-peek-inset));
   }
 
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .map-toolbar,
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .probe-drawer-toggle,
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .maplibregl-ctrl-top-right {
+  .app-shell.map-immersive.result-slideover-ready .map-toolbar,
+  .app-shell.map-immersive.result-slideover-ready .probe-drawer-toggle,
+  .app-shell.map-immersive.result-slideover-ready .maplibregl-ctrl-top-right,
+  .app-shell.map-immersive.result-slideover-ready.result-slideover-open .map-toolbar,
+  .app-shell.map-immersive.result-slideover-ready.result-slideover-open .probe-drawer-toggle,
+  .app-shell.map-immersive.result-slideover-ready.result-slideover-open .maplibregl-ctrl-top-right {
     right: var(--immersive-gutter, 8px);
   }
 
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .maplibregl-ctrl-bottom-right {
+  .app-shell.map-immersive.result-slideover-ready .maplibregl-ctrl-bottom-right,
+  .app-shell.map-immersive.result-slideover-ready.result-slideover-open .maplibregl-ctrl-bottom-right {
     right: var(--immersive-gutter, 8px);
     bottom: var(--result-peek-inset, 48px);
   }
 
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .error-banner,
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .error-banner.error-toast {
+  .app-shell.map-immersive.result-slideover-ready .error-banner,
+  .app-shell.map-immersive.result-slideover-ready .error-banner.error-toast,
+  .app-shell.map-immersive.result-slideover-ready.result-slideover-open .error-banner,
+  .app-shell.map-immersive.result-slideover-ready.result-slideover-open .error-banner.error-toast {
     right: calc(var(--map-nav-control-reserve, 48px) + 8px);
     bottom: calc(8px + var(--result-peek-inset, 48px));
   }
@@ -4020,30 +4176,76 @@ tbody tr:hover {
     width: 100%;
     height: var(--result-peek-height);
     flex-direction: column;
-    gap: 6px;
-    padding: 8px 20px 10px;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 0 20px;
+    border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+    background: transparent;
+    color: var(--ink);
+    cursor: ns-resize;
+    box-shadow: none;
+  }
+
+  .result-slideover-peek::before {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
     border-radius: var(--radius-panel) var(--radius-panel) 0 0;
     border-bottom: 1px solid var(--panel-border);
     background: var(--filter-panel-bg);
-    color: var(--ink);
-    box-shadow: 0 -8px 24px color-mix(in srgb, var(--ink) 12%, transparent);
+    box-shadow:
+      0 -1px 4px color-mix(in srgb, var(--ink) 8%, transparent),
+      0 -8px 20px color-mix(in srgb, var(--ink) 12%, transparent),
+      0 -16px 32px color-mix(in srgb, var(--ink) 12%, transparent);
   }
 
   .result-slideover-peek:hover {
-    background: var(--canvas-soft);
     color: var(--ink);
   }
 
+  .result-slideover-peek:hover::before {
+    background: var(--canvas-soft);
+  }
+
+  /* Invisible drag hit-area above the strip (absolute, no layout cost). */
+  .result-slideover-peek::after {
+    content: "";
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    right: 0;
+    top: -18px;
+    height: 18px;
+  }
+
   .result-slideover-peek-grip {
-    display: block;
-    width: 44px;
+    /* Float above the strip; do not contribute to peek height. */
+    top: -10px;
+    left: 50%;
+    width: 64px;
     height: 5px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--ink-muted) 72%, transparent);
-    flex: none;
+    transform: translateX(-50%);
+    transition:
+      opacity 140ms ease,
+      background 140ms ease,
+      box-shadow 140ms ease,
+      width 140ms ease;
+  }
+
+  .result-slideover-peek:hover .result-slideover-peek-grip,
+  .result-slideover-peek:focus-visible .result-slideover-peek-grip,
+  .result-slideover[data-resizing="true"][data-open="false"] .result-slideover-peek-grip {
+    width: 72px;
+    height: 5px;
   }
 
   .result-slideover-peek-label {
+    position: relative;
+    z-index: 1;
+    width: auto;
     writing-mode: horizontal-tb;
     font-size: 14px;
     font-weight: 700;
@@ -4075,6 +4277,7 @@ tbody tr:hover {
   }
 
   .result-slideover-resize:hover::after,
+  .result-slideover-resize:focus-visible::after,
   .result-slideover[data-resizing="true"] .result-slideover-resize::after {
     width: 72px;
     height: 5px;
@@ -4096,7 +4299,7 @@ tbody tr:hover {
   }
 
   .result-slideover .result-map {
-    height: clamp(200px, 26svh, 300px);
+    height: clamp(260px, 36svh, 400px);
   }
 }
 
@@ -4926,23 +5129,23 @@ tbody tr:hover {
     --map-nav-control-reserve: 48px;
   }
 
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .workspace {
+  .app-shell.map-immersive.result-slideover-ready .workspace {
     padding-right: 0;
   }
 
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .map-toolbar {
+  .app-shell.map-immersive.result-slideover-ready .map-toolbar {
     right: var(--result-peek-inset, 48px);
   }
 
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .probe-drawer-toggle,
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .probe-drawer,
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .maplibregl-ctrl-top-right,
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .maplibregl-ctrl-bottom-right {
+  .app-shell.map-immersive.result-slideover-ready .probe-drawer-toggle,
+  .app-shell.map-immersive.result-slideover-ready .probe-drawer,
+  .app-shell.map-immersive.result-slideover-ready .maplibregl-ctrl-top-right,
+  .app-shell.map-immersive.result-slideover-ready .maplibregl-ctrl-bottom-right {
     right: var(--result-peek-inset, 48px);
   }
 
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .error-banner,
-  .app-shell.map-immersive.result-slideover-ready:not(.result-slideover-open) .error-banner.error-toast {
+  .app-shell.map-immersive.result-slideover-ready .error-banner,
+  .app-shell.map-immersive.result-slideover-ready .error-banner.error-toast {
     right: calc(var(--result-peek-inset, 48px) + var(--map-nav-control-reserve) + 8px);
   }
 

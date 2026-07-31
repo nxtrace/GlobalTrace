@@ -115,6 +115,8 @@ export function App() {
   const [limitsStatus, setLimitsStatus] = useState<"loading" | "ready" | "error">("loading");
   const [result, setResult] = useState<TraceResultResponse | null>(null);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("select");
+  /** Collapses the result sheet without leaving result mode (avoids mid-close layout thrash). */
+  const [resultSheetCollapsed, setResultSheetCollapsed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [measurementLoading, setMeasurementLoading] = useState<MeasurementLoadingState | null>(null);
   const [probeMapReady, setProbeMapReady] = useState(false);
@@ -159,7 +161,8 @@ export function App() {
   const finalResult = result?.status === "in-progress" ? null : result;
   const resultPriority = workspaceMode === "result" || Boolean(measurementLoading);
   const immersiveMap = resultContentOrder === "map-first";
-  const resultSlideoverOpen = workspaceMode === "result" && Boolean(finalResult);
+  const resultSlideoverOpen =
+    workspaceMode === "result" && Boolean(finalResult) && !resultSheetCollapsed;
   const canSubmit = configReady;
   const deferredFilters = useDeferredValue(filters);
   const filteredProbes = useMemo(() => filterProbes(probes, deferredFilters), [deferredFilters, probes]);
@@ -436,6 +439,7 @@ export function App() {
   const reset = () => {
     setFilters({ magic: "world" });
     setWorkspaceMode("select");
+    setResultSheetCollapsed(false);
     setMeasurementLoading(null);
     setLimit(DEFAULT_PROBE_LIMIT);
     setPort("");
@@ -509,12 +513,21 @@ export function App() {
   }, []);
 
   const showResult = useCallback(() => {
-    if (finalResult) setWorkspaceMode("result");
+    if (!finalResult) return;
+    setResultSheetCollapsed(false);
+    setWorkspaceMode("result");
   }, [finalResult]);
 
   const closeResult = useCallback(() => {
-    setWorkspaceMode("select");
+    // Only collapse the sheet. Leaving result mode here re-layouts the page
+    // behind the sheet and stutters the close animation.
+    setResultSheetCollapsed(true);
   }, []);
+
+  useEffect(() => {
+    // New finished measurement should present the sheet open.
+    if (finalResult?.measurementId) setResultSheetCollapsed(false);
+  }, [finalResult?.measurementId]);
 
   const saveGlobalpingToken = useCallback(() => {
     const trimmed = globalpingTokenDraft.trim();
@@ -574,6 +587,7 @@ export function App() {
     abortTraceLoading();
     window.history.pushState(null, "", "/");
     setWorkspaceMode("select");
+    setResultSheetCollapsed(false);
     setMeasurementLoading(null);
     sharedTraceStartedRef.current = "";
     setMessage("");

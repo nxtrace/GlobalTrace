@@ -228,7 +228,14 @@ export function FilterPanel(props: FilterPanelProps) {
             className="primary-controls"
             aria-label={messages.basicParams}
           >
-            <div className="target-command-row">
+            <form
+              className="target-command-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (props.loading || !props.canSubmit) return;
+                props.onSubmit();
+              }}
+            >
               <input
                 className="target-command-input"
                 value={props.target}
@@ -239,17 +246,17 @@ export function FilterPanel(props: FilterPanelProps) {
                 spellCheck={false}
                 autoCapitalize="off"
                 autoCorrect="off"
+                enterKeyHint="go"
               />
               <button
-                type="button"
+                type="submit"
                 className="primary-action target-submit-button"
                 disabled={props.loading || !props.canSubmit}
-                onClick={props.onSubmit}
                 aria-label={messages.startTrace}
               >
                 <Play size={16} aria-hidden="true" />
               </button>
-            </div>
+            </form>
 
             <div className="parameter-pill-grid">
               <div
