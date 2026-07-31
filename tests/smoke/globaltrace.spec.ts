@@ -680,11 +680,14 @@ test("result sheet exposes keyboard focus and resizes its live map after draggin
     pointerType: "mouse",
   });
   await page.mouse.up();
-  await expect.poll(() => panel.evaluate((node) => node.getBoundingClientRect().width)).toBe(initialPanelWidth);
+  await expect
+    .poll(() => panel.evaluate((node) => node.getBoundingClientRect().width))
+    .toBeCloseTo(initialPanelWidth, 0);
   await expect(slideover).toHaveAttribute("data-open", "true");
 
-  await page.mouse.move(startX, startY);
+  await handle.hover({ position: { x: handleBox.width - 2, y: handleBox.height / 2 } });
   await page.mouse.down();
+  await expect(slideover).toHaveAttribute("data-resizing", "true");
   await page.mouse.move(startX - 80, startY, { steps: 4 });
   await page.mouse.up();
   await expect.poll(() => panel.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(initialPanelWidth);

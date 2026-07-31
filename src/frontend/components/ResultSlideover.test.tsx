@@ -605,7 +605,14 @@ describe("ResultSlideover", () => {
 
     expect(onOpen).toHaveBeenCalledOnce();
     rerender(view(true));
-    expect(root.style.getPropertyValue("--result-panel-height")).toBe("556px");
+    const peekHeight = Number.parseFloat(
+      root.style.getPropertyValue("--result-peek-height"),
+    );
+    const dragDistance = 800 - 300;
+    // 56px peek + 500px drag remains below the 844px viewport height cap.
+    expect(root.style.getPropertyValue("--result-panel-height")).toBe(
+      `${peekHeight + dragDistance}px`,
+    );
   });
 
   it("uses a bottom sheet height under 820px and resizes vertically", () => {

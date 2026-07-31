@@ -265,8 +265,8 @@ afterEach(() => {
     delete (window.navigator as unknown as { clipboard?: Clipboard }).clipboard;
   }
   vi.unstubAllGlobals();
-  vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe("ResultsView", () => {
@@ -485,7 +485,8 @@ describe("ResultsView", () => {
 
   it("clears the pending copy status timer on unmount", async () => {
     vi.useFakeTimers();
-    const clearTimeout = vi.spyOn(window, "clearTimeout");
+    const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+    const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
     const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
     Object.defineProperty(window.navigator, "clipboard", { configurable: true, value: clipboard });
     const { unmount } = render(<ResultsView result={sampleResult} mapStyleUrl="about:blank" renderMap={false} />);
@@ -495,9 +496,13 @@ describe("ResultsView", () => {
       await Promise.resolve();
     });
     expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
+    const resetTimer = setTimeoutSpy.mock.results.find(
+      (_, index) => setTimeoutSpy.mock.calls[index]?.[1] === 1200,
+    )?.value;
+    expect(resetTimer).toBeDefined();
 
     unmount();
-    expect(clearTimeout).toHaveBeenCalled();
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(resetTimer);
   });
 
   it("switches between probe result tabs", () => {
