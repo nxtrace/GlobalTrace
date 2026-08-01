@@ -49,6 +49,42 @@
   color: var(--map-control-fg);
 }
 
+/* Match the 8px group radius (minus 1px border) so focus follows the pill. */
+.map-section .maplibregl-ctrl-group button:first-child,
+.result-map .maplibregl-ctrl-group button:first-child {
+  border-radius: 7px 7px 0 0;
+}
+
+.map-section .maplibregl-ctrl-group button:last-child,
+.result-map .maplibregl-ctrl-group button:last-child {
+  border-radius: 0 0 7px 7px;
+}
+
+.map-section .maplibregl-ctrl-group button:only-child,
+.result-map .maplibregl-ctrl-group button:only-child {
+  border-radius: 7px;
+}
+
+/*
+ * Group clips outward rings. Prefer inset box-shadow (respects border-radius)
+ * over a square outline that fights the pill corners and divider.
+ */
+.map-section .maplibregl-ctrl-group button:focus,
+.map-section .maplibregl-ctrl-group button:focus:focus-visible,
+.result-map .maplibregl-ctrl-group button:focus,
+.result-map .maplibregl-ctrl-group button:focus:focus-visible {
+  outline: none;
+  background-color: color-mix(in srgb, var(--focus-ring) 12%, var(--map-control-bg));
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.map-section .maplibregl-ctrl-group button:focus:not(:focus-visible),
+.result-map .maplibregl-ctrl-group button:focus:not(:focus-visible) {
+  outline: none;
+  background-color: transparent;
+  box-shadow: none;
+}
+
 .map-section .maplibregl-ctrl-group button + button,
 .result-map .maplibregl-ctrl-group button + button {
   border-top: 1px solid var(--map-control-border);
@@ -173,6 +209,24 @@
   background-color: transparent;
 }
 
+/*
+ * Compact attrib chip uses overflow:hidden and pins the info button at left:0.
+ * MapLibre's outward focus glow gets clipped — keep the ring inside the icon.
+ */
+.map-section .maplibregl-ctrl-attrib-button:focus,
+.map-section .maplibregl-ctrl-attrib-button:focus:focus-visible,
+.result-map .maplibregl-ctrl-attrib-button:focus,
+.result-map .maplibregl-ctrl-attrib-button:focus:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.map-section .maplibregl-ctrl-attrib-button:focus:not(:focus-visible),
+.result-map .maplibregl-ctrl-attrib-button:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
 :root[data-theme="dark"] .map-section .maplibregl-ctrl-attrib-button,
 :root[data-theme="dark"] .result-map .maplibregl-ctrl-attrib-button {
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='%23f3f7f5' fill-rule='evenodd' viewBox='0 0 20 20'%3E%3Cpath d='M4 10a6 6 0 1 0 12 0 6 6 0 1 0-12 0m5-3a1 1 0 1 0 2 0 1 1 0 1 0-2 0m0 3a1 1 0 1 1 2 0v3a1 1 0 1 1-2 0'/%3E%3C/svg%3E");
@@ -197,4 +251,14 @@
 
 .result-map-popup-shell {
   z-index: 20;
+}
+
+@media (forced-colors: active) {
+  .map-section .maplibregl-ctrl-group button:focus:focus-visible,
+  .result-map .maplibregl-ctrl-group button:focus:focus-visible,
+  .map-section .maplibregl-ctrl-attrib-button:focus:focus-visible,
+  .result-map .maplibregl-ctrl-attrib-button:focus:focus-visible {
+    outline: 2px solid ButtonText;
+    outline-offset: -2px;
+  }
 }

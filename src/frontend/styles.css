@@ -389,6 +389,10 @@ td,
   box-shadow: var(--filter-panel-shadow);
 }
 
+.filter-panel > .panel-title-row {
+  flex: none;
+}
+
 .filter-panel-scroll,
 .filter-panel-footer {
   min-width: 0;
@@ -1923,7 +1927,11 @@ summary:focus-visible {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: visible;
+  /* Clip overlay chrome (2D/3D) to the map frame, including narrow widths. */
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--map-bg);
   isolation: isolate;
 }
 
@@ -1933,8 +1941,9 @@ summary:focus-visible {
   top: 10px;
   left: 10px;
   display: flex;
+  /* Keep intrinsic size; shell overflow:hidden may clip when the map is narrow. */
   width: max-content;
-  max-width: calc(100% - 20px);
+  max-width: none;
   justify-content: flex-start;
   pointer-events: none;
 }
@@ -1944,7 +1953,6 @@ summary:focus-visible {
   width: max-content;
   min-width: max-content;
   max-width: none;
-  overflow: visible;
   grid-template-columns: repeat(2, auto);
 }
 
@@ -2019,6 +2027,13 @@ summary:focus-visible {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   cursor: pointer;
+}
+
+/* Parent .map-mode-switch uses overflow:hidden for the glass pill. */
+.map-mode-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+  box-shadow: none !important;
 }
 
 .result-header-actions,
@@ -3389,8 +3404,8 @@ tbody tr:hover {
   width: 100%;
   max-width: 100%;
   height: clamp(360px, 42svh, 540px);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
+  border: 0;
+  border-radius: 0;
   overflow: hidden;
   background: var(--map-bg);
 }
@@ -3665,6 +3680,11 @@ tbody tr:hover {
   transform: translate3d(0, 0, 0);
 }
 
+/* Open sheet: peek may linger for chrome fade — never steal sheet gestures. */
+.result-slideover[data-open="true"] .result-slideover-peek {
+  pointer-events: none;
+}
+
 .result-slideover[data-open="false"] {
   /* Keep visible so the floating peek handle can hang outside the strip. */
   overflow: visible;
@@ -3722,9 +3742,11 @@ tbody tr:hover {
     box-shadow 150ms ease;
 }
 
-/* Invisible drag hit-area to the left of the strip (absolute, no layout cost). */
-.result-slideover-peek::after {
-  content: "";
+/*
+ * Invisible drag hit-area outside the strip. Must be a real element: overflowing
+ * ::after boxes are not hit-tested outside this transformed ancestor.
+ */
+.result-slideover-peek-hit {
   position: absolute;
   z-index: 2;
   top: 0;
@@ -3741,13 +3763,9 @@ tbody tr:hover {
   background: var(--canvas-soft);
 }
 
-.result-slideover-peek:focus {
-  outline: none;
-}
-
+.result-slideover-peek:focus,
 .result-slideover-peek:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -4px;
+  outline: none;
 }
 
 .result-slideover-peek-grip {
@@ -3771,12 +3789,12 @@ tbody tr:hover {
   transition:
     opacity 140ms ease,
     background 140ms ease,
+    border-color 140ms ease,
     box-shadow 140ms ease,
     height 140ms ease;
 }
 
 .result-slideover-peek:hover .result-slideover-peek-grip,
-.result-slideover-peek:focus-visible .result-slideover-peek-grip,
 .result-slideover[data-resizing="true"][data-open="false"] .result-slideover-peek-grip {
   opacity: 1;
   background: var(--canvas);
@@ -3785,6 +3803,18 @@ tbody tr:hover {
     0 8px 18px color-mix(in srgb, var(--ink) 16%, transparent),
     0 14px 28px color-mix(in srgb, var(--ink) 14%, transparent);
   height: 72px;
+}
+
+.result-slideover-peek:focus .result-slideover-peek-grip {
+  opacity: 1;
+  border-color: var(--focus-ring);
+  background: var(--canvas);
+  box-shadow:
+    0 0 0 3px var(--focus-ring-soft),
+    0 2px 4px color-mix(in srgb, var(--ink) 12%, transparent),
+    0 8px 18px color-mix(in srgb, var(--ink) 16%, transparent);
+  height: 72px;
+  transition: none;
 }
 
 .result-slideover-peek-label {
@@ -3851,12 +3881,12 @@ tbody tr:hover {
   transition:
     opacity 140ms ease,
     background 140ms ease,
+    border-color 140ms ease,
     box-shadow 140ms ease,
     height 140ms ease;
 }
 
 .result-slideover-resize:hover::after,
-.result-slideover-resize:focus-visible::after,
 .result-slideover[data-resizing="true"] .result-slideover-resize::after {
   opacity: 1;
   background: var(--canvas);
@@ -3865,18 +3895,26 @@ tbody tr:hover {
     0 10px 22px color-mix(in srgb, var(--ink) 20%, transparent);
 }
 
-.result-slideover-resize:focus {
+.result-slideover-resize:focus,
+.result-slideover-resize:focus-visible {
   outline: none;
 }
 
-.result-slideover-resize:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -4px;
+/* Focus the pill grip — not the full hit strip. */
+.result-slideover-resize:focus::after {
+  opacity: 1;
+  border-color: var(--focus-ring);
+  background: var(--canvas);
+  box-shadow:
+    0 0 0 3px var(--focus-ring-soft),
+    0 2px 4px color-mix(in srgb, var(--ink) 12%, transparent),
+    0 10px 22px color-mix(in srgb, var(--ink) 20%, transparent);
+  transition: none;
 }
 
 @media (min-width: 821px) {
   .result-slideover-resize:hover::after,
-  .result-slideover-resize:focus-visible::after,
+  .result-slideover-resize:focus::after,
   .result-slideover[data-resizing="true"] .result-slideover-resize::after {
     height: 72px;
   }
@@ -3973,6 +4011,8 @@ tbody tr:hover {
 }
 
 .result-slideover .result-header-actions {
+  position: relative;
+  z-index: 4;
   flex: none;
   margin-left: auto;
   gap: 6px;
@@ -4219,13 +4259,12 @@ tbody tr:hover {
   }
 
   /* Invisible drag hit-area above the strip (absolute, no layout cost). */
-  .result-slideover-peek::after {
-    content: "";
-    position: absolute;
-    z-index: 2;
+  .result-slideover-peek-hit {
+    top: -18px;
+    bottom: auto;
     left: 0;
     right: 0;
-    top: -18px;
+    width: auto;
     height: 18px;
   }
 
@@ -4239,12 +4278,13 @@ tbody tr:hover {
     transition:
       opacity 140ms ease,
       background 140ms ease,
+      border-color 140ms ease,
       box-shadow 140ms ease,
       width 140ms ease;
   }
 
   .result-slideover-peek:hover .result-slideover-peek-grip,
-  .result-slideover-peek:focus-visible .result-slideover-peek-grip,
+  .result-slideover-peek:focus .result-slideover-peek-grip,
   .result-slideover[data-resizing="true"][data-open="false"] .result-slideover-peek-grip {
     width: 72px;
     height: 5px;
@@ -4261,13 +4301,19 @@ tbody tr:hover {
     line-height: 18px;
   }
 
+  /*
+   * Grip paints above the sheet; the hit box is a real element that starts
+   * outside and continues over the title chrome so both drag/tap. (Overflowing
+   * ::after-only hit areas miss touch outside this transformed ancestor.)
+   */
   .result-slideover-resize {
     top: -18px;
     bottom: auto;
     left: 0;
     right: 0;
     width: 100%;
-    height: 28px;
+    /* 18px above the sheet + title/subtitle strip below the top edge. */
+    height: 74px;
     cursor: ns-resize;
   }
 
@@ -4280,13 +4326,14 @@ tbody tr:hover {
     transition:
       opacity 140ms ease,
       background 140ms ease,
+      border-color 140ms ease,
       box-shadow 140ms ease,
       width 140ms ease;
   }
 
   .result-slideover-resize:hover::after,
-  .result-slideover-resize:focus-visible::after,
-  .result-slideover[data-resizing="true"] .result-slideover-resize::after {
+  .result-slideover[data-resizing="true"] .result-slideover-resize::after,
+  .result-slideover-resize:focus::after {
     width: 72px;
     height: 5px;
   }
@@ -5333,6 +5380,7 @@ tbody tr:hover {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Overlay only — must not reserve body padding. */
     height: 20px;
     padding: 0;
     border: 0;
@@ -5366,7 +5414,7 @@ tbody tr:hover {
 
   .app-shell.map-immersive .probe-drawer-close {
     position: absolute;
-    z-index: 1;
+    z-index: 3;
     top: 12px;
     right: 16px;
     display: inline-flex;
@@ -5375,6 +5423,22 @@ tbody tr:hover {
     width: 28px;
     height: 28px;
     padding: 0;
+  }
+
+  .app-shell.map-immersive .probe-drawer .probe-table-filter-button {
+    position: relative;
+    z-index: 3;
+  }
+
+  /*
+   * Drawer uses overflow:hidden for radius; outer focus rings on header
+   * controls get clipped at the top edge / corner. Keep the ring inside.
+   */
+  .app-shell.map-immersive .probe-drawer .probe-table-filter-button:focus-visible,
+  .app-shell.map-immersive .probe-drawer .probe-drawer-close:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+    box-shadow: none;
   }
 
   .app-shell.map-immersive .probe-drawer .probe-table-section {
@@ -5890,5 +5954,13 @@ tbody tr:hover {
 
   .result-map-globe {
     height: clamp(300px, 68svh, 420px);
+  }
+}
+
+@media (forced-colors: active) {
+  .result-slideover-peek:focus-visible .result-slideover-peek-grip,
+  .result-slideover-resize:focus-visible::after {
+    outline: 2px solid ButtonText;
+    outline-offset: 2px;
   }
 }

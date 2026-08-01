@@ -569,6 +569,34 @@ for (const viewport of [
     const endX = viewport.name === "desktop" ? startX - 90 : startX;
     const endY = viewport.name === "mobile" ? startY - 90 : startY;
 
+    if (viewport.name === "mobile") {
+      await peek.evaluate((node) => {
+        node.addEventListener(
+          "pointerdown",
+          (event) => {
+            (node as HTMLElement).dataset.overflowPointerId = String(event.pointerId);
+          },
+          { once: true },
+        );
+      });
+      const overflowY = peekBox.y - 9;
+      await page.mouse.move(startX, overflowY);
+      await page.mouse.down();
+      const overflowPointerIdValue = await peek.getAttribute("data-overflow-pointer-id");
+      expect(overflowPointerIdValue).not.toBeNull();
+      const overflowPointerId = Number(overflowPointerIdValue);
+      await peek.dispatchEvent("pointercancel", {
+        bubbles: true,
+        clientX: startX,
+        clientY: overflowY,
+        pointerId: overflowPointerId,
+        pointerType: "mouse",
+      });
+      await page.mouse.up();
+      await expect(slideover).toHaveAttribute("data-open", "false");
+      await expect(slideover).toHaveAttribute("data-resizing", "false");
+    }
+
     await peek.evaluate((node) => {
       node.addEventListener(
         "pointerdown",
@@ -613,6 +641,27 @@ for (const viewport of [
     await page.mouse.move(dragEndX, dragEndY, { steps: 4 });
     await page.mouse.up();
     await expect(slideover).toHaveAttribute("data-open", "true");
+    if (viewport.name === "mobile") {
+      await slideover.evaluate(async (node) => {
+        await Promise.all(
+          node.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+        );
+      });
+      const panel = slideover.locator(".result-slideover-panel");
+      const handle = slideover.getByRole("separator", {
+        name: "拖拽调整结果面板高度",
+      });
+      const panelBox = await panel.boundingBox();
+      const handleBox = await handle.boundingBox();
+      if (!panelBox || !handleBox) throw new Error("mobile result resize handle is not visible");
+      const overflowY = panelBox.y - 9;
+      expect(overflowY).toBeGreaterThan(handleBox.y);
+      expect(overflowY).toBeLessThan(handleBox.y + handleBox.height);
+      await page.mouse.move(handleBox.x + handleBox.width / 2, overflowY);
+      await page.mouse.down();
+      await page.mouse.up();
+      await expect(slideover).toHaveAttribute("data-open", "false");
+    }
     expect(consoleErrors).toEqual([]);
   });
 }
@@ -624,25 +673,81 @@ test("result sheet exposes keyboard focus and resizes its live map after draggin
   const consoleErrors = collectConsoleErrors(page);
   await installMocks(page);
   await page.goto("/");
+  await page.emulateMedia({ forcedColors: "active" });
+  for (const control of [
+    page.locator(".map-section .maplibregl-ctrl-group button").first(),
+    page.locator(".map-section .maplibregl-ctrl-attrib-button").first(),
+  ]) {
+    await expect(control).toBeVisible();
+    await control.focus();
+    expect(await control.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
+    expect(
+      await control.evaluate((node) => {
+        const style = getComputedStyle(node);
+        return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+      }),
+    ).toEqual({ outlineStyle: "solid", outlineWidth: "2px" });
+  }
+  await page.emulateMedia({ forcedColors: "none" });
   await page.getByRole("button", { name: "开始网络路径诊断" }).click();
   await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
   await page.getByRole("button", { name: "关闭结果" }).click();
 
   const slideover = page.locator(".result-slideover");
   const peek = page.getByRole("button", { name: "查看结果" });
+  const idlePeekGripShadow = await peek.evaluate((node) => {
+    const grip = node.querySelector(".result-slideover-peek-grip");
+    return grip instanceof HTMLElement ? getComputedStyle(grip).boxShadow : null;
+  });
   await page.keyboard.press("Tab");
   await peek.focus();
   await expect(peek).toBeFocused();
   expect(await peek.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
-  expect(await peek.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe("none");
+  expect(await peek.evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("none");
+  const focusedPeekGrip = await peek.evaluate((node) => {
+    const grip = node.querySelector(".result-slideover-peek-grip");
+    if (!(grip instanceof HTMLElement)) return null;
+    const style = getComputedStyle(grip);
+    return { opacity: Number.parseFloat(style.opacity), shadow: style.boxShadow };
+  });
+  expect(focusedPeekGrip).not.toBeNull();
+  expect(focusedPeekGrip?.opacity).toBeGreaterThanOrEqual(0.99);
+  expect(focusedPeekGrip?.shadow).not.toBe(idlePeekGripShadow);
+  await page.emulateMedia({ forcedColors: "active" });
+  expect(
+    await peek.evaluate((node) => {
+      const grip = node.querySelector(".result-slideover-peek-grip");
+      if (!(grip instanceof HTMLElement)) return null;
+      const style = getComputedStyle(grip);
+      return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+    }),
+  ).toEqual({ outlineStyle: "solid", outlineWidth: "2px" });
+  await page.emulateMedia({ forcedColors: "none" });
   await peek.press("Enter");
   await expect(slideover).toHaveAttribute("data-open", "true");
 
   const handle = slideover.getByRole("separator", { name: "拖拽调整结果面板宽度" });
+  const idleHandleGripShadow = await handle.evaluate(
+    (node) => getComputedStyle(node, "::after").boxShadow,
+  );
   await handle.focus();
   await expect(handle).toBeFocused();
   expect(await handle.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
-  expect(await handle.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe("none");
+  expect(await handle.evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("none");
+  const focusedHandleGrip = await handle.evaluate((node) => {
+    const grip = getComputedStyle(node, "::after");
+    return { opacity: Number.parseFloat(grip.opacity), shadow: grip.boxShadow };
+  });
+  expect(focusedHandleGrip.opacity).toBeGreaterThanOrEqual(0.99);
+  expect(focusedHandleGrip.shadow).not.toBe(idleHandleGripShadow);
+  await page.emulateMedia({ forcedColors: "active" });
+  expect(
+    await handle.evaluate((node) => {
+      const grip = getComputedStyle(node, "::after");
+      return { outlineStyle: grip.outlineStyle, outlineWidth: grip.outlineWidth };
+    }),
+  ).toEqual({ outlineStyle: "solid", outlineWidth: "2px" });
+  await page.emulateMedia({ forcedColors: "none" });
 
   const panel = page.locator(".result-slideover-panel");
   const mapCanvas = page.locator(".result-map canvas.maplibregl-canvas");

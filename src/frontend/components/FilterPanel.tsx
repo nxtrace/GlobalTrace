@@ -173,57 +173,58 @@ export function FilterPanel(props: FilterPanelProps) {
   return (
     <Surface asChild className="filter-panel" aria-label="trace filters">
       <aside>
-        <div className="filter-panel-scroll">
-          <div className="panel-title-row">
-            <a
-              className="brand-home-link"
-              href="/"
-              onClick={(event) => handleSpaLinkClick(event, props.onNavigateHome)}
-              aria-label={messages.home}
+        {/* Outside the scrollport so focus rings are not clipped by overflow:auto. */}
+        <div className="panel-title-row">
+          <a
+            className="brand-home-link"
+            href="/"
+            onClick={(event) => handleSpaLinkClick(event, props.onNavigateHome)}
+            aria-label={messages.home}
+          >
+            <h1 className="brand-title" aria-label="GlobalTrace">
+              <span className="brand-title-lead">Global</span>
+              <span className="brand-title-mark">Trace</span>
+            </h1>
+            <p className="brand-subtitle">{messages.brandSubtitle}</p>
+          </a>
+          <div className="panel-title-actions">
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              className="panel-action-button"
+              onClick={switchLocale}
+              title={messages.switchLanguage}
+              aria-label={messages.switchLanguage}
             >
-              <h1 className="brand-title" aria-label="GlobalTrace">
-                <span className="brand-title-lead">Global</span>
-                <span className="brand-title-mark">Trace</span>
-              </h1>
-              <p className="brand-subtitle">{messages.brandSubtitle}</p>
-            </a>
-            <div className="panel-title-actions">
-              <Button
-                variant="ghost"
-                size="icon"
-                type="button"
-                className="panel-action-button"
-                onClick={switchLocale}
-                title={messages.switchLanguage}
-                aria-label={messages.switchLanguage}
-              >
-                <Languages size={18} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                type="button"
-                className="panel-action-button"
-                onClick={props.onCycleThemeMode}
-                title={messages.theme(themeModeLabel(props.themeMode))}
-                aria-label={messages.theme(themeModeLabel(props.themeMode))}
-              >
-                <ThemeIcon mode={props.themeMode} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                type="button"
-                className="panel-action-button"
-                onClick={openAdvancedParams}
-                title={messages.advancedParams}
-                aria-label={messages.openAdvancedParams}
-              >
-                <Settings size={18} />
-              </Button>
-            </div>
+              <Languages size={18} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              className="panel-action-button"
+              onClick={props.onCycleThemeMode}
+              title={messages.theme(themeModeLabel(props.themeMode))}
+              aria-label={messages.theme(themeModeLabel(props.themeMode))}
+            >
+              <ThemeIcon mode={props.themeMode} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              className="panel-action-button"
+              onClick={openAdvancedParams}
+              title={messages.advancedParams}
+              aria-label={messages.openAdvancedParams}
+            >
+              <Settings size={18} />
+            </Button>
           </div>
+        </div>
 
+        <div className="filter-panel-scroll">
           <section
             className="primary-controls"
             aria-label={messages.basicParams}

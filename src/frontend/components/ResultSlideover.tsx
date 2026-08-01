@@ -69,6 +69,7 @@ type ResizeSession = {
   startY: number;
   startWidth: number;
   startHeight: number;
+  maxPointerDelta: number;
 };
 
 type ExpandSession = {
@@ -77,6 +78,7 @@ type ExpandSession = {
   startY: number;
   delta: number;
   maxDelta: number;
+  maxPointerDelta: number;
   lastSampleAt: number;
   lastSampleDelta: number;
   velocity: number;
@@ -202,10 +204,17 @@ export function ResultSlideover({
   );
 
   const finishResize = useCallback((pointerId: number) => {
-    if (resizeRef.current?.pointerId !== pointerId) return;
+    const session = resizeRef.current;
+    if (!session || session.pointerId !== pointerId) return;
+    const maxPointerDelta = session.maxPointerDelta;
     resizeRef.current = null;
     setResizing(false);
     if (isMobile) {
+      // Tap the grab chrome (no meaningful move) collapses, matching the peek UX.
+      if (maxPointerDelta < OPEN_TAP_SLOP_PX) {
+        onClose();
+        return;
+      }
       const nextHeight = sizeRef.current.height;
       if (nextHeight < COLLAPSE_HEIGHT_PX) {
         // Do not restore size here — that flashes full height before slide-out.
@@ -359,6 +368,7 @@ export function ResultSlideover({
       startY: event.clientY,
       startWidth: width,
       startHeight: height,
+      maxPointerDelta: 0,
     };
     setResizing(true);
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -368,6 +378,10 @@ export function ResultSlideover({
   const moveResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = resizeRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    drag.maxPointerDelta = Math.max(
+      drag.maxPointerDelta,
+      Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY),
+    );
     if (isMobile) {
       const next = clampDragPanelHeight(drag.startHeight + (drag.startY - event.clientY));
       sizeRef.current = { ...sizeRef.current, height: next };
@@ -421,7 +435,7 @@ export function ResultSlideover({
     expandRef.current = null;
     setResizing(false);
     const committed = session.maxDelta >= OPEN_DRAG_THRESHOLD_PX;
-    const isTap = session.maxDelta < OPEN_TAP_SLOP_PX;
+    const isTap = session.maxPointerDelta < OPEN_TAP_SLOP_PX;
     if (committed) {
       const peek = isMobile ? MOBILE_PEEK_HEIGHT_PX : PEEK_SIZE_PX;
       const revealed = peek + session.delta;
@@ -494,6 +508,7 @@ export function ResultSlideover({
       startY: event.clientY,
       delta: 0,
       maxDelta: 0,
+      maxPointerDelta: 0,
       lastSampleAt: performance.now(),
       lastSampleDelta: 0,
       velocity: 0,
@@ -507,6 +522,10 @@ export function ResultSlideover({
   const moveExpand = (event: ReactPointerEvent<HTMLElement>) => {
     const session = expandRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
+    session.maxPointerDelta = Math.max(
+      session.maxPointerDelta,
+      Math.hypot(event.clientX - session.startX, event.clientY - session.startY),
+    );
     const delta = isMobile
       ? session.startY - event.clientY
       : session.startX - event.clientX;
@@ -585,6 +604,8 @@ export function ResultSlideover({
           onPointerCancel={(event) => abortExpand(event.pointerId)}
           onLostPointerCapture={(event) => abortExpand(event.pointerId)}
         >
+          {/* Real node: overflowing ::after is not hit-tested outside this transformed ancestor. */}
+          <span className="result-slideover-peek-hit" aria-hidden="true" />
           <span className="result-slideover-peek-grip" aria-hidden="true" />
           <span className="result-slideover-peek-label">{title}</span>
         </button>
