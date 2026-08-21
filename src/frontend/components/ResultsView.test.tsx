@@ -244,6 +244,7 @@ vi.mock("maplibre-gl", () => ({
   Marker: maplibreMock.FakeMarker,
   Popup: maplibreMock.FakePopup,
   AttributionControl: maplibreMock.FakeAttributionControl,
+  setWorkerUrl: vi.fn(),
 }));
 
 let consoleDebugSpy: ReturnType<typeof vi.spyOn>;

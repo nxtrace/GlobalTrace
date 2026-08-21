@@ -230,6 +230,7 @@ vi.mock("maplibre-gl", () => ({
   Map: maplibreMock.FakeMap,
   NavigationControl: maplibreMock.FakeNavigationControl,
   AttributionControl: maplibreMock.FakeAttributionControl,
+  setWorkerUrl: vi.fn(),
 }));
 
 afterEach(() => {

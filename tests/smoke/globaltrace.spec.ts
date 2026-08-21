@@ -725,6 +725,9 @@ test("result sheet exposes keyboard focus and resizes its live map after draggin
   await page.emulateMedia({ forcedColors: "none" });
   await peek.press("Enter");
   await expect(slideover).toHaveAttribute("data-open", "true");
+  await slideover.evaluate(async (node) => {
+    await Promise.all(node.getAnimations().map((animation) => animation.finished.catch(() => undefined)));
+  });
 
   const handle = slideover.getByRole("separator", { name: "拖拽调整结果面板宽度" });
   const idleHandleGripShadow = await handle.evaluate(
@@ -768,7 +771,7 @@ test("result sheet exposes keyboard focus and resizes its live map after draggin
       { once: true },
     );
   });
-  await handle.hover({ position: { x: handleBox.width - 2, y: handleBox.height / 2 } });
+  await page.mouse.move(startX, startY);
   await page.mouse.down();
   await page.mouse.move(startX - 80, startY, { steps: 4 });
   await expect(slideover).toHaveAttribute("data-resizing", "true");
@@ -790,7 +793,7 @@ test("result sheet exposes keyboard focus and resizes its live map after draggin
     .toBeCloseTo(initialPanelWidth, 0);
   await expect(slideover).toHaveAttribute("data-open", "true");
 
-  await handle.hover({ position: { x: handleBox.width - 2, y: handleBox.height / 2 } });
+  await page.mouse.move(startX, startY);
   await page.mouse.down();
   await expect(slideover).toHaveAttribute("data-resizing", "true");
   await page.mouse.move(startX - 80, startY, { steps: 4 });

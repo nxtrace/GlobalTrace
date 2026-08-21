@@ -1,4 +1,5 @@
-import maplibregl, { type ControlPosition, type Map as MapLibreMap } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { ControlPosition, Map as MapLibreMap } from "maplibre-gl";
 
 const COLLAPSED_LABEL = "OpenFreeMap";
 

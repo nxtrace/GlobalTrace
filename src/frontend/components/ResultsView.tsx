@@ -1,9 +1,11 @@
 import "./maplibre.css";
-import maplibregl, { type ExpressionSpecification, type GeoJSONSource } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource } from "maplibre-gl";
 import { Clock3, ExternalLink, Globe2, Map as MapIcon, Route, Share2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { FeatureCollection } from "geojson";
 import { MAX_TRACE_PACKETS, type TraceHop, type TraceProbeResult, type TraceResultResponse } from "../../shared/types";
+import "../lib/maplibreWorker";
 import {
   buildPacketFeatureCollection,
   buildResultMapData,

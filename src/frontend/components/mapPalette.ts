@@ -101,6 +101,7 @@ const DARK: PaletteColors = {
 const HIDDEN_LAYERS = new Set(["natural_earth"]);
 
 type PaintValues = Record<string, string | number>;
+type PaintPropertyName = Parameters<MapLibreMap["setPaintProperty"]>[1];
 
 interface PaletteRule {
   test: RegExp;
@@ -239,7 +240,7 @@ export function applyMapPalette(map: MapLibreMap, scheme: MapPaletteScheme = res
     const rule = rules.find((candidate) => candidate.type === layer.type && candidate.test.test(layer.id));
     if (!rule) continue;
     for (const [property, value] of Object.entries(rule.paint)) {
-      map.setPaintProperty(layer.id, property, value);
+      map.setPaintProperty(layer.id, property as PaintPropertyName, value);
     }
   }
 }
@@ -313,12 +314,12 @@ export function applyProbeMarkerPalette(
   if (!map.getLayer("probe-points")) return;
   const paint = probeMarkerPaint(scheme);
   for (const [property, value] of Object.entries(paint.glow)) {
-    map.setPaintProperty("probe-point-glow", property, value);
+    map.setPaintProperty("probe-point-glow", property as PaintPropertyName, value);
   }
   for (const [property, value] of Object.entries(paint.halo)) {
-    map.setPaintProperty("probe-selected-halo", property, value);
+    map.setPaintProperty("probe-selected-halo", property as PaintPropertyName, value);
   }
   for (const [property, value] of Object.entries(paint.point)) {
-    map.setPaintProperty("probe-points", property, value);
+    map.setPaintProperty("probe-points", property as PaintPropertyName, value);
   }
 }

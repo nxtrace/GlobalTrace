@@ -1,5 +1,6 @@
 import "./maplibre.css";
-import maplibregl, { type GeoJSONSource } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { GeoJSONSource } from "maplibre-gl";
 import { BoxSelect, Hand } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { FeatureCollection, Point } from "geojson";
@@ -13,6 +14,7 @@ import {
   subscribeMapPaletteScheme,
 } from "./mapPalette";
 import type { GlobalpingProbe } from "../../shared/types";
+import "../lib/maplibreWorker";
 import { ProbePicker } from "./probe-map/ProbePicker";
 import { useProbeBoxSelection } from "./probe-map/useProbeBoxSelection";
 import type { ProbeMapAsnSelection, ProbePickerGroup, ProbePickerState } from "./probe-map/types";
