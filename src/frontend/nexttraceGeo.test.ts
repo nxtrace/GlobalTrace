@@ -12,6 +12,14 @@ beforeEach(() => {
 });
 
 describe("browser NextTrace enrichment", () => {
+  it("stops all batches on a non-JSON 429", async () => {
+    const fetcher = vi.fn(async () => new Response("slow down", { status: 429 }));
+    const trace = sampleTrace(Array.from({ length: 32 }, (_, i) => hop(`8.8.0.${i}`)));
+    const enriched = await enrichTraceWithNexttraceToken(trace, "test-token", { fetcher });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(enriched.enrichment.status).toBe("partial");
+  });
+
   it("chunks public hop IPs at 16 and sends only browser-safe headers", async () => {
     const trace = sampleTrace(Array.from({ length: 65 }, (_, index) => hop(`8.8.8.${index + 1}`)));
     const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

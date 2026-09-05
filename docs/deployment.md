@@ -195,4 +195,10 @@ live smoke 会创建一个匿名 Globalping measurement，等待完成后用本�
 
 ## WAF rate limiting
 
-当前不维护自有 WAF rate limiting；诊断创建额度依赖 Globalping credits 和 limits。
+诊断创建额度依赖 Globalping credits 和 limits；共享地理信息补全另外使用 Workers Rate Limiting bindings：客户端 IP 为 10 次／60 秒，measurementId 为 1 次／60 秒，上游批量调用为每机房 120 次／60 秒（含重试）。完整结果缓存命中绕过入口计数，GeoIP 缓存命中不消耗上游批次额度。
+
+计数按 Cloudflare 机房分别维护且最终一致，不是严格全局预算。生产和独立预览 Worker 必须使用不同的 namespace_id；手动 fallback 配置需同步 `wrangler.private.example.jsonc` 的三个 binding。缺失或异常时停止新增共享调用，原始测量结果仍可显示。
+
+NextTrace 429 停止当前任务；5xx 或单次超时最多二分恢复一次。每个任务最多原始批次数加 2 次请求，绝对上限 42 次；单次网络请求 10 秒、整个 NextTrace 网络阶段 30 秒。部分结果不写入完整结果缓存。
+
+`nxtrace_enrichment` 日志提供调用次数、耗时和终止原因，`enrich_admission` 提供限流或设施异常原因。上线后检查拒绝率与增强失败；调整误伤阈值时保留重试预算。`smoke:live` 使用 Wrangler 的真实本地绑定模拟，不提供绕过限流的环境。

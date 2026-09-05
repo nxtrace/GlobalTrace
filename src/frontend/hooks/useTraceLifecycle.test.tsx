@@ -27,6 +27,11 @@ vi.mock("../nexttraceGeo", () => ({
 }));
 
 describe("useTraceLifecycle", () => {
+  it("localizes enrichment admission failures", () => {
+    expect(userFacingErrorMessage({ code: "ENRICH_RATE_LIMITED" }, "fallback")).toBe("地理信息请求频繁，请稍后重试");
+    expect(userFacingErrorMessage({ code: "ENRICH_UNAVAILABLE" }, "fallback")).toBe("地理信息暂不可用");
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();

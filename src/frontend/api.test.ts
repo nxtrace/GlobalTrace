@@ -14,6 +14,13 @@ afterEach(() => {
 });
 
 describe("frontend api helpers", () => {
+  it.each(["ENRICH_RATE_LIMITED", "ENRICH_UNAVAILABLE"])("preserves %s without retrying enrichment", async (code) => {
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: { message: "busy", code } }), { status: 429 }));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(enrichTrace("m123")).rejects.toMatchObject({ code });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it("fetches runtime config as JSON", async () => {
     vi.stubGlobal(
       "fetch",

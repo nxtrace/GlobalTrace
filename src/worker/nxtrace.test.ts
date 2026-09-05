@@ -37,6 +37,13 @@ class MemoryCache implements Cache {
 }
 
 describe("nxtrace enrichment", () => {
+  it("stops all batches on a non-JSON 429", async () => {
+    const fetcher = vi.fn(async () => new Response("slow down", { status: 429 }));
+    const enriched = await enrichTraceResponse(sampleTrace(32), { token: "test-token", fetcher });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(enriched.enrichment.status).toBe("partial");
+  });
+
   it("chunks nxtrace batch lookups at 16 unique public IPs and caches successful data", async () => {
     const cache = new MemoryCache();
     const trace = sampleTrace(65);
@@ -199,16 +206,19 @@ describe("nxtrace enrichment", () => {
     }) as unknown as typeof fetch;
 
     await enrichTraceResponse(trace, { apiBase: "https://nxtrace.test", token: "secret", cache, fetcher });
+    const beforeRequest = vi.fn(async () => { throw new Error("must not consume upstream quota"); });
     const cached = await enrichTraceResponse(trace, {
       apiBase: "https://nxtrace.test",
       token: "secret",
       cache,
       fetcher,
+      beforeRequest,
     });
 
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(cached.enrichment.cached).toBe(2);
     expect(cached.enrichment.fetched).toBe(0);
+    expect(beforeRequest).not.toHaveBeenCalled();
   });
 
   it("queues successful GeoIP cache writes with waitUntil", async () => {

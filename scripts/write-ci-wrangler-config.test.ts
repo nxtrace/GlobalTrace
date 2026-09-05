@@ -55,6 +55,7 @@ describe("write-ci-wrangler-config", () => {
       workers_dev?: boolean;
       routes?: Array<{ pattern?: string; custom_domain?: boolean }>;
       vars?: Record<string, string>;
+      ratelimits?: Array<{ name: string; namespace_id: string; simple: { limit: number; period: number } }>;
     };
     expect(config.account_id).toBe("account-id");
     expect(config.workers_dev).toBe(false);
@@ -65,6 +66,11 @@ describe("write-ci-wrangler-config", () => {
       NXTRACE_API_BASE: "https://api.nxtrace.org",
     });
     expect(JSON.stringify(config.vars)).not.toContain("NXTRACE_API_V4_TOKEN");
+    expect(config.ratelimits).toEqual([
+      { name: "ENRICH_CLIENT_LIMITER", namespace_id: "1601001", simple: { limit: 10, period: 60 } },
+      { name: "ENRICH_MEASUREMENT_LIMITER", namespace_id: "1601002", simple: { limit: 1, period: 60 } },
+      { name: "NXTRACE_UPSTREAM_LIMITER", namespace_id: "1601003", simple: { limit: 120, period: 60 } },
+    ]);
   });
 });
 

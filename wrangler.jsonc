@@ -21,6 +21,32 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  "ratelimits": [
+    {
+      "name": "ENRICH_CLIENT_LIMITER",
+      "namespace_id": "1601001",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    },
+    {
+      "name": "ENRICH_MEASUREMENT_LIMITER",
+      "namespace_id": "1601002",
+      "simple": {
+        "limit": 1,
+        "period": 60
+      }
+    },
+    {
+      "name": "NXTRACE_UPSTREAM_LIMITER",
+      "namespace_id": "1601003",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ],
   "vars": {
     "APP_ENV": "development",
     "GLOBALPING_API_BASE": "https://api.globalping.io",

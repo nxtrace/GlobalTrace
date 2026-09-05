@@ -5,6 +5,9 @@ export interface WorkerEnv {
   NXTRACE_API_BASE?: string;
   NXTRACE_API_V4_TOKEN?: string;
   MAP_STYLE_URL?: string;
+  ENRICH_CLIENT_LIMITER?: RateLimit;
+  ENRICH_MEASUREMENT_LIMITER?: RateLimit;
+  NXTRACE_UPSTREAM_LIMITER?: RateLimit;
 }
 
 export interface WorkerExecutionContext {

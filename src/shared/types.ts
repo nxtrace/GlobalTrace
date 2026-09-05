@@ -41,6 +41,7 @@ export interface TraceCreateResponse {
 export interface ApiErrorResponse {
   error: {
     message: string;
+    code?: "ENRICH_RATE_LIMITED" | "ENRICH_UNAVAILABLE";
     details?: unknown;
   };
 }

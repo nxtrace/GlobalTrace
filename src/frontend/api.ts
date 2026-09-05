@@ -1,4 +1,5 @@
 import type {
+  ApiErrorResponse,
   GlobalpingLimitResponse,
   ProbeListResponse,
   TraceCreateRequest,
@@ -136,7 +137,8 @@ async function apiJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   const body = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(errorMessageFromBody(body) || `HTTP ${response.status}`);
+    const code = (body as ApiErrorResponse | null)?.error?.code;
+    throw Object.assign(new Error(errorMessageFromBody(body) || `HTTP ${response.status}`), { code });
   }
   return body as T;
 }

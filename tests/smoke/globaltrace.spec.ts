@@ -1055,6 +1055,25 @@ test("saved NextTrace token sends browser batch request", async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test("rate-limited enrichment keeps the raw result visible without retrying", async ({ page }) => {
+  await installMocks(page);
+  let attempts = 0;
+  await page.route("**/api/trace/enrich", async (route) => {
+    attempts += 1;
+    await route.fulfill({
+      status: 429,
+      headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+      json: { error: { message: "busy", code: "ENRICH_RATE_LIMITED" } },
+    });
+  });
+  await page.goto("/?measurement=m-smoke");
+  await expect(page.getByText("finished · 1 probes · m-smoke")).toBeVisible();
+  await expect(page.getByText("地理信息请求频繁，请稍后重试")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "诊断结果", exact: true })).toBeVisible();
+  await expectVisibleHopText(page, "8.8.8.8");
+  expect(attempts).toBe(1);
+});
+
 test("token save defaults to session storage", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const consoleErrors = collectConsoleErrors(page);

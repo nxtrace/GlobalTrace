@@ -7,6 +7,9 @@ import { SECURITY_HEADERS } from "./http";
 const env: WorkerEnv = {
   ASSETS: { fetch: vi.fn() } as unknown as Fetcher,
   APP_ENV: "development",
+  ENRICH_CLIENT_LIMITER: { limit: async () => ({ success: true }) },
+  ENRICH_MEASUREMENT_LIMITER: { limit: async () => ({ success: true }) },
+  NXTRACE_UPSTREAM_LIMITER: { limit: async () => ({ success: true }) },
   GLOBALPING_API_BASE: "https://globalping.test",
   NXTRACE_API_BASE: "https://nxtrace.test",
 };
@@ -17,11 +20,52 @@ afterEach(() => {
 });
 
 describe("worker API", () => {
+  it.each([false, undefined])("rejects entry admission before Globalping when allowed=%s", async (allowed) => {
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    const response = await createApp().fetch(apiRequest("https://globaltrace.test/api/trace/enrich", {
+      method: "POST", body: JSON.stringify({ measurementId: "m123" }),
+    }), { ...env, ENRICH_CLIENT_LIMITER: allowed === undefined ? undefined : { limit: async () => ({ success: allowed }) } });
+    expect(response.status).toBe(allowed === undefined ? 503 : 429);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Retry-After")).toBe(allowed === undefined ? null : "60");
+    await expect(response.json()).resolves.toMatchObject({ error: { code: allowed === undefined ? "ENRICH_UNAVAILABLE" : "ENRICH_RATE_LIMITED" } });
+    expect(fetcher).not.toHaveBeenCalled();
+    expectSecurityHeaders(response.headers);
+  });
+
+  it("preserves raw results and passes Retry-After when upstream is throttled", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(json(finishedMeasurement("m-throttled")))
+      .mockResolvedValueOnce(new Response("slow down", { status: 429, headers: { "Retry-After": "90" } }));
+    vi.stubGlobal("fetch", fetcher);
+    const response = await createApp().fetch(apiRequest("https://globaltrace.test/api/trace/enrich", {
+      method: "POST", body: JSON.stringify({ measurementId: "m-throttled" }),
+    }), { ...env, NXTRACE_API_V4_TOKEN: "test-token" });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Retry-After")).toBe("90");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toMatchObject({ status: "finished", enrichment: { status: "partial" }, results: [{ hops: [{ ip: "8.8.8.8" }] }] });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns partial without reaching NextTrace when its binding denies a batch", async () => {
+    const fetcher = vi.fn(async () => json(finishedMeasurement("m-budget")));
+    vi.stubGlobal("fetch", fetcher);
+    const response = await createApp().fetch(apiRequest("https://globaltrace.test/api/trace/enrich", {
+      method: "POST", body: JSON.stringify({ measurementId: "m-budget" }),
+    }), { ...env, NXTRACE_API_V4_TOKEN: "test-token", NXTRACE_UPSTREAM_LIMITER: { limit: async () => ({ success: false }) } });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Retry-After")).toBe("60");
+    await expect(response.json()).resolves.toMatchObject({ enrichment: { status: "partial", fetched: 0 } });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
   it("returns runtime config defaults and env overrides", async () => {
     const app = createApp();
 
-    const defaults = await app.fetch(new Request("https://globaltrace.test/api/config"), env);
-    const configured = await app.fetch(new Request("https://globaltrace.test/api/config"), {
+    const defaults = await app.fetch(apiRequest("https://globaltrace.test/api/config"), env);
+    const configured = await app.fetch(apiRequest("https://globaltrace.test/api/config"), {
       ...env,
       MAP_STYLE_URL: "https://tiles.example.com/style.json",
     });
@@ -38,7 +82,7 @@ describe("worker API", () => {
   it("returns Bing background metadata with a same-origin image URL", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(bingBackgroundResponse())));
 
-    const response = await createApp().fetch(new Request("https://globaltrace.test/api/background"), env);
+    const response = await createApp().fetch(apiRequest("https://globaltrace.test/api/background"), env);
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -58,7 +102,7 @@ describe("worker API", () => {
       vi.fn().mockResolvedValue(json(bingBackgroundResponse({ url: "https://example.com/not-bing.jpg" }))),
     );
 
-    const response = await createApp().fetch(new Request("https://globaltrace.test/api/background"), env);
+    const response = await createApp().fetch(apiRequest("https://globaltrace.test/api/background"), env);
 
     expect(response.status).toBe(204);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
@@ -82,9 +126,9 @@ describe("worker API", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const first = await createApp().fetch(new Request("https://globaltrace.test/api/background/image"), env, ctx);
+    const first = await createApp().fetch(apiRequest("https://globaltrace.test/api/background/image"), env, ctx);
     await Promise.all(promises);
-    const second = await createApp().fetch(new Request("https://globaltrace.test/api/background/image"), env, ctx);
+    const second = await createApp().fetch(apiRequest("https://globaltrace.test/api/background/image"), env, ctx);
 
     expect(first.status).toBe(200);
     expect(first.headers.get("Content-Type")).toBe("image/jpeg");
@@ -99,7 +143,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: "{",
       }),
@@ -117,7 +161,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: "x".repeat(256_001),
       }),
@@ -141,7 +185,7 @@ describe("worker API", () => {
     });
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: stream,
         duplex: "half",
@@ -160,7 +204,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -184,7 +228,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -205,7 +249,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -226,7 +270,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -248,7 +292,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -268,7 +312,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -289,7 +333,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("http://127.0.0.1:8787/api/trace/enrich", {
+      apiRequest("http://127.0.0.1:8787/api/trace/enrich", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -310,7 +354,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -331,7 +375,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: JSON.stringify({}),
       }),
@@ -349,7 +393,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: "null",
       }),
@@ -367,7 +411,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: JSON.stringify({ measurementId: "bad/id" }),
       }),
@@ -387,7 +431,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: JSON.stringify({ measurementId: "m123" }),
       }),
@@ -416,7 +460,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: JSON.stringify({ measurementId: "m123" }),
       }),
@@ -448,14 +492,14 @@ describe("worker API", () => {
     const app = createApp();
 
     const rawOutputResponse = await app.fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: JSON.stringify({ measurementId: "m-raw" }),
       }),
       env,
     );
     const hopsResponse = await app.fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: JSON.stringify({ measurementId: "m-hops" }),
       }),
@@ -479,14 +523,14 @@ describe("worker API", () => {
     const app = createApp();
 
     const createResponse = await app.fetch(
-      new Request("https://globaltrace.test/api/trace", {
+      apiRequest("https://globaltrace.test/api/trace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target: "globalping.io" }),
       }),
       env,
     );
-    const limitsResponse = await app.fetch(new Request("https://globaltrace.test/api/limits"), env);
+    const limitsResponse = await app.fetch(apiRequest("https://globaltrace.test/api/limits"), env);
 
     expect(createResponse.status).toBe(404);
     expect(limitsResponse.status).toBe(404);
@@ -497,7 +541,7 @@ describe("worker API", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(inProgressMeasurement())));
     vi.stubGlobal("fetch", fetchMock);
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ measurementId: "m123" }),
@@ -523,12 +567,12 @@ describe("worker API", () => {
     const app = createApp();
     const execution = createExecutionContext();
 
-    const first = await app.fetch(new Request("https://globaltrace.test/api/probes"), env, execution.ctx);
+    const first = await app.fetch(apiRequest("https://globaltrace.test/api/probes"), env, execution.ctx);
     const firstBody = (await first.json()) as { fetchedAt: string; probes: unknown[] };
     await Promise.all(execution.promises);
-    const second = await app.fetch(new Request("https://globaltrace.test/api/probes"), env);
+    const second = await app.fetch(apiRequest("https://globaltrace.test/api/probes"), env);
     const secondBody = (await second.json()) as { fetchedAt: string; probes: unknown[] };
-    const head = await app.fetch(new Request("https://globaltrace.test/api/probes", { method: "HEAD" }), env);
+    const head = await app.fetch(apiRequest("https://globaltrace.test/api/probes", { method: "HEAD" }), env);
 
     expect(first.status).toBe(200);
     expect(first.headers.get("Cache-Control")).toBe("public, max-age=180");
@@ -550,7 +594,7 @@ describe("worker API", () => {
     vi.stubGlobal("caches", { default: { match: matchMock, put: vi.fn() } });
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await createApp().fetch(new Request("https://globaltrace.test/api/probes"), env);
+    const response = await createApp().fetch(apiRequest("https://globaltrace.test/api/probes"), env);
     const body = (await response.json()) as { fetchedAt: string; probes: unknown[] };
 
     expect(response.status).toBe(200);
@@ -577,7 +621,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ measurementId: "m-error" }),
@@ -596,7 +640,7 @@ describe("worker API", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await createApp().fetch(new Request("https://globaltrace.test/api/trace/m-miss"), env);
+    const response = await createApp().fetch(apiRequest("https://globaltrace.test/api/trace/m-miss"), env);
 
     expect(response.status).toBe(204);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -621,21 +665,21 @@ describe("worker API", () => {
     const envWithToken = { ...env, NXTRACE_API_V4_TOKEN: "secret" };
 
     const first = await app.fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ measurementId: "m-cache" }),
       }),
       envWithToken,
     );
-    const second = await app.fetch(new Request("https://globaltrace.test/api/trace/m-cache"), envWithToken);
+    const second = await app.fetch(apiRequest("https://globaltrace.test/api/trace/m-cache"), envWithToken);
     const third = await app.fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ measurementId: "m-cache" }),
       }),
-      envWithToken,
+      { ...envWithToken, ENRICH_CLIENT_LIMITER: undefined, ENRICH_MEASUREMENT_LIMITER: undefined, NXTRACE_UPSTREAM_LIMITER: undefined },
     );
     const cachedBody = (await second.json()) as { measurementId: string; enrichment: { fetched: number } };
     const postCachedBody = (await third.json()) as { measurementId: string; enrichment: { fetched: number } };
@@ -670,16 +714,16 @@ describe("worker API", () => {
     const envWithToken = { ...env, NXTRACE_API_V4_TOKEN: "secret" };
 
     const first = await app.fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ measurementId: "m-partial" }),
       }),
       envWithToken,
     );
-    const second = await app.fetch(new Request("https://globaltrace.test/api/trace/m-partial"), envWithToken);
+    const second = await app.fetch(apiRequest("https://globaltrace.test/api/trace/m-partial"), envWithToken);
     const third = await app.fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ measurementId: "m-partial" }),
@@ -702,7 +746,7 @@ describe("worker API", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: JSON.stringify({ measurementId: "missing" }),
       }),
@@ -728,7 +772,7 @@ describe("worker API", () => {
     forged.target = "evil.example";
 
     const response = await createApp().fetch(
-      new Request("https://globaltrace.test/api/trace/enrich", {
+      apiRequest("https://globaltrace.test/api/trace/enrich", {
         method: "POST",
         body: JSON.stringify({ measurementId: "m-trusted", measurement: forged }),
       }),
@@ -743,7 +787,7 @@ describe("worker API", () => {
 
   it("serves static assets outside API routes", async () => {
     const assetsFetch = vi.fn().mockResolvedValue(new Response("asset response"));
-    const request = new Request("https://globaltrace.test/");
+    const request = apiRequest("https://globaltrace.test/");
 
     const response = await handleRequest(request, {
       ...env,
@@ -880,4 +924,10 @@ function sampleProbe() {
     tags: ["eyeball-network"],
     resolvers: [],
   };
+}
+
+function apiRequest(input: RequestInfo | URL, init?: RequestInit): Request {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("CF-Connecting-IP")) headers.set("CF-Connecting-IP", "192.0.2.1");
+  return new Request(input, { ...init, headers });
 }

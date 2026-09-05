@@ -9,6 +9,7 @@ import type { WorkerEnv } from "./env";
 import { GlobalpingClient } from "./globalping";
 import { applySecurityHeaders, createJsonResponse, HttpError, jsonError, ValidationError } from "./http";
 import { enrichTraceResponse } from "./nxtrace";
+import { admitEnrichment, admitNxtraceRequest, EnrichmentAdmissionError } from "./enrichmentLimits";
 import { measurementToTraceResponse } from "./transform";
 
 type HonoEnv = {
@@ -135,15 +136,21 @@ export function createApp() {
       return c.json(cachedTrace);
     }
 
+    await admitEnrichment(c.req.raw, c.env, measurementId);
     const measurement = validateGlobalpingMeasurement(await client(c.env).getMeasurement(measurementId), measurementId);
     const trace = measurementToTraceResponse(measurement);
+    let retryAfter: string | undefined;
     const enriched = await enrichTraceResponse(trace, {
       apiBase: c.env.NXTRACE_API_BASE,
       token: c.env.NXTRACE_API_V4_TOKEN,
       cache: responseCache,
       waitUntil: (promise) => queueWaitUntil(c, promise),
+      signal: c.req.raw.signal,
+      beforeRequest: () => admitNxtraceRequest(c.env),
+      onRetryAfter: (value) => { retryAfter = value; },
     });
     const response = c.json(enriched);
+    if (retryAfter) response.headers.set("Retry-After", retryAfter);
     if (isCacheableTraceResponse(enriched)) {
       response.headers.set("Cache-Control", `public, max-age=${TRACE_RESPONSE_CACHE_TTL_SECONDS}`);
       await responseCache?.put(traceResponseCacheKey(measurementId), response.clone());
@@ -168,6 +175,12 @@ export function createApp() {
 
   app.notFound((c) => c.json(jsonError("not found"), 404));
   app.onError((error, _c) => {
+    if (error instanceof EnrichmentAdmissionError) {
+      return createJsonResponse({ error: { message: error.message, code: error.code } }, {
+        status: error.status,
+        headers: { "Cache-Control": "no-store", ...(error.status === 429 ? { "Retry-After": "60" } : {}) },
+      });
+    }
     const status = error instanceof HttpError ? error.status : 502;
     const details = error instanceof HttpError ? error.details : undefined;
     return createJsonResponse(jsonError(error.message, details), { status });

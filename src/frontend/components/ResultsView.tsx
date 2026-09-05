@@ -97,7 +97,7 @@ export function ResultsView({
         status: result.enrichment.status,
         cached: result.enrichment.cached,
         fetched: result.enrichment.fetched,
-        errors: result.enrichment.errors,
+        errorCount: result.enrichment.errors.length,
       },
     );
   }, [messages, result]);

@@ -273,7 +273,11 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export function userFacingErrorMessage(error: unknown, fallback: string, messages?: Pick<Messages, "invalidGlobalpingParams">): string {
+export function userFacingErrorMessage(error: unknown, fallback: string, messages?: Pick<Messages, "invalidGlobalpingParams" | "enrichmentRateLimited" | "enrichmentUnavailable">): string {
+  if (error && typeof error === "object" && "code" in error) {
+    if (error.code === "ENRICH_RATE_LIMITED") return messages?.enrichmentRateLimited ?? "地理信息请求频繁，请稍后重试";
+    if (error.code === "ENRICH_UNAVAILABLE") return messages?.enrichmentUnavailable ?? "地理信息暂不可用";
+  }
   const message = error instanceof Error ? error.message : fallback;
   if (/parameter validation failed/i.test(message)) {
     return messages?.invalidGlobalpingParams(message) ?? `Globalping 请求参数无效：${message} 请检查目标、筛选条件或高级参数。`;

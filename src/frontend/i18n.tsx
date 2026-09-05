@@ -70,6 +70,8 @@ export interface Messages {
   globalpingCreditsControl: string;
   initFailed: string;
   measurementLoadFailed: string;
+  enrichmentRateLimited: string;
+  enrichmentUnavailable: string;
   traceCreateFailed: string;
   addedProbe: (label: string, asn: string | number) => string;
   noBoxProbes: string;
@@ -224,6 +226,8 @@ const zhCN: Messages = {
   globalpingCreditsControl: "Globalping credits 控制诊断创建",
   initFailed: "初始化失败",
   measurementLoadFailed: "加载 measurement 失败",
+  enrichmentRateLimited: "地理信息请求频繁，请稍后重试",
+  enrichmentUnavailable: "地理信息暂不可用",
   traceCreateFailed: "创建 trace 失败",
   addedProbe: (label, asn) => `已添加 ${label} · AS${asn}`,
   noBoxProbes: "框选范围内没有可用 probe",
@@ -383,6 +387,8 @@ const enUS: Messages = {
   globalpingCreditsControl: "Globalping credits control diagnosis creation",
   initFailed: "Initialization failed",
   measurementLoadFailed: "Failed to load measurement",
+  enrichmentRateLimited: "Location requests are too frequent. Please try again later.",
+  enrichmentUnavailable: "Location information is temporarily unavailable.",
   traceCreateFailed: "Failed to create trace",
   addedProbe: (label, asn) => `Added ${label} · AS${asn}`,
   noBoxProbes: "No available probes in the selected area",
