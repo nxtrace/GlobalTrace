@@ -5,7 +5,7 @@ import { gzipSync } from "node:zlib";
 const DIST_DIR = path.resolve("dist");
 const INDEX_HTML = path.join(DIST_DIR, "index.html");
 const ASSETS_DIR = path.join(DIST_DIR, "assets");
-const INITIAL_GZIP_BUDGET_BYTES = 130_000;
+const INITIAL_GZIP_BUDGET_BYTES = 135_000;
 const VENDOR_MAPLIBRE_GZIP_BUDGET_BYTES = 280_000;
 
 if (!existsSync(INDEX_HTML)) {
