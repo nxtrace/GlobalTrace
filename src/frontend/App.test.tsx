@@ -727,10 +727,12 @@ describe("App", () => {
 
     expect(await screen.findByText("result:finished:m123")).toBeInTheDocument();
     expect(traceCreateBodies(fetchMock)).toHaveLength(1);
+    await waitFor(() => {
+      expect(nexttraceBatchBodies(fetchMock)).toEqual([
+        { ips: [FALLBACK_HOP_IP] },
+      ]);
+    });
     expect(traceEnrichBodies(fetchMock)).toHaveLength(0);
-    expect(nexttraceBatchBodies(fetchMock)).toEqual([
-      { ips: [FALLBACK_HOP_IP] },
-    ]);
     expect(nexttraceBatchCalls(fetchMock)[0]?.[1]?.headers).toEqual(
       expect.objectContaining({
         Accept: "application/json",

@@ -1,6 +1,5 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { createTrace, enrichTrace, fetchCachedTrace, fetchGlobalpingMeasurement } from "../api";
-import { enrichTraceWithNexttraceToken } from "../nexttraceGeo";
 import { normalizeMagicFiltersForProbes } from "../../shared/filters";
 import { measurementToTraceResponse } from "../../shared/transform";
 import { MAX_TRACE_PROBES, type GlobalpingProbe, type TraceFilters, type TraceProtocol, type TraceResultResponse } from "../../shared/types";
@@ -119,12 +118,16 @@ export function useTraceLifecycle({
       setLoading(false);
 
       try {
-        const enriched =
-          enrichmentMode === "worker"
-            ? await enrichTraceAfterGlobalpingCooldown(measurementId, controller.signal)
-            : await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, {
-                signal: controller.signal,
-              });
+        let enriched: TraceResultResponse;
+        if (enrichmentMode === "worker") {
+          enriched = await enrichTraceAfterGlobalpingCooldown(measurementId, controller.signal);
+        } else {
+          const { enrichTraceWithNexttraceToken } = await import("../nexttraceGeo");
+          if (controller.signal.aborted) return;
+          enriched = await enrichTraceWithNexttraceToken(current, nextEnrichmentToken, {
+            signal: controller.signal,
+          });
+        }
         if (controller.signal.aborted) return;
         setResult(enriched);
         setMessage("");

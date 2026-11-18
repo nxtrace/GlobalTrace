@@ -26,7 +26,6 @@ import {
   type MeasurementLoadingState,
   type WorkspaceMode,
 } from "./hooks/useTraceLifecycle";
-import { enrichTraceWithNexttraceToken } from "./nexttraceGeo";
 import {
   appendMagicFilters,
   removeMagicFilters,
@@ -554,7 +553,8 @@ export function App() {
     writeStoredNexttraceToken(trimmed, nexttraceTokenRemembered);
     if (trimmed && result?.status === "finished" && result.measurementId) {
       setLoading(true);
-      void enrichTraceWithNexttraceToken(result, trimmed)
+      void import("./nexttraceGeo")
+        .then(({ enrichTraceWithNexttraceToken }) => enrichTraceWithNexttraceToken(result, trimmed))
         .then((enriched) => {
           setResult(enriched);
           setMessage("");
